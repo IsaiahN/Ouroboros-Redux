@@ -14,6 +14,10 @@ rugged landscape, so each module stays independently constructed + swappable):
 NEVER ENCODE THE ANSWER: the transforms are GENERIC perceptual moves (identity + unit shifts); WHICH
 action causes WHICH transform is the game's secret, DISCOVERED by prediction error, never given.
 Nothing silent: every step narrates perceive/commit/learn.
+
+HARD BOUNDS live on the loop's MANDATORY paths (brick 8, bounds.py): perceive() admits every frame
+through the ResolutionBound (no downsampling), and reset() routes through the ResetGate (RESET is
+banned in active play unless a credit was EARNED by a completed level). Neither has an off-switch.
 """
 from __future__ import annotations
 from typing import Callable, Dict, List, Tuple, Optional
@@ -23,6 +27,7 @@ from .residual import ResidualBus, sense
 from .falsified_ledger import FalsifiedLedger
 from .two_streams import Pose
 from .marketplace import informative_salience
+from .bounds import ResetGate, ResolutionBound   # the hard bounds, enforced on the loop's mandatory paths
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -43,9 +48,30 @@ class AgentLoop:
         self.belief: Dict[Tuple[str, str], float] = {}     # (action, transform) -> learned confidence
         self.clock = 0
         self.log: List[str] = []
+        # HARD BOUNDS (bounds.py, constitutional -- no flag disables them; instantiated unconditionally):
+        self.reset_gate = ResetGate()                       # RESET banned in active play unless earned
+        self.res_bound = ResolutionBound()                  # the grid is never downsampled
+
+    # ---- HARD BOUNDS on the mandatory paths --------------------------------------------
+    def earn_progress(self, *, level_completed: bool, reason: str = "") -> bool:
+        """The ONLY way a reset credit is minted -- and only on a genuinely completed level, never a
+        mere attempt. (Brick 9's live gate calls this when levels_completed increments.)"""
+        ok = self.reset_gate.earn(level_completed=level_completed, reason=reason)
+        self.log.append("PROGRESS  level_completed=%s -> reset credit %s (%s)"
+                        % (level_completed, "minted" if ok else "denied", reason))
+        return ok
+
+    def reset(self, *, reason: str = "") -> None:
+        """A RESET routes THROUGH the gate: it raises ResetForbidden unless a credit was earned -- there
+        is no bypass. A permitted reset clears the BOARD state (a fresh tracker) but NEVER the learned
+        lineage (belief/pose/ledger) and NEVER the brake's PE-integral (the man dies, the lineage learns)."""
+        self.reset_gate.request_reset(reason=reason)        # raises ResetForbidden if unearned
+        self.tracker = ObjectTracker()                      # fresh board identities only
+        self.log.append("RESET  permitted+executed; board cleared, lineage+brake preserved (%s)" % reason)
 
     # ---- PERCEIVE ----------------------------------------------------------------------
     def perceive(self, frame: np.ndarray) -> Optional[Object]:
+        frame = self.res_bound.admit(frame)                 # HARD BOUND: no downsampling, on the mandatory path
         objs = self.tracker.update(segment(frame, background=self.bg))
         if not objs:
             return None
