@@ -220,8 +220,18 @@ class OnlineArcAdapter(_AM_MOD.ArcAdapter):
             _go = False
         if _go:
             g0 = self._grid(self._obs) if self._obs is not None else np.zeros((64, 64), dtype=int)
+            # RESET BAN [Isaiah]: a GAME_OVER restart back to level 0 is an EARNED privilege (reset_earned). Until then,
+            # GAME_OVER ends the session (done) WITHOUT resetting -- the agent does not get free re-attempts.
+            _earned_r = False
             try:
-                o = _retry_none(lambda: self.env.step(GameAction.RESET), tries=3, base=0.8)   # allowed: game-over confirmed
+                import objective_validator as _OVr2
+                _earned_r = bool((_OVr2._GLOBAL_KNOWLEDGE.get("patterns", {}) or {}).get("reset_earned"))
+            except Exception:
+                _earned_r = False
+            if not _earned_r:
+                return g0, 0.0, True, {"state": "GAME_OVER_NO_RESET"}
+            try:
+                o = _retry_none(lambda: self.env.step(GameAction.RESET), tries=3, base=0.8)   # earned game-over restart
                 if o is not None:
                     self._obs = o; self._lvl0 = getattr(o, "levels_completed", 0) or 0; self._n_reset += 1
                     return self._grid(o), 0.0, True, {"state": "GAME_OVER_RESET"}   # done: fresh session began
@@ -423,10 +433,16 @@ def _play_game_engine_legacy(arc, game_id, scorecard_id, logger, wall_cap_s=300,
                         game_id, levels, attempts)
             if time.time() >= ad.deadline - 2:
                 break
-            # RE-ATTEMPT (component 3): the game ended with PROGRESS. Reset -- re-enabled ONLY for this progress-seeking
-            # re-attempt (this is 'get deeper into the game', NOT the banned retry-the-same-level reset) -- and re-play.
-            # The per-game solution cache fast-replays the already-beaten levels, so this attempt reaches one deeper
-            # with budget to spare for the new frontier level.
+            # RE-ATTEMPT (component 3): the game ended with PROGRESS. RESET BAN [Isaiah]: even a progress-seeking
+            # re-attempt resets the game back to level 0, which is an EARNED privilege -- gated on the agent's own
+            # reset_earned (corroborated-L4 AND it reasoned its way to needing reset). Until earned, do NOT re-attempt.
+            _earned_ra = False
+            try:
+                _earned_ra = bool((OV._GLOBAL_KNOWLEDGE.get("patterns", {}) or {}).get("reset_earned"))
+            except Exception:
+                _earned_ra = False
+            if not _earned_ra:
+                break
             ad.resets_enabled = True
             g = ad.reset()
             ad.resets_enabled = False

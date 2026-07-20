@@ -137,22 +137,22 @@ class _QueueAdapter:
         # because an earlier gate let it fire whenever `_lvl == 0` (i.e. on the FIRST level -- where the whole game is
         # spent). That clause is the bug. The only safe conditions are game-start and GAME_OVER.
         _st = _state_name(self._obs) if self._obs is not None else ""
-        # The API requires a real RESET to START or RESTART a game: at game-start (no frame), after GAME_OVER, and in
-        # the NOT_STARTED / NOT_PLAYED state the API drops into after a death. All three are "not in active play" --
-        # nothing on the board to lose -- so the reset is legitimate there. It is the MID-PLAY reset (NOT_FINISHED
-        # with a live board) that is banned. Gating only on "GAME_OVER" was too narrow and stranded the game in
-        # NOT_STARTED after a death, unable to restart.
-        # EARNED-CAPABILITY gate: the mid-play ban lifts ONLY when the ladder gauge has set `reset_earned` --
-        # which requires corroborated-L4 (a composed primitive that held across a level) AND the agent
-        # reasoning its own way to needing reset. It is False until genuinely earned, so the ban stands exactly
-        # as before. This is the graduation bar wired to the measured signal, never a hardcoded condition.
+        # RESET BAN [Isaiah, extended]: a RESET is legitimate ONLY to START the game the first time (no frame yet /
+        # NOT_STARTED / NOT_PLAYED, before any level has been played) or once reset has been EARNED. The RESTART-after-
+        # GAME_OVER path is now BANNED too: reaching level 1 and then resetting back to level 0 DISCARDS the earned
+        # progress -- "nothing to lose" was wrong once the agent has cleared a level. So GAME_OVER no longer auto-resets;
+        # the session ends at GAME_OVER (one earned life -- see is_done) unless reset_earned. The MID-PLAY reset
+        # (NOT_FINISHED with a live board) stays banned as before.
+        # EARNED-CAPABILITY gate: the ban lifts ONLY when the ladder gauge has set `reset_earned` -- which requires
+        # corroborated-L4 (a composed primitive that held across a level) AND the agent reasoning its own way to needing
+        # reset. False until genuinely earned. This is the graduation bar wired to the measured signal, never hardcoded.
         _earned = False
         try:
             import objective_validator as _OVr
             _earned = bool((_OVr._GLOBAL_KNOWLEDGE.get("patterns", {}) or {}).get("reset_earned"))
         except Exception:
             _earned = False
-        _boundary = (self._obs is None or "GAME_OVER" in _st or "NOT_STARTED" in _st or "NOT_PLAYED" in _st or _earned)
+        _boundary = (self._obs is None or "NOT_STARTED" in _st or "NOT_PLAYED" in _st or _earned)
         if _boundary:
             g, _, _ = self._exchange(("__reset__",))         # start / restart only -- never mid-play (unless earned)
         # else active play -> NO-OP: keep the board and every cleared level, re-perceive from the current frame
@@ -375,4 +375,14 @@ class MyAgent(Agent):
         fd = lf if lf is not None else (frames[-1] if frames else None)
         if fd is not None and "WIN" in _state_name(fd):
             return True
+        # RESET BAN [Isaiah]: END the session at GAME_OVER (one earned life) rather than auto-restarting back to level 0.
+        # A restart is an EARNED privilege (reset_earned: corroborated-L4 AND reasoned its own way to needing it); until
+        # then GAME_OVER is terminal for the session, so the agent cannot farm free attempts by resetting the game to zero.
+        if fd is not None and "GAME_OVER" in _state_name(fd):
+            try:
+                import objective_validator as _OVr
+                if not bool((_OVr._GLOBAL_KNOWLEDGE.get("patterns", {}) or {}).get("reset_earned")):
+                    return True
+            except Exception:
+                return True
         return self._done                                 # composer exhausted -> advance cleanly

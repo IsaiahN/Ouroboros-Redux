@@ -571,6 +571,23 @@ class MyAgent(_v18.MyAgent):
         games defer to the composer's own WIN-or-exhausted signal; v18-routed games end on WIN, on a
         hopeless level (cheap-burn past the type ceiling), or at the finite per-game cap. Returning
         False forever is the classic hang."""
+        # RESET BAN [Isaiah] -- SINGLE CHOKEPOINT for BOTH routes. GAME_OVER ends the SESSION (one earned life); a
+        # restart back to level 0 discards earned progress and is an EARNED privilege (reset_earned: corroborated-L4
+        # AND the agent reasoned its own way to needing it). Returning True here makes play_game_submission break the
+        # loop at the game-over frame BEFORE choose_action, so neither the composer nor v18 can issue an unearned RESET.
+        _fd = lf if lf is not None else (frames[-1] if isinstance(frames, (list, tuple)) and frames else None)
+        if _fd is not None:
+            try:
+                _stnm = str(self._frame_state(_fd))
+            except Exception:
+                _stnm = str(getattr(_fd, "state", "") or "")
+            if "GAME_OVER" in _stnm or ("OVER" in _stnm and "NOT" not in _stnm):
+                try:
+                    import objective_validator as _OVr
+                    if not bool((_OVr._GLOBAL_KNOWLEDGE.get("patterns", {}) or {}).get("reset_earned")):
+                        return True
+                except Exception:
+                    return True
         if self._route == "composer" and self._composer is not None:
             try:
                 if self._composer.is_done(frames, lf): return True

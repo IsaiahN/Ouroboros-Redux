@@ -2992,9 +2992,24 @@ class MyAgent(Agent):
         # --- FRAMEWORK CONTRACT: the agent must RETURN GameAction.RESET to START the game
         # (first frame is NOT_PLAYED) and to RESTART after GAME_OVER. The offline harness
         # reset the env itself, which masked this; the real ARC-AGI-3 framework does not. ---
-        if "NOT_PLAYED" in state or "GAME_OVER" in state or "OVER" in state:
+        # RESET BAN [Isaiah]: NOT_PLAYED is game-START (a legitimate RESET to begin play). GAME_OVER/OVER is a RESTART
+        # back to level 0 -- it DISCARDS earned progress, so it is an EARNED privilege (reset_earned: corroborated-L4
+        # AND the agent reasoned its way to needing reset). Until earned, do NOT reset here; the session ends at
+        # GAME_OVER via _is_done_impl. (Defense-in-depth: the harness normally breaks before this on the game-over frame.)
+        if "NOT_PLAYED" in state:
             self._death_prev_sig = None; self._death_prev_act = None
             return GameAction.RESET
+        if "GAME_OVER" in state or "OVER" in state:
+            _earned_v = False
+            try:
+                import objective_validator as _OVv
+                _earned_v = bool((_OVv._GLOBAL_KNOWLEDGE.get("patterns", {}) or {}).get("reset_earned"))
+            except Exception:
+                _earned_v = False
+            self._death_prev_sig = None; self._death_prev_act = None
+            if _earned_v:
+                return GameAction.RESET
+            return GameAction.ACTION1                       # non-destructive; session ends at GAME_OVER via is_done
 
         # --- action-space awareness: restrict repertoire to engine-declared legal acts ---
         avail = self._avail_actions(fd)

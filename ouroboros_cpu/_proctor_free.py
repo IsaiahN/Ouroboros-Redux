@@ -65,17 +65,14 @@ while acts < CAP and time.time() < deadline:
     except Exception:
         pass
     if _terminal(o):
+        # RESET BAN [Isaiah]: this harness previously env.step(RESET)'d on every GAME_OVER, farming unearned restarts
+        # to level 0. That is banned. The session now ENDS at the first terminal (one earned life). To observe multiple
+        # attempts, run separate sessions via the run_online path (_proctor_batch.py), which keeps resets disabled.
         deaths += 1; gens += 1
-        o = OH._retry_none(lambda: env.step(GameAction.RESET), tries=3, base=0.8)
-        if o is None:
-            o = OH._retry_none(lambda: env.reset(), tries=3, base=0.8)
-        frames = [o] if o is not None else []
-        continue
+        break
     action = agent.choose_action(frames, o)
     if action is None:
-        o = OH._retry_none(lambda: env.step(GameAction.RESET), tries=2, base=0.8)
-        frames = [o] if o is not None else []
-        continue
+        break
     reasoning = getattr(action, "reasoning", None)
     step_data = None
     if getattr(action, "value", None) == 6:
