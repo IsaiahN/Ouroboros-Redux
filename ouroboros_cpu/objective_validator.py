@@ -6444,6 +6444,11 @@ def _avatar_solve(adapter, av, budget=260):
             _RF2.SHARED.hypothesis_ledger.bind_store(_GLOBAL_KNOWLEDGE.setdefault("hypotheses", {}))
             _RF2.SHARED.coherence.bind_store(_GLOBAL_KNOWLEDGE.setdefault("coherence", {}))
             _lp_lvl = getattr(getattr(adapter, "_obs", None), "levels_completed", 0) or 0
+            # _gid was referenced below (model-doubt key, coherence facts, cross-level consolidation) but NEVER bound in
+            # this function -> a NameError swallowed by the surrounding try/except that SILENTLY KILLED the whole SOLVE-
+            # phase cascade below, while observe() above still ran (so LP samples still pooled, hiding the dead cascade).
+            # Bind it here (same idiom as ~line 2439): the GAME, not the session instance -- game-scoped drive-memory.
+            _gid = str(getattr(adapter, "game_id", None) or getattr(adapter, "_game_id", None) or "unknown").split("-")[0]
             _lp_key = "%s:L%d:MATCH" % (_session_key(adapter), _lp_lvl)   # per-GAMEPLAY -> isolated, but not a game name
             _RF2.SHARED.learning_progress.observe(_lp_key, float(len(dif) + _surprise))
             _emit(adapter, _RF2.SHARED.learning_progress.narrate(_lp_key), once_key="progress_%d_%d" % (_lp_lvl, _round))
@@ -6475,6 +6480,19 @@ def _avatar_solve(adapter, av, budget=260):
                           _RF2.SHARED.mechanics_hypotheses.enumerate()), once_key="mechhyp_%d" % _lp_lvl)
             except Exception:
                 pass
+            # COLD-START PROTOCOL (Section 16): read the phase from signals we already have -- volatility (novelty),
+            # grad-PE (~0 = no traction), and the count of local rules (the discovered trigger-effect atoms). In BOOTSTRAP
+            # the objective is EPISTEMIC PLAY (coverage/surprise) and global coherence is GATED OFF; exit to SOLVE once
+            # enough local rules accrue. MUST run BEFORE the coherence compass below (which reads _coh_gated) -- computing
+            # it after was an UnboundLocalError that (inside the outer try/except) DECAPITATED the rest of this cascade.
+            _RF2.SHARED.cold_start.bind_store(_GLOBAL_KNOWLEDGE.setdefault("bootstrap", {}))
+            _vr = _RF2.SHARED.volatility.explore_ratio(_RF2.SHARED.learning_progress.hist.get(_lp_key, []))
+            _ps = _RF2.SHARED.learning_progress.slope(_lp_key)
+            _nrules = len(cmap)                                # existing discovered trigger->effect atoms = local rules
+            _phase = _RF2.SHARED.cold_start.phase(_vr, _ps, _nrules)
+            adapter._bootstrap_mode = (_phase == "bootstrap")  # exploration machinery reads this (epistemic-play bias)
+            _emit(adapter, _RF2.SHARED.cold_start.narrate(_phase, _vr, _ps, _nrules), once_key="bootstrap_%d_%d" % (_lp_lvl, _round // 3))
+            _coh_gated = _RF2.SHARED.cold_start.coherence_gated(_phase)
             # COHERENCE COMPASS (Section 15 #2), GATED by the cold-start phase (Section 16 Strategy 3): during BOOTSTRAP
             # global coherence is INERT BY DESIGN (only local consistency counts); it re-engages in SOLVE.
             if not _coh_gated:
@@ -6514,18 +6532,6 @@ def _avatar_solve(adapter, av, budget=260):
             _lp_v = _RF2.SHARED.learning_progress.verdict(_lp_key)
             _emit(adapter, _RF2.SHARED.volatility.narrate(_RF2.SHARED.learning_progress.hist.get(_lp_key, [])),
                   once_key="volatility_%d" % _lp_lvl)
-            # COLD-START PROTOCOL (Section 16): read the phase from signals we already have -- volatility (novelty),
-            # grad-PE (~0 = no traction), and the count of local rules (the discovered trigger-effect atoms). In BOOTSTRAP
-            # the objective is EPISTEMIC PLAY (coverage/surprise) and global coherence is GATED OFF; exit to SOLVE once
-            # enough local rules accrue.
-            _RF2.SHARED.cold_start.bind_store(_GLOBAL_KNOWLEDGE.setdefault("bootstrap", {}))
-            _vr = _RF2.SHARED.volatility.explore_ratio(_RF2.SHARED.learning_progress.hist.get(_lp_key, []))
-            _ps = _RF2.SHARED.learning_progress.slope(_lp_key)
-            _nrules = len(cmap)                                # existing discovered trigger->effect atoms = local rules
-            _phase = _RF2.SHARED.cold_start.phase(_vr, _ps, _nrules)
-            adapter._bootstrap_mode = (_phase == "bootstrap")  # exploration machinery reads this (epistemic-play bias)
-            _emit(adapter, _RF2.SHARED.cold_start.narrate(_phase, _vr, _ps, _nrules), once_key="bootstrap_%d_%d" % (_lp_lvl, _round // 3))
-            _coh_gated = _RF2.SHARED.cold_start.coherence_gated(_phase)
             if _lp_v["state"] == "learning":                   # GAP 2: closing on it -> persist harder
                 _emit(adapter, _RF2.SHARED.persistence.narrate(_lp_v, 6), once_key="persist_%d_%d" % (_lp_lvl, _round))
             elif _lp_v["state"] == "plateaued_high" and _spent[0] >= 8:   # flat+high -> principled pivot (with frame-doubt)
