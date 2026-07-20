@@ -8,6 +8,11 @@ impulse conflicts with this, this wins. It is the whole job stated so it cannot 
 > `docs/corpus/PROCTOR_MEMORY_original` are the map; this is the operating layer. On conflict, the map
 > wins. `PROCTOR_MEMORY_original §IV` holds the measured ls20 facts — read it before reasoning about
 > ls20 mechanics, so this proctor does not re-derive (or mis-derive) them.
+>
+> **`docs/corpus/THE_COGNITIVE_STANDARD` is the reasoning-audit map** — the periodic table of human
+> reasoning (Pearl's causal ladder, the core-knowledge priors, the biases, the epistemic states, the
+> scientific-method checks, the philosophical traps). Load it whenever diagnosing an agent REASONING
+> issue (see RULE 0.6 below), so a categorical error already codified in human cognition is never missed.
 
 ---
 
@@ -119,6 +124,43 @@ strip the phantoms.** Only after the perception is clean do detector / reasoning
 explanations get to be on the table. (Also: "self-CO-TRIGGERED N cells elsewhere" firing on every move
 is usually the agent misreading its OWN 5x5 body's displacement as external change — a self-perception
 tell, not a real environment coupling. Verify before believing the board is dynamic.)
+
+---
+
+## RULE 0.6 — AUDIT THE REASONING AGAINST HUMAN COGNITION (name the CLASS, not the obstacle) `[Isaiah, 20 July 2026]`
+
+Rule 0 renders the ground truth; the phantom guide clears perception. When the fault is NOT a phantom but a
+genuine REASONING gap, do not diagnose it as "the thing blocking this level." Run the agent's reasoning trace
+through **`docs/corpus/THE_COGNITIVE_STANDARD`** — the periodic table of human reasoning. Almost every reasoning
+failure is an instance of a primitive already codified there, and naming which one turns a one-off obstacle
+into a whole CLASS of problems fixed at once:
+
+- a **rung not climbed** — association ("budget rose when I stepped") labelled as causation, with no
+  intervention (do it again) or counterfactual (watch it when I'm NOT acting) test `[Pearl's ladder]`;
+- a **core-knowledge prior missing** — object cohesion/permanence, contact-causality, mediation, geometry/
+  topology `[Spelke / Chollet]`;
+- a **System-1 bias unguarded** — anchoring on the first datum, fluency (the simpler story feels truer), gaze
+  (crediting what I looked at), base-rate neglect, survivorship;
+- an **epistemic state absent** — no "suspend judgment" (a hard label where the honest state is *unknown /
+  hypothesis pending*), no defeasibility, Moore's paradox (acting as if P while holding no belief P);
+- a **trap** — Goodhart (the measure becomes the target — this is what LAW 0 #1 guards), underdetermination
+  (one theory picked where infinitely many fit — carry a *distribution*), map–territory (the label confused
+  with the object — the booster bug itself).
+
+**Name the class, then fix the class:** build the general capability ONCE (gated + A/B) and it repairs a branch
+of games, not the obstacle in front of you. **THE GATEKEEPER** is the enforcement the standard prescribes — a
+classification only hardens when it passes the stack: the intervention actually registered (effectiveness); the
+label is backed by an *executable mechanism* in the model, not words (syntax vs semantics); the evidence
+replicated (rung 2) and survived a no-contact control (rung 3); and the question is *identifiable* (some test
+can decide it — else stop and act under uncertainty). Otherwise it stays "insufficient evidence — hypothesis
+pending." A level is not "won" until its trace shows no missing rung/prior/operation — a win with a hidden gap
+just relocates the failure to the next game.
+
+The diagnosis order composes: **Rule 0** (is the observation real?) → **phantom check** (is the perception
+clean?) → **RULE 0.6 cognitive audit** (is a known reasoning primitive missing?) → **the abstraction method**
+(lift, name the contention, derive) → **THE TELL** (if the fix is a plan the agent could compute, stop). And
+LAW 0 #2/#3 still bind: give the agent the missing *capability*, never the answer — the gatekeeper is a
+reasoning faculty the agent runs itself, not a lookup we hardcode.
 
 ---
 
