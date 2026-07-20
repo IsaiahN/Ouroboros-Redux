@@ -193,6 +193,42 @@ The move, every time you catch the spiral:
 
 ---
 
+## RULE 0.8 (META) — WATCH THE BEHAVIOUR, ASK THE HIGH-LEVEL "WHY", COMPARE TO THE WIN `[Isaiah, 20 July 2026]`
+
+When the reasoning is NOT shaking out — the machinery is alive, the fixes landed, yet the agent still isn't
+solving — do NOT keep staring at emit logs or single frames. **RENDER THE AGENT'S BEHAVIOUR OVER TIME** (the
+replay animation of its actual movements) and compare it to what WINNING looks like (a solved replay, an earlier
+cleared level, or the trajectory a solve would trace). The log narrates what the agent *thinks* it is doing; the
+animation shows what it *actually* does, and the GAP between this trajectory and the winning one is the question
+generator. Ask the high-level "why" questions FIRST, before niching down:
+
+- **Why is the agent OSCILLATING** — repeating the same back-and-forth instead of progressing?
+- **Why is it NOT REMEMBERING** that it already tried exactly this in a past life / epoch / event?
+- **Why does it repeat a failed approach** instead of a different one?
+- **What does the WINNING trajectory do that this one doesn't?**
+
+Each question names a CLASS of impediment. The answer is almost always one of these — so hold the whole list up
+against the behaviour and see which fits:
+
+- a **BUG** — a crash / swallowed exception killing a phase (the SOLVE-cascade decapitation);
+- a **CONFLICT** — two subsystems fighting (the wall-AXIOM vetoing the pathfinder into the box);
+- an **OVERWRITE** — memory/state clobbered: a stale address, a wrong or colliding key, a one-shot label
+  overwriting a real discovery (the booster→inert clobber; a `_gid` that resolves to `unknown` so cross-life
+  memory can't distinguish attempts);
+- **BAD CODE / a HALF-MECHANISM** — observation opened but never consumed (model-doubt that *enumerates*
+  re-derivations and then only narrates them; LAW 0 #2);
+- a **MISSING COGNITION COMPONENT** — check `THE_COGNITIVE_STANDARD`: no memory-of-past-attempts, no
+  re-derivation (rung-2 intervention with no consumer), no counterfactual, no "suspend judgment";
+- **LOGIC BEING OVERRIDDEN** — a lower-priority reflex vetoing the reasoned move.
+
+The behaviour is the SYMPTOM; the high-level "why" names the CLASS; only then niche down to the LINE. "Why
+isn't it remembering it tried that?" is the highest-yield question for an oscillating agent — it points straight
+at persistence, key-collisions, overwrites, or a missing memory faculty, any of which makes the agent re-live
+the same failed epoch forever. This is Rule 0 raised to BEHAVIOUR-OVER-TIME: render the animation, compare to
+the win, ask why, name the class, find the bug / conflict / overwrite / half-mechanism / missing-piece / override.
+
+---
+
 ## THE METHOD THE LAW RUNS ON — ABSTRACT UP, THEN NICHE DOWN (and let the agent do the same)
 
 **When stuck, LIFT the problem to the altitude where its structure is visible** — name the two or
