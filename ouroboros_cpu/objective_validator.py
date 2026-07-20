@@ -4510,6 +4510,24 @@ def _avatar_solve(adapter, av, budget=260):
                     except Exception:
                         pass
                 _elsewhere = int((_chg & ~_bodymask).sum())   # frame changes not explained by my body's footprint
+                # REACTIVE DYNAMISM (wire invalidate() into the live path). decay()/invalidate() only ever fired in the
+                # legacy ouroboros_integrated brain, so the composer's map had NO way to reopen a wall a trigger opens:
+                # a cell it once measured BLOCKED stays BLOCKED forever, even after the frame shows it changed -- which
+                # can strand the agent behind a cycling gate (e.g. the row-39 cell that toggles colour 5<->9). Mirror
+                # the legacy pattern: a BOARD cell whose pixels changed AWAY from my own body footprint can no longer be
+                # trusted as a wall -> reopen it to UNKNOWN so the planner re-checks and the agent re-measures it. Uses
+                # the exact body footprint (not a distance heuristic) so my own motion never triggers a spurious reopen.
+                if _os.environ.get("OURO_SM_INVALIDATE", "1") == "1":
+                    try:
+                        _obs = _chg & ~_bodymask
+                        _obs[56:, :] = False                       # board only -- HUD budget/readout is not terrain
+                        if _obs.any():
+                            _q = max(1, int(round(quantum)))
+                            _inval = set((int(round(_rr / _q)), int(round(_cc / _q))) for _rr, _cc in np.argwhere(_obs))
+                            if _inval:
+                                _sm.invalidate(_inval)
+                    except Exception:
+                        pass
                 if _os.environ.get("OURO_PROP_DEBUG", "0") == "1" and _elsewhere > 12:
                     # RULE 0 instrumentation (temporary): does masking the FULL body colour-set (av_cols)
                     # collapse 'elsewhere'? If so, the co-trigger is the body's other colour leaking past the
