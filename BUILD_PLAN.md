@@ -42,4 +42,5 @@ accrues for free as the FMap dogfooding loop runs on real build problems.)
 - Brick 2 **full-res perception** (§9.2) — 9 tests. FMap → Simon near-decomposability (segmentation principle). Object permanence.
 - Brick 3 **typed grammar** (§9.1) — 7 tests. FMap → small_world_network. "Typing beats size" measured (64×–1024× < flat bag).
 - Brick 4 **the residual** (§8/§10/§11) — 9 tests. FMap dull (grounded in the map directly). Sense organ + un-suppressible PE-integral (brake invariant) + MDL mint test with the before-state tautology guard.
-- **Suite: 35/35.** Next: brick 5 the marketplace (§9.3, propose→vote→resolve priced by the residual; FMap: predictive_processing + goodharts_law guard).
+- Brick 5 **the marketplace** (§9.3/§7) — 7 tests. FMap → predictive_processing + goodharts_law GUARD. propose→vote→resolve; currency = the residual (informative accuracy); a trivial "nothing changes" hypothesis earns ZERO salience on a change frame (can't game the price); hallucinated change penalised.
+- **Suite: 42/42.** Next: brick 6 two-streams + pose + α (§9.2 — Stream A private residual history vs Stream B grammar, learnable α; falsifier: divergent encounter order ⇒ divergent α).
