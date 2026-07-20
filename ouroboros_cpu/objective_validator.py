@@ -6476,8 +6476,44 @@ def _avatar_solve(adapter, av, budget=260):
                 _RF2.SHARED.model_doubt.observe(_mkc, _resid, signature=getattr(adapter, "_committed_frame", "avatar"))
                 if _RF2.SHARED.model_doubt.is_structured(_mkc):
                     _emit(adapter, _RF2.SHARED.model_doubt.narrate(_mkc), once_key="modeldoubt_%d" % _lp_lvl)
-                    _emit(adapter, _RF2.SHARED.mechanics_hypotheses.narrate(
-                          _RF2.SHARED.mechanics_hypotheses.enumerate()), once_key="mechhyp_%d" % _lp_lvl)
+                    import os as _os_md
+                    if _os_md.environ.get("OURO_MODELDOUBT_CONSUME", "0") == "1":
+                        # CONSUME the doubt (Fix B; design: DESIGN_attempt_memory_and_rederivation.md). The residual is
+                        # persistent+systematic (is_structured), yet the grammar keeps short-circuiting ("reached a prior I
+                        # already hold, no new atom needed") and the agent RE-EXECUTES a failing plan (ls20 L1: reaches for
+                        # cycler 0/1/2, GRAMMAR 'no new atom needed', never registers a cycle-and-match). Finish the
+                        # half-mechanism: SELECT the next structural hypothesis (the agent's OWN falsifiability order over its
+                        # OWN templates) and INVALIDATE one implicated cmap atom so the probe RE-DERIVES it as unknown under
+                        # the new lens instead of reusing the cached effect. When every hypothesis is spent and the residual
+                        # persists -> the UNIDENTIFIABLE stop-condition (don't grind). LAW 0: no answer encoded -- I remove a
+                        # belief so the agent re-earns it; the hypotheses and their order are the agent's own.
+                        _mds = _GLOBAL_KNOWLEDGE.setdefault("model_doubt", {}).setdefault("_consume", {}).setdefault(
+                            _mkc, {"applied": [], "invalidated": 0})
+                        _hyps = _RF2.SHARED.mechanics_hypotheses.enumerate(_mds["applied"])
+                        if _hyps:
+                            _hn, _hd = _hyps[0]                     # first un-applied = the agent's most-falsifiable next lens
+                            _mds["applied"].append(_hn)
+                            _impl = [t for t, a in cmap.items() if isinstance(a, dict)
+                                     and a.get("effect") in ("shape", "orientation", "colour") and a.get("inst")]
+                            if _impl:
+                                _victim = min(_impl, key=lambda t: len(cmap[t].get("insts") or []))  # least-supported = most suspect
+                                cmap.pop(_victim, None); _mds["invalidated"] += 1
+                                _emit(adapter, "RE-DERIVE  model-doubt is structured+persistent and the mechanic keeps failing "
+                                      "to register -> adopt structural hypothesis '%s' (%s) and INVALIDATE the implicated cmap "
+                                      "atom %s so the probe RE-DERIVES it under the new lens, not reusing the cached effect  "
+                                      "[consuming the doubt, not re-executing]" % (_hn, _hd, str(_victim)),
+                                      once_key="rederive_%s_%d" % (_hn, _lp_lvl))
+                            else:
+                                _emit(adapter, "RE-DERIVE  model-doubt structured but no implicated cached atom to invalidate "
+                                      "-> adopt structural hypothesis '%s' (%s) as the framing for the next probe"
+                                      % (_hn, _hd), once_key="rederive_%s_%d" % (_hn, _lp_lvl))
+                        else:
+                            _emit(adapter, "UNIDENTIFIABLE  every structural hypothesis (%d) tried and the residual persists "
+                                  "-> the unidentifiable stop-condition: stop re-deriving and act under uncertainty (don't grind)"
+                                  % len(_mds["applied"]), once_key="unidentifiable_%d" % _lp_lvl)
+                    else:
+                        _emit(adapter, _RF2.SHARED.mechanics_hypotheses.narrate(
+                              _RF2.SHARED.mechanics_hypotheses.enumerate()), once_key="mechhyp_%d" % _lp_lvl)
             except Exception:
                 pass
             # COLD-START PROTOCOL (Section 16): read the phase from signals we already have -- volatility (novelty),
