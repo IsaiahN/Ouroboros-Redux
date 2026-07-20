@@ -4467,7 +4467,55 @@ def _avatar_solve(adapter, av, budget=260):
                     _disp = _qc.mean(0) - _pc.mean(0); _actual = float(abs(_disp[0]) + abs(_disp[1]))
                 else:
                     _actual = moved
-                _elsewhere = int((_chg & ~(_avpre | _avpost)).sum())   # frame changes not explained by my footprint
+                # FULL-BODY POSITIONAL FOOTPRINT. The avatar is a MULTI-COLOUR composite (a colour-12 band between
+                # colour-9 bands), but `avatar` names ONE colour, so the other-colour half of the body displaces every
+                # step and is miscounted as "my move CO-TRIGGERED N cells elsewhere" -- a self-perception phantom that
+                # was ~half of all L1 reasoning and inflated the world-model contradiction. Exclude the body's real
+                # POSITIONAL footprint: the connected non-terrain blob(s) that TOUCH the avatar colour, in both frames.
+                # Positional (not a colour mask) so a DISTANT same-colour object -- the key/lock, also colour 9 -- is a
+                # separate component and stays counted. Falls back to the single-colour mask until terrain is known
+                # (an unknown-terrain grow would swallow the whole board). Rule 0 confirmed (render): the 30 "elsewhere"
+                # cells sit AT the avatar (dist 0), colours toggling 3<->9 -> the body's colour-9 half, not a mechanic.
+                _bodymask = (_avpre | _avpost)
+                _terr = set(_learned.get("floor", set())) | set(_learned.get("wall", set())) | set(walls)
+                if _os.environ.get("OURO_SELF_FOOTPRINT", "1") == "1" and _terr:
+                    try:
+                        _board = np.zeros(_chg.shape, dtype=bool); _board[:56, :] = True
+                        for _gg in (_gpre, _gpost):
+                            _fg = _board & ~np.isin(_gg, list(_terr))
+                            _seed = _fg & (_gg == avatar)
+                            if _seed.any():
+                                _lab, _nn = label(_fg)
+                                _keep = [int(x) for x in np.unique(_lab[_seed]) if x]
+                                if _keep:
+                                    _bodymask = _bodymask | np.isin(_lab, _keep)
+                    except Exception:
+                        pass
+                _elsewhere = int((_chg & ~_bodymask).sum())   # frame changes not explained by my body's footprint
+                if _os.environ.get("OURO_PROP_DEBUG", "0") == "1" and _elsewhere > 12:
+                    # RULE 0 instrumentation (temporary): does masking the FULL body colour-set (av_cols)
+                    # collapse 'elsewhere'? If so, the co-trigger is the body's other colour leaking past the
+                    # single-colour mask -- a self-perception phantom, not a real mechanic.
+                    _avF = np.zeros_like(_chg)
+                    for _bc in av_cols:
+                        _avF |= (_gpre == _bc) | (_gpost == _bc)
+                    _else_full = int((_chg & ~_avF).sum())
+                    _elsecells = _chg & ~(_avpre | _avpost)
+                    _histpre = {}; _histpost = {}
+                    _pts = np.argwhere(_elsecells)
+                    for _rr, _cc in _pts:
+                        _histpre[int(_gpre[_rr, _cc])] = _histpre.get(int(_gpre[_rr, _cc]), 0) + 1
+                        _histpost[int(_gpost[_rr, _cc])] = _histpost.get(int(_gpost[_rr, _cc]), 0) + 1
+                    # spatial spread of the elsewhere cells + distance from the avatar centroid
+                    if len(_pts):
+                        _bb = (int(_pts[:, 0].min()), int(_pts[:, 0].max()), int(_pts[:, 1].min()), int(_pts[:, 1].max()))
+                        _acen = np.argwhere(_avpost); _ac = _acen.mean(0) if len(_acen) else np.array([-1, -1])
+                        _cen = _pts.mean(0)
+                        _dist = round(float(abs(_cen[0] - _ac[0]) + abs(_cen[1] - _ac[1])), 1)
+                    else:
+                        _bb = None; _dist = -1
+                    _emit(adapter, "PROP-DEBUG  else=%d  from(pre-colours)=%s  to(post-colours)=%s  bbox=%s  dist-from-avatar=%s"
+                          % (_elsewhere, _histpre, _histpost, _bb, _dist))
                 sr = (dy > 0) - (dy < 0); sc = (dx > 0) - (dx < 0)
                 r = int(round(ap0[0])) + sr * quantum; c = int(round(ap0[1])) + sc * quantum
                 if _actual >= 1.0:
