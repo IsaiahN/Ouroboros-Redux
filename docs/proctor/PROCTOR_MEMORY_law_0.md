@@ -164,6 +164,35 @@ reasoning faculty the agent runs itself, not a lookup we hardcode.
 
 ---
 
+## RULE 0.7 — THE SPIRAL TELL: WHEN YOU'RE GRINDING, ABSTRACT UP (never force a solve) `[Isaiah, 20 July 2026]`
+
+The signs you have lost altitude and are drifting toward FORCING a result: you are grinding single runs and
+treating each as a verdict; you catch yourself thinking *"this shouldn't be possible"* or *"that's impossible"*;
+you are niching further DOWN into one symptom (an emit count, a single metric, a diff hunk) instead of lifting
+UP; you are about to hack the pipeline so one number comes out right. **STOP. That grind IS the tell** — the same
+shape as THE TELL, turned on your own debugging: you are trying to force the outcome instead of removing the
+impediment and letting the agent reason.
+
+The move, every time you catch the spiral:
+
+1. **PAUSE and ABSTRACT UP** (the LAW 0 method below). Name, at altitude, the two or three things actually in
+   contention and the ONE controlled signal that decides between them. A single run is NEVER that signal —
+   reason from ≥2 (Rule 0), and beware variance: a noisy, agent-owned outcome like *"did L0 clear"* is bimodal,
+   so one run proves nothing and n=3-lucky proves little. Build the controlled comparison, then read it calmly.
+2. **RE-READ THE CORE DOCS** — the corpus, `THE_COGNITIVE_STANDARD`, this memory. When stuck this way, the
+   doctrine almost always already holds the frame you dropped. (The spiral itself is usually a codified error:
+   reasoning from n=1 is base-rate neglect + no suspension of judgment — both in `THE_COGNITIVE_STANDARD`. Audit
+   your OWN reasoning against the standard, not just the agent's.)
+3. **RETURN TO THE MISSION.** Remove the impediment in the agent's logic CATEGORICALLY, so the agent can reason
+   and DECIDE ON ITS OWN — then let the reasoning shake out. If the logic is right, the agent INDUCES the answer
+   itself. Your job is the SOUNDNESS of the capability, never the outcome. **Measuring the agent's own outcome
+   (did it clear the level, how many emits) as pass/fail on YOUR code is the category error that starts the
+   spiral** — measure the soundness of the reasoning you gave it, run gated + as a statistical A/B, and let the
+   agent own the solve. Forcing L0 to clear is solving the game; giving the agent a sound faculty and letting it
+   induce is the job.
+
+---
+
 ## THE METHOD THE LAW RUNS ON — ABSTRACT UP, THEN NICHE DOWN (and let the agent do the same)
 
 **When stuck, LIFT the problem to the altitude where its structure is visible** — name the two or

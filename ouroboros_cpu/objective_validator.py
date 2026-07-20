@@ -2595,7 +2595,7 @@ def _causal_status(h):
     return "supported" if n >= 2 else "conjectured"
 
 
-def _update_causal(adapter, tkey, reduced, changed, rc=None, region=None, kind=None, autonomous=False):
+def _update_causal(adapter, tkey, reduced, changed, rc=None, region=None):
     """Vet the causal hypothesis for object-type `tkey` against a fresh observation, WITH ANOMALY-DRIVEN REFINEMENT.
     Effect ranks reduce > change > inert. The core scientific move: a hypothesis 'all type-X do A' is REFUTED the moment
     one instance doesn't -- so when an instance's effect DISAGREES with the others of its type (a same-type button that
@@ -2603,36 +2603,14 @@ def _update_causal(adapter, tkey, reduced, changed, rc=None, region=None, kind=N
     as ground truth; the hypothesis is SPLIT from 'all do A' into 'some do A, others do B', discriminated by the effect
     REGION (position / what each affects). A split type is never collapsed or type-generalized again -- each instance is
     reasoned about on its own effect. This anomaly->investigate->refine procedure is general and persists in the causal
-    memory, because cause-and-effect can change level to level.
-
-    MOVER-REGIME UNIFICATION (`kind` != None): the same map + status ladder + anomaly-split now serve ACTION-1..4
-    object classification. `kind` is the richer sub-label a step-on produced -- 'budget'/'display.shape'/
-    'display.orient'/'display.colour'/'opens_route'/'none' -- carried in place of the coarse reduce/change/inert so
-    a booster and a display-cycler are DISTINCT causal classes (and split when same-type twins disagree). The click
-    path (kind=None) is unchanged. `autonomous=True` records the PASSIVE-OBSERVATION arm: the object changed on a
-    frame I did NOT contact it -> evidence it acts on its OWN, counter-evidence to 'my step caused it'."""
-    if kind is not None:
-        obs = kind if kind not in ("none", None) else "inert"
-        def _rk(x):
-            return 0 if x in ("inert", "none", None) else 1        # any real mover-effect outranks 'no effect'
-    else:
-        obs = "reduce" if reduced else ("change" if changed else "inert")
-        rank = {"reduce": 2, "change": 1, "inert": 0}
-        def _rk(x):
-            return rank[x]
+    memory, because cause-and-effect can change level to level."""
+    obs = "reduce" if reduced else ("change" if changed else "inert")
+    rank = {"reduce": 2, "change": 1, "inert": 0}
     m = _causal_map(adapter)
     h = m.get(tkey)
-    if h is not None and autonomous:
-        # PASSIVE-OBSERVATION datum: the object changed with NO contact from me this frame -> it is (at least partly)
-        # an autonomous actor, not purely my effect. Tallied as counter-evidence; not a contact trial.
-        h["n_autonomous"] = h.get("n_autonomous", 0) + 1
-        h["status"] = "split" if h.get("split") else _causal_status(h)
-        return h
     if h is None:
-        h = m[tkey] = {"effect": obs, "n_tested": 0, "n_effect": 0, "instances": {}, "regions": {},
-                       "split": False, "n_autonomous": 0}
+        h = m[tkey] = {"effect": obs, "n_tested": 0, "n_effect": 0, "instances": {}, "regions": {}, "split": False}
     h.setdefault("instances", {}); h.setdefault("regions", {}); h.setdefault("split", False)
-    h.setdefault("n_autonomous", 0)
     h["n_tested"] += 1
     if rc is not None:
         h["instances"][rc] = obs
@@ -2655,7 +2633,7 @@ def _update_causal(adapter, tkey, reduced, changed, rc=None, region=None, kind=N
                     sharpness=1.0, note="anomaly-split: same type, effect-regions diverge")
         if split:
             h["split"] = True                                  # 'some do A here, others do B there' -- keep distinct
-    if _rk(obs) > _rk(h["effect"]):                            # stronger effect than claimed -> re-anchor
+    if rank[obs] > rank[h["effect"]]:                          # stronger effect than claimed -> re-anchor
         h["effect"] = obs; h["n_effect"] = 1
     elif obs == h["effect"]:
         h["n_effect"] += 1                                     # agreement -> toward confirmed
@@ -6186,56 +6164,6 @@ def _avatar_solve(adapter, av, budget=260):
                 return p
         return max(1, len(set(seq)))
 
-    def _causal_note(_tt, _kind, _inst):
-        """UNIFIED CAUSAL CLASSIFICATION (gated OURO_CAUSAL_CLASSIFY). Route a mover-regime observation through the
-        SAME causal map + status ladder the click regime uses, so a ONE-SHOT label becomes a hypothesis that EARNS
-        its verdict by replication -- unknown -> conjectured (1) -> supported (2) -> confirmed (3+) -- and SPLITS on
-        same-type anomaly. Increment 1: records + narrates the earned status alongside the legacy cmap write; the
-        status begins to gate RE-PROBING (a conjectured type is re-probed to build confidence) but does not yet gate
-        planning (that + the passive-observation arm + graceful escalation are the next increment)."""
-        import os as _oc
-        if _oc.environ.get("OURO_CAUSAL_CLASSIFY", "0") != "1" or _tt is None or _inst is None:
-            return None
-        try:
-            _h = _update_causal(adapter, _tt, False, _kind not in ("none", None),
-                                rc=tuple(_inst), region=(int(_inst[0]), int(_inst[1])), kind=_kind)
-            if _tt in cmap and isinstance(cmap[_tt], dict):       # stamp the earned verdict onto the consumer record
-                cmap[_tt]["status"] = _h.get("status")
-                cmap[_tt]["n_effect"] = _h.get("n_effect"); cmap[_tt]["n_tested"] = _h.get("n_tested")
-                cmap[_tt]["n_autonomous"] = _h.get("n_autonomous", 0)
-            _emit(adapter, "CLASSIFY  type %s obs='%s' -> effect '%s' status=%s (agree %d/%d, autonomous=%d)  "
-                  "[a hypothesis EARNED by replication, not a one-shot label]"
-                  % (_tt, _kind, _h.get("effect"), _h.get("status"), _h.get("n_effect", 0),
-                     _h.get("n_tested", 0), _h.get("n_autonomous", 0)),
-                  once_key="classify_%s_%s_%s" % (str(_tt), _kind, _h.get("status")))
-            return _h
-        except Exception:
-            return None
-
-    def _causal_confident(_tt):
-        """Is type `_tt`'s effect trusted enough to ACT on? (Isaiah's call: 'supported' = n>=2.) When the causal
-        classifier is off, fall back to the legacy 'any effect present' so behaviour is unchanged."""
-        import os as _oc
-        if _oc.environ.get("OURO_CAUSAL_CLASSIFY", "0") != "1":
-            return bool(cmap.get(_tt, {}).get("effect"))
-        return cmap.get(_tt, {}).get("status") in ("supported", "confirmed", "split")
-
-    def _causal_recognised(_tt):
-        """Skip re-probing this KNOWN type? Gated off: legacy -- any known effect => recognised (skip). Gated on:
-        only skip once the verdict is EARNED (supported+); a still-CONJECTURED type (one observation) is re-probed
-        to reach 'supported' -- opportunistic (we are already characterising types this pass), Isaiah's call. An
-        inert/none verdict is treated as settled enough to skip (don't grind on a confirmed dud)."""
-        import os as _oc
-        if _oc.environ.get("OURO_CAUSAL_CLASSIFY", "0") != "1":
-            return True
-        _ef = cmap.get(_tt, {}).get("effect")
-        if _ef in (None, "inert"):
-            return True
-        # Re-probe ONLY a single-observation conjecture (chase it toward 'supported'). 'conditional' is already an
-        # earned, informative verdict (holds under SOME conditions -- e.g. a booster that pays only when charged);
-        # re-probing won't resolve it and would drain budget every life, so treat it as settled and skip.
-        return cmap.get(_tt, {}).get("status") != "conjectured"
-
     # ---- STEP 3+4: DISPLAYS + MODEL (confirm trigger->property->cycle->period) ----
     for d in _displays()[:3]:
         _emit(adapter, "PERCEIVE  property-display := glyph@%s  [KEY/LOCK: shape/orientation IS its state, not position]" % (d,))
@@ -6261,7 +6189,7 @@ def _avatar_solve(adapter, av, budget=260):
     for ttype, insts in cand.items():
         if _spent[0] >= budget:
             break
-        if ttype in cmap and cmap[ttype].get("effect") and _causal_recognised(ttype):   # KNOWN+EARNED -> transfer, don't re-probe
+        if ttype in cmap and cmap[ttype].get("effect"):        # KNOWN type -> transfer, do not re-probe (type-key)
             # THE CLASS TRANSFERS. THE ADDRESSES DO NOT.
             #
             # `insts` is the FRESH census of THIS board and it was sitting in the loop variable, unused, while the
@@ -6302,7 +6230,6 @@ def _avatar_solve(adapter, av, budget=260):
                           "now reachable. Prerequisite SOLVED -> the target is pursuable" % (ttype, _t[0], _t[1],
                           str(_blocked_targets.get(_t, "?"))))
                     cmap[ttype] = {"effect": "opens_route", "display": None, "cycle": [], "period": 0, "inst": insts[0]}
-                    _causal_note(ttype, "opens_route", insts[0])
                     _blocked_targets.pop(_t, None)
                     _goto(_t, reason="pursue now-reachable %s" % str(_blocked_targets.get(_t, "target")))
             if qb > pb + 4:                                    # BUDGET ROSE -- but WHY?
@@ -6335,7 +6262,6 @@ def _avatar_solve(adapter, av, budget=260):
                 # with no boosters while identical ones sat untouched on the board. Carry the whole class.
                 cmap[ttype] = {"effect": "budget", "display": None, "cycle": [], "period": 0, "gain": qb - pb,
                                "inst": insts[0], "insts": [tuple(i) for i in insts]}
-                _causal_note(ttype, "budget", insts[0])           # unconfounded budget rise -> earn a 'budget' verdict
                 _emit(adapter, "DISCOVER  STEP_ON(type %s) -> BUDGET+ (+%d units \u2248 +%.0f actions)  [a BOOSTER: a budget "
                       "resource to sequence into the plan]" % (ttype, qb - pb, _ba))
                 break
@@ -6385,11 +6311,9 @@ def _avatar_solve(adapter, av, budget=260):
             # Record inert as a positive verdict and mark the type characterised, so the gate skips it.
             cmap[ttype] = {"effect": "inert", "display": None, "cycle": [], "period": 0, "inst": insts[0],
                            "insts": [tuple(i) for i in insts]}
-            _causal_note(ttype, "none", insts[0])                 # 'no display change' is one observation, not a verdict
         if effect and seq:
             per = _period(seq)
             cmap[ttype] = {"effect": effect, "display": disp_pos, "cycle": seq, "period": per, "inst": insts[0]}
-            _causal_note(ttype, effect, insts[0])                 # display-cycle effect -> earn it across contacts
             _emit(adapter, "PERCEIVE  effect := %s of display@%s  [classified by property-diff]" % (effect.upper(), disp_pos))
             _emit(adapter, "CONFIRM  replicable := %d/%d contacts produced it  [a law, not an anecdote]" % (len(seq), len(seq)))
             if len(set(seq)) >= 2:
