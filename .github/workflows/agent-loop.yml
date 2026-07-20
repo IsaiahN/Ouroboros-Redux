@@ -1,0 +1,86 @@
+name: agent-loop
+
+# The clean unattended loop. The ARC key lives ONLY as the repository secret ARC_API_KEY; GitHub injects
+# it into the runner as an env var (masked in logs, never committed, never leaving the runner). The agent
+# runs where the key already is; the job commits back only its OUTPUTS (results/), which the proctor clones
+# and reasons over in a Cowork session. The key is never exfiltrated to the proctor -- by design.
+
+on:
+  schedule:
+    # every 6 hours. Adjust cadence here; GitHub cron is UTC.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "comma-separated game ids"
+        required: false
+        default: "ls20"
+      mode:
+        description: "free (cross-life depth) | sweep (one pass each)"
+        required: false
+        default: "free"
+      cap:
+        description: "actions cap per game"
+        required: false
+        default: "1500"
+      wall:
+        description: "wall-seconds cap per game"
+        required: false
+        default: "1200"
+
+# never run two loops at once -- cross-life memory + scorecards want a single writer
+concurrency:
+  group: agent-loop
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # so the job can commit results/ back; nothing more
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40   # must exceed wall (default 1200s = 20m) + bootstrap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bootstrap deps
+        run: bash bootstrap.sh
+
+      - name: Run agent
+        env:
+          # Injected env-only from the repo secret. Masked in logs. Never written to the tree.
+          ARC_API_KEY: ${{ secrets.ARC_API_KEY }}
+          OURO_GAMES: ${{ github.event.inputs.games || 'ls20' }}
+          OURO_MODE:  ${{ github.event.inputs.mode  || 'free' }}
+          OURO_CAP:   ${{ github.event.inputs.cap   || '1500' }}
+          OURO_WALL:  ${{ github.event.inputs.wall  || '1200' }}
+          OURO_RUN_TAG: ${{ github.run_number }}
+        run: |
+          if [ -z "${ARC_API_KEY}" ]; then
+            echo "::error::ARC_API_KEY secret is not set on this repo. Add it under Settings -> Secrets and variables -> Actions -> Secrets."
+            exit 1
+          fi
+          cd ouroboros_cpu
+          python3 ci_run.py
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name  "ouroboros-agent-loop"
+          git config user.email "agent-loop@users.noreply.github.com"
+          # results/ only; recordings and caches are gitignored
+          git add results/ 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "no results to commit"
+          else
+            git commit -m "agent-loop run #${{ github.run_number }} (${{ github.event.inputs.mode || 'free' }})"
+            # retry-safe push in case a prior run raced
+            git pull --rebase --autostash || true
+            git push
+          fi

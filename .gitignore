@@ -6,3 +6,8 @@ venv/
 .env
 *.zip
 *.bundle
+.pytest_cache/
+# results are the durable, reviewable output of the unattended loop -- always tracked,
+# even the .stream.log files, which the *.log rule above would otherwise exclude.
+!results/
+!results/**
