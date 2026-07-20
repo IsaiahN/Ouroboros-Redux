@@ -37,5 +37,9 @@ E.1 does not fail. We build on ground that held its own test. (Fuller problem→
 accrues for free as the FMap dogfooding loop runs on real build problems.)
 
 ## Log
-- **2026-07-20** — branch created (orphan). Falsified ledger built + tested (10/10). FMap loop
-  validated: reject-memory problem → adaptive_immune_system #1 (the map's own choice). Full control handed over.
+- **2026-07-20** — branch created (orphan). Full control handed over.
+- Brick 1 **falsified ledger** (§9.4) — 10 tests. FMap → adaptive_immune_system #1 (map's own choice); failure-mode audited.
+- Brick 2 **full-res perception** (§9.2) — 9 tests. FMap → Simon near-decomposability (segmentation principle). Object permanence.
+- Brick 3 **typed grammar** (§9.1) — 7 tests. FMap → small_world_network. "Typing beats size" measured (64×–1024× < flat bag).
+- Brick 4 **the residual** (§8/§10/§11) — 9 tests. FMap dull (grounded in the map directly). Sense organ + un-suppressible PE-integral (brake invariant) + MDL mint test with the before-state tautology guard.
+- **Suite: 35/35.** Next: brick 5 the marketplace (§9.3, propose→vote→resolve priced by the residual; FMap: predictive_processing + goodharts_law guard).
