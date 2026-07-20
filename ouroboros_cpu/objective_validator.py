@@ -2240,7 +2240,25 @@ def _spatial_mem(adapter, quantum=None, ttl=80):
         lvl = 0
     sm = store.get(lvl)
     if sm is None:
+        # NOTE (verified 20 Jul): in the LIVE composer path, neither SpatialMap.decay() nor .invalidate() is called
+        # (both fire only in the legacy ouroboros_integrated brain). So the map neither time-forgets nor reactively
+        # reopens -- it is a permanent accumulator, which suits ls20's maze (proven static: 2165/2172 walls in every
+        # L1 frame, IoU 1.0 across 36 lives; map is created ONCE per level and persists across deaths). OURO_SM_TTL
+        # is therefore currently INERT in this path (kept as a knob + record). The real dynamism-handling gap
+        # (invalidate unwired) is harmless on ls20 -- the only volatile cells are cycling trigger glyphs, not a gate --
+        # but is a roadmap item for games that DO open walls.
+        import os as _os
+        try:
+            ttl = int(_os.environ.get("OURO_SM_TTL", ttl))
+        except Exception:
+            pass
         sm = store[lvl] = SpatialMap(ttl=ttl)
+        if _os.environ.get("OURO_SM_DEBUG", "0") == "1":
+            try:
+                _emit(adapter, "SM-DEBUG  NEW SpatialMap created for level %d  (store now holds levels %s; adapter id %s)"
+                      % (lvl, sorted(store.keys()), id(adapter) % 100000))
+            except Exception:
+                pass
     if quantum:
         adapter._spatial_quantum = int(quantum)                # lets the other planner convert px <-> lattice
     return sm
