@@ -6681,6 +6681,34 @@ def _avatar_solve(adapter, av, budget=260):
         # cycler is tested before a far one: a walk I can afford proves more than one that costs a life.
         _rank = sorted(_cyclers, key=lambda _i: ((_path_cost((_i[0], _i[1])) is None),
                                                  (_path_cost((_i[0], _i[1])) if _path_cost((_i[0], _i[1])) is not None else 1e9)))
+        # ATTEMPT-OUTCOME MEMORY -- SECONDARY CONSUMPTION (RULE 0.8 fix A, the load-bearing half on the mover path). The L1
+        # re-live lock lives in the SOLVE regime, where the committed plan is a DETERMINISTIC function of (board, cmap): the
+        # reach-cost ranking of cyclers. Raising the explore RATIO (the primary consumption below) governs bootstrap-vs-solve
+        # UPSTREAM but never reaches this deterministic ranker, so it left the trajectory unchanged (matched A/B: explore-only
+        # consumption gave no robust Jaccard drop). Per the design, make the agent's OWN ranker outcome-aware: coarse cells it
+        # has committed-and-FAILED repeatedly (tries>=3, no progress) get DEPRIORITISED -- sorted AFTER untried ones -- so a
+        # genuinely-untried ordering gets a turn. Stable re-sort preserves reach-cost order among equals. LAW 0: this only
+        # pushes the agent's OWN known-failing choice later; it never names a target or promotes an answer. Gated identically.
+        import os as _os_rr
+        if _os_rr.environ.get("OURO_ATTEMPT_MEMORY", "0") == "1" and _rank:
+            try:
+                _amr = _GLOBAL_KNOWLEDGE.get("attempts", {}).get("%s:L%d" % (_gid, _lp_lvl), {})
+                _failw = {}
+                for _s, _r in _amr.items():
+                    if not isinstance(_r, dict):
+                        continue
+                    _tr = _r.get("tries", 0)
+                    if _tr >= 3:
+                        for _c in _s:                              # coarse cells of a repeatedly-failed committed plan
+                            _failw[_c] = _failw.get(_c, 0) + (_tr - 2)
+                if _failw:
+                    _rank = sorted(_rank, key=lambda _i: _failw.get((int(_i[0]) // 2, int(_i[1]) // 2), 0))
+                    _emit(adapter, "REORDER  the agent's own ranker is now outcome-aware: %d coarse cell(s) it committed-and-"
+                          "failed >=3x at L%d are pushed LATER so an untried ordering gets a turn (reach-cost order kept among "
+                          "equals) -- its own failure memory, no target chosen" % (len(_failw), _lp_lvl),
+                          once_key="reorder_%d_%d" % (_lp_lvl, sum(_failw.values())))
+            except Exception:
+                pass
         # ATTEMPT-OUTCOME MEMORY (RULE 0.8 fix A; design: DESIGN_attempt_memory_and_rederivation.md). The agent re-lived
         # the SAME failing plan every life (43 lives, occupancy Jaccard 0.94, died at one cell 36/43x) because it carries
         # the PLAN forward across lives but not the OUTCOME. Per the design the attempt SIGNATURE is target-ORDER + region:
@@ -6689,10 +6717,13 @@ def _avatar_solve(adapter, av, budget=260):
         # board, so committed positions are stable+meaningful within it. The type-map is EMPTY on the mover path (no typed
         # cyclers), which collapsed a type-only signature to all-None -> it counted lives, not plans; the coarse-instance
         # signature is non-degenerate and DECAYS when the agent commits a genuinely different plan. OUTCOME-GATE (design:
-        # made_progress): only count a repeat when the agent is NOT currently making progress on this level -- read its OWN
-        # learning-progress verdict; if the objective error is dropping ("learning") the agent is closing in, so DON'T
-        # punish a near-solve (design Risk: over-steer / throw away a near-solve). Tally per game:level (clearing the level
-        # moves to a new key). cold-start reads it (above) to raise the agent's OWN exploration. Gated OURO_ATTEMPT_MEMORY.
+        # made_progress): only count a repeat when the plan made NO progress. DURABLE progress = the running-best objective
+        # residual for this level IMPROVED since the last commit -- NOT the flickering within-life "learning" slope, which
+        # (diagnosed: 1 stable sig, max_tries stuck at 3 over ~11 lives) reset the counter on transient error dips and stopped
+        # the cross-life failure signal from EVER accumulating, so the ranker below never engaged. The running-best is
+        # monotone non-increasing over the run, so once the agent plateaus (never beats its best -> never clears L1) the
+        # failure count climbs every life and the ranker gets to diversify; a genuine improvement still resets it (don't
+        # punish a near-solve). Tally per game:level (clearing the level moves to a new key). Gated OURO_ATTEMPT_MEMORY.
         import os as _os_am
         if _os_am.environ.get("OURO_ATTEMPT_MEMORY", "0") == "1":
             try:
@@ -6700,16 +6731,21 @@ def _avatar_solve(adapter, av, budget=260):
                 _amem = _GLOBAL_KNOWLEDGE.setdefault("attempts", {}).setdefault("%s:L%d" % (_gid, _lp_lvl), {})
                 _amem["_last_sig"] = _sig
                 _rec = _amem.setdefault(_sig, {"tries": 0})
-                _vd = _RF2.SHARED.learning_progress.verdict(_lp_key)      # the agent's OWN progress read on this objective
-                _learning = (_vd.get("state") == "learning")             # error is dropping -> closing in -> not a dead repeat
-                if _learning:
-                    _rec["tries"] = 0                                    # progress resets the failure pressure for this plan
+                _hist = _RF2.SHARED.learning_progress.hist.get(_lp_key, [])
+                _cur_best = min(_hist) if _hist else None                 # best (lowest) objective error seen for this level
+                _prev_best = _amem.get("_best_resid")
+                _progressed = (_cur_best is not None and _prev_best is not None and _cur_best < _prev_best - 1e-9)
+                if _cur_best is not None and (_prev_best is None or _cur_best < _prev_best):
+                    _amem["_best_resid"] = _cur_best                     # record the new running-best
+                if _progressed:
+                    _rec["tries"] = 0                                    # durable improvement -> don't punish a near-solve
                 else:
-                    _rec["tries"] += 1                                   # same plan, no progress -> the failure is repeating
+                    _rec["tries"] += 1                                   # same plan, no durable progress -> failure repeating
                     if _rec["tries"] >= 3:
                         _emit(adapter, "ATTEMPT-MEMORY  this plan (%d committed targets, region-signed) re-committed %dx at "
-                              "L%d with NO progress (learning-verdict '%s') -> the same approach that failed before is "
-                              "failing again; flag for EXPLORE" % (len(_sig), _rec["tries"], _lp_lvl, _vd.get("state")),
+                              "L%d with NO durable progress (best objective residual %s not improved) -> the same approach "
+                              "that failed before is failing again; flag for EXPLORE"
+                              % (len(_sig), _rec["tries"], _lp_lvl, ("%.3f" % _cur_best) if _cur_best is not None else "n/a"),
                               once_key="attmem_%s_%d" % (str(_sig), _rec["tries"]))
             except Exception:
                 pass
