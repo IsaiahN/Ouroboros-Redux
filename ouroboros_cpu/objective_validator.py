@@ -6487,6 +6487,26 @@ def _avatar_solve(adapter, av, budget=260):
             # it after was an UnboundLocalError that (inside the outer try/except) DECAPITATED the rest of this cascade.
             _RF2.SHARED.cold_start.bind_store(_GLOBAL_KNOWLEDGE.setdefault("bootstrap", {}))
             _vr = _RF2.SHARED.volatility.explore_ratio(_RF2.SHARED.learning_progress.hist.get(_lp_key, []))
+            # ATTEMPT-MEMORY CONSUME (Fix A, gated OURO_ATTEMPT_MEMORY): if the SAME committed plan for THIS level
+            # (target-TYPE signature, recorded at the PLAN step below) has been re-tried without clearing the level,
+            # PROPORTIONALLY raise the agent's OWN explore ratio -- escalating with the repeat count, decaying naturally
+            # the moment the agent commits a different plan (a new _last_sig resets tries). This does NOT choose a move
+            # or encode an answer; it only turns up the agent's exploration pressure so its own reasoning breaks the loop.
+            import os as _os_amc
+            if _os_amc.environ.get("OURO_ATTEMPT_MEMORY", "0") == "1":
+                try:
+                    _amc = _GLOBAL_KNOWLEDGE.get("attempts", {}).get("%s:L%d" % (_gid, _lp_lvl), {})
+                    _lsc = _amc.get("_last_sig")
+                    _triesc = _amc.get(_lsc, {}).get("tries", 0) if _lsc is not None else 0
+                    if _triesc >= 3:
+                        _boostc = min(0.6, 0.12 * (_triesc - 2))
+                        _vr = min(1.0, _vr + _boostc)
+                        _emit(adapter, "EXPLORE-PRESSURE  the last committed plan at L%d has repeated %dx with no clear -> "
+                              "raising explore ratio by +%.2f (now %.2f) so a DIFFERENT plan gets a turn; decays when the "
+                              "agent commits something new" % (_lp_lvl, _triesc, _boostc, _vr),
+                              once_key="explpress_%d_%d" % (_lp_lvl, _triesc))
+                except Exception:
+                    pass
             _ps = _RF2.SHARED.learning_progress.slope(_lp_key)
             _nrules = len(cmap)                                # existing discovered trigger->effect atoms = local rules
             _phase = _RF2.SHARED.cold_start.phase(_vr, _ps, _nrules)
@@ -6661,6 +6681,38 @@ def _avatar_solve(adapter, av, budget=260):
         # cycler is tested before a far one: a walk I can afford proves more than one that costs a life.
         _rank = sorted(_cyclers, key=lambda _i: ((_path_cost((_i[0], _i[1])) is None),
                                                  (_path_cost((_i[0], _i[1])) if _path_cost((_i[0], _i[1])) is not None else 1e9)))
+        # ATTEMPT-OUTCOME MEMORY (RULE 0.8 fix A; design: DESIGN_attempt_memory_and_rederivation.md). The agent re-lived
+        # the SAME failing plan every life (43 lives, occupancy Jaccard 0.94, died at one cell 36/43x) because it carries
+        # the PLAN forward across lives but not the OUTCOME. Per the design the attempt SIGNATURE is target-ORDER + region:
+        # sign by the ordered, lightly-coarsened committed target instances (_rank) -- this is the reach-cost target-order
+        # AND a coarse region in one. Address re-binds ACROSS boards (Layer 6), but the per-level KEY already scopes to one
+        # board, so committed positions are stable+meaningful within it. The type-map is EMPTY on the mover path (no typed
+        # cyclers), which collapsed a type-only signature to all-None -> it counted lives, not plans; the coarse-instance
+        # signature is non-degenerate and DECAYS when the agent commits a genuinely different plan. OUTCOME-GATE (design:
+        # made_progress): only count a repeat when the agent is NOT currently making progress on this level -- read its OWN
+        # learning-progress verdict; if the objective error is dropping ("learning") the agent is closing in, so DON'T
+        # punish a near-solve (design Risk: over-steer / throw away a near-solve). Tally per game:level (clearing the level
+        # moves to a new key). cold-start reads it (above) to raise the agent's OWN exploration. Gated OURO_ATTEMPT_MEMORY.
+        import os as _os_am
+        if _os_am.environ.get("OURO_ATTEMPT_MEMORY", "0") == "1":
+            try:
+                _sig = tuple((int(_i[0]) // 2, int(_i[1]) // 2) for _i in _rank[:6])   # order + coarse region, one descriptor
+                _amem = _GLOBAL_KNOWLEDGE.setdefault("attempts", {}).setdefault("%s:L%d" % (_gid, _lp_lvl), {})
+                _amem["_last_sig"] = _sig
+                _rec = _amem.setdefault(_sig, {"tries": 0})
+                _vd = _RF2.SHARED.learning_progress.verdict(_lp_key)      # the agent's OWN progress read on this objective
+                _learning = (_vd.get("state") == "learning")             # error is dropping -> closing in -> not a dead repeat
+                if _learning:
+                    _rec["tries"] = 0                                    # progress resets the failure pressure for this plan
+                else:
+                    _rec["tries"] += 1                                   # same plan, no progress -> the failure is repeating
+                    if _rec["tries"] >= 3:
+                        _emit(adapter, "ATTEMPT-MEMORY  this plan (%d committed targets, region-signed) re-committed %dx at "
+                              "L%d with NO progress (learning-verdict '%s') -> the same approach that failed before is "
+                              "failing again; flag for EXPLORE" % (len(_sig), _rec["tries"], _lp_lvl, _vd.get("state")),
+                              once_key="attmem_%s_%d" % (str(_sig), _rec["tries"]))
+            except Exception:
+                pass
         if _rank:
             _emit(adapter, "PLAN  reach-cost order := %s  [cheapest cycler first; a far one swept first spends a life "
                   "proving nothing]" % ([(int(_i[0]), int(_i[1]),
