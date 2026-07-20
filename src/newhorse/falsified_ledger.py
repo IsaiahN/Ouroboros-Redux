@@ -29,6 +29,21 @@ Design principles, each traceable to the map / the cognitive standard:
 
 The clock is LOGICAL (an integer attempt/generation index the caller advances), not wall-clock:
 deterministic, testable, and faithful to the map's generational accounting. No wall-clock is read.
+
+IMMUNE-SYSTEM FAILURE-MODE AUDIT (via the FMap: this problem's F* coords rank adaptive_immune_system
+#1 -- the map's own choice for this component -- so its KNOWN failure modes are our checklist):
+  * AUTOIMMUNITY (attacking self): wrongly rejecting a GOOD/necessary hypothesis (false-positive
+    refutation that locks out something the agent needs). GUARDED: bias() is bounded in [0,1) and is
+    a DE-PRIORITISATION never a ban, and reconsider() reopens on decisive surprise -- so a mistaken
+    rejection can always be overridden. Never hard-ban.
+  * PATHOGEN MIMICRY (a threat disguised as self to evade memory): a genuinely-dead approach re-tried
+    under a slightly-different KEY, dodging the ledger. THE OPEN DESIGN DECISION -- the key must be
+    coarse enough that a cosmetic variant matches the same dead idea, fine enough that a genuinely
+    new approach is a new key. (This IS the signature-granularity problem that made the Redux
+    retrofit hard; here it is named and isolated to the CALLER's key choice, not baked in.)
+  * CYTOKINE STORM (the response over-fires and paralyses the host): over-rejection -> the agent can
+    de-prioritise everything and freeze. GUARDED: decay bleeds weight over the logical clock, and
+    bias saturates below 1 so exploration is never fully suppressed.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
