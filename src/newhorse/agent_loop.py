@@ -32,7 +32,7 @@ from .exploration import Explorer                 # brick 10a: novelty drive (an
 from .self_locus import SelfLocus                 # brick 10b: controllable-ID by action contingency
 from .agency import CursorAgency                  # brick 12: agent-vs-environment separation (discriminative cursor)
 from .navigation import GridNav, _unit            # brick 13: directed-edge maze navigation
-from .goal import abduce_target                   # brick 13: abduce a navigation target from appearance
+from .goal import candidate_targets, GoalManager  # brick 13/14: candidate goals priced by reward
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -62,9 +62,15 @@ class AgentLoop:
         self._cur_objs: List[Object] = []
         # brick 12: agent-vs-environment separation -- the discriminative cursor + its per-action move map
         self.agency = CursorAgency(background=background)
-        # brick 13: maze navigation (directed-edge walls) + a provisional abduced goal
+        # brick 13/14: maze navigation (directed-edge walls) + a reward-priced market of candidate goals
         self.nav = GridNav()
-        self.goal_obj: Optional[Object] = None
+        self.goals = GoalManager()
+        self._pending_reward = False              # set by signal_reward() on a level-up; consumed in observe()
+
+    def signal_reward(self) -> None:
+        """Tell the goal market a REWARD just occurred (a level advanced) -- consumed on the next observe()
+        to CONFIRM the goal being pursued. Called by the live runner / harness when levels_completed rises."""
+        self._pending_reward = True
 
     def _cell(self, centroid: Tuple[float, float], stride: int) -> Tuple[int, int]:
         """Logical-cell coordinate of a pixel centroid at the world's move quantum (stride)."""
@@ -149,13 +155,11 @@ class AgentLoop:
             # path with only some directions known and get stuck moving toward a goal we can't approach.
             undertried = [a for a in self.actions if self.explorer.visits.get(a, 0) < 2]
             if not undertried:
-                # NAVIGATE: path the cursor toward the abduced target through non-blocked edges (brick 13)
-                g = abduce_target(self._cur_objs, self.agency.cursor_colour())
-                if g is not None:
-                    self.goal_obj = g
-                if self.goal_obj is not None and dir2action:
+                # propose candidate goals (reward-priced market, brick 14) and NAVIGATE toward the best one
+                self.goals.propose(candidate_targets(self._cur_objs, self.agency.cursor_colour(), stride))
+                gcell = self.goals.active_goal()
+                if gcell is not None and dir2action:
                     ccell = self._cell(ctrl.centroid, stride)
-                    gcell = self._cell(self.goal_obj.centroid, stride)
                     d = self.nav.step_toward(ccell, gcell, list(dir2action))
                     if d is not None and d in dir2action:
                         action = dir2action[d]
@@ -217,12 +221,14 @@ class AgentLoop:
         if committed_tname == "MOVE" and self.agency.ready():
             stride = self.agency.stride() or 1
             d = _unit(self.agency.predict(action) or (0, 0))
-            if d != (0, 0):
+            after_cell = self._cursor_cell_in(after, stride)
+            if d != (0, 0) and after_cell is not None:
                 prev_cell = self._cell(ctrl.centroid, stride)
-                after_cell = self._cursor_cell_in(after, stride)
-                if after_cell is not None:
-                    self.nav.observe_move(prev_cell, d, moved=(after_cell != prev_cell))
+                self.nav.observe_move(prev_cell, d, moved=(after_cell != prev_cell))
             self.nav.decay()
+            # brick 14: the goal market learns -- did pursuing the active goal earn a reward, or is it dead?
+            self.goals.observe(after_cell, reward=self._pending_reward)
+        self._pending_reward = False                        # consume the one-shot reward signal each step
         # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (fallback ID)
         self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))
         # brick 10a: the action ran -> its novelty is partly spent (drives coverage on the next choose)

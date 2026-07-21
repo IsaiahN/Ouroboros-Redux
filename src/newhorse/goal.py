@@ -9,8 +9,85 @@ specific target. If the board has no such cue, it returns None and the agent kee
 """
 from __future__ import annotations
 from collections import Counter
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple, Iterable
 from .perception import Object
+
+
+class GoalManager:
+    """A MARKET OF CANDIDATE GOALS priced by REWARD (brick 14). ls20's goal is not a single appearance cue,
+    so we propose several candidate targets from the board and let the sparse reward arbitrate.
+
+    FMap: hayek_price_system (d=0.154) -- reward is the PRICE that selects among competing candidate goals;
+    adaptive_immune_system (d=0.137) -- remember specific candidates and DEMOTE defeasibly (a demoted target
+    keeps a residual price and can be reconsidered, never a hard drop). cue-proposes, reward-disposes.
+
+    Cycle: propose() seeds candidate target CELLS (marker-like first); active_goal() returns the
+    highest-priced one to pursue; observe() CONFIRMS it (price up) on a reward while pursuing it, or DEMOTES
+    it (price down, rotate) when the cursor reaches it with no reward or stalls. Nothing silent."""
+
+    def __init__(self, *, stall_steps: int = 50, demote_factor: float = 0.4,
+                 confirm_bonus: float = 10.0, min_price: float = 0.05):
+        self.stall_steps = int(stall_steps)
+        self.demote_factor = float(demote_factor)
+        self.confirm_bonus = float(confirm_bonus)
+        self.min_price = float(min_price)
+        self.price: Dict[Tuple[int, int], float] = {}      # candidate target cell -> price
+        self.active: Optional[Tuple[int, int]] = None
+        self.pursuit = 0
+        self.log: List[str] = []
+
+    def propose(self, candidates: Iterable[Tuple[Tuple[int, int], int]]) -> None:
+        """Seed NEW candidate cells. `candidates` = (cell, rank); rank 0 = most marker-like -> higher price."""
+        for cell, rank in candidates:
+            if cell not in self.price:
+                self.price[cell] = 1.0 / (1.0 + rank)
+
+    def active_goal(self) -> Optional[Tuple[int, int]]:
+        """The candidate to pursue now: the highest-priced one (a confirmed target stays highest and is
+        re-selected; an untested/demoted one is tried in turn)."""
+        if self.active is not None:
+            return self.active
+        if not self.price:
+            return None
+        self.active = max(self.price, key=self.price.get)
+        self.pursuit = 0
+        self.log.append("GOAL  pursue %s (price %.2f)" % (self.active, self.price[self.active]))
+        return self.active
+
+    def observe(self, cursor_cell: Optional[Tuple[int, int]], reward: bool) -> None:
+        """Feedback for the active goal: a reward while pursuing it CONFIRMS (price up, keep it); reaching it
+        with no reward, or stalling, DEMOTES it (price down) and rotates to the next candidate."""
+        if self.active is None:
+            return
+        self.pursuit += 1
+        if reward:
+            self.price[self.active] = self.price.get(self.active, 0.0) + self.confirm_bonus
+            self.log.append("GOAL  CONFIRM %s (reward) -> price %.2f" % (self.active, self.price[self.active]))
+            self.pursuit = 0
+            return
+        reached = (cursor_cell is not None and cursor_cell == self.active)
+        if reached or self.pursuit >= self.stall_steps:
+            self.price[self.active] = max(self.min_price, self.price[self.active] * self.demote_factor)
+            self.log.append("GOAL  demote %s (reached=%s stall=%d) -> price %.2f"
+                            % (self.active, reached, self.pursuit, self.price[self.active]))
+            self.active = None                              # rotate: next active_goal() picks the new best
+
+
+def candidate_targets(objs: List[Object], cursor_colour: Optional[int], stride: int,
+                      *, max_candidates: int = 6) -> List[Tuple[Tuple[int, int], int]]:
+    """Candidate goal CELLS for the GoalManager: each distinct non-self object's logical cell, ranked
+    marker-like first (smallest/rarest = most likely a goal marker; Redux `_distinct_cell_targets` shape).
+    Returns [(cell, rank), ...]. Generic -- no game identity; reward disposes."""
+    s = max(1, stride)
+    non_self = [o for o in objs if cursor_colour is None or cursor_colour not in o.colours]
+    non_self.sort(key=lambda o: o.size)                    # smallest first = most marker-like
+    out: List[Tuple[Tuple[int, int], int]] = []
+    seen = set()
+    for rank, o in enumerate(non_self[:max_candidates]):
+        cell = (int(round(o.centroid[0] / s)), int(round(o.centroid[1] / s)))
+        if cell not in seen:
+            seen.add(cell); out.append((cell, rank))
+    return out
 
 
 def abduce_target(objs: List[Object], cursor_colour: Optional[int], *, max_size: int = 30) -> Optional[Object]:

@@ -39,7 +39,11 @@ def _learned_summary(loop: AgentLoop) -> Dict[str, Any]:
                 # brick 12: did the agency separate the cursor from the environment and learn its move map?
                 cursor_colour=loop.agency.cursor_colour(),
                 cursor_stride=loop.agency.stride(),
-                action_map={a: list(v) for a, v in loop.agency.action_map().items()})
+                action_map={a: list(v) for a, v in loop.agency.action_map().items()},
+                # brick 13/14: navigation + goal market
+                walls_learned=sum(1 for v in loop.nav.edge.values() if v is False),
+                goal_candidates=len(loop.goals.price),
+                top_goals=sorted(loop.goals.price.items(), key=lambda kv: -kv[1])[:3])
 
 
 def run_live(session, *, wall_cap_s: float = 120.0, max_actions: int = 600,
@@ -70,12 +74,15 @@ def run_live(session, *, wall_cap_s: float = 120.0, max_actions: int = 600,
         reasoning = {"why": "committed %s; discovering its effect by prediction error" % action_label}
         snap = session.step(val_of[action_label], reasoning=reasoning)
         after = snap["grid"]
+        leveled = snap["levels_completed"] > best_levels
+        if leveled:
+            loop.signal_reward()                         # brick 14: attribute the reward to the goal pursued THIS step
         # score the committed action against reality -- only when the resolution is stable (it should be)
         if ctrl is not None and after.shape == grid.shape:
             loop.observe(grid, ctrl, action_label, _tname, after)
         else:
             loop.clock += 1                              # advance the logical clock even when we couldn't score
-        if snap["levels_completed"] > best_levels:       # EARNED progress -> mint a reset credit (never used in play)
+        if leveled:                                      # EARNED progress -> mint a reset credit (never used in play)
             loop.earn_progress(level_completed=True,
                                reason="levels %d->%d" % (best_levels, snap["levels_completed"]))
             best_levels = snap["levels_completed"]
