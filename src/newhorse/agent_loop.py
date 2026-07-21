@@ -33,6 +33,7 @@ from .self_locus import SelfLocus                 # brick 10b: controllable-ID b
 from .agency import CursorAgency                  # brick 12: agent-vs-environment separation (discriminative cursor)
 from .navigation import GridNav, _unit            # brick 13: directed-edge maze navigation
 from .goal import candidate_targets, GoalManager  # brick 13/14: candidate goals priced by reward
+from .budget import BudgetModel                    # brick 15: induced action budget (the depleting HUD bar)
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -65,6 +66,8 @@ class AgentLoop:
         # brick 13/14: maze navigation (directed-edge walls) + a reward-priced market of candidate goals
         self.nav = GridNav()
         self.goals = GoalManager()
+        self.budget = BudgetModel()               # brick 15: know the action budget (the depleting HUD bar)
+        self._base_stall = self.goals.stall_steps
         self._pending_reward = False              # set by signal_reward() on a level-up; consumed in observe()
 
     def signal_reward(self) -> None:
@@ -155,6 +158,11 @@ class AgentLoop:
             # path with only some directions known and get stuck moving toward a goal we can't approach.
             undertried = [a for a in self.actions if self.explorer.visits.get(a, 0) < 2]
             if not undertried:
+                # brick 15: as the budget depletes, COMMIT -- persist longer on the best goal before rotating
+                # (optimal foraging: commit to the best patch as time runs low). A proven-unreachable goal is
+                # still abandoned (nav can't reach it -> it eventually stalls even at the raised tolerance).
+                frac = self.budget.fraction_left(frame)
+                self.goals.stall_steps = int(self._base_stall * (3 if (frac is not None and frac < 0.4) else 1))
                 # propose candidate goals (reward-priced market, brick 14) and NAVIGATE toward the best one
                 self.goals.propose(candidate_targets(self._cur_objs, self.agency.cursor_colour(), stride))
                 gcell = self.goals.active_goal()
@@ -217,6 +225,8 @@ class AgentLoop:
         self.residuals.observe(sense(committed_pred, after))
         # brick 12: the agency learns which colour is the cursor + its per-action move (agent vs environment)
         self.agency.observe(before, action, after)
+        # brick 15: the budget model watches the HUD bar deplete
+        self.budget.observe(before, after)
         # brick 13: navigation learns walls -- a committed MOVE that did NOT move the cursor is a BLOCKED edge
         if committed_tname == "MOVE" and self.agency.ready():
             stride = self.agency.stride() or 1
