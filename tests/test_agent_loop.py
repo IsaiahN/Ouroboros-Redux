@@ -145,3 +145,13 @@ def test_answer_is_not_encoded_in_construction():
     assert set(agent.transforms) == {"STAY", "UP", "DOWN", "LEFT", "RIGHT"}
     # belief starts EMPTY: it knows no mapping at birth
     assert agent.belief == {}
+
+
+def test_exploration_prevents_action_collapse():
+    # THE BRICK-10 REGRESSION: the first live ls20 run collapsed onto ONE action (only A1 tried). With
+    # the novelty drive, EVERY action must get exercised -- even a decoy action that does nothing.
+    world = ToyWorld(secret={"A": (1, 0)})               # only A moves the dot; B and C are dead decoys
+    agent, _, _, _ = _run(world, steps=30, actions=["A", "B", "C"])
+    assert agent.explorer.coverage(agent.actions) == 1.0, agent.explorer.visits   # all three tried, no collapse
+    # and A (the one that actually works) still wins enough to be learned (exploration didn't destroy exploitation)
+    assert agent.belief.get(("A", "DOWN"), 0.0) > 0.0

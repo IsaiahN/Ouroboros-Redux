@@ -28,6 +28,8 @@ from .falsified_ledger import FalsifiedLedger
 from .two_streams import Pose
 from .marketplace import informative_salience
 from .bounds import ResetGate, ResolutionBound   # the hard bounds, enforced on the loop's mandatory paths
+from .exploration import Explorer                 # brick 10a: novelty drive (anti-collapse)
+from .self_locus import SelfLocus                 # brick 10b: controllable-ID by action contingency
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -51,6 +53,10 @@ class AgentLoop:
         # HARD BOUNDS (bounds.py, constitutional -- no flag disables them; instantiated unconditionally):
         self.reset_gate = ResetGate()                       # RESET banned in active play unless earned
         self.res_bound = ResolutionBound()                  # the grid is never downsampled
+        # brick 10: exploration drive (anti-collapse) + self-locus controllable-ID (action contingency)
+        self.explorer = Explorer()
+        self.locus = SelfLocus()
+        self._cur_objs: List[Object] = []
 
     # ---- HARD BOUNDS on the mandatory paths --------------------------------------------
     def earn_progress(self, *, level_completed: bool, reason: str = "") -> bool:
@@ -75,8 +81,12 @@ class AgentLoop:
         objs = self.tracker.update(segment(frame, background=self.bg))
         if not objs:
             return None
-        ctrl = min(objs, key=lambda o: o.size)             # generic: the small distinct object is the controllable
-        self.log.append("PERCEIVE  %d object(s); controllable id=%s size=%d" % (len(objs), ctrl.oid, ctrl.size))
+        self._cur_objs = objs
+        ctrl = self.locus.pick(objs)                        # brick 10b: the object PROVEN contingent on my actions
+        if ctrl is None:                                    # cold start (no contingency evidence yet) -> heuristic
+            ctrl = min(objs, key=lambda o: o.size)
+        self.log.append("PERCEIVE  %d object(s); controllable id=%s size=%d (locus_colour=%s)"
+                        % (len(objs), ctrl.oid, ctrl.size, self.locus.controllable_colour()))
         return ctrl
 
     def _apply(self, frame: np.ndarray, ctrl: Object, delta: Tuple[int, int]) -> np.ndarray:
@@ -108,7 +118,8 @@ class AgentLoop:
                     continue                                # skip dead ideas (falsified ledger)
                 conf = self.belief.get((a, tname), 0.0)
                 social = 1.0 / len(self.transforms)         # flat prior (Stream B, no opinion yet)
-                score = self.pose.decide(private=conf, social=social)   # alpha-weighted blend
+                # exploit (alpha-weighted belief) + EXPLORE (novelty bonus per action -> can't collapse to one)
+                score = self.pose.decide(private=conf, social=social) + self.explorer.bonus(a)
                 if best is None or score > best[0]:
                     best = (score, a, tname, delta)
         if best is None:                                    # everything refuted -> forced explore (STAY)
@@ -137,6 +148,10 @@ class AgentLoop:
         # the brake: bank the surprise the committed prediction actually left
         committed_pred = self._apply(before, ctrl, self.transforms[committed_tname])
         self.residuals.observe(sense(committed_pred, after))
+        # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (agency)
+        self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))
+        # brick 10a: the action ran -> its novelty is partly spent (drives coverage on the next choose)
+        self.explorer.visit(action)
         self.clock += 1
 
     def step(self, frame: np.ndarray, env_step: Callable[[str], np.ndarray]) -> str:
