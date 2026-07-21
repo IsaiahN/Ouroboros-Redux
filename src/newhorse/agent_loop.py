@@ -33,6 +33,7 @@ from .bounds import ResetGate, ResolutionBound   # the hard bounds, enforced on 
 from .exploration import Explorer                 # brick 10a: novelty drive (anti-collapse)
 from .self_locus import SelfLocus                 # brick 10b: controllable-ID by action contingency
 from .agency import CursorAgency                  # brick 12: agent-vs-environment separation (discriminative cursor)
+from .coupled_agency import CoupledAgency          # brick 25: multi-controllable perception (coupled bodies)
 from .navigation import GridNav, _unit            # brick 13: directed-edge maze navigation
 from .goal import GoalManager                     # brick 14: candidate goals priced by reward
 from .budget import BudgetModel                    # brick 15: induced action budget (the depleting HUD bar)
@@ -86,6 +87,10 @@ class AgentLoop:
         # agent commit to an arbitrary corridor cell instead of the real goal).
         self._centroid_hist: Dict[int, deque] = {}
         self._static_window = 5
+        # brick 25 CARVE 1: multi-controllable perception. Lazily created once the cursor colour is known; it
+        # tracks ALL components of that colour and reads the coupling + conserved quantities. PERCEPTION ONLY
+        # for now (a purely-additive observer) -- the joint planner that ACTS on it is CARVE 2; nothing silent.
+        self.coupled: Optional[CoupledAgency] = None
 
     def signal_reward(self) -> None:
         """Tell the goal market a REWARD just occurred (a level advanced) -- consumed on the next observe()
@@ -312,6 +317,17 @@ class AgentLoop:
         self.residuals.observe(sense(committed_pred, after))
         # brick 12: the agency learns which colour is the cursor + its per-action move (agent vs environment)
         self.agency.observe(before, action, after)
+        # brick 25 CARVE 1: once the cursor colour is known, watch ALL its components for MULTI-CONTROLLABLE
+        # structure (coupled bodies). Perception only -- exposed via n_controllable / coupling, not yet acted on.
+        cur_col = self.agency.cursor_colour()
+        if cur_col is not None:
+            if self.coupled is None or self.coupled.colour != cur_col:
+                self.coupled = CoupledAgency(cur_col, background=self.bg)
+            self.coupled.observe(before, action, after)
+            if self.coupled.ready() and self.coupled.n_controllable() >= 2:
+                self.log.append("MULTI-BODY  n=%d coupling: A=%s conserved=%s (single-cursor nav insufficient)"
+                                % (self.coupled.n_controllable(), self.coupled.coupling(action),
+                                   self.coupled.conserved_axes()))
         # brick 15: the budget model watches the HUD bar deplete
         self.budget.observe(before, after)
         # brick 13: navigation learns walls -- a committed MOVE that did NOT move the cursor is a BLOCKED edge
