@@ -157,15 +157,25 @@ class GridNav:
         return first_of.get(best) if best is not None else None
 
     def step_toward(self, start: Cell, goal: Cell, dirs: Iterable[Dir]) -> Optional[Dir]:
-        """Move now: (1) EXPLOIT -- if the goal is reachable through PROVEN-FREE cells, take that first step;
-        (2) EXPLORE -- else push the FRONTIER toward the goal (systematic maze coverage, brick 21); (3) FALLBACK
-        -- the least-visited non-wall neighbour toward the goal. This solves narrow-corridor mazes that the old
-        optimistic-replan step (brick 13) only thrashed on."""
+        """Move now, cheapest-and-most-certain first:
+        (1) EXPLOIT   -- goal reachable through PROVEN-FREE cells -> that first step (certain, no bump needed);
+        (2) OPTIMISTIC -- else BFS the optimistic graph (unmeasured edges passable) -> head STRAIGHT for the goal
+            in open terrain, learning any wall by bumping (brick 13, restored). This is the tier m0r0 needs: a
+            direct approach the systematic frontier sweep (3) starves by wandering the whole boundary first;
+        (3) FRONTIER  -- only when optimism is WALLED OFF (first_step returns None: every optimistic route hits a
+            known wall) push the KNOWN-FREE/UNKNOWN boundary toward the goal (systematic coverage, brick 21) so a
+            corridor far off the direct line is still found;
+        (4) FALLBACK  -- the least-visited non-wall neighbour toward the goal.
+        Ordering matters: (2) before (3) restores the open-terrain beeline (m0r0 L1) that brick 21 regressed by
+        promoting frontier coverage above it, while (3) still rescues the narrow-corridor maze (2) thrashes on."""
         start = (int(start[0]), int(start[1]))
         dirs = [_unit(d) for d in dirs]
         exploit = self._bfs_known_free(start, goal, dirs)
         if exploit is not None:
             return exploit
+        optimistic = self.first_step(start, goal, dirs)
+        if optimistic is not None:
+            return optimistic
         frontier = self._frontier_step(start, goal, dirs)
         if frontier is not None:
             return frontier

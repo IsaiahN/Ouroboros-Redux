@@ -72,6 +72,12 @@ class AgentLoop:
         self._pending_reward = False              # set by signal_reward() on a level-up; consumed in observe()
         self._quant_key: Optional[Tuple] = None   # brick 18: the ALL-class currently pursued
         self._visited: set = set()                # members of the active ALL-class the cursor has reached
+        # brick 22: MAP-COMPLETION RE-PROBING. How many honest MOVE tries each action has had. An action is
+        # judged inert (safe to stop probing, commit to nav) only after `probe_limit` tries -- never after the
+        # 2 coverage tries alone, which may all have landed on a blocked cell (falsified-ledger discipline).
+        self._action_tries: Dict[str, int] = {}
+        self.probe_limit = 6
+        self._reprobe_cells: Dict[str, set] = {}   # cells each action has already been re-probed from
 
     def signal_reward(self) -> None:
         """Tell the goal market a REWARD just occurred (a level advanced) -- consumed on the next observe()
@@ -177,6 +183,27 @@ class AgentLoop:
             # path with only some directions known and get stuck moving toward a goal we can't approach.
             undertried = [a for a in self.actions if self.explorer.visits.get(a, 0) < 2]
             if not undertried:
+                # brick 22: MAP-COMPLETION RE-PROBING. Before committing to navigation, keep probing actions
+                # still UNMAPPED (effect unknown) from wherever the cursor now sits. An action can look inert
+                # only because its 2 coverage tries both landed on a blocked cell (e.g. UP at the top edge);
+                # re-probing after the cursor has moved reveals its true effect. Give up on an action only
+                # after `probe_limit` honest tries -- inert is a verdict earned by trials, never assumed early.
+                # An action tried only from BLOCKED cells stays inert; re-probe it from a DIFFERENT cell each
+                # time (trying the same blocked cell again teaches nothing). If every unmapped action has
+                # already been probed from HERE, fall through to nav -- that relocates the cursor and a later
+                # step re-probes from the new cell. Give up on an action after `probe_limit` distinct tries.
+                unmapped = [a for a in self.actions
+                            if a not in amap and self._action_tries.get(a, 0) < self.probe_limit]
+                rc = self._cell(ctrl.centroid, stride)
+                fresh = [a for a in unmapped if rc not in self._reprobe_cells.get(a, set())]
+                if fresh:
+                    a = min(fresh, key=lambda x: self._action_tries.get(x, 0))
+                    self._reprobe_cells.setdefault(a, set()).add(rc)
+                    vec = self.agency.predict(a) or (0, 0)
+                    pred = self._apply(frame, ctrl, vec)
+                    self.log.append("REPROBE  %s from=%s (tries=%d/%d) -- completing the action map before nav"
+                                    % (a, rc, self._action_tries.get(a, 0), self.probe_limit))
+                    return a, "MOVE", pred
                 # brick 15: as the budget depletes, COMMIT -- persist longer on the best goal before rotating
                 # (optimal foraging: commit to the best patch as time runs low). A proven-unreachable goal is
                 # still abandoned (nav can't reach it -> it eventually stalls even at the raised tolerance).
@@ -289,6 +316,9 @@ class AgentLoop:
         self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))
         # brick 10a: the action ran -> its novelty is partly spent (drives coverage on the next choose)
         self.explorer.visit(action)
+        # brick 22: count honest MOVE tries per action -> the map-completion re-probe's give-up budget
+        if committed_tname == "MOVE":
+            self._action_tries[action] = self._action_tries.get(action, 0) + 1
         self.clock += 1
 
     def step(self, frame: np.ndarray, env_step: Callable[[str], np.ndarray]) -> str:
