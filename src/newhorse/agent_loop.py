@@ -32,8 +32,9 @@ from .exploration import Explorer                 # brick 10a: novelty drive (an
 from .self_locus import SelfLocus                 # brick 10b: controllable-ID by action contingency
 from .agency import CursorAgency                  # brick 12: agent-vs-environment separation (discriminative cursor)
 from .navigation import GridNav, _unit            # brick 13: directed-edge maze navigation
-from .goal import candidate_targets, GoalManager  # brick 13/14: candidate goals priced by reward
+from .goal import GoalManager                     # brick 14: candidate goals priced by reward
 from .budget import BudgetModel                    # brick 15: induced action budget (the depleting HUD bar)
+from .relations import candidate_relations         # brick 17: a space of typed win-relations (BE_AT/TOUCH/COVER)
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -163,16 +164,19 @@ class AgentLoop:
                 # still abandoned (nav can't reach it -> it eventually stalls even at the raised tolerance).
                 frac = self.budget.fraction_left(frame)
                 self.goals.stall_steps = int(self._base_stall * (3 if (frac is not None and frac < 0.4) else 1))
-                # propose candidate goals (reward-priced market, brick 14) and NAVIGATE toward the best one
-                self.goals.propose(candidate_targets(self._cur_objs, self.agency.cursor_colour(), stride))
-                gcell = self.goals.active_goal()
-                if gcell is not None and dir2action:
+                # propose TYPED RELATION hypotheses (brick 17: BE_AT/TOUCH/COVER) and NAVIGATE toward the
+                # best-priced one; reward will confirm which RELATION actually wins (brick 14 market)
+                self.goals.propose(candidate_relations(self._cur_objs, self.agency.cursor_colour(), stride))
+                gkey = self.goals.active_goal()             # (relation, target_cell)
+                if gkey is not None and dir2action:
+                    gcell = gkey[1]
                     ccell = self._cell(ctrl.centroid, stride)
                     d = self.nav.step_toward(ccell, gcell, list(dir2action))
                     if d is not None and d in dir2action:
                         action = dir2action[d]
                         pred = self._apply(frame, ctrl, amap[action])
-                        self.log.append("COMMIT(nav)  %s dir=%s from=%s goal=%s" % (action, d, ccell, gcell))
+                        self.log.append("COMMIT(nav)  %s dir=%s from=%s goal=%s(%s)"
+                                        % (action, d, ccell, gkey[0], gcell))
                         return action, "MOVE", pred
             # still learning the map (or no target/route) -> coverage-first, then novelty
             target = min(self.actions, key=lambda a: (self.explorer.visits.get(a, 0), -self.explorer.bonus(a)))
@@ -232,12 +236,19 @@ class AgentLoop:
             stride = self.agency.stride() or 1
             d = _unit(self.agency.predict(action) or (0, 0))
             after_cell = self._cursor_cell_in(after, stride)
+            prev_cell = self._cell(ctrl.centroid, stride)
             if d != (0, 0) and after_cell is not None:
-                prev_cell = self._cell(ctrl.centroid, stride)
                 self.nav.observe_move(prev_cell, d, moved=(after_cell != prev_cell))
             self.nav.decay()
-            # brick 14: the goal market learns -- did pursuing the active goal earn a reward, or is it dead?
-            self.goals.observe(after_cell, reward=self._pending_reward)
+            # brick 14/17: the goal market learns which RELATION wins. On a REWARD, credit the relation whose
+            # target is the cell the cursor WON at (its pre-respawn destination), not the nominally-active one.
+            if self._pending_reward:
+                win_cell = (prev_cell[0] + d[0], prev_cell[1] + d[1])
+                self.goals.credit(win_cell)
+            else:
+                active = self.goals.active
+                reached = (active is not None and after_cell is not None and after_cell == active[1])
+                self.goals.observe(reached=reached, reward=False)
         self._pending_reward = False                        # consume the one-shot reward signal each step
         # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (fallback ID)
         self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))

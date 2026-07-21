@@ -19,7 +19,7 @@ def test_reward_confirms_the_active_goal():
     gm.propose([((5, 5), 0), ((1, 1), 1)])
     g = gm.active_goal()                                   # highest price = rank 0 = (5,5)
     assert g == (5, 5)
-    gm.observe(cursor_cell=(3, 3), reward=True)            # a reward while pursuing (5,5) -> confirm
+    gm.observe(reached=False, reward=True)                 # a reward while pursuing (5,5) -> confirm
     assert gm.price[(5, 5)] > gm.price[(1, 1)]
     assert gm.active_goal() == (5, 5)                      # stays the pursued goal
 
@@ -29,7 +29,7 @@ def test_reaching_without_reward_demotes_and_rotates():
     gm.propose([((5, 5), 0), ((1, 1), 1)])
     assert gm.active_goal() == (5, 5)
     before = gm.price[(5, 5)]
-    gm.observe(cursor_cell=(5, 5), reward=False)           # reached it, no reward -> a dead target
+    gm.observe(reached=True, reward=False)                 # reached it, no reward -> a dead target
     assert gm.price[(5, 5)] < before                       # demoted
     assert gm.active_goal() == (1, 1)                      # rotated to the next candidate
 
@@ -39,7 +39,7 @@ def test_stall_demotes_even_without_reaching():
     gm.propose([((9, 9), 0), ((1, 1), 1)])
     gm.active_goal()
     for _ in range(3):
-        gm.observe(cursor_cell=(0, 0), reward=False)       # never reaches (9,9)
+        gm.observe(reached=False, reward=False)            # never reaches (9,9)
     assert gm.active_goal() == (1, 1)                       # stalled -> rotated
 
 
@@ -47,7 +47,7 @@ def test_demotion_is_defeasible_not_a_hard_drop():
     gm = GoalManager()
     gm.propose([((5, 5), 0)])
     gm.active_goal()
-    gm.observe(cursor_cell=(5, 5), reward=False)
+    gm.observe(reached=True, reward=False)
     assert gm.price[(5, 5)] >= gm.min_price                # kept a residual price -> reconsiderable
     assert gm.active_goal() == (5, 5)                       # only candidate -> tried again
 
@@ -55,7 +55,7 @@ def test_demotion_is_defeasible_not_a_hard_drop():
 def test_nothing_silent():
     gm = GoalManager()
     gm.propose([((5, 5), 0)]); gm.active_goal()
-    gm.observe(cursor_cell=(5, 5), reward=True)
+    gm.observe(reached=False, reward=True)
     assert any(s.startswith("GOAL") for s in gm.log)
 
 
@@ -126,6 +126,7 @@ def test_loop_demotes_decoy_and_locks_rewarding_target():
             break
     assert agent.agency.ready()
     assert levels_seen >= 2, "never learned to reach the rewarding target (levels=%d)" % levels_seen
-    # the REAL target's cell is priced strictly above the decoy's (reward disposed the decoy)
-    real_cell, decoy_cell = (8, 8), (0, 0)
-    assert agent.goals.price.get(real_cell, 0) > agent.goals.price.get(decoy_cell, 0), agent.goals.price
+    # the REAL target (relation keyed on cell (8,8)) is priced above the decoy (relation on (0,0))
+    real_price = max((p for k, p in agent.goals.price.items() if k[1] == (8, 8)), default=0.0)
+    decoy_price = max((p for k, p in agent.goals.price.items() if k[1] == (0, 0)), default=0.0)
+    assert real_price > decoy_price, agent.goals.price

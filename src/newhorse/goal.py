@@ -54,9 +54,27 @@ class GoalManager:
         self.log.append("GOAL  pursue %s (price %.2f)" % (self.active, self.price[self.active]))
         return self.active
 
-    def observe(self, cursor_cell: Optional[Tuple[int, int]], reward: bool) -> None:
-        """Feedback for the active goal: a reward while pursuing it CONFIRMS (price up, keep it); reaching it
-        with no reward, or stalling, DEMOTES it (price down) and rotates to the next candidate."""
+    def credit(self, cell: Tuple[int, int]) -> None:
+        """Attribute a REWARD to the relation-hypothesis whose target is `cell` -- the cell the cursor
+        actually WON at, not merely the nominally-active goal (navigation may have arrived elsewhere). If the
+        winning cell was not a proposed target, add it as a BE_AT hypothesis and confirm it (the market learns
+        the winning cell). Locks the active goal onto the confirmed winner."""
+        matched = [k for k in self.price if k[1] == cell]
+        if not matched:
+            k = ("BE_AT", cell)
+            self.price[k] = self.confirm_bonus
+            matched = [k]
+        else:
+            for k in matched:
+                self.price[k] = self.price.get(k, 0.0) + self.confirm_bonus
+        self.active = max(matched, key=self.price.get)
+        self.pursuit = 0
+        self.log.append("GOAL  CONFIRM-by-reward at %s -> %s" % (cell, matched))
+
+    def observe(self, reached: bool, reward: bool) -> None:
+        """Feedback for the active goal (relation-agnostic -- the caller says whether the goal was REACHED):
+        a reward while pursuing it CONFIRMS (price up, keep it); reaching it with no reward, or stalling,
+        DEMOTES it (price down) and rotates to the next candidate."""
         if self.active is None:
             return
         self.pursuit += 1
@@ -65,7 +83,6 @@ class GoalManager:
             self.log.append("GOAL  CONFIRM %s (reward) -> price %.2f" % (self.active, self.price[self.active]))
             self.pursuit = 0
             return
-        reached = (cursor_cell is not None and cursor_cell == self.active)
         if reached or self.pursuit >= self.stall_steps:
             self.price[self.active] = max(self.min_price, self.price[self.active] * self.demote_factor)
             self.log.append("GOAL  demote %s (reached=%s stall=%d) -> price %.2f"
