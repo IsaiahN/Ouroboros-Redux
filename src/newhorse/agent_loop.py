@@ -31,6 +31,8 @@ from .bounds import ResetGate, ResolutionBound   # the hard bounds, enforced on 
 from .exploration import Explorer                 # brick 10a: novelty drive (anti-collapse)
 from .self_locus import SelfLocus                 # brick 10b: controllable-ID by action contingency
 from .agency import CursorAgency                  # brick 12: agent-vs-environment separation (discriminative cursor)
+from .navigation import GridNav, _unit            # brick 13: directed-edge maze navigation
+from .goal import abduce_target                   # brick 13: abduce a navigation target from appearance
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -60,6 +62,24 @@ class AgentLoop:
         self._cur_objs: List[Object] = []
         # brick 12: agent-vs-environment separation -- the discriminative cursor + its per-action move map
         self.agency = CursorAgency(background=background)
+        # brick 13: maze navigation (directed-edge walls) + a provisional abduced goal
+        self.nav = GridNav()
+        self.goal_obj: Optional[Object] = None
+
+    def _cell(self, centroid: Tuple[float, float], stride: int) -> Tuple[int, int]:
+        """Logical-cell coordinate of a pixel centroid at the world's move quantum (stride)."""
+        s = max(1, stride)
+        return (int(round(centroid[0] / s)), int(round(centroid[1] / s)))
+
+    def _cursor_cell_in(self, frame: np.ndarray, stride: int) -> Optional[Tuple[int, int]]:
+        """Logical cell of the cursor as seen in `frame` (largest component of the cursor colour)."""
+        col = self.agency.cursor_colour()
+        if col is None:
+            return None
+        cands = [o for o in segment(frame, background=self.bg) if col in o.colours]
+        if not cands:
+            return None
+        return self._cell(max(cands, key=lambda o: o.size).centroid, stride)
 
     # ---- HARD BOUNDS on the mandatory paths --------------------------------------------
     def earn_progress(self, *, level_completed: bool, reason: str = "") -> bool:
@@ -122,7 +142,27 @@ class AgentLoop:
         environment (brick 12), predict the cursor's true multi-cell MOVE from the learned per-action map;
         keep covering under-tried actions so the whole map is learned. Cold start: the unit-transform path."""
         if self.agency.ready():
-            # coverage-first (learn every action's move), then novelty -- predict the true discovered move
+            amap = self.agency.action_map()
+            dir2action = {_unit(v): a for a, v in amap.items()}   # unit direction -> the action that causes it
+            stride = self.agency.stride() or 1
+            # COVERAGE-FIRST: try every action enough to complete the move-map BEFORE navigating -- else we'd
+            # path with only some directions known and get stuck moving toward a goal we can't approach.
+            undertried = [a for a in self.actions if self.explorer.visits.get(a, 0) < 2]
+            if not undertried:
+                # NAVIGATE: path the cursor toward the abduced target through non-blocked edges (brick 13)
+                g = abduce_target(self._cur_objs, self.agency.cursor_colour())
+                if g is not None:
+                    self.goal_obj = g
+                if self.goal_obj is not None and dir2action:
+                    ccell = self._cell(ctrl.centroid, stride)
+                    gcell = self._cell(self.goal_obj.centroid, stride)
+                    d = self.nav.step_toward(ccell, gcell, list(dir2action))
+                    if d is not None and d in dir2action:
+                        action = dir2action[d]
+                        pred = self._apply(frame, ctrl, amap[action])
+                        self.log.append("COMMIT(nav)  %s dir=%s from=%s goal=%s" % (action, d, ccell, gcell))
+                        return action, "MOVE", pred
+            # still learning the map (or no target/route) -> coverage-first, then novelty
             target = min(self.actions, key=lambda a: (self.explorer.visits.get(a, 0), -self.explorer.bonus(a)))
             vec = self.agency.predict(target)
             delta = vec if vec is not None else (0, 0)      # unmapped action -> STAY probe (its move gets learned)
@@ -173,6 +213,16 @@ class AgentLoop:
         self.residuals.observe(sense(committed_pred, after))
         # brick 12: the agency learns which colour is the cursor + its per-action move (agent vs environment)
         self.agency.observe(before, action, after)
+        # brick 13: navigation learns walls -- a committed MOVE that did NOT move the cursor is a BLOCKED edge
+        if committed_tname == "MOVE" and self.agency.ready():
+            stride = self.agency.stride() or 1
+            d = _unit(self.agency.predict(action) or (0, 0))
+            if d != (0, 0):
+                prev_cell = self._cell(ctrl.centroid, stride)
+                after_cell = self._cursor_cell_in(after, stride)
+                if after_cell is not None:
+                    self.nav.observe_move(prev_cell, d, moved=(after_cell != prev_cell))
+            self.nav.decay()
         # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (fallback ID)
         self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))
         # brick 10a: the action ran -> its novelty is partly spent (drives coverage on the next choose)
