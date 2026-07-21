@@ -79,10 +79,18 @@ class GoalManager:
         self.pursuit = 0
         self.log.append("GOAL  CONFIRM-by-reward at %s -> %s" % (cell, matched))
 
-    def observe(self, reached: bool, reward: bool) -> None:
+    def observe(self, reached: bool, reward: bool, progress: bool = False) -> None:
         """Feedback for the active goal (relation-agnostic -- the caller says whether the goal was REACHED):
         a reward while pursuing it CONFIRMS (price up, keep it); reaching it with no reward, or stalling,
-        DEMOTES it (price down) and rotates to the next candidate."""
+        DEMOTES it (price down) and rotates to the next candidate.
+
+        PROGRESS-GATING (brick 24): a step that makes PROGRESS toward the active goal (the cursor got closer,
+        or -- for a quantified ALL -- a new member was just visited) RESETS the stall clock. The stall counter
+        should measure being STUCK, not elapsed time: a goal actively being approached must not be abandoned
+        mid-approach. Without this, a multi-step goal (a distant landmark, or an ALL visit-all that needs more
+        than stall_steps to finish) is demoted while still converging -- which is exactly what made the agent
+        drop tu93's landmark 2 cells short and abandon m0r0's ALL(5) before the last markers were collected.
+        FMap: optimal_foraging_theory -- stay in a patch while its yield (progress) holds; leave when it dries."""
         if self.active is None:
             return
         self.pursuit += 1
@@ -91,6 +99,8 @@ class GoalManager:
             self.log.append("GOAL  CONFIRM %s (reward) -> price %.2f" % (self.active, self.price[self.active]))
             self.pursuit = 0
             return
+        if progress and not reached:
+            self.pursuit = 0                                # still converging on this goal -> don't count as stall
         if reached or self.pursuit >= self.stall_steps:
             self.price[self.active] = max(self.min_price, self.price[self.active] * self.demote_factor)
             self.log.append("GOAL  demote %s (reached=%s stall=%d) -> price %.2f"

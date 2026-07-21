@@ -95,32 +95,44 @@ def class_member_cells(objs: List[Object], colour: int, stride: int) -> List[Tup
 
 
 def candidate_relations(objs: List[Object], cursor_colour: Optional[int], stride: int,
-                        *, max_objs: int = 5) -> List[Tuple[Key, int]]:
+                        *, max_objs: int = 5, static_colours: Optional[frozenset] = None) -> List[Tuple[Key, int]]:
     """Propose typed relation-hypotheses (as (relation, target_cell) keys) for the market, most SALIENT
     landmarks first. Each object yields BE_AT + TOUCH, plus COVER if it is a hollow slot. Reward disposes.
 
-    SALIENCE (brick 23): rank by (colour RARITY, size) -- a target whose colour appears as FEW objects on the
-    board is a distinct LANDMARK (the figure) and a far better goal hypothesis than one of MANY identical
-    fragments of a repeated colour (the ground: a maze's 30+ corridor/wall pieces). Without this, sorting by
-    size alone lets a maze's tiny 1-2px fragments fill every slot and BURY the unique landmark so it is never
-    proposed (measured on tu93: the static colour-14 landmark never entered the market, drowned by 32 red
-    corridor fragments). FMap: predictive_processing / information salience -- a rare singleton is the
-    high-information figure; goodharts_law guard -- 'smallest object' is a gameable proxy for 'the goal',
-    'distinct/rare' is the honest one. Size stays the tiebreak (keeps a big HUD bar below marker-like objects)."""
+    SALIENCE, ranked by (NOT static, colour RARITY, size):
+      * STATIC (brick 24) -- a fixed distinct object is a goal/landmark; the cursor and any HUD/animation MOVE.
+        Preferring static-first breaks the price TIES that otherwise let the agent commit to an arbitrary
+        corridor cell instead of the real goal (measured on tu93: rare objects colour 4 (a moving 1px marker),
+        colour 6 (the depleting HUD bar) and colour 14 (the STATIC goal square) all tied at price 1.0, and the
+        market locked onto a corridor cell 6 cells from the goal; static-first makes colour 14 uniquely top).
+      * RARITY (brick 23) -- a colour appearing as FEW objects is the distinct LANDMARK (figure) vs many
+        identical fragments of a repeated colour (ground: a maze's 30+ corridor/wall pieces). Without it a
+        maze's tiny 1-2px fragments fill every slot and BURY the unique landmark so it is never proposed.
+      * size -- final tiebreak, marker-like small first (keeps a big HUD bar below marker-like objects).
+    FMap: predictive_processing / information salience (a rare STATIC singleton is the high-information figure);
+    goodharts_law guard -- 'smallest object' is a gameable proxy for 'the goal'; 'rare + fixed + distinct' is
+    the honest one. `static_colours` is passed by the loop from cross-frame centroid tracking; empty is fine."""
     non_self = [o for o in objs if cursor_colour is None or cursor_colour not in o.colours]
+    static = static_colours or frozenset()
     colour_count: Counter = Counter()
     for o in non_self:
         for c in o.colours:
             colour_count[c] += 1
     def _rarity(o: Object) -> int:                      # fewest siblings sharing any of the object's colours
         return min((colour_count[c] for c in o.colours), default=10 ** 6)
-    non_self.sort(key=lambda o: (_rarity(o), o.size))   # rare distinct landmark FIRST, then marker-like size
+    def _landmark(o: Object) -> int:                    # 0 iff a UNIQUE (rarity-1) STATIC object -- a singleton
+        # goal. A static member of a REPEATED colour is a class (handled by the ALL/quantified path), NOT a
+        # single BE_AT landmark -- restricting the static boost to rarity-1 keeps it from hijacking m0r0's
+        # ALL(colour) visit-all win. So only a lone fixed distinct object earns the top-of-market boost.
+        return 0 if (_rarity(o) == 1 and any(c in static for c in o.colours)) else 1
+    non_self.sort(key=lambda o: (_landmark(o), _rarity(o), o.size))  # unique static landmark FIRST, then rare, small
     out: List[Tuple[Key, int]] = []
     rank = 0
     for o in non_self[:max_objs]:
-        out.append((("BE_AT", _onobject_cell(o, stride)), rank)); rank += 1
-        out.append((("TOUCH", _touch_cell(o, stride)), rank)); rank += 1
+        for key in (("BE_AT", _onobject_cell(o, stride)), ("TOUCH", _touch_cell(o, stride))):
+            if key[1][0] >= 0 and key[1][1] >= 0:       # skip OFF-BOARD targets (e.g. TOUCH above a top-row object
+                out.append((key, rank)); rank += 1      # is row -1) -- an unreachable cell is a stall sink, not a goal
         hi = _hollow_interior(o, stride)
-        if hi is not None:
+        if hi is not None and hi[0] >= 0 and hi[1] >= 0:
             out.append((("COVER", hi), rank)); rank += 1
     return out

@@ -21,7 +21,9 @@ banned in active play unless a credit was EARNED by a completed level). Neither 
 """
 from __future__ import annotations
 from typing import Callable, Dict, List, Tuple, Optional
+from collections import deque
 import numpy as np
+from scipy import ndimage
 from .perception import segment, ObjectTracker, Object
 from .residual import ResidualBus, sense
 from .falsified_ledger import FalsifiedLedger
@@ -78,6 +80,12 @@ class AgentLoop:
         self._action_tries: Dict[str, int] = {}
         self.probe_limit = 6
         self._reprobe_cells: Dict[str, set] = {}   # cells each action has already been re-probed from
+        # brick 24: STATIC-landmark detection. A goal is typically a FIXED distinct object; the cursor and any
+        # HUD/animation move. Track each colour's largest-component centroid; a colour unchanged over the whole
+        # window is a static landmark -> it wins the goal-salience sort (breaks the price ties that let the
+        # agent commit to an arbitrary corridor cell instead of the real goal).
+        self._centroid_hist: Dict[int, deque] = {}
+        self._static_window = 5
 
     def signal_reward(self) -> None:
         """Tell the goal market a REWARD just occurred (a level advanced) -- consumed on the next observe()
@@ -104,6 +112,32 @@ class AgentLoop:
         if not unvisited:
             return None                                      # all members reached -> nothing left to navigate to
         return min(unvisited, key=lambda m: abs(m[0] - ccell[0]) + abs(m[1] - ccell[1]))
+
+    def _track_static(self, frame: np.ndarray) -> None:
+        """Update per-colour largest-component centroid history (brick 24 static-landmark detection)."""
+        f = np.asarray(frame)
+        present = set()
+        for col in (int(v) for v in np.unique(f) if int(v) != self.bg):
+            present.add(col)
+            m = f == col
+            lab, k = ndimage.label(m)
+            if k == 0:
+                continue
+            sizes = ndimage.sum(m, lab, range(1, k + 1))
+            i = int(np.argmax(sizes)) + 1
+            ys, xs = np.where(lab == i)
+            c = (int(round(float(ys.mean()))), int(round(float(xs.mean()))))
+            self._centroid_hist.setdefault(col, deque(maxlen=self._static_window)).append(c)
+        for col in [c for c in self._centroid_hist if c not in present]:  # a vanished colour is not static
+            self._centroid_hist[col].clear()
+
+    def _static_colours(self) -> frozenset:
+        """Colours whose largest component has NOT moved across the full window -> fixed landmarks (goal-like)."""
+        out = set()
+        for col, h in self._centroid_hist.items():
+            if len(h) >= self._static_window and len(set(h)) == 1:
+                out.add(col)
+        return frozenset(out)
 
     def _cursor_cell_in(self, frame: np.ndarray, stride: int) -> Optional[Tuple[int, int]]:
         """Logical cell of the cursor as seen in `frame` (largest component of the cursor colour)."""
@@ -212,7 +246,8 @@ class AgentLoop:
                 # propose TYPED (brick 17: BE_AT/TOUCH/COVER) + QUANTIFIED (brick 18: ALL over a colour-class)
                 # relation hypotheses; reward confirms which actually wins (brick 14 market)
                 cc = self.agency.cursor_colour()
-                self.goals.propose(candidate_relations(self._cur_objs, cc, stride))
+                self.goals.propose(candidate_relations(self._cur_objs, cc, stride,
+                                                       static_colours=self._static_colours()))
                 self.goals.propose(quantified_candidates(self._cur_objs, cc, stride))
                 gkey = self.goals.active_goal()
                 if gkey is not None and dir2action:
@@ -298,22 +333,31 @@ class AgentLoop:
                 if active is not None and active[0] == "ALL":
                     # brick 18: mark the reached member visited; the goal is "reached" only when ALL are
                     # visited (goodhart guard: one member is NOT the whole set). No reward then -> demote.
+                    progress = False
                     if after_cell is not None:
                         members = set(class_member_cells(self._cur_objs, active[1], stride))
-                        if after_cell in members:
+                        if after_cell in members and after_cell not in self._visited:
                             self._visited.add(after_cell)
+                            progress = True                  # brick 24: a NEW member visited -> real progress
                         reached = members.issubset(self._visited) and len(members) > 0
                     else:
                         reached = False
-                    self.goals.observe(reached=reached, reward=False)
+                    self.goals.observe(reached=reached, reward=False, progress=progress)
                     if reached:
                         self._visited = set()                # completed the set with no reward -> reset to re-test
-                else:
-                    reached = (active is not None and after_cell is not None and after_cell == active[1])
-                    self.goals.observe(reached=reached, reward=False)
+                elif active is not None:
+                    reached = (after_cell is not None and after_cell == active[1])
+                    # brick 24: progress = the cursor got CLOSER to the target this step (don't stall mid-approach)
+                    tgt = active[1]
+                    progress = (after_cell is not None and isinstance(tgt, tuple) and len(tgt) == 2
+                                and (abs(after_cell[0] - tgt[0]) + abs(after_cell[1] - tgt[1]))
+                                    < (abs(prev_cell[0] - tgt[0]) + abs(prev_cell[1] - tgt[1])))
+                    self.goals.observe(reached=reached, reward=False, progress=progress)
         self._pending_reward = False                        # consume the one-shot reward signal each step
         # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (fallback ID)
         self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))
+        # brick 24: track each colour's largest-component centroid to detect STATIC landmarks (goal salience)
+        self._track_static(after)
         # brick 10a: the action ran -> its novelty is partly spent (drives coverage on the next choose)
         self.explorer.visit(action)
         # brick 22: count honest MOVE tries per action -> the map-completion re-probe's give-up budget

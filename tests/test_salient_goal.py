@@ -54,3 +54,22 @@ def test_big_singleton_ranks_below_small_marker_like_landmarks():
     ranked = sorted(cands, key=lambda kr: kr[1])
     top_be_at = next((cell for (rel, cell), _r in ranked if rel == "BE_AT"), None)
     assert top_be_at == (3, 3), "big HUD-like singleton outranked the small landmark: %s" % (top_be_at,)
+
+
+def test_static_landmark_outranks_an_equally_rare_moving_marker():
+    # brick 24: two unique (rarity-1) objects — a STATIC goal square (colour 8) and a MOVING 1px marker
+    # (colour 7). Without static info, the smaller (colour 7 speck) would win the tiebreak; with static info
+    # the FIXED landmark must be proposed top (the tu93 case: pick the goal, not the moving speck / HUD).
+    moving_speck = _obj([(1, 1)], 7)                       # rarity 1, size 1 — but it MOVES (not static)
+    static_goal = _obj([(8, 8), (8, 9), (9, 8)], 8)        # rarity 1, size 3 — FIXED landmark (the goal)
+    cursor = _obj([(5, 5)], 4)
+    objs = [moving_speck, static_goal, cursor]
+
+    # no static info -> size tiebreak makes the 1px speck the top BE_AT (the pre-brick-24 failure)
+    ranked_nostatic = sorted(candidate_relations(objs, 4, 1), key=lambda kr: kr[1])
+    assert ranked_nostatic[0][0][1] == (1, 1)
+
+    # with colour 8 known static -> the fixed landmark is proposed top, beating the equally-rare moving speck
+    ranked = sorted(candidate_relations(objs, 4, 1, static_colours=frozenset({8})), key=lambda kr: kr[1])
+    top_be_at = next((cell for (rel, cell), _r in ranked if rel == "BE_AT"), None)
+    assert top_be_at in {(8, 8), (8, 9), (9, 8)}, "static landmark did not outrank the moving speck: %s" % (top_be_at,)
