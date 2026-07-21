@@ -35,7 +35,11 @@ def _learned_summary(loop: AgentLoop) -> Dict[str, Any]:
                 pose_alpha=round(loop.pose.alpha, 3),
                 pe_integral=loop.residuals.pe_integral(),
                 refuted=len(loop.ledger),
-                reset_credits=loop.reset_gate.credits)
+                reset_credits=loop.reset_gate.credits,
+                # brick 12: did the agency separate the cursor from the environment and learn its move map?
+                cursor_colour=loop.agency.cursor_colour(),
+                cursor_stride=loop.agency.stride(),
+                action_map={a: list(v) for a, v in loop.agency.action_map().items()})
 
 
 def run_live(session, *, wall_cap_s: float = 120.0, max_actions: int = 600,

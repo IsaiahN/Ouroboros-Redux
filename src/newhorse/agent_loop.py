@@ -30,6 +30,7 @@ from .marketplace import informative_salience
 from .bounds import ResetGate, ResolutionBound   # the hard bounds, enforced on the loop's mandatory paths
 from .exploration import Explorer                 # brick 10a: novelty drive (anti-collapse)
 from .self_locus import SelfLocus                 # brick 10b: controllable-ID by action contingency
+from .agency import CursorAgency                  # brick 12: agent-vs-environment separation (discriminative cursor)
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -57,6 +58,8 @@ class AgentLoop:
         self.explorer = Explorer()
         self.locus = SelfLocus()
         self._cur_objs: List[Object] = []
+        # brick 12: agent-vs-environment separation -- the discriminative cursor + its per-action move map
+        self.agency = CursorAgency(background=background)
 
     # ---- HARD BOUNDS on the mandatory paths --------------------------------------------
     def earn_progress(self, *, level_completed: bool, reason: str = "") -> bool:
@@ -82,11 +85,18 @@ class AgentLoop:
         if not objs:
             return None
         self._cur_objs = objs
-        ctrl = self.locus.pick(objs)                        # brick 10b: the object PROVEN contingent on my actions
-        if ctrl is None:                                    # cold start (no contingency evidence yet) -> heuristic
+        ctrl = None
+        cur_col = self.agency.cursor_colour()               # brick 12: the discriminative cursor (best evidence)
+        if cur_col is not None:
+            cands = [o for o in objs if cur_col in o.colours]
+            if cands:
+                ctrl = min(cands, key=lambda o: o.size)
+        if ctrl is None:                                    # brick 10b fallback: colour contingency
+            ctrl = self.locus.pick(objs)
+        if ctrl is None:                                    # cold start -> heuristic (smallest distinct object)
             ctrl = min(objs, key=lambda o: o.size)
-        self.log.append("PERCEIVE  %d object(s); controllable id=%s size=%d (locus_colour=%s)"
-                        % (len(objs), ctrl.oid, ctrl.size, self.locus.controllable_colour()))
+        self.log.append("PERCEIVE  %d object(s); controllable id=%s size=%d (cursor_colour=%s)"
+                        % (len(objs), ctrl.oid, ctrl.size, cur_col))
         return ctrl
 
     def _apply(self, frame: np.ndarray, ctrl: Object, delta: Tuple[int, int]) -> np.ndarray:
@@ -108,8 +118,17 @@ class AgentLoop:
 
     # ---- THINK + MAP + ACT -------------------------------------------------------------
     def choose(self, frame: np.ndarray, ctrl: Object) -> Tuple[str, str, np.ndarray]:
-        """Commit the (action, transform) hypothesis we most believe AND that isn't refuted, blended with
-        exploration by the pose's alpha (private belief vs a flat social prior)."""
+        """Commit an action + its predicted effect. Once the agency has SEPARATED the cursor from the
+        environment (brick 12), predict the cursor's true multi-cell MOVE from the learned per-action map;
+        keep covering under-tried actions so the whole map is learned. Cold start: the unit-transform path."""
+        if self.agency.ready():
+            # coverage-first (learn every action's move), then novelty -- predict the true discovered move
+            target = min(self.actions, key=lambda a: (self.explorer.visits.get(a, 0), -self.explorer.bonus(a)))
+            vec = self.agency.predict(target)
+            delta = vec if vec is not None else (0, 0)      # unmapped action -> STAY probe (its move gets learned)
+            pred = self._apply(frame, ctrl, delta)
+            self.log.append("COMMIT(agency)  %s move=%s stride=%s" % (target, delta, self.agency.stride()))
+            return target, "MOVE", pred
         best = None
         for a in self.actions:
             for tname, delta in self.transforms.items():
@@ -144,11 +163,17 @@ class AgentLoop:
             sig = self._sig(action, tname)
             self.ledger.record(sig, trial_ran=True, made_progress=(tname == best_t), now=self.clock)
         # the pose learns: did our COMMITTED (private) hypothesis beat a naive social prior (assume STAY)?
-        self.pose.learn(private_error=errs[committed_tname], social_error=errs.get("STAY", max(errs.values())))
-        # the brake: bank the surprise the committed prediction actually left
-        committed_pred = self._apply(before, ctrl, self.transforms[committed_tname])
+        private_err = errs.get(committed_tname, min(errs.values()))   # "MOVE" is not a unit transform -> proxy
+        self.pose.learn(private_error=private_err, social_error=errs.get("STAY", max(errs.values())))
+        # the brake: bank the surprise the committed prediction actually left (unit transform OR the agency MOVE)
+        committed_delta = self.transforms.get(committed_tname)
+        if committed_delta is None:                          # "MOVE" -> the agency's learned per-action vector
+            committed_delta = self.agency.predict(action) or (0, 0)
+        committed_pred = self._apply(before, ctrl, committed_delta)
         self.residuals.observe(sense(committed_pred, after))
-        # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (agency)
+        # brick 12: the agency learns which colour is the cursor + its per-action move (agent vs environment)
+        self.agency.observe(before, action, after)
+        # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (fallback ID)
         self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))
         # brick 10a: the action ran -> its novelty is partly spent (drives coverage on the next choose)
         self.explorer.visit(action)
