@@ -116,6 +116,28 @@ class MazeMoverWorld:
         return self._frame()
 
 
+class HardMazeWorld(MazeMoverWorld):
+    """The ADVERSARIAL maze brick 13 could NOT solve: the wall's only gap is at row 7 -- far from the direct
+    line between the cursor (row 4) and the target -- so a naive optimistic replanner thrashes. Brick 21's
+    frontier exploration must systematically find the gap."""
+    def __init__(self):
+        super().__init__()
+        self.gap_row = 7                                    # gap far from the row-4 direct line -> needs real search
+
+
+def test_frontier_exploration_solves_an_adversarial_maze():
+    world = HardMazeWorld()
+    agent = AgentLoop(actions=["U", "D", "L", "R"], background=0)
+    reached = False
+    for _ in range(400):
+        agent.step(world.frame(), world.step)
+        if tuple(world.pos) == world.target:
+            reached = True
+            break
+    assert agent.agency.ready()
+    assert reached, "frontier exploration failed the hard maze (ended at %s)" % world.pos
+
+
 def test_loop_navigates_to_target_through_a_wall():
     world = MazeMoverWorld()
     agent = AgentLoop(actions=["U", "D", "L", "R"], background=0)

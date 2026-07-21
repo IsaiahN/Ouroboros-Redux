@@ -104,15 +104,71 @@ class GridNav:
                     seen.add(nb); q.append((nb, first))
         return None
 
+    def _bfs_known_free(self, start: Cell, goal: Cell, dirs: List[Dir]) -> Optional[Dir]:
+        """BFS using ONLY edges proven FREE (exploit the map already walked). First-step dir to goal, or None."""
+        start = (int(start[0]), int(start[1])); goal = (int(goal[0]), int(goal[1]))
+        if start == goal:
+            return None
+        seen = {start}; q: deque = deque(); first_of = {}
+        for d in dirs:
+            if self.edge.get((start, d)) is True:
+                nb = (start[0] + d[0], start[1] + d[1])
+                if nb not in seen:
+                    seen.add(nb); first_of[nb] = d; q.append(nb)
+        while q:
+            node = q.popleft()
+            if node == goal:
+                return first_of[node]
+            for d in dirs:
+                if self.edge.get((node, d)) is True:
+                    nb = (node[0] + d[0], node[1] + d[1])
+                    if nb not in seen:
+                        seen.add(nb); first_of[nb] = first_of[node]; q.append(nb)
+        return None
+
+    def _frontier_step(self, start: Cell, goal: Cell, dirs: List[Dir]) -> Optional[Dir]:
+        """Systematic FRONTIER exploration (harvested from Redux spatial_map): if the goal is not reachable
+        through known-free cells, push the boundary between KNOWN-FREE and UNKNOWN outward toward the goal.
+        Guarantees coverage so a hidden corridor is always found (FMap: federated_learning -- cover every
+        region, don't collapse to a biased subset). If `start` has an untried direction, probe the one nearest
+        the goal; else BFS over known-free cells to the nearest-to-goal FRONTIER cell (one with an untried dir)."""
+        start = (int(start[0]), int(start[1]))
+        untried = [d for d in dirs if (start, d) not in self.edge]
+        if untried:
+            return min(untried, key=lambda d: abs(start[0] + d[0] - goal[0]) + abs(start[1] + d[1] - goal[1]))
+        seen = {start}; q: deque = deque(); first_of = {}
+        for d in dirs:
+            if self.edge.get((start, d)) is True:
+                nb = (start[0] + d[0], start[1] + d[1])
+                if nb not in seen:
+                    seen.add(nb); first_of[nb] = d; q.append(nb)
+        best, best_key = None, None
+        while q:
+            node = q.popleft()
+            if any((node, d) not in self.edge for d in dirs):          # a frontier: has an unexplored direction
+                key = abs(node[0] - goal[0]) + abs(node[1] - goal[1])
+                if best_key is None or key < best_key:
+                    best_key, best = key, node
+            for d in dirs:
+                if self.edge.get((node, d)) is True:
+                    nb = (node[0] + d[0], node[1] + d[1])
+                    if nb not in seen:
+                        seen.add(nb); first_of[nb] = first_of[node]; q.append(nb)
+        return first_of.get(best) if best is not None else None
+
     def step_toward(self, start: Cell, goal: Cell, dirs: Iterable[Dir]) -> Optional[Dir]:
-        """Move now: an optimistic shortest-path step toward the goal (treating unknown edges as passable,
-        replanning as walls are learned), with least-visited expansion so a walled direct route makes the
-        search sweep new territory instead of 2-cycling. Falls back to the least-visited non-wall neighbour."""
+        """Move now: (1) EXPLOIT -- if the goal is reachable through PROVEN-FREE cells, take that first step;
+        (2) EXPLORE -- else push the FRONTIER toward the goal (systematic maze coverage, brick 21); (3) FALLBACK
+        -- the least-visited non-wall neighbour toward the goal. This solves narrow-corridor mazes that the old
+        optimistic-replan step (brick 13) only thrashed on."""
         start = (int(start[0]), int(start[1]))
         dirs = [_unit(d) for d in dirs]
-        s = self.first_step(start, goal, dirs)
-        if s is not None:
-            return s
+        exploit = self._bfs_known_free(start, goal, dirs)
+        if exploit is not None:
+            return exploit
+        frontier = self._frontier_step(start, goal, dirs)
+        if frontier is not None:
+            return frontier
         cands = []
         for d in dirs:
             if self.edge.get((start, d)) is False:          # skip known walls
