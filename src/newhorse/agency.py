@@ -75,15 +75,22 @@ class CursorAgency:
                         % (action, self._colour, self._map))
 
     def _amap_for(self, colour: int) -> Dict[str, Tuple[int, int]]:
-        """The action->shift map for one colour: a shift is kept only if a MAJORITY of that action's
-        observations agree on it (consistency)."""
+        """The action->shift map for one colour: a shift is kept if the action's MOVES agree on it.
+
+        Consistency is judged over the NON-ZERO observations only -- a (0,0) is a BLOCKED move (the cursor
+        hit a wall), which is evidence about WALLS (navigation's job), NOT evidence that the action's effect
+        is unknown. Counting (0,0)s against the shift made the map NON-MONOTONIC: an action learned early
+        would be UN-LEARNED once nav drove the cursor into walls often enough that its blocked (0,0)s
+        outnumbered its real moves (measured: a mapped R dropped out mid-run, stranding the agent with a
+        partial map re-probing couldn't rescue because the action was already past its probe budget). Judging
+        the majority among the MOVES keeps a real (sometimes-blocked) mover stably mapped."""
         amap: Dict[str, Tuple[int, int]] = {}
         for a, ds in self.disp[colour].items():
             nz = [d for d in ds if d != (0, 0)]
             if not nz:
                 continue
             shift, cnt = Counter(nz).most_common(1)[0]
-            if cnt >= max(1, len(ds) // 2):         # consistent majority for this action
+            if cnt >= max(1, len(nz) // 2):         # majority among the MOVES (blocked (0,0)s don't un-map)
                 amap[a] = shift
         return amap
 

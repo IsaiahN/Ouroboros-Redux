@@ -19,6 +19,7 @@ true. Each relation yields a NAVIGATION TARGET CELL; the market prices (relation
 confirms the winner, demotes the rest (defeasibly). Nothing silent; never encodes any game's answer.
 """
 from __future__ import annotations
+from collections import Counter
 from typing import List, Optional, Tuple
 from .perception import Object
 
@@ -95,10 +96,25 @@ def class_member_cells(objs: List[Object], colour: int, stride: int) -> List[Tup
 
 def candidate_relations(objs: List[Object], cursor_colour: Optional[int], stride: int,
                         *, max_objs: int = 5) -> List[Tuple[Key, int]]:
-    """Propose typed relation-hypotheses (as (relation, target_cell) keys) for the market, marker-like objects
-    first. Each object yields BE_AT + TOUCH, plus COVER if it is a hollow slot. Reward disposes."""
+    """Propose typed relation-hypotheses (as (relation, target_cell) keys) for the market, most SALIENT
+    landmarks first. Each object yields BE_AT + TOUCH, plus COVER if it is a hollow slot. Reward disposes.
+
+    SALIENCE (brick 23): rank by (colour RARITY, size) -- a target whose colour appears as FEW objects on the
+    board is a distinct LANDMARK (the figure) and a far better goal hypothesis than one of MANY identical
+    fragments of a repeated colour (the ground: a maze's 30+ corridor/wall pieces). Without this, sorting by
+    size alone lets a maze's tiny 1-2px fragments fill every slot and BURY the unique landmark so it is never
+    proposed (measured on tu93: the static colour-14 landmark never entered the market, drowned by 32 red
+    corridor fragments). FMap: predictive_processing / information salience -- a rare singleton is the
+    high-information figure; goodharts_law guard -- 'smallest object' is a gameable proxy for 'the goal',
+    'distinct/rare' is the honest one. Size stays the tiebreak (keeps a big HUD bar below marker-like objects)."""
     non_self = [o for o in objs if cursor_colour is None or cursor_colour not in o.colours]
-    non_self.sort(key=lambda o: o.size)
+    colour_count: Counter = Counter()
+    for o in non_self:
+        for c in o.colours:
+            colour_count[c] += 1
+    def _rarity(o: Object) -> int:                      # fewest siblings sharing any of the object's colours
+        return min((colour_count[c] for c in o.colours), default=10 ** 6)
+    non_self.sort(key=lambda o: (_rarity(o), o.size))   # rare distinct landmark FIRST, then marker-like size
     out: List[Tuple[Key, int]] = []
     rank = 0
     for o in non_self[:max_objs]:

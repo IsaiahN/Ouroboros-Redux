@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 recordings/
+
+# scratch render artifacts (LAW-0 tooling) and live recordings
+*.png
+recordings/
