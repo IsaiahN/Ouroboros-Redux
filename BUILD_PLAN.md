@@ -29,6 +29,18 @@ Each brick: FMap-grounded, unit-tested, committed, nothing silent.
 7. **Loop closure** (§9.6) — PERCEIVE → THINK → MAP → ACT with both feedback arrows.
 8. **Hard-bound enforcers at import** — reset-earned-only, no-downsampling.
 9. **Run vs one clean ARC-3 game through the live gate.** Metric: `levels_completed` only (no fractional goose chase).
+10. **[DONE]** Exploration drive + self-locus controllable-ID.
+
+## HARVEST-DRIVEN SEQUENCE (bricks 11+) — see claude/HARVEST_from_redux.md
+The ground-up bricks 1–10 are underpowered; the live runs kept rediscovering (painfully) what Redux already measured. Five subagent surveys of Redux (branch `main`) produced a harvest plan. Each item below is a Redux-PROVEN mechanism re-expressed **reset-free, map-faithful, FMap-grounded, unit-tested, LAW-0-verified on rendered frames** — NOT copy-pasted. Discipline: port live/observe paths only (Redux's best perception is reset-anchored; we ban mid-game reset); reject the monolith "route everything to one engine"; skip game-specific detector cruft.
+- **Brick 11 — Logical-grid quantum lens** ← `grid_perception.detect_grid`+`_fidelity`+`cell_to_frame`. Detect the ~12×12 grid upscaled 5× to 64; KEEP raw (never downsample). Makes "move" = 1 logical cell = the 5-px step the pixels showed. (Supersedes the hand-rolled `motion_model.py`.)
+- **Brick 12 — Agent-vs-environment separation** ← `transition_induction` ego/self-contact context split + `effect_classifier` discriminative-AND-axis-aligned cursor test. The real ls20 fix: learn the piece's move despite maze redraw churn; a static timer/HUD never confirms as caused.
+- **Brick 13 — Regime classify + routing** ← `ControlRegime.classify` (avatar/actuator/unknown, re-evaluable, win-confirms); self_locus emits `n_controllable`; unknown routes to the prober. Reject the "everything→one engine" default.
+- **Brick 14 — SpatialMap navigation** ← directed-edge traversability + decay + frontier/info-gain. Real maze navigation for a multi-pixel avatar (corner-clip aware).
+- **Brick 15 — BudgetModel** ← induce meter/lives/price-per-action by watching frames; measure action cost (ls20's timer bar; price changes per level). "Measure, never guess the constant."
+- **Brick 16 — Goal pursuit** ← `compile_discrepancy` (typed relation → scalar d=0) + `kernel` attribution split (OBJECTIVE_INVALID vs PURSUIT_FAILED) + abduction SHAPE (win-relation abduced from the goal's appearance, not the action space; detectors rebuilt as grammar molecules).
+- **Brick 17 — Evolvability engine** ← mint/co-opt/escalate + BEFORE-state tautology guard + CUSUM speciation + level-split held-out. THE MAP's minting spec, already built.
+- **Folded upgrades (apply when the brick is touched):** marketplace guards (veto-vs-select for no-change, recency-EWMA pricing, prestige≠budget, None-is-an-answer); falsified-ledger guards (earned-exhaustion taxonomy, paralysis→reopen, reproduce-before-mint + mask-own-instruments); reasoning-rides-every-action with a mandatory disproof field.
 
 ## Foundation status
 The map's central bet — aim variation with a spec — has a **measured floor**: the reverse-map
