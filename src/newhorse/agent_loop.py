@@ -34,7 +34,7 @@ from .agency import CursorAgency                  # brick 12: agent-vs-environme
 from .navigation import GridNav, _unit            # brick 13: directed-edge maze navigation
 from .goal import GoalManager                     # brick 14: candidate goals priced by reward
 from .budget import BudgetModel                    # brick 15: induced action budget (the depleting HUD bar)
-from .relations import candidate_relations         # brick 17: a space of typed win-relations (BE_AT/TOUCH/COVER)
+from .relations import candidate_relations, quantified_candidates, class_member_cells  # brick 17/18: typed + quantified win-relations
 
 
 # --- GENERIC transforms (NOT answers): move the controllable's cells by a unit delta, or identity ---
@@ -70,6 +70,8 @@ class AgentLoop:
         self.budget = BudgetModel()               # brick 15: know the action budget (the depleting HUD bar)
         self._base_stall = self.goals.stall_steps
         self._pending_reward = False              # set by signal_reward() on a level-up; consumed in observe()
+        self._quant_key: Optional[Tuple] = None   # brick 18: the ALL-class currently pursued
+        self._visited: set = set()                # members of the active ALL-class the cursor has reached
 
     def signal_reward(self) -> None:
         """Tell the goal market a REWARD just occurred (a level advanced) -- consumed on the next observe()
@@ -80,6 +82,22 @@ class AgentLoop:
         """Logical-cell coordinate of a pixel centroid at the world's move quantum (stride)."""
         s = max(1, stride)
         return (int(round(centroid[0] / s)), int(round(centroid[1] / s)))
+
+    def _nav_subgoal(self, gkey: Tuple, ccell: Tuple[int, int], stride: int) -> Optional[Tuple[int, int]]:
+        """The cell to navigate to for the active goal. A single-target relation -> its target cell. A
+        QUANTIFIED ALL(colour) -> the NEAREST UNVISITED member of that class (reduce violators one at a time,
+        lindblom); None if all members are already visited (the whole-set objective is complete this cycle)."""
+        if gkey[0] != "ALL":
+            self._quant_key = None
+            return gkey[1]
+        if self._quant_key != gkey:                          # switched to a new ALL-class -> fresh visited set
+            self._quant_key = gkey
+            self._visited = set()
+        members = class_member_cells(self._cur_objs, gkey[1], stride)
+        unvisited = [m for m in members if m not in self._visited]
+        if not unvisited:
+            return None                                      # all members reached -> nothing left to navigate to
+        return min(unvisited, key=lambda m: abs(m[0] - ccell[0]) + abs(m[1] - ccell[1]))
 
     def _cursor_cell_in(self, frame: np.ndarray, stride: int) -> Optional[Tuple[int, int]]:
         """Logical cell of the cursor as seen in `frame` (largest component of the cursor colour)."""
@@ -164,20 +182,23 @@ class AgentLoop:
                 # still abandoned (nav can't reach it -> it eventually stalls even at the raised tolerance).
                 frac = self.budget.fraction_left(frame)
                 self.goals.stall_steps = int(self._base_stall * (3 if (frac is not None and frac < 0.4) else 1))
-                # propose TYPED RELATION hypotheses (brick 17: BE_AT/TOUCH/COVER) and NAVIGATE toward the
-                # best-priced one; reward will confirm which RELATION actually wins (brick 14 market)
-                self.goals.propose(candidate_relations(self._cur_objs, self.agency.cursor_colour(), stride))
-                gkey = self.goals.active_goal()             # (relation, target_cell)
+                # propose TYPED (brick 17: BE_AT/TOUCH/COVER) + QUANTIFIED (brick 18: ALL over a colour-class)
+                # relation hypotheses; reward confirms which actually wins (brick 14 market)
+                cc = self.agency.cursor_colour()
+                self.goals.propose(candidate_relations(self._cur_objs, cc, stride))
+                self.goals.propose(quantified_candidates(self._cur_objs, cc, stride))
+                gkey = self.goals.active_goal()
                 if gkey is not None and dir2action:
-                    gcell = gkey[1]
                     ccell = self._cell(ctrl.centroid, stride)
-                    d = self.nav.step_toward(ccell, gcell, list(dir2action))
-                    if d is not None and d in dir2action:
-                        action = dir2action[d]
-                        pred = self._apply(frame, ctrl, amap[action])
-                        self.log.append("COMMIT(nav)  %s dir=%s from=%s goal=%s(%s)"
-                                        % (action, d, ccell, gkey[0], gcell))
-                        return action, "MOVE", pred
+                    gcell = self._nav_subgoal(gkey, ccell, stride)    # brick 18: nearest unvisited member for ALL
+                    if gcell is not None:
+                        d = self.nav.step_toward(ccell, gcell, list(dir2action))
+                        if d is not None and d in dir2action:
+                            action = dir2action[d]
+                            pred = self._apply(frame, ctrl, amap[action])
+                            self.log.append("COMMIT(nav)  %s dir=%s from=%s goal=%s(%s)"
+                                            % (action, d, ccell, gkey[0], gcell))
+                            return action, "MOVE", pred
             # still learning the map (or no target/route) -> coverage-first, then novelty
             target = min(self.actions, key=lambda a: (self.explorer.visits.get(a, 0), -self.explorer.bonus(a)))
             vec = self.agency.predict(target)
@@ -247,8 +268,22 @@ class AgentLoop:
                 self.goals.credit(win_cell)
             else:
                 active = self.goals.active
-                reached = (active is not None and after_cell is not None and after_cell == active[1])
-                self.goals.observe(reached=reached, reward=False)
+                if active is not None and active[0] == "ALL":
+                    # brick 18: mark the reached member visited; the goal is "reached" only when ALL are
+                    # visited (goodhart guard: one member is NOT the whole set). No reward then -> demote.
+                    if after_cell is not None:
+                        members = set(class_member_cells(self._cur_objs, active[1], stride))
+                        if after_cell in members:
+                            self._visited.add(after_cell)
+                        reached = members.issubset(self._visited) and len(members) > 0
+                    else:
+                        reached = False
+                    self.goals.observe(reached=reached, reward=False)
+                    if reached:
+                        self._visited = set()                # completed the set with no reward -> reset to re-test
+                else:
+                    reached = (active is not None and after_cell is not None and after_cell == active[1])
+                    self.goals.observe(reached=reached, reward=False)
         self._pending_reward = False                        # consume the one-shot reward signal each step
         # brick 10b: self-locus learns which colour's motion is CONTINGENT on this action (fallback ID)
         self.locus.observe(action, segment(before, background=self.bg), segment(after, background=self.bg))

@@ -70,6 +70,29 @@ def _hollow_interior(o: Object, stride: int) -> Optional[Tuple[int, int]]:
     return None
 
 
+def quantified_candidates(objs: List[Object], cursor_colour: Optional[int], stride: int,
+                          *, min_members: int = 2, max_classes: int = 3) -> List[Tuple[Key, int]]:
+    """QUANTIFIED win-hypotheses: `ALL(x in COLOUR-CLASS)` -- the cursor must reach EVERY instance of a colour
+    that appears >= min_members times (visit-all / collect / all-markers). Key = ("ALL", colour).
+
+    FMap: ostrom_iad_framework (d=0.104) -- the objective is a rule over the whole SET; lindblom (reduce
+    violators one at a time); goodharts_law GUARD -- reaching ONE member must NOT count as satisfying the
+    whole set (only zero violators does). Returns [(("ALL", colour), rank), ...], most-numerous class first."""
+    from collections import Counter
+    non_self = [o for o in objs if cursor_colour is None or cursor_colour not in o.colours]
+    counts: Counter = Counter()
+    for o in non_self:
+        for c in o.colours:
+            counts[c] += 1
+    classes = sorted((c for c, n in counts.items() if n >= min_members), key=lambda c: -counts[c])
+    return [(("ALL", int(c)), rank) for rank, c in enumerate(classes[:max_classes])]
+
+
+def class_member_cells(objs: List[Object], colour: int, stride: int) -> List[Tuple[int, int]]:
+    """The logical cells of every instance of `colour` -- the members of an ALL-class the cursor must reach."""
+    return [_cell(o.centroid, stride) for o in objs if colour in o.colours]
+
+
 def candidate_relations(objs: List[Object], cursor_colour: Optional[int], stride: int,
                         *, max_objs: int = 5) -> List[Tuple[Key, int]]:
     """Propose typed relation-hypotheses (as (relation, target_cell) keys) for the market, marker-like objects

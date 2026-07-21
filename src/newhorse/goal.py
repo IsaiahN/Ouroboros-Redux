@@ -58,7 +58,15 @@ class GoalManager:
         """Attribute a REWARD to the relation-hypothesis whose target is `cell` -- the cell the cursor
         actually WON at, not merely the nominally-active goal (navigation may have arrived elsewhere). If the
         winning cell was not a proposed target, add it as a BE_AT hypothesis and confirm it (the market learns
-        the winning cell). Locks the active goal onto the confirmed winner."""
+        the winning cell). Locks the active goal onto the confirmed winner.
+
+        Special case: if the active goal is a QUANTIFIED ALL(...), the cursor won by completing the whole set
+        (not by a single cell), so credit that active goal too."""
+        if self.active is not None and self.active[0] == "ALL":
+            self.price[self.active] = self.price.get(self.active, 0.0) + self.confirm_bonus
+            self.pursuit = 0
+            self.log.append("GOAL  CONFIRM-by-reward (quantified) %s" % (self.active,))
+            return
         matched = [k for k in self.price if k[1] == cell]
         if not matched:
             k = ("BE_AT", cell)
