@@ -198,6 +198,18 @@ def affordance_step(before: np.ndarray, after: np.ndarray, cursor_colour: int, v
     return ctx, (fa != fb)                               # moved iff the cursor cell actually changed
 
 
+def _entered_colour(before: np.ndarray, after: np.ndarray, cursor_colour: int) -> Optional[int]:
+    """The before-state colour of the cell the cursor ACTUALLY moved into (its after-position). This is the true
+    floor it stepped onto -- used to calibrate passability leak-free, unlike the projected cell-ahead which can
+    overshoot into the surround near a boundary."""
+    ca = _px_centroid(after, cursor_colour)
+    if ca is None:
+        return None
+    b = np.asarray(before); h, w = b.shape
+    r, c = int(round(ca[0])), int(round(ca[1]))
+    return int(b[r, c]) if (0 <= r < h and 0 <= c < w) else None
+
+
 class AffordanceMintBridge:
     """P4 (novel-aim): label the residual by the GRAMMAR's own prediction error -- Γ predicts 'the cursor shifts
     by its action vector'; the residual is WHERE THAT FAILS (a blocked move). The predictor of that is NOT
@@ -238,7 +250,12 @@ class AffordanceMintBridge:
             return
         ctx, moved = step
         if self.calibrator is not None:
-            self.calibrator.observe(ctx.intended_colour, moved)
+            # CALIBRATE from the cursor's ACTUAL trajectory -- the before-state colour of the cell it truly
+            # entered -- NOT the projected `intended_colour`. The projection overshoots into the surround near
+            # boundaries (tu93: 4/31 moved steps projected into grey), leaking a non-floor colour into the
+            # passable set; the actual-entered colour is the true floor. Prediction still uses the projection.
+            entered = _entered_colour(before, after, int(cc)) if moved else None
+            self.calibrator.observe(entered, moved)
             if self.calibrator.calibrating:
                 return                                   # warmup: freeze the passable read before minting
             free = self.calibrator.is_free(ctx.intended_colour)

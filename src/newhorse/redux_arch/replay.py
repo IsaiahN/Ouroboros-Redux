@@ -20,6 +20,7 @@ Nothing silent: `replay_affordance` returns the engine, the learned basis, and t
 from __future__ import annotations
 from dataclasses import dataclass, field
 from collections import Counter
+from statistics import median
 from typing import Dict, List, Optional, Tuple
 import json
 import numpy as np
@@ -45,7 +46,7 @@ def learn_basis(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int
         if c is not None:
             votes[c] += 1
     cursor = votes.most_common(1)[0][0] if votes else None
-    vecs: Dict[str, Counter] = {}
+    deltas: Dict[str, List[Tuple[int, int]]] = {}
     if cursor is not None:
         for i in range(1, len(frames)):
             cb = _px_centroid(frames[i - 1], cursor)
@@ -54,9 +55,32 @@ def learn_basis(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int
                 continue
             d = (int(round(ca[0] - cb[0])), int(round(ca[1] - cb[1])))
             if d != (0, 0):
-                vecs.setdefault(acts[i], Counter())[d] += 1
-    vec_table = {a: c.most_common(1)[0][0] for a, c in vecs.items() if c}
+                deltas.setdefault(acts[i], []).append(d)
+    vec_table = {a: v for a, v in ((a, _dominant_axis_vec(ds)) for a, ds in deltas.items()) if v is not None}
     return cursor, vec_table
+
+
+def _dominant_axis_vec(deltas: List[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+    """Snap a cloud of observed cursor displacements for ONE action to a single clean axial stride. A grid move
+    is purely horizontal or vertical; raw pixel-centroid deltas pick up cross-axis jitter (tu93's `(7,-1)`),
+    which then lands the projected 'cell ahead' in the wrong colour. We choose the axis carrying the most total
+    motion, take the SIGN of its net displacement, and the MEDIAN magnitude along it (robust to outliers) -- a
+    clean `(±stride, 0)` or `(0, ±stride)`. Zero cross-axis component by construction."""
+    if not deltas:
+        return None
+    sr = sum(abs(dr) for dr, _ in deltas)
+    sc = sum(abs(dc) for _, dc in deltas)
+    if sr >= sc:
+        vals = [dr for dr, _ in deltas if dr != 0]
+        if not vals:
+            return None
+        mag = int(round(median(sorted(abs(v) for v in vals))))
+        return ((1 if sum(vals) >= 0 else -1) * mag, 0)
+    vals = [dc for _, dc in deltas if dc != 0]
+    if not vals:
+        return None
+    mag = int(round(median(sorted(abs(v) for v in vals))))
+    return (0, (1 if sum(vals) >= 0 else -1) * mag)
 
 
 @dataclass
