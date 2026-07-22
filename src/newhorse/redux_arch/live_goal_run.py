@@ -21,7 +21,7 @@ import numpy as np
 from .replay import learn_basis
 from .bridge import _px_centroid
 from .goal import salient_targets
-from .planner import plan_action
+from .planner import plan_action, bfs_path_action
 from .dsl import Predicate, make_atom
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
@@ -85,10 +85,11 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
                         view_url=session.view_url, cursor=cursor, vecs=vecs, passable=sorted(passable),
                         salient=cands, log=log)
 
-        # ---- EXPLOIT: serve φ_goal = ACTS_TOWARD(avatar, salient landmark), passability-gated -----------------
+        # ---- EXPLOIT: PATHFIND to the posed landmark over the discovered passable-cell graph -------------------
+        stride = max((max(abs(v[0]), abs(v[1])) for v in vecs.values()), default=1) or 1
         steps = warmup
         outcome = "action_cap"
-        stuck = 0
+        min_target_dist = None                             # closest the cursor ever gets to the landmark (px)
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
             grid = np.asarray(snap["grid"])
             cur = _px_centroid(grid, cursor)
@@ -98,11 +99,13 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
             else:
                 avatar = (int(round(cur[0])), int(round(cur[1])))
                 target = (int(round(tgt[0])), int(round(tgt[1])))
-                h, w = grid.shape
-                def passable_fn(dest, _g=grid, _h=h, _w=w):
-                    r, c = dest
-                    return 0 <= r < _h and 0 <= c < _w and int(_g[r, c]) in passable
-                lbl = plan_action(avatar, target, vecs, ACTS_TOWARD, passable_fn) or labels[steps % len(labels)]
+                d = abs(avatar[0] - target[0]) + abs(avatar[1] - target[1])
+                min_target_dist = d if min_target_dist is None else min(min_target_dist, d)
+                lbl = (bfs_path_action(grid, avatar, target, vecs, passable, stride)
+                       or plan_action(avatar, target, vecs, ACTS_TOWARD,
+                                      lambda dest, _g=grid: 0 <= dest[0] < _g.shape[0] and 0 <= dest[1] < _g.shape[1]
+                                      and int(_g[dest[0], dest[1]]) in passable)
+                       or labels[steps % len(labels)])
             prev = snap["levels_completed"]
             snap = session.step(val_of[lbl], reasoning={"why": "serve ACTS_TOWARD(avatar, salient=%s)" % target_colour})
             if snap["levels_completed"] > prev:
@@ -114,6 +117,6 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
                 break
         return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
                     view_url=session.view_url, cursor=cursor, vecs=vecs, passable=sorted(passable),
-                    salient=cands, target_colour=target_colour, log=log)
+                    salient=cands, target_colour=target_colour, min_target_dist=min_target_dist, log=log)
     finally:
         session.close()
