@@ -20,7 +20,7 @@ import time
 import numpy as np
 from .replay import learn_basis
 from .bridge import _px_centroid
-from .goal import static_salient_targets
+from .goal import salient_targets
 from .planner import plan_action
 from .dsl import Predicate, make_atom
 
@@ -74,7 +74,9 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
                 break
         cursor, vecs = learn_basis(frames, acts)
         passable = _learn_passable(frames, cursor)
-        cands = static_salient_targets(frames, avatar_colour=(cursor if cursor is not None else -1), bg=bg, top=3)
+        # referent prior: exclude the avatar, the passable floor, and the background/field -> a static landmark
+        cands = salient_targets(frames, avatar_colour=(cursor if cursor is not None else -1),
+                                exclude=set(passable) | {bg}, top=3)
         target_colour = cands[0] if cands else None
         log.append("LEARN cursor=%s vecs=%s passable=%s salient=%s (target=%s)"
                    % (cursor, vecs, sorted(passable), cands, target_colour))

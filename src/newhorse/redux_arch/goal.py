@@ -65,6 +65,43 @@ def pose_goal(steps: List[GoalStep], avatar_colour: int = 0, max_size: int = 1) 
     return best
 
 
+def salient_targets(frames, avatar_colour: int, exclude=(), min_px: int = 4, max_frac: float = 0.15,
+                    motion_frac: float = 0.3, top: int = 3) -> List[int]:
+    """Referent prior (v6 §3, design pragmatics: salience · uniqueness · framing). A goal REFERENT is a distinct,
+    STATIC, moderately-sized COMPACT object -- not 1–2px noise, not the huge floor/field/background, and NOT the
+    moving avatar (an actor is not its own goal). This fixes the first-live-run failure where a smallest-first
+    ranking grabbed a 2px fleck instead of the real landmark.
+
+    Filters (all general, never a specific game's answer): drop the avatar colour and any `exclude` colours (pass
+    the passable/floor + background here); drop colours with footprint < `min_px` (noise) or > `max_frac`·frame
+    (floor/field); drop colours whose centroid MOVES on more than `motion_frac` of steps (that is an actor, not a
+    landmark). Rank the survivors by prominence (footprint) — a large compact static blob outranks a tiny one."""
+    F = np.stack([np.asarray(f) for f in frames])
+    n = len(F); hw = F[0].size
+    ex = set(int(x) for x in exclude)
+    scored = []
+    for c in sorted(set(int(v) for v in np.unique(F))):
+        if c == avatar_colour or c in ex:
+            continue
+        sizes = [int((F[i] == c).sum()) for i in range(n)]
+        size = int(np.median(sizes))
+        if size < min_px or size > max_frac * hw:
+            continue                                     # noise, or the floor/field/background
+        moved, last = 0, None                            # centroid motion across frames
+        for i in range(n):
+            m = (F[i] == c)
+            if m.any():
+                ys, xs = np.where(m); cen = (round(float(ys.mean()), 1), round(float(xs.mean()), 1))
+                if last is not None and cen != last:
+                    moved += 1
+                last = cen
+        if moved > motion_frac * n:
+            continue                                     # too mobile -> an actor/avatar, not a landmark
+        scored.append((c, size))
+    scored.sort(key=lambda t: -t[1])                     # most prominent static landmark first
+    return [c for c, _ in scored[:top]]
+
+
 def static_salient_targets(frames, avatar_colour: int, bg: int, top: int = 3) -> List[int]:
     """Design-prior candidate targets from a run's frames: colours that are STATIC (never move -- landmarks) and
     are neither the avatar nor the background, ranked by DISTINCTNESS (smallest footprint first -- a unique little

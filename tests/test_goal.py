@@ -67,6 +67,23 @@ def test_near_empty_reward_poses_nothing_support_guard():
     assert pose_goal(steps, avatar_colour=4, max_size=1) is None               # SUPPORT: near-zero positive mass
 
 
+def test_salient_targets_prior_ignores_noise_floor_and_the_moving_avatar():
+    # a MOVING avatar (4), a huge floor (0) and field (2), a 1px noise fleck (1), and ONE static compact
+    # landmark (7). The referent prior must pick 7 -- not the fleck (the first-live-run bug), not the floor/field,
+    # not the mover. This is the fix for ls20 (where it now picks the grey box, colour 5, over a 2px fleck).
+    from newhorse.redux_arch.goal import salient_targets
+    frames = []
+    for k in range(10):
+        g = np.zeros((20, 20), dtype=int)          # floor 0 (large)
+        g[:, 0:5] = 2                               # field/wall wash 2 (large)
+        g[1, 15] = 1                                # 1px noise fleck
+        g[2:5, 15:18] = 7                           # a compact static landmark (9px)
+        g[10, 6 + k] = 4                            # the avatar, moving right each frame
+        frames.append(g)
+    tgts = salient_targets(frames, avatar_colour=4, exclude={0, 2}, top=3)
+    assert tgts and tgts[0] == 7, tgts               # the distinct static landmark, not noise/floor/mover
+
+
 def test_static_salient_targets_picks_the_distinct_landmark():
     # a moving avatar (4), a big background (0), a big wall wash (2), and ONE small static landmark (7).
     frames = []
