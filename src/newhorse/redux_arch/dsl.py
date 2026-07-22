@@ -23,12 +23,15 @@ OBJ, COLOUR, VEC, BOOL = "OBJ", "COLOUR", "VEC", "BOOL"
 
 @dataclass(frozen=True)
 class Context:
-    """The BEFORE-state a predicate sees: the focus object, the target object, and the focus's displacement
-    under the chosen action (an agency-supplied before-state fact). Coordinates are (row, col); a colour is int."""
+    """The BEFORE-state a predicate sees: the focus object, the target object, the focus's displacement under
+    the chosen action, and what occupies the cell the focus would ENTER (an affordance fact -- all before-state,
+    all known before the outcome). Coordinates are (row, col); a colour is int."""
     focus_rc: Tuple[int, int]
     focus_colour: int
     target_rc: Tuple[int, int]
     action_vec: Tuple[int, int]                          # focus displacement under the action (0,0 if none/blocked)
+    intended_free: bool = True                           # is the cell the focus would enter background/free?
+    intended_colour: Optional[int] = None                # colour occupying that cell (None if unknown/edge)
 
     def _dist(self) -> int:
         return abs(self.focus_rc[0] - self.target_rc[0]) + abs(self.focus_rc[1] - self.target_rc[1])
@@ -68,15 +71,23 @@ def _acts_toward() -> Atom:
         return d_after < d_before
     return Atom("ACTS_TOWARD(focus,target)", 2, f)
 
+def _intended_free() -> Atom:                            # affordance: is the cell I'd enter free? (CAN move)
+    return Atom("INTENDED_FREE", 2, lambda ctx: bool(ctx.intended_free))
+
+def _intended_colour(c: int) -> Atom:                    # colour-gated affordance: what's in the way is colour c
+    return Atom("INTENDED_COLOUR==%d" % c, 3, lambda ctx: ctx.intended_colour == c)
+
 
 # the typed atom registry: kind -> (arg_types, builder)
 _ATOM_TYPES: Dict[str, Tuple[Tuple[str, ...], Callable[..., Atom]]] = {
-    "HAS_COLOUR": ((COLOUR,), _has_colour),
-    "NEAR":        ((), _near),
-    "TOUCH":       ((), _touch),
-    "SAME_ROW":    ((), _align_row),
-    "SAME_COL":    ((), _align_col),
-    "ACTS_TOWARD": ((), _acts_toward),
+    "HAS_COLOUR":      ((COLOUR,), _has_colour),
+    "NEAR":            ((), _near),
+    "TOUCH":           ((), _touch),
+    "SAME_ROW":        ((), _align_row),
+    "SAME_COL":        ((), _align_col),
+    "ACTS_TOWARD":     ((), _acts_toward),
+    "INTENDED_FREE":   ((), _intended_free),             # the occupancy vocabulary (not the answer) for affordances
+    "INTENDED_COLOUR": ((COLOUR,), _intended_colour),
 }
 
 
@@ -110,6 +121,7 @@ def atom_universe(colours: Iterable[int]) -> List[Atom]:
     atoms: List[Atom] = [make_atom(k) for k, (argt, _) in _ATOM_TYPES.items() if not argt]
     for c in sorted(set(int(x) for x in colours)):
         atoms.append(make_atom("HAS_COLOUR", c))
+        atoms.append(make_atom("INTENDED_COLOUR", c))
     return atoms
 
 

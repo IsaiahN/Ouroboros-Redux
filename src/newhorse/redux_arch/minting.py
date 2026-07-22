@@ -53,7 +53,11 @@ def two_part_mdl(exceptions: List[Exception_], max_size: int = 2) -> Optional[Mi
     baseline = _entropy_bits(n, k)                       # L(R enumerated): encode outcomes with the marginal
     if baseline == 0.0:
         return None                                      # already pure -> no residual structure to mint from
-    colours = {ctx.focus_colour for ctx, _ in exceptions}
+    colours = set()
+    for ctx, _ in exceptions:
+        colours.add(ctx.focus_colour)
+        if ctx.intended_colour is not None:
+            colours.add(ctx.intended_colour)             # so INTENDED_COLOUR atoms cover the occupying colours
     preds = enumerate_predicates(colours, max_size=max_size)
     # L(φ) must pay to NAME which predicate we picked out of the hypothesis class -- log2|H| bits (the
     # multiple-hypothesis / search-cost correction). Without it, with enough candidates SOME split reduces

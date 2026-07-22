@@ -72,3 +72,59 @@ class LiveMintBridge:
         outcome = d_after < d_before                     # PROGRESS toward the target -> the label the grammar missed
         self.engine.observe(ctx, outcome)
         self.engine.maybe_mint()
+
+
+def _px_centroid(frame: np.ndarray, colour: int):
+    m = np.asarray(frame) == colour
+    if not m.any():
+        return None
+    lab, k = ndimage.label(m)
+    if k == 0:
+        return None
+    sizes = ndimage.sum(m, lab, range(1, k + 1))
+    i = int(np.argmax(sizes)) + 1
+    ys, xs = np.where(lab == i)
+    return (float(ys.mean()), float(xs.mean()))
+
+
+class AffordanceMintBridge:
+    """P4 (novel-aim): label the residual by the GRAMMAR's own prediction error -- Γ predicts 'the cursor shifts
+    by its action vector'; the residual is WHERE THAT FAILS (a blocked move). The predictor of that is NOT
+    navigation (ACTS_TOWARD) but AFFORDANCE -- what occupies the cell the cursor would enter. This bridge fills
+    `intended_free`/`intended_colour` (before-state facts) and labels each step by whether the cursor actually
+    MOVED as predicted. The minter then invents an OCCUPANCY predicate -- a kind the navigation kernel lacked,
+    minted from the prediction-error residual, not re-derived."""
+
+    def __init__(self, engine: MintingEngine):
+        self.engine = engine
+
+    def __call__(self, loop, before: np.ndarray, action: str, after: np.ndarray) -> None:
+        core = loop.core
+        cc = core.agency.cursor_colour()
+        if cc is None:
+            return
+        vec = core.agency.predict(action)
+        if not vec or vec == (0, 0):
+            return                                       # Γ predicts no move -> nothing to be right/wrong about
+        stride = core.agency.stride() or 1
+        cur = _px_centroid(before, cc)
+        if cur is None:
+            return
+        ir, ic = int(round(cur[0] + vec[0])), int(round(cur[1] + vec[1]))   # the cell the cursor would ENTER (px)
+        h, w = np.asarray(before).shape
+        if 0 <= ir < h and 0 <= ic < w:
+            icol = int(np.asarray(before)[ir, ic])
+            intended_free = (icol == core.bg)
+        else:
+            icol, intended_free = -1, False              # off-board edge -> blocked
+        fb = core._cursor_cell_in(before, stride)
+        fa = core._cursor_cell_in(after, stride)
+        tgt = fb                                          # target unused for the affordance label; keep a valid cell
+        if fb is None or fa is None:
+            return
+        avec = (int(round(vec[0] / stride)), int(round(vec[1] / stride)))
+        ctx = Context(focus_rc=fb, focus_colour=int(cc), target_rc=tgt, action_vec=avec,
+                      intended_free=bool(intended_free), intended_colour=(icol if icol >= 0 else None))
+        moved = fa != fb                                 # did the predicted move actually happen? (else: blocked)
+        self.engine.observe(ctx, moved)
+        self.engine.maybe_mint()
