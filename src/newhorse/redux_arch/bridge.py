@@ -90,10 +90,13 @@ def _px_centroid(frame: np.ndarray, colour: int):
 
 
 def _smallest_mover(before: np.ndarray, after: np.ndarray) -> Optional[int]:
-    """The colour whose SMALLEST rigid footprint TRANSLATED between the two frames -- i.e. the cursor sprite, not
-    a large scrolling region. A colour is a 'mover' if it both appeared and vanished somewhere (a shift, not a
-    grow); among movers we take the one with the fewest appeared pixels. This is what stops the tu93 misID where
-    the largest component of a colour is the whole background, not the little dot that actually moves."""
+    """The SMALL colour that TRANSLATED between the two frames -- i.e. the cursor sprite, not a large scrolling
+    region. A colour is a 'mover' if it both appeared and vanished somewhere (a shift, not a grow); among movers
+    we take the one with the smallest TOTAL footprint. Ranking by footprint (not by moved-pixel count) is what
+    breaks the cursor/floor symmetry: when the cursor steps off a cell, that cell flips back to floor, so the
+    FLOOR colour also 'appears and vanishes' with the same moved-pixel count -- but the floor is a large region
+    and the cursor is a few pixels. This also stops the tu93 misID where the largest component of a colour is the
+    whole background rather than the little dot that actually moves."""
     b = np.asarray(before); a = np.asarray(after)
     best_c, best_sz = None, None
     for c in sorted(set(int(v) for v in np.unique(b)) | set(int(v) for v in np.unique(a))):
@@ -101,8 +104,9 @@ def _smallest_mover(before: np.ndarray, after: np.ndarray) -> Optional[int]:
         vanished = int(((b == c) & ~(a == c)).sum())
         if appeared == 0 or vanished == 0:
             continue                                     # static, or grew/shrank -- not a rigid translation
-        if best_sz is None or appeared < best_sz:
-            best_sz, best_c = appeared, c
+        footprint = int((b == c).sum())                  # total pixels of this colour (cursor << floor << bg)
+        if best_sz is None or footprint < best_sz:
+            best_sz, best_c = footprint, c
     return best_c
 
 
