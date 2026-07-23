@@ -29,3 +29,25 @@ reward-priced typed-relation market (**relations.py + marketplace.py**) can lear
 those wins. Exploration first (make reward non-zero), market second (learn what the reward tracks). The current
 goal-fixation (navigate to one salient object) is actually *worse* than broad exploration for stumbling into a
 first win, which is further reason to put exploration next.
+
+## Exploration sweep + tu93 win analysis (curiosity reclaim beat)
+Reclaimed `explore.py` (CuriosityExplorer: cell-coverage novelty, decays, Goodhart-guarded; tests pass) and ran
+it LIVE:
+- ls20 EXPLORE (21373b3e): coverage 35 cells (~all of the green region), levels 0, GAME_OVER (timer).
+- wa30 EXPLORE (0000fb9b): coverage 60 cells, levels 0, GAME_OVER.
+- tu93 EXPLOIT (17d1cb04) / EXPLORE (6ff2ac37): levels 0, GAME_OVER at the ~50-step timer; explore coverage only
+  3 (narrow black corridors); referent prior mis-picked colour 2 (the RED WALLS) as the target.
+
+**tu93 win-recording analysis (a9e77dad, the ONE observed win, L1 at step 42):** the cursor (colour 4) was
+MID-MAZE at (33,13) at the win — NOT at any salient object. Magenta (colour 6) is the depleting TIMER bar at
+row 63 (size 19→13 then resets to 64 on the level redraw), NOT a goal. So even our single win does not correspond
+to "reach the obvious object"; the win mechanic is opaque from centroids.
+
+## Hard honest conclusion (5 live runs, 3 games, both modes → 0 reward)
+Navigation + cell-coverage exploration is INSUFFICIENT to move the metric on ls20/wa30/tu93: covering the passable
+space doesn't win, timers end first, and no perceptual referent picks the goal. There is NO reward on any
+drivable game, so the exploration→reward→market bootstrap cannot start (it never reaches a win to learn from).
+The win conditions are specific discoverable mechanics beyond navigation. This is a strategic fork worth Isaiah's
+input: (a) reclaim relations.py + marketplace and explore over (object × RELATION) HYPOTHESES not cells; (b) mine
+more win recordings for a navigation-tractable game; (c) expand the action model (click/coordinate, multi-step);
+(d) accept the current instantiation may need substantially more machinery to score on the dev set.

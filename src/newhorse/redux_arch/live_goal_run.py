@@ -22,6 +22,7 @@ from .replay import learn_basis
 from .bridge import _px_centroid
 from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
+from .explore import CuriosityExplorer
 from .dsl import Predicate, make_atom
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
@@ -46,7 +47,8 @@ def _learn_passable(frames: List[np.ndarray], cursor: Optional[int]) -> set:
 
 
 def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions: int = 400,
-                  wall_cap_s: float = 200.0, bg: int = 4, tags: Optional[List[str]] = None) -> Dict[str, Any]:
+                  wall_cap_s: float = 200.0, bg: int = 4, explore: bool = False,
+                  tags: Optional[List[str]] = None) -> Dict[str, Any]:
     """Play one live game with the goal-directed stack. Returns a dict incl. levels_completed and the scorecard URL."""
     from ..arc3_env import Arc3Session
     session = Arc3Session(game_id, tags=tags or ["redux-triality", "goal-live", game_id])
@@ -85,27 +87,41 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
                         view_url=session.view_url, cursor=cursor, vecs=vecs, passable=sorted(passable),
                         salient=cands, log=log)
 
-        # ---- EXPLOIT: PATHFIND to the posed landmark over the discovered passable-cell graph -------------------
+        # ---- ACT: EXPLORE (curiosity/coverage, to manufacture a first win) or EXPLOIT (pathfind to landmark) ---
         stride = max((max(abs(v[0]), abs(v[1])) for v in vecs.values()), default=1) or 1
+        explorer = CuriosityExplorer() if explore else None
         steps = warmup
         outcome = "action_cap"
         min_target_dist = None                             # closest the cursor ever gets to the landmark (px)
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
             grid = np.asarray(snap["grid"])
             cur = _px_centroid(grid, cursor)
-            tgt = approachable_component_centroid(grid, target_colour, passable)  # a specific OBJECT, not the colour-union
-            if cur is None or tgt is None:                 # perception lost the cursor or the landmark
+            h, w = grid.shape
+            def passable_px(dest, _g=grid, _h=h, _w=w):
+                r, c = dest
+                return 0 <= r < _h and 0 <= c < _w and int(_g[r, c]) in passable
+            if cur is None:
                 lbl = labels[steps % len(labels)]
-            else:
+            elif explorer is not None:                     # EXPLORE: sweep the board by cell-novelty
                 avatar = (int(round(cur[0])), int(round(cur[1])))
-                target = (int(round(tgt[0])), int(round(tgt[1])))
-                d = abs(avatar[0] - target[0]) + abs(avatar[1] - target[1])
-                min_target_dist = d if min_target_dist is None else min(min_target_dist, d)
-                lbl = (bfs_path_action(grid, avatar, target, vecs, passable, stride)
-                       or plan_action(avatar, target, vecs, ACTS_TOWARD,
-                                      lambda dest, _g=grid: 0 <= dest[0] < _g.shape[0] and 0 <= dest[1] < _g.shape[1]
-                                      and int(_g[dest[0], dest[1]]) in passable)
-                       or labels[steps % len(labels)])
+                pick = explorer.choose(avatar, vecs, passable_px, stride)
+                if pick is None:
+                    lbl = labels[steps % len(labels)]
+                else:
+                    lbl, cell = pick
+                    explorer.visit(lbl, cell)
+            else:                                          # EXPLOIT: pathfind to the posed landmark
+                tgt = approachable_component_centroid(grid, target_colour, passable)
+                if tgt is None:
+                    lbl = labels[steps % len(labels)]
+                else:
+                    avatar = (int(round(cur[0])), int(round(cur[1])))
+                    target = (int(round(tgt[0])), int(round(tgt[1])))
+                    d = abs(avatar[0] - target[0]) + abs(avatar[1] - target[1])
+                    min_target_dist = d if min_target_dist is None else min(min_target_dist, d)
+                    lbl = (bfs_path_action(grid, avatar, target, vecs, passable, stride)
+                           or plan_action(avatar, target, vecs, ACTS_TOWARD, passable_px)
+                           or labels[steps % len(labels)])
             prev = snap["levels_completed"]
             snap = session.step(val_of[lbl], reasoning={"why": "serve ACTS_TOWARD(avatar, salient=%s)" % target_colour})
             if snap["levels_completed"] > prev:
@@ -117,6 +133,8 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
                 break
         return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
                     view_url=session.view_url, cursor=cursor, vecs=vecs, passable=sorted(passable),
-                    salient=cands, target_colour=target_colour, min_target_dist=min_target_dist, log=log)
+                    salient=cands, target_colour=target_colour, min_target_dist=min_target_dist,
+                    mode=("explore" if explore else "exploit"),
+                    coverage=(explorer.coverage() if explorer is not None else None), log=log)
     finally:
         session.close()
