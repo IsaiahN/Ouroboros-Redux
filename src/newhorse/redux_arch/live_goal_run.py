@@ -142,6 +142,50 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
         session.close()
 
 
+def run_click_live(game_id: str = "s5i5-18d95033", max_actions: int = 120, wall_cap_s: float = 200.0,
+                   tags: Optional[List[str]] = None) -> Dict[str, Any]:
+    """CLICK modality live: for a coordinate-only game (available == [6]), perceive candidate click points and probe
+    them by curiosity/empowerment. Unlocks the 6 click-only dev games the directional stack cannot even act on.
+    ACTION6 carries data={"x": col, "y": row}. Returns levels_completed + the scorecard URL."""
+    from ..arc3_env import Arc3Session
+    from .click import click_targets, grid_sweep, ClickProber
+    session = Arc3Session(game_id, tags=tags or ["redux-triality", "click-live", game_id])
+    log: List[str] = []
+    try:
+        snap = session.open()
+        avail = snap["available"]
+        if 6 not in avail:
+            return dict(game=game_id, outcome="not_a_click_game", available=avail,
+                        levels_completed=snap["levels_completed"], view_url=session.view_url, log=log)
+        grid = np.asarray(snap["grid"])
+        prober = ClickProber(click_targets(grid), grid_sweep(grid, n=8))
+        log.append("CLICK avail=%s candidates=%d (perceptual=%d)"
+                   % (avail, len(prober.targets), len(click_targets(grid))))
+        best_levels = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"; changes = 0
+        while steps < max_actions and (time.time() - t0) < wall_cap_s:
+            tgt = prober.choose()
+            if tgt is None:
+                break
+            r, c = tgt
+            prev_grid = np.asarray(snap["grid"]); prev = snap["levels_completed"]
+            snap = session.step(6, data={"x": int(c), "y": int(r)},
+                                reasoning={"why": "epistemic click-probe at (row=%d,col=%d)" % (r, c)})
+            new_grid = np.asarray(snap["grid"])
+            if prober.observe(prev_grid, new_grid):
+                changes += 1
+                prober.refresh(click_targets(new_grid))       # new tokens may have appeared -> fold them in
+            if snap["levels_completed"] > prev:
+                log.append("LEVEL UP %d->%d at step %d via click (%d,%d)" % (prev, snap["levels_completed"], steps, r, c))
+            best_levels = max(best_levels, snap["levels_completed"]); steps += 1
+            if snap["done"]:
+                outcome = snap["state"]; break
+        return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
+                    view_url=session.view_url, board_changes=changes,
+                    productive_clicks=len(prober.productive()), log=log)
+    finally:
+        session.close()
+
+
 def _two_bodies(frame, colour, max_body_cells=400):
     m = np.asarray(frame) == colour
     if not m.any():
