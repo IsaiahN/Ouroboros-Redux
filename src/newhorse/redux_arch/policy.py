@@ -25,7 +25,8 @@ from .replay import learn_basis
 from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer
-from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action)
+from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action,
+                      two_body_deliver_action)
 from .click import click_targets, grid_sweep, ClickProber
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -67,7 +68,10 @@ class GoalProbe:
     answer."""
 
     def __init__(self, referent_colours, meet_first: bool = True, budget: int = 22):
-        self.hypotheses = ([("meet", None)] if meet_first else []) + [("near", int(c)) for c in referent_colours]
+        self.hypotheses = [("meet", None)] if meet_first else []
+        if referent_colours:
+            self.hypotheses.append(("deliver", None))          # paired two-zone goal (route each body to its zone)
+        self.hypotheses += [("near", int(c)) for c in referent_colours]
         if not self.hypotheses:
             self.hypotheses = [("meet", None)]
         self.idx = 0
@@ -96,6 +100,43 @@ class GoalProbe:
 
 def _prefix(game_id: str) -> str:
     return (game_id or "").split("-")[0]
+
+
+def _md(a, b) -> int:
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
+def _largest_zones(grid, colours, exclude: Optional[int] = None, k: int = 2):
+    """The k largest components among `colours` (the level's new actors), each as (size, centroid_px, radius_px,
+    colour). Used to resolve a paired DELIVER goal to the two big symmetric zones a curriculum level added."""
+    g = np.asarray(grid)
+    out = []
+    for col in colours:
+        if exclude is not None and int(col) == int(exclude):
+            continue
+        m = g == int(col)
+        if not m.any():
+            continue
+        lab, n = _ndi.label(m)
+        for i in range(1, n + 1):
+            ys, xs = np.where(lab == i)
+            cen = (int(round(ys.mean())), int(round(xs.mean())))
+            rad = max(int(ys.max() - ys.min()), int(xs.max() - xs.min())) / 2.0
+            out.append((int(ys.size), cen, rad, int(col)))
+    out.sort(key=lambda t: t[0], reverse=True)
+    return out[:k]
+
+
+def _assign_zones(bodies, zones, stride: int):
+    """Assign the two bodies to the two zones minimising total distance; return ((c0,reach0),(c1,reach1)) for
+    body0→zone, body1→zone, reach in CELLS (from the zone radius)."""
+    _, cA, rA, _ = zones[0]
+    _, cB, rB, _ = zones[1]
+    reachA = max(1, int(rA / max(1, stride)))
+    reachB = max(1, int(rB / max(1, stride)))
+    if _md(bodies[0], cB) + _md(bodies[1], cA) < _md(bodies[0], cA) + _md(bodies[1], cB):
+        return (cB, reachB), (cA, reachA)
+    return (cA, reachA), (cB, reachB)
 
 
 def _nearest_colour_centroid(grid, colour: int, ref_cell, exclude: Optional[int] = None):
@@ -339,12 +380,22 @@ class ReduxPolicy:
         if self._probe is not None:
             kind, colour = self._probe.current()
             self._probe.tick()
-            if kind == "near" and colour is not None and len(bodies) >= 2:
+            new_actors = (self.level_model or {}).get("new_colours", []) if self.level_model else []
+            if kind == "deliver" and len(bodies) >= 2:
+                zones = _largest_zones(grid, new_actors, exclude=self.tb_colour, k=2)
+                if len(zones) >= 2:
+                    (c0, r0), (c1, r1) = _assign_zones(bodies, zones, self.stride)
+                    lbl = (two_body_deliver_action(bodies, self.ag, passcell, c0, c1, self.stride,
+                                                   reach0=r0, reach1=r1)
+                           or two_body_goal_action(bodies, self.ag, passpx, c0, which=0)
+                           or self._cycle(labels))
+                    return lbl, None
+            elif kind == "near" and colour is not None and len(bodies) >= 2:
                 tgt = _nearest_colour_centroid(grid, colour, bodies[0], exclude=self.tb_colour)
                 if tgt is not None:
                     lbl = two_body_goal_action(bodies, self.ag, passpx, tgt, which=0) or self._cycle(labels)
                     return lbl, None
-            # kind == "meet" (or no such actor present) -> fall through to the MEET driver below
+            # kind == "meet" (or unresolved) -> fall through to the MEET driver below
         if len(bodies) < 2:
             return self._cycle(labels), None                        # merged/lost -> nudge
         lbl = (two_body_search_action(bodies, self.ag, passcell, self.stride)

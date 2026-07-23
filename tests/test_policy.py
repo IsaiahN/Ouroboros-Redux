@@ -146,20 +146,52 @@ def test_level_change_rederives_when_referent_gone():
     assert p.prior is not None and p.prior["tb_colour"] == 7           # prior retained (transfer, not discard)
 
 
-def test_goal_probe_rotates_meet_then_new_actors_and_locks():
+def test_goal_probe_rotates_meet_deliver_then_new_actors_and_locks():
     p = GoalProbe(referent_colours=[6, 8], meet_first=True, budget=3)
     assert p.current() == ("meet", None)                   # try the transferred goal first (cheap)
     for _ in range(3):
         p.tick()
-    assert p.current() == ("near", 6)                      # rotated to the first NEW actor
+    assert p.current() == ("deliver", None)                # then the PAIRED two-zone goal
     for _ in range(3):
         p.tick()
-    assert p.current() == ("near", 8)                      # then the second
+    assert p.current() == ("near", 6)                      # then single new actors
+    for _ in range(3):
+        p.tick()
+    assert p.current() == ("near", 8)
     p.lock()                                               # a hypothesis paid off
     before = p.current()
     for _ in range(10):
         p.tick()
     assert p.locked and p.current() == before              # locked: no more rotation
+
+
+def test_largest_zones_and_assignment():
+    from newhorse.redux_arch.policy import _largest_zones, _assign_zones
+    g = np.full((40, 40), 5, dtype=int)
+    g[30:38, 4:12] = 6                                      # zone A (bottom-left), 8x8
+    g[30:38, 28:36] = 15                                   # zone B (bottom-right), 8x8
+    g[10, 20] = 8                                           # a tiny distractor
+    zones = _largest_zones(g, [6, 8, 15], exclude=10, k=2)
+    assert {z[3] for z in zones} == {6, 15}                # the two big zones, not the 1px colour-8
+    bodies = [(15, 6), (15, 30)]                            # body0 left, body1 right
+    (c0, r0), (c1, r1) = _assign_zones(bodies, zones, stride=1)
+    assert c0[1] < c1[1]                                    # body0 -> left zone, body1 -> right zone (min distance)
+
+
+def test_two_body_deliver_drives_bodies_to_distinct_zones():
+    from newhorse.redux_arch.coupled import two_body_deliver_action
+    w = AMirror()
+    frames = [w.frame()]; acts = ["RESET"]
+    for a in (["A1", "A2", "A3", "A4"] * 5):
+        frames.append(w.step(a)); acts.append(a)
+    colour, ag = learn_two_body(frames, acts)
+    passable = lambda i, cell: 0 <= cell[0] < 20 and 0 <= cell[1] < 20
+    bodies = [(10, 4), (10, 15)]
+    a = two_body_deliver_action(bodies, ag, passable, target0=(2, 4), target1=(2, 15), stride=1, reach0=1, reach1=1)
+    assert a in ("A1", "A2", "A3", "A4")                    # returns a first action toward the paired goal
+    # driving both bodies UP (A1) reduces both bodies' distance to their (row-2) targets
+    m0 = ag.body_map(0)["A1"]; m1 = ag.body_map(1)["A1"]
+    assert m0[0] == -1 and m1[0] == -1
 
 
 def test_nearest_colour_centroid_picks_and_excludes_self():

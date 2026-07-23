@@ -253,24 +253,19 @@ def _bodies_c(frame, colour, max_body_cells=400):
     return sorted(out, key=lambda p: p[1])
 
 
-def two_body_search_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", passable_cell,
-                           stride: int = 1, max_expand: int = 40000) -> Optional[str]:
+def _two_body_bfs(bodies, ag, passable_cell, stride, goal_fn, max_expand: int = 40000) -> Optional[str]:
     """JOINT-STATE BFS over the coupled two-body state (both body cells). Each action moves EACH body by its
     learned per-action displacement UNLESS its destination cell is non-passable (blocked → the body stays) — so a
     wall that blocks one body while the shared action moves the other (breaking the mirror invariant) emerges
-    naturally in the search. Goal = the two bodies adjacent/overlapping (they MEET → one component). Returns the
-    FIRST action of the shortest joint path, or None. `passable_cell(body_index, (row,col)_cell) -> bool`.
-
-    This is the fix for the greedy driver's local-minimum stall: the bodies sit in separate maze halves and must
-    route to a connecting channel + break the mirror, which greedy one-step distance-reduction cannot find."""
+    naturally. Returns the FIRST action of the shortest joint path to a state where `goal_fn(state)` holds, or None.
+    `goal_fn((cell0, cell1)) -> bool` in CELL units. `passable_cell(body_index, (row,col)_cell) -> bool`."""
     from collections import deque
     s = max(1, int(stride))
     to_cell = lambda p: (int(round(p[0] / s)), int(round(p[1] / s)))
     maps = [{a: (int(round(v[0] / s)), int(round(v[1] / s))) for a, v in ag.body_map(i).items()} for i in range(2)]
     acts = sorted(set(maps[0]) | set(maps[1]))
     start = (to_cell(bodies[0]), to_cell(bodies[1]))
-    adjacent = lambda st: abs(st[0][0] - st[1][0]) + abs(st[0][1] - st[1][1]) <= 1
-    if adjacent(start):
+    if goal_fn(start):
         return None
     seen = {start: None}
     q = deque([start]); expand = 0
@@ -286,13 +281,37 @@ def two_body_search_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", p
             if ns == st or ns in seen:
                 continue
             seen[ns] = (st, a)
-            if adjacent(ns):
+            if goal_fn(ns):
                 cur, first = ns, a
                 while seen[cur] is not None:
                     prev, act = seen[cur]; first = act; cur = prev
                 return first
             q.append(ns)
     return None
+
+
+def two_body_search_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", passable_cell,
+                           stride: int = 1, max_expand: int = 40000) -> Optional[str]:
+    """Joint BFS to MEET: the two bodies become adjacent/overlapping (one component). The m0r0-L1 win relation.
+    Fixes the greedy driver's local-minimum stall (separate maze halves needing a channel + mirror-break)."""
+    adjacent = lambda st: abs(st[0][0] - st[1][0]) + abs(st[0][1] - st[1][1]) <= 1
+    return _two_body_bfs(bodies, ag, passable_cell, stride, adjacent, max_expand)
+
+
+def two_body_deliver_action(bodies, ag, passable_cell, target0, target1, stride: int = 1,
+                            reach0: int = 2, reach1: int = 2, max_expand: int = 60000) -> Optional[str]:
+    """Joint BFS to DELIVER: body0 into zone0 AND body1 into zone1 simultaneously (each within `reach` cells of its
+    target centroid). The paired two-zone goal for a coupled-body curriculum graduation (e.g. m0r0 L2: route each
+    body to its own symmetric zone). The coupling is exactly what makes it a puzzle — a shared action moves both, so
+    getting each into a DIFFERENT zone needs the joint search, not two independent drives. Targets in PIXEL coords."""
+    s = max(1, int(stride))
+    t0 = (int(round(target0[0] / s)), int(round(target0[1] / s)))
+    t1 = (int(round(target1[0] / s)), int(round(target1[1] / s)))
+    def goal_fn(st):
+        c0, c1 = st
+        return (abs(c0[0] - t0[0]) + abs(c0[1] - t0[1]) <= reach0 and
+                abs(c1[0] - t1[0]) + abs(c1[1] - t1[1]) <= reach1)
+    return _two_body_bfs(bodies, ag, passable_cell, stride, goal_fn, max_expand)
 
 
 def learn_two_body(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int], Optional[TwoBodyAgency]]:
