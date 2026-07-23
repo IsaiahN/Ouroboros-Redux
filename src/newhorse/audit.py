@@ -181,19 +181,22 @@ def check_test_count(tests: str = TESTS, docs: str = DOCS) -> Dict[str, Any]:
     return _R("test_count", "PASS", "tests=%d (baseline %d)" % (n, base))
 
 
-def check_git_pushed(repo: str = REPO) -> Dict[str, Any]:
-    local = _git("rev-parse", "HEAD", cwd=repo).strip()
-    remote = _git("rev-parse", "origin/redux-triality", cwd=repo).strip()
-    if not remote:
-        return _R("git_pushed", "WARN", "no origin/redux-triality ref present")
-    return _R("git_pushed", "PASS" if local == remote else "WARN",
-              "HEAD pushed" if local == remote else "unpushed: local %s != origin %s" % (local[:8], remote[:8]))
+def check_git_history(repo: str = REPO) -> Dict[str, Any]:
+    """Informational: HEAD sha + who authored recent commits. NOTE: pushes go via an explicit PAT URL (to keep the
+    token out of git config), which does NOT update the local origin/ tracking ref -- so remote-tip cannot be
+    verified offline here. Confirm the push on GitHub. This check never FLAGS; it surfaces the commit provenance."""
+    head = _git("rev-parse", "HEAD", cwd=repo).strip()[:8]
+    authors = [a for a in _git("log", "-8", "--format=%ae", cwd=repo).splitlines() if a.strip()]
+    non_build = sorted(set(a for a in authors if a.strip() != BUILD_EMAIL))
+    return _R("git_history", "PASS",
+              "HEAD %s; last 8 commits authored by build%s (verify push on GitHub)"
+              % (head, ("" if not non_build else " + " + ", ".join(non_build))))
 
 
 def run_audit() -> List[Dict[str, Any]]:
     checks = [check_guards_present(), check_answer_lint_clean(), check_tripwire_tests_active(),
               check_tripwires_pass(), check_human_only_confirmed(), check_unconfirmed_novelty(),
-              check_test_count(), check_git_pushed()]
+              check_test_count(), check_git_history()]
     # ratchet the baseline UP only (never silently down): a tighter bar can't hide a future drop.
     n = count_tests()
     bp = os.path.join(DOCS, "AUDIT_BASELINE.json")
