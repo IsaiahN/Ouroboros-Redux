@@ -60,6 +60,64 @@ def learn_basis(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int
     return cursor, vec_table
 
 
+def translating_cursor(frames: List[np.ndarray], acts: List[str]) -> Optional[int]:
+    """TRAIL-AWARE cursor pick: the colour that keeps CONSTANT SIZE and TRANSLATES rigidly across action
+    transitions -- ignoring colours that GROW (a trail-drawing cursor's trail, e.g. g50t colour 1) and colours that
+    never move (floor/walls). Smallest such footprint = the cursor, not the floor. Unlocks the 'undrivable' games
+    where a growing trail or a second mover defeats the footprint-only detector (g50t, sc25 two movers, lf52, re86).
+    """
+    from collections import defaultdict
+    st: Dict[int, Dict[str, float]] = defaultdict(lambda: {"trans": 0, "grow": 0, "stable": 0, "n": 0, "foot": 0})
+    for i in range(1, len(frames)):
+        if acts[i] in ("RESET", "?"):
+            continue
+        a, b = np.asarray(frames[i - 1]), np.asarray(frames[i])
+        if a.shape != b.shape:
+            continue
+        cols = set(np.unique(a).tolist()) | set(np.unique(b).tolist())
+        for c in cols:
+            c = int(c)
+            if c == 0:
+                continue
+            na, nb = int((a == c).sum()), int((b == c).sum())
+            if na == 0 or nb == 0:
+                continue
+            s = st[c]; s["n"] += 1; s["foot"] = max(s["foot"], nb)
+            if na == nb:
+                s["stable"] += 1
+                ca, cb = _px_centroid(a, c), _px_centroid(b, c)
+                if ca is not None and cb is not None and (abs(ca[0] - cb[0]) + abs(ca[1] - cb[1]) > 0.5):
+                    s["trans"] += 1
+            elif nb > na:
+                s["grow"] += 1
+    cands = []
+    for c, s in st.items():
+        if s["n"] >= 1 and s["trans"] >= 1 and s["grow"] <= 0.34 * s["n"] and s["stable"] >= 0.5 * s["n"]:
+            cands.append((s["foot"], c))
+    if not cands:
+        return None
+    cands.sort()                                          # smallest footprint first = cursor, not floor
+    return cands[0][1]
+
+
+def learn_basis_trailaware(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int], Dict[str, Tuple[int, int]]]:
+    """learn_basis for trail/multi-mover games: pick the cursor via translating_cursor (constant-size translator),
+    then read its per-action axis-snapped displacement exactly as learn_basis does."""
+    cursor = translating_cursor(frames, acts)
+    if cursor is None:
+        return None, {}
+    deltas: Dict[str, List[Tuple[int, int]]] = {}
+    for i in range(1, len(frames)):
+        cb, ca = _px_centroid(frames[i - 1], cursor), _px_centroid(frames[i], cursor)
+        if cb is None or ca is None:
+            continue
+        d = (int(round(ca[0] - cb[0])), int(round(ca[1] - cb[1])))
+        if d != (0, 0):
+            deltas.setdefault(acts[i], []).append(d)
+    vec_table = {a: v for a, v in ((a, _dominant_axis_vec(ds)) for a, ds in deltas.items()) if v is not None}
+    return cursor, vec_table
+
+
 def _dominant_axis_vec(deltas: List[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
     """Snap a cloud of observed cursor displacements for ONE action to a single clean axial stride. A grid move
     is purely horizontal or vertical; raw pixel-centroid deltas pick up cross-axis jitter (tu93's `(7,-1)`),

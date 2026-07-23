@@ -21,7 +21,7 @@ from typing import List, Optional, Tuple, Dict, Any
 import threading
 import numpy as np
 from scipy import ndimage as _ndi
-from .replay import learn_basis
+from .replay import learn_basis, learn_basis_trailaware
 from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer
@@ -272,6 +272,8 @@ class ReduxPolicy:
             self.bb.post(_prefix(self.game_id), family=TWO_BODY, colour=colour)
             return
         cursor, vecs = learn_basis(fw, aw)
+        if not (cursor is not None and vecs):             # trail-drawing / multi-mover games defeat the footprint
+            cursor, vecs = learn_basis_trailaware(fw, aw)  # detector -> fall back to the constant-size translator
         if cursor is not None and vecs:
             self.family = DIRECTIONAL
             self.cursor = cursor
