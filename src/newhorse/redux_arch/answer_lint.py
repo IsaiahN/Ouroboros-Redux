@@ -19,7 +19,7 @@ from typing import List, Tuple
 
 # The domain-general agent. If behaviour here depends on WHICH game it is, the generalisation claim is false.
 AGENT_MODULES = ["policy.py", "coupled.py", "replay.py", "click.py", "goal.py", "planner.py", "bridge.py",
-                 "explore.py", "dsl.py", "minting.py", "consolidate.py", "loci.py", "boundary.py"]
+                 "explore.py", "dsl.py", "minting.py", "consolidate.py", "loci.py", "boundary.py", "affordance.py"]
 # Runners/adapters/entrypoints: they name games as defaults or in logs; not agent logic.
 RUNNER_EXEMPT = ["live_goal_run.py", "swarm.py", "loop.py", "harness_adapter.py", "__init__.py", "answer_lint.py",
                  "novelty_ledger.py"]

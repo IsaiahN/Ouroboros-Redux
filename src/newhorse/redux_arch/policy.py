@@ -31,6 +31,7 @@ from .coupled import (learn_two_body, two_body_search_action, two_body_drive_act
 from .click import click_targets, grid_sweep, ClickProber
 from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
+from .affordance import EffectAffordance
 from .novelty_ledger import guarded_promote
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -39,7 +40,8 @@ from .live_goal_run import _learn_passable, _two_bodies
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 
 # game families the router dispatches to
-PENDING, CLICK, TWO_BODY, DIRECTIONAL, UNDRIVABLE = "pending", "click", "two_body", "directional", "undrivable"
+PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE = \
+    "pending", "click", "two_body", "directional", "effect", "undrivable"
 
 
 class Blackboard:
@@ -201,6 +203,8 @@ class ReduxPolicy:
         self.boundary: Optional[BoundaryDiff] = None    # the latest loci-based boundary diff
         self.novel_loci: List[int] = []                 # NOVEL locus ids at the last boundary (beat C explores these)
         self._directed: Optional[DirectedExplorer] = None   # boundary-directed empowerment over the novel actors
+        self.effect_aff = EffectAffordance()            # Tier-1 affordance: which actions are effective (from R_τ)
+        self._effect_visits: Dict[str, int] = {}        # curiosity within the effective-action set
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -226,6 +230,10 @@ class ReduxPolicy:
         self._avail = [int(a) for a in available]
         self._levels.append(int(levels_completed))      # reward stream (for goal abduction on reward)
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
+        if len(self.frames) >= 2:                       # Tier-1 affordance: accumulate per-action effect from R_τ
+            two_ago = self.frames[-3] if len(self.frames) >= 3 else None
+            prev_action = self.acts[-2] if len(self.acts) >= 2 else None
+            self.effect_aff.update(self.frames[-2], self.acts[-1], self.frames[-1], two_ago, prev_action)
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
@@ -266,6 +274,8 @@ class ReduxPolicy:
             return self._act_two_body(labels)
         if self.family == DIRECTIONAL:
             return self._act_directional(labels)
+        if self.family == EFFECT:
+            return self._act_effect(labels)
         return self._act_fallback(labels)
 
     # ---- routing -----------------------------------------------------------------------------------------------
@@ -298,8 +308,14 @@ class ReduxPolicy:
             self.target_colour = cands[0] if cands else None
             self.bb.post(_prefix(self.game_id), family=DIRECTIONAL, cursor=cursor)
             return
-        self.family = UNDRIVABLE
-        self.bb.post(_prefix(self.game_id), family=UNDRIVABLE)
+        # no cursor and no coupling -> not translation-drivable. But the actions may still DO things (paint/toggle/
+        # place): Tier-1 affordance drives by per-action EFFECT (from R_τ). Only truly-empty action sets are UNDRIVABLE.
+        if [v for v in avail if 1 <= v <= 5 or v == 7]:
+            self.family = EFFECT
+            self.bb.post(_prefix(self.game_id), family=EFFECT)
+        else:
+            self.family = UNDRIVABLE
+            self.bb.post(_prefix(self.game_id), family=UNDRIVABLE)
 
     def _learn_tb_passable(self, colour: int) -> None:
         self.tb_pass = [set(), set()]
@@ -518,6 +534,14 @@ class ReduxPolicy:
         lbl, cell = pick
         self.explorer.visit(lbl, cell)
         return lbl
+
+    def _act_effect(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
+        """Tier-1 affordance drive: press the EFFECTIVE actions (learned live from R_τ), avoiding no-ops / undo,
+        curiosity-ordered within the effective set. Cold start explores to gather effect evidence. Purposeful action
+        on paint/toggle/place games that have no drivable cursor."""
+        a = self.effect_aff.choose(labels, self._effect_visits)
+        self._effect_visits[a] = self._effect_visits.get(a, 0) + 1
+        return a, None
 
     def _act_fallback(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
         return self._cycle(labels), None
