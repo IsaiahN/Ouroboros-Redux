@@ -23,8 +23,34 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Hashable
 import numpy as np
+from scipy import ndimage
 from .dsl import Context
 from .minting import two_part_mdl, Mint
+
+
+def approachable_component_centroid(frame, colour: int, passable) -> Optional[Tuple[float, float]]:
+    """Resolve a referent COLOUR to a specific OBJECT: the connected component most ADJACENT to the discovered
+    passable region -- the goal the avatar can actually navigate to (ls20's grey goal box touches the green stem;
+    the grey legend inset is walled off in the field). Fixes the colour-UNION phantom centroid. Ranked by
+    (passable-adjacent pixels, size); falls back to the largest component, then the union centroid. Uses only
+    discovered structure (the passable set), never a baked choice."""
+    F = np.asarray(frame)
+    m = (F == colour)
+    if not m.any():
+        return None
+    lab, k = ndimage.label(m)
+    if k <= 1:
+        ys, xs = np.where(m); return (float(ys.mean()), float(xs.mean()))
+    pass_mask = np.isin(F, list(passable)) if passable else np.zeros(F.shape, bool)
+    adj = ndimage.binary_dilation(pass_mask)              # cells touching the passable region
+    best, best_key = None, None
+    for i in range(1, k + 1):
+        comp = (lab == i)
+        key = (int((comp & adj).sum()), int(comp.sum()))  # touches-passable first, then size
+        if best_key is None or key > best_key:
+            best_key, best = key, comp
+    ys, xs = np.where(best)
+    return (float(ys.mean()), float(xs.mean()))
 
 # one observed step: (avatar_cell, action_vec, {candidate_id: candidate_cell}, progressed?)
 GoalStep = Tuple[Tuple[int, int], Tuple[int, int], Dict[Hashable, Tuple[int, int]], bool]

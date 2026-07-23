@@ -84,6 +84,18 @@ def test_salient_targets_prior_ignores_noise_floor_and_the_moving_avatar():
     assert tgts and tgts[0] == 7, tgts               # the distinct static landmark, not noise/floor/mover
 
 
+def test_approachable_component_picks_the_passable_adjacent_object():
+    # two blobs of the SAME referent colour (7): blob A borders the passable floor (0); blob B is walled off in
+    # field (1). The target must resolve to blob A (the object the avatar can navigate to), not the union centroid.
+    from newhorse.redux_arch.goal import approachable_component_centroid
+    g = np.ones((20, 20), dtype=int)             # field/wall = 1
+    g[5:10, 5:10] = 0                            # a passable floor block
+    g[4, 6:9] = 7                                # blob A -- sits right on top of the floor (adjacent)
+    g[15:18, 15:18] = 7                          # blob B -- deep in the field, no passable neighbour
+    cen = approachable_component_centroid(g, colour=7, passable={0})
+    assert cen is not None and cen[0] < 8, cen    # centroid is blob A (row ~4), not B (row ~16) or a midpoint
+
+
 def test_static_salient_targets_picks_the_distinct_landmark():
     # a moving avatar (4), a big background (0), a big wall wash (2), and ONE small static landmark (7).
     frames = []

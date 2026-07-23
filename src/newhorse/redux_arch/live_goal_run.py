@@ -20,7 +20,7 @@ import time
 import numpy as np
 from .replay import learn_basis
 from .bridge import _px_centroid
-from .goal import salient_targets
+from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
 from .dsl import Predicate, make_atom
 
@@ -93,7 +93,7 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
             grid = np.asarray(snap["grid"])
             cur = _px_centroid(grid, cursor)
-            tgt = _px_centroid(grid, target_colour)
+            tgt = approachable_component_centroid(grid, target_colour, passable)  # a specific OBJECT, not the colour-union
             if cur is None or tgt is None:                 # perception lost the cursor or the landmark
                 lbl = labels[steps % len(labels)]
             else:
