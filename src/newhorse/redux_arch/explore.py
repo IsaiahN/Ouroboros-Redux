@@ -55,3 +55,41 @@ class CuriosityExplorer:
     def coverage(self) -> int:
         """Distinct cells visited so far -- the anti-collapse / breadth metric."""
         return len(self.cell_visits)
+
+
+@dataclass
+class DirectedExplorer:
+    """BOUNDARY-DIRECTED empowerment (Tether §4.4 + §3.5). When reward is 0 on a graduated level (SUPPORT fails),
+    curiosity must NOT run globally -- it is aimed at the NOVEL bin: the new actors the boundary diff just surfaced.
+    The intrinsic gradient is (a) novelty -- reach an UNDER-probed novel actor -- and (b) EMPOWERMENT -- the agent
+    CHANGED it (contact that alters the new actor is evidence of control, the Hinton&Nowlan slope where the reward
+    is a needle). Concentrates the action budget on new actors, and on the ones it can actually affect. Domain-
+    general: a 'novel actor' is whatever the boundary diff flagged NOVEL; it names no game."""
+    tries: Dict = field(default_factory=dict)          # novel-target key -> times driven toward
+    changed: Dict = field(default_factory=dict)        # novel-target key -> times contact CHANGED the board there
+    _last: Optional[object] = None
+
+    def choose(self, targets):
+        """targets = list of (key, centroid). Least-tried novel actor first; once all tried, the most PRODUCTIVE
+        (most-changed) one. Returns (key, centroid) and registers the attempt, or None if no targets."""
+        if not targets:
+            self._last = None
+            return None
+        untried = [t for t in targets if self.tries.get(t[0], 0) == 0]
+        pick = untried[0] if untried else max(
+            targets, key=lambda t: (self.changed.get(t[0], 0), -self.tries.get(t[0], 0)))
+        self._last = pick[0]
+        self.tries[pick[0]] = self.tries.get(pick[0], 0) + 1
+        return pick
+
+    def credit(self, did_change: bool) -> bool:
+        """Empowerment feedback for the LAST chosen target: if contacting it changed the board, it is productive."""
+        if self._last is not None and did_change:
+            self.changed[self._last] = self.changed.get(self._last, 0) + 1
+        return did_change
+
+    def empowerment(self, key) -> float:
+        return 1.0 / (1.0 + self.tries.get(key, 0)) + float(self.changed.get(key, 0))
+
+    def productive(self):
+        return [k for k, v in self.changed.items() if v > 0]

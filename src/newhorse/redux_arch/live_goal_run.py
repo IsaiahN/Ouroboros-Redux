@@ -172,7 +172,8 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                          idx=pol._probe.idx, locked=pol._probe.locked)
         return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
                     family=pol.family, view_url=session.view_url, log=log,
-                    level_deltas=pol.level_deltas, probe=probe)
+                    level_deltas=pol.level_deltas, probe=probe, abduced=pol.abduced,
+                    directed_active=(pol._directed is not None))
     finally:
         session.close()
 

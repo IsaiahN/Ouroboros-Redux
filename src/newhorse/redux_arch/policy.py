@@ -24,7 +24,8 @@ from scipy import ndimage as _ndi
 from .replay import learn_basis, learn_basis_trailaware
 from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
-from .explore import CuriosityExplorer
+from .explore import CuriosityExplorer, DirectedExplorer
+from .coupled import coupled_goal_mint
 from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action,
                       two_body_deliver_action)
 from .click import click_targets, grid_sweep, ClickProber
@@ -199,6 +200,9 @@ class ReduxPolicy:
         self.quarantine = Quarantine()                  # PARK unresolved boundary residuals under a decay bound
         self.boundary: Optional[BoundaryDiff] = None    # the latest loci-based boundary diff
         self.novel_loci: List[int] = []                 # NOVEL locus ids at the last boundary (beat C explores these)
+        self._directed: Optional[DirectedExplorer] = None   # boundary-directed empowerment over the novel actors
+        self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
+        self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
         self.cursor: Optional[int] = None
         self.vecs: Dict[str, Tuple[int, int]] = {}
@@ -220,6 +224,7 @@ class ReduxPolicy:
         self.frames.append(np.asarray(grid))
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
         self._avail = [int(a) for a in available]
+        self._levels.append(int(levels_completed))      # reward stream (for goal abduction on reward)
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
@@ -309,6 +314,20 @@ class ReduxPolicy:
                         if 0 <= r < h and 0 <= c < w:
                             self.tb_pass[j].add(int(fw[i - 1][r, c]))
 
+    def _novel_changed(self, key) -> bool:
+        """Empowerment signal: did the board change inside the last-targeted NOVEL actor's footprint (or did the
+        actor itself vanish/transform)? Evidence the agent AFFECTED the new actor."""
+        if key is None or len(self.frames) < 2:
+            return False
+        l = self.tracker.get(key)
+        if l is None:
+            return True                                     # the novel actor changed/vanished -> we affected it
+        r0, c0, r1, c1 = l.bbox
+        a = np.asarray(self.frames[-2]); b = np.asarray(self.frames[-1])
+        if not (0 <= r0 <= r1 < a.shape[0] and 0 <= c0 <= c1 < a.shape[1] and a.shape == b.shape):
+            return False
+        return not np.array_equal(a[r0:r1 + 1, c0:c1 + 1], b[r0:r1 + 1, c0:c1 + 1])
+
     def mint_gate(self, verdict: str, name: str, bits: float, context: str = "", **paths) -> bool:
         """Every predicate promotion goes through here: a NOVEL mint is parked for HUMAN confirmation
         (novelty_ledger.guarded_promote), never self-certified by the build. RE-DERIVATION passes. Returns whether
@@ -324,6 +343,21 @@ class ReduxPolicy:
           - KEEP (organ referent survives) → transfer the model; two-body arms the goal probe on the NOVEL actors;
           - RE-DERIVE (referent gone) → re-warm + re-route on the new level, prior retained.
         NOVEL loci are surfaced for beat C (direct empowerment there first). The quarantine DECAYS each boundary."""
+        # ABDUCE-ON-REWARD: if we were directed-exploring the novel actors and the level just advanced, the directed
+        # empowerment MANUFACTURED a reward -> abduce the objective from the reward residual, GATED (never self-certified).
+        if self._directed is not None:
+            fw, lw = self.frames[self._lvl0:], self._levels[self._lvl0:]
+            try:
+                mint, verdict = coupled_goal_mint(fw, lw, colour=self.tb_colour)
+            except Exception:
+                mint, verdict = None, "no-mint"
+            if mint is not None:
+                name = "+".join(sorted(a.name for a in mint.predicate.atoms))
+                acted = self.mint_gate(verdict, name, float(getattr(mint, "bits", 0.0)),
+                                       context="directed-empowerment@L%d" % self.level)
+                self.abduced.append(dict(from_level=self.level, verdict=verdict, name=name, acted=acted))
+            self._directed = None
+
         prev = self.frames[-2] if len(self.frames) >= 2 else self.frames[-1]
         cur = self.frames[-1]
         delta = level_delta(prev, cur, old_avail, self._avail)
@@ -354,9 +388,11 @@ class ReduxPolicy:
         self.bb.post(_prefix(self.game_id), graduated_to=new_level, last_delta=self.level_model)
         if decision == "keep":
             self._reparameterize(cur)
-            # two-body KEEP: the coupling transferred but the OBJECTIVE may have graduated -> probe the NOVEL actors
+            # two-body KEEP: the coupling transferred but the OBJECTIVE may have graduated -> aim empowerment at the
+            # NOVEL loci (directed curiosity, primary) with the goal-hypothesis probe as fallback.
             if self.family == TWO_BODY:
                 self._probe = GoalProbe(referent_colours=delta["new_colours"])
+                self._directed = DirectedExplorer() if novel else None
         else:
             # unresolved mechanism at this boundary: PARK the novel-actor residual with a decay budget (beat C wakes
             # it by manufacturing reward). Any predicate minted from it later MUST clear novelty_ledger.guarded_promote.
@@ -413,6 +449,20 @@ class ReduxPolicy:
         def passcell(i, cell, _g=grid, _h=h, _w=w, _s=self.stride, _p=self.tb_pass):
             r, c = cell[0] * _s, cell[1] * _s
             return 0 <= r < _h and 0 <= c < _w and (not _p[i] or int(_g[r, c]) in _p[i])
+        # BOUNDARY-DIRECTED EMPOWERMENT (post-KEEP, reward still 0): aim curiosity at the NOVEL loci -- drive a body
+        # toward the least-probed / most-affectable new actor, crediting contact that CHANGES it. Manufactures a
+        # gradient where the objective is a needle (Tether §4.4). Preferred over the undirected goal-hypothesis probe.
+        if self._directed is not None and self.novel_loci and len(bodies) >= 2:
+            self._directed.credit(self._novel_changed(self._directed._last))   # empowerment feedback for last target
+            targets = []
+            for lid in self.novel_loci:
+                l = self.tracker.get(lid)
+                if l is not None:
+                    targets.append((lid, (int(round(l.centroid[0])), int(round(l.centroid[1])))))
+            pick = self._directed.choose(targets)
+            if pick is not None:
+                lbl = two_body_goal_action(bodies, self.ag, passpx, pick[1], which=0) or self._cycle(labels)
+                return lbl, None
         # GOAL-HYPOTHESIS probe (post-KEEP graduation): drive toward the current hypothesis referent, rotating
         if self._probe is not None:
             kind, colour = self._probe.current()
