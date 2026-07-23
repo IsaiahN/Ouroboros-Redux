@@ -177,3 +177,23 @@ def test_coupled_transition_mint_redderives_intended_free_on_m0r0():
     assert mint is not None, "minter did not fire on the dense m0r0 transition residual"
     assert "INTENDED_FREE" in {a.name for a in mint.predicate.atoms}
     assert verdict == "RE-DERIVATION", verdict     # honest: INTENDED_FREE is already in the kernel
+
+
+def test_coupled_goal_mint_abduces_MEET_from_m0r0_reward():
+    # Tier-2 goal-mint: from m0r0's REWARD residual, abduce the win relation. It mints NEAR(body0,body1) = MEET
+    # (the two bodies coincide). Honest verdict: RE-DERIVATION (NEAR is a kernel atom); the novelty is the
+    # two-body BINDING, not a new predicate. m0r0 validates goal abduction, not a fresh-predicate Region-III fill.
+    import glob, json, os
+    from newhorse.redux_arch.coupled import coupled_goal_mint
+    hits = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "..", "recordings", "*", "m0r0-*.jsonl")))
+    if not hits:
+        import pytest; pytest.skip("no m0r0 recording")
+    frames, levels = [], []
+    for p in hits:
+        recs = [json.loads(l)["data"] for l in open(p).read().splitlines()]
+        frames += [np.array(r["frame"])[-1] for r in recs]
+        levels += [r.get("levels_completed", 0) for r in recs]
+    mint, verdict = coupled_goal_mint(frames, levels, colour=10, max_size=1)
+    assert mint is not None, "goal-mint did not fire on the m0r0 reward residual"
+    assert "NEAR(focus,target)" in {a.name for a in mint.predicate.atoms}   # the two bodies MEET
+    assert verdict == "RE-DERIVATION", verdict                              # honest: NEAR is already in Γ

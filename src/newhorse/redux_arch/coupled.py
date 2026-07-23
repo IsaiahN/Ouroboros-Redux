@@ -184,6 +184,39 @@ def coupled_transition_mint(frames: List[np.ndarray], acts: List[str], passable=
     return m, ("NOVEL" if novel else "RE-DERIVATION")
 
 
+def coupled_goal_mint(frames: List[np.ndarray], levels: List[int], colour: Optional[int] = None, max_size: int = 1):
+    """Tier-2 GOAL-mint from a two-body game's REWARD residual: abduce the win relation from where the level
+    advanced. Context = (focus=body0, target=body1); outcome = did the level advance next step. Returns
+    (Mint, verdict). On m0r0 this mints NEAR(body0,body1) -- the two bodies MEET -- purely from reward. HONEST
+    NOVELTY: the RELATION (NEAR) is an existing kernel atom → verdict RE-DERIVATION; the novelty is
+    REPRESENTATIONAL (NEAR applied to TWO controllable bodies -- a binding the single-focus kernel could not
+    express, enabled by the reclaimed two-body perception), NOT a brand-new predicate. m0r0 validates goal
+    abduction, it is not a fresh-predicate Region-III fill."""
+    if colour is None:
+        colour = find_two_body_colour(frames)
+    if colour is None:
+        return None, "no-two-body-colour"
+    exc = []
+    for i in range(len(frames) - 1):
+        b = _bodies_c(frames[i], colour)
+        reward = levels[i + 1] > levels[i]
+        if len(b) == 1:
+            f = t = b[0]                                    # merged -> the two bodies coincide (distance 0)
+        elif len(b) == 2:
+            f, t = b[0], b[1]
+        else:
+            continue
+        exc.append((_Context(focus_rc=f, focus_colour=colour, target_rc=t, action_vec=(0, 0)), bool(reward)))
+    if sum(1 for _, o in exc if o) == 0:
+        return None, "no-reward"
+    m = _two_part_mdl(exc, max_size=max_size)
+    if m is None:
+        return None, "no-mint"
+    names = {a.name for a in m.predicate.atoms}
+    novel = not all(any(n.startswith(p) for p in _KERNEL_ATOM_PREFIXES) for n in names)
+    return m, ("NOVEL" if novel else "RE-DERIVATION")
+
+
 def _bodies_c(frame, colour, max_body_cells=400):
     m = np.asarray(frame) == colour
     if not m.any():
