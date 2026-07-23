@@ -156,7 +156,7 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)
         best_levels = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
-            pol.observe(snap["grid"], snap["available"])
+            pol.observe(snap["grid"], snap["available"], snap["levels_completed"])
             lbl, data = pol.choose()
             val = int(lbl[1:])
             prev = snap["levels_completed"]
@@ -167,7 +167,8 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
             if snap["done"]:
                 outcome = snap["state"]; break
         return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
-                    family=pol.family, view_url=session.view_url, log=log)
+                    family=pol.family, view_url=session.view_url, log=log,
+                    level_deltas=pol.level_deltas)
     finally:
         session.close()
 

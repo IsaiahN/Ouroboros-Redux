@@ -60,6 +60,18 @@ def _prefix(game_id: str) -> str:
     return (game_id or "").split("-")[0]
 
 
+def level_delta(prev_frame, new_frame, prev_avail, new_avail) -> Dict[str, Any]:
+    """The curriculum diff at a level boundary: what's NEW in the graduated environment. A level transition is a
+    distribution shift (the board redraws + mechanics are added); the residual/mint architecture wants to know what
+    changed so it can KEEP what transferred and mint only against the surprise. Pure + testable."""
+    pv = {int(x) for x in np.unique(np.asarray(prev_frame))}
+    nv = {int(x) for x in np.unique(np.asarray(new_frame))}
+    pa = {int(a) for a in prev_avail}
+    na = {int(a) for a in new_avail}
+    return dict(new_colours=sorted(nv - pv), gone_colours=sorted(pv - nv),
+                new_actions=sorted(na - pa), gone_actions=sorted(pa - na))
+
+
 class ReduxPolicy:
     """Stateful per-step brain fitting the ARC-AGI-3 Agent contract. Feed each observed frame via observe(grid,
     available); call choose() for the next (label, data). label is 'A<n>'; data is {'x','y'} for A6 (click) else None."""
@@ -74,6 +86,13 @@ class ReduxPolicy:
         self.n_emitted = 0
         self.family = PENDING
         self._avail: List[int] = []
+        # curriculum / level-boundary state
+        self.level = 0
+        self._lvl0 = 0                          # index in self.frames where the CURRENT level's stream begins
+        self._warm_start = 0                    # n_emitted at the current level's start (per-level warmup gate)
+        self.prior: Optional[Dict[str, Any]] = None     # the frozen transferred model at the last boundary
+        self.level_model: Optional[Dict[str, Any]] = None   # current hypothesis of THIS level's mechanics
+        self.level_deltas: List[Dict[str, Any]] = []
         # learned organ params
         self.cursor: Optional[int] = None
         self.vecs: Dict[str, Tuple[int, int]] = {}
@@ -87,11 +106,16 @@ class ReduxPolicy:
         self.explorer: Optional[CuriosityExplorer] = None
 
     # ---- observation -------------------------------------------------------------------------------------------
-    def observe(self, grid, available: List[int]) -> None:
-        """Record the freshly observed frame (result of the previously emitted action) + its available actions."""
+    def observe(self, grid, available: List[int], levels_completed: int = 0) -> None:
+        """Record the freshly observed frame (result of the previously emitted action) + its available actions. If
+        the level advanced, run the curriculum re-derivation (freeze prior, diff, keep/re-parameterize/re-derive)."""
+        old_avail = list(self._avail)
         self.frames.append(np.asarray(grid))
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
         self._avail = [int(a) for a in available]
+        if int(levels_completed) > self.level:
+            self._on_level_change(int(levels_completed), old_avail)
+        self.level = int(levels_completed)
 
     def _labels(self, avail: List[int]) -> List[str]:
         return ["A%d" % v for v in avail]
@@ -116,9 +140,10 @@ class ReduxPolicy:
             self.bb.post(_prefix(self.game_id), family=CLICK)
         if self.family == CLICK:
             return self._act_click()
-        # minimal warmup: observe each directional action ~once (THINKING is free; ACTIONS are squared-costly)
+        # minimal warmup: observe each directional action ~once (THINKING is free; ACTIONS are squared-costly).
+        # Counted PER LEVEL (self._warm_start), so a re-derivation on a graduated level re-warms cleanly.
         warmup_needed = 0 if not dirs else min(self.warmup_cap, max(len(dirs), 2))
-        if self.n_emitted < warmup_needed:
+        if (self.n_emitted - self._warm_start) < warmup_needed:
             return self._cycle(labels), None
         if self.family == PENDING:
             self._route(avail, dirs)
@@ -130,10 +155,12 @@ class ReduxPolicy:
 
     # ---- routing -----------------------------------------------------------------------------------------------
     def _route(self, avail: List[int], dirs: List[int]) -> None:
-        """Classify the game family from the warmup stream, learn the organ's params, and post the mechanism to the
-        blackboard. Two-body is tried first (its coupled-colour test is specific); then single-body drivable;
-        else undrivable."""
-        colour, ag = learn_two_body(self.frames, self.acts)
+        """Classify the game family from the CURRENT LEVEL's warmup stream, learn the organ's params, and post the
+        mechanism to the blackboard. Windowed to self._lvl0 so a re-derivation on a graduated level learns from the
+        new level's frames only (not the previous level's, which would corrupt the basis). Two-body is tried first
+        (its coupled-colour test is specific); then single-body drivable; else undrivable."""
+        fw, aw = self.frames[self._lvl0:], self.acts[self._lvl0:]
+        colour, ag = learn_two_body(fw, aw)
         if ag is not None and ag.ready() and ag.n_controllable() >= 2:
             self.family = TWO_BODY
             self.tb_colour = colour
@@ -143,14 +170,14 @@ class ReduxPolicy:
                               default=1) or 1
             self.bb.post(_prefix(self.game_id), family=TWO_BODY, colour=colour)
             return
-        cursor, vecs = learn_basis(self.frames, self.acts)
+        cursor, vecs = learn_basis(fw, aw)
         if cursor is not None and vecs:
             self.family = DIRECTIONAL
             self.cursor = cursor
             self.vecs = vecs
-            self.passable = _learn_passable(self.frames, cursor)
+            self.passable = _learn_passable(fw, cursor)
             self.stride = max((max(abs(v[0]), abs(v[1])) for v in vecs.values()), default=1) or 1
-            cands = salient_targets(self.frames, avatar_colour=cursor, exclude=set(self.passable), top=3)
+            cands = salient_targets(fw, avatar_colour=cursor, exclude=set(self.passable), top=3)
             self.target_colour = cands[0] if cands else None
             self.bb.post(_prefix(self.game_id), family=DIRECTIONAL, cursor=cursor)
             return
@@ -159,15 +186,68 @@ class ReduxPolicy:
 
     def _learn_tb_passable(self, colour: int) -> None:
         self.tb_pass = [set(), set()]
-        for i in range(1, len(self.frames)):
-            b0, b1 = _two_bodies(self.frames[i - 1], colour), _two_bodies(self.frames[i], colour)
+        fw = self.frames[self._lvl0:]
+        for i in range(1, len(fw)):
+            b0, b1 = _two_bodies(fw[i - 1], colour), _two_bodies(fw[i], colour)
             if len(b0) == 2 and len(b1) == 2:
                 for j in range(2):
                     if b0[j] != b1[j]:
                         r, c = b1[j]
-                        h, w = self.frames[i - 1].shape
+                        h, w = fw[i - 1].shape
                         if 0 <= r < h and 0 <= c < w:
-                            self.tb_pass[j].add(int(self.frames[i - 1][r, c]))
+                            self.tb_pass[j].add(int(fw[i - 1][r, c]))
+
+    # ---- curriculum: level-boundary re-derivation --------------------------------------------------------------
+    def _on_level_change(self, new_level: int, old_avail: List[int]) -> None:
+        """A level graduated. Freeze the transferred model as PRIOR, DIFF old-vs-new, and decide KEEP (organ's
+        referent survives → transfer wholesale, the organ reads the live grid), RE-PARAMETERIZE (rebuild the
+        cheap per-level bits, e.g. click candidates), or RE-DERIVE (referent gone → the mechanic changed → re-warm
+        + re-route on the new level, keeping the prior). This is graduated learning: additive over a transferred
+        base, not from scratch. THINKING is free, so diffing every boundary is pure RHAE upside."""
+        prev = self.frames[-2] if len(self.frames) >= 2 else self.frames[-1]
+        cur = self.frames[-1]
+        delta = level_delta(prev, cur, old_avail, self._avail)
+        self.prior = dict(family=self.family, cursor=self.cursor, vecs=dict(self.vecs),
+                          passable=set(self.passable), tb_colour=self.tb_colour,
+                          target_colour=self.target_colour, from_level=self.level)
+        survives = self._referent_survives(cur)
+        self._lvl0 = len(self.frames) - 1                        # the redraw frame starts the new level's stream
+        decision = "keep" if survives else "rederive"
+        self.level_model = dict(level=new_level, family_before=self.family, decision=decision,
+                                new_colours=delta["new_colours"], gone_colours=delta["gone_colours"],
+                                new_actions=delta["new_actions"], gone_actions=delta["gone_actions"])
+        self.level_deltas.append(self.level_model)
+        self.bb.post(_prefix(self.game_id), graduated_to=new_level, last_delta=self.level_model)
+        if survives:
+            self._reparameterize(cur)
+        else:
+            self._rederive()
+
+    def _referent_survives(self, cur) -> bool:
+        """Does the transferred organ's key referent still exist on the graduated level? (The cheap KEEP test.)"""
+        if self.family == TWO_BODY and self.tb_colour is not None:
+            return len(_two_bodies(cur, self.tb_colour)) >= 2
+        if self.family == DIRECTIONAL and self.cursor is not None:
+            return bool(np.any(np.asarray(cur) == self.cursor))
+        if self.family == CLICK:
+            return True
+        return False
+
+    def _reparameterize(self, cur) -> None:
+        """Referent transferred: keep the family + motion/coupling model (the organ reads the live grid each step);
+        only rebuild the cheap per-level bits."""
+        if self.family == CLICK:
+            self.prober = ClickProber(click_targets(cur), grid_sweep(cur, n=8))
+        self.explorer = None                                     # coverage novelty is per-layout
+
+    def _rederive(self) -> None:
+        """Referent gone → a mechanic changed. Re-warm + re-route on the new level; the prior is retained (transfer)
+        but the organ caches are cleared so the router relearns against the graduated environment."""
+        self.family = PENDING
+        self._warm_start = self.n_emitted
+        self.cursor = None; self.vecs = {}; self.passable = set(); self.target_colour = None
+        self.tb_colour = None; self.ag = None; self.tb_pass = [set(), set()]
+        self.prober = None; self.explorer = None
 
     # ---- organ dispatch ----------------------------------------------------------------------------------------
     def _act_click(self) -> Tuple[str, Optional[dict]]:

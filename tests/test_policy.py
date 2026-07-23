@@ -8,8 +8,8 @@ cross-game blackboard transfer the official swarm lacks.
 import sys, os, glob, json
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from newhorse.redux_arch.policy import (ReduxPolicy, Blackboard, _prefix,
-                                        CLICK, TWO_BODY, DIRECTIONAL)
+from newhorse.redux_arch.policy import (ReduxPolicy, Blackboard, _prefix, level_delta,
+                                        CLICK, TWO_BODY, DIRECTIONAL, PENDING)
 
 
 class AMirror:
@@ -111,6 +111,38 @@ def _run_closed_loop_bb(world, avail, n, bb, game_id):
     for _ in range(n):
         p.observe(grid, avail); lbl, data = p.choose(); grid = world.step(lbl)
     return p
+
+
+def test_level_delta_reports_new_colours_and_actions():
+    prev = np.full((8, 8), 5, dtype=int); prev[0, 0] = 2
+    new = np.full((8, 8), 5, dtype=int); new[0, 0] = 2; new[1, 1] = 7   # colour 7 is NEW this level
+    d = level_delta(prev, new, prev_avail=[1, 2, 3], new_avail=[1, 2, 3, 4])
+    assert d["new_colours"] == [7] and d["new_actions"] == [4]          # a new actor + a newly-unlocked action
+    assert d["gone_colours"] == [] and d["gone_actions"] == []
+
+
+def test_level_change_keeps_family_when_referent_survives():
+    # DIRECTIONAL policy; on the graduated level the cursor colour still exists -> KEEP (motion model transfers)
+    p = _run_closed_loop(ADrive(), avail=[1, 2, 3, 4, 5], n=12)
+    assert p.family == DIRECTIONAL and p.cursor == 9
+    new_level_frame = np.zeros((20, 20), dtype=int); new_level_frame[5:7, 5:7] = 3; new_level_frame[8, 8] = 9
+    p.observe(new_level_frame, [1, 2, 3, 4, 5], levels_completed=1)
+    assert p.family == DIRECTIONAL                                      # kept
+    assert p.level_model["decision"] == "keep" and p.level == 1
+    assert p.prior is not None and p.prior["from_level"] == 0           # transfer frozen
+
+
+def test_level_change_rederives_when_referent_gone():
+    # TWO_BODY policy; graduated level has NO two bodies of the coupled colour -> RE-DERIVE (mechanic changed)
+    p = _run_closed_loop(AMirror(), avail=[1, 2, 3, 4, 5], n=12)
+    assert p.family == TWO_BODY and p.tb_colour == 7
+    n_before = p.n_emitted
+    blank = np.zeros((20, 20), dtype=int)                              # the navy bodies are gone
+    p.observe(blank, [1, 2, 3, 4, 5], levels_completed=1)
+    assert p.family == PENDING                                         # re-routing on the new level
+    assert p.level_model["decision"] == "rederive"
+    assert p._warm_start == n_before                                   # warmup counter reset -> re-warms
+    assert p.prior is not None and p.prior["tb_colour"] == 7           # prior retained (transfer, not discard)
 
 
 def test_router_two_body_on_real_m0r0_recording():
