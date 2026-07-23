@@ -28,6 +28,7 @@ from .explore import CuriosityExplorer
 from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action,
                       two_body_deliver_action)
 from .click import click_targets, grid_sweep, ClickProber
+from .loci import LociTracker
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
 from .live_goal_run import _learn_passable, _two_bodies
@@ -192,6 +193,7 @@ class ReduxPolicy:
         self.level_model: Optional[Dict[str, Any]] = None   # current hypothesis of THIS level's mechanics
         self.level_deltas: List[Dict[str, Any]] = []
         self._probe: Optional[GoalProbe] = None         # active goal-hypothesis search (two-body, post-KEEP)
+        self.tracker = LociTracker()                    # persistent-identity substrate the boundary diff (beat B) reads
         # learned organ params
         self.cursor: Optional[int] = None
         self.vecs: Dict[str, Tuple[int, int]] = {}
@@ -212,6 +214,7 @@ class ReduxPolicy:
         self.frames.append(np.asarray(grid))
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
         self._avail = [int(a) for a in available]
+        self.tracker.observe(self.frames[-1])           # maintain persistent object identity (passive; read by beat B)
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
