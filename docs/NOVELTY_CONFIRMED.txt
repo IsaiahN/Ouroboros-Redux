@@ -1,0 +1,10 @@
+# NOVELTY_CONFIRMED -- HUMAN-WRITTEN ONLY. The build MUST NOT edit this file.
+#
+# A NOVEL predicate mint is never self-certified by the build (the LLM building this agent is its own judge
+# at the frontier, which is exactly where an answer would be smuggled). When a NOVEL verdict fires, the build
+# appends an UNCONFIRMED claim to docs/NOVELTY_CLAIMS.jsonl and is NOT allowed to act on it.
+#
+# To confirm a claim after reviewing it (open the scorecard + the recording + the diff yourself), copy its
+# 12-char `key` from NOVELTY_CLAIMS.jsonl onto its own line below. Only then may the build treat it as real.
+#
+# key                         # (optional note)
