@@ -157,3 +157,23 @@ def test_two_body_perception_on_real_m0r0_recording():
     # ACTION3 was measured as L col -5 / R col +5 (mirror); ACTION1 both up
     assert "ACTION3" in m0 and m0["ACTION3"][1] == -m1["ACTION3"][1] and m0["ACTION3"][1] != 0
     assert ag.conserved().get("col_sum") is True             # column-sum invariant under the mirror
+
+
+def test_coupled_transition_mint_redderives_intended_free_on_m0r0():
+    # RED BLOCK on m0r0's transition residual: the minter fires (dense residual) but re-derives INTENDED_FREE --
+    # already a kernel atom -> RE-DERIVATION, not a Region-III fill (the honest NOVELTY-TEST verdict). m0r0's
+    # per-body dynamics are pure affordance; the genuine two-body novelty is the MEET goal-relation (Tier 2).
+    import glob, json, os
+    from newhorse.redux_arch.coupled import coupled_transition_mint
+    hits = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "..", "recordings", "*", "m0r0-*.jsonl")))
+    if not hits:
+        import pytest; pytest.skip("no m0r0 recording")
+    frames, acts = [], []
+    for p in hits[:3]:
+        recs = [json.loads(l)["data"] for l in open(p).read().splitlines()]
+        frames += [np.array(r["frame"])[-1] for r in recs]
+        acts += [r.get("action_input", {}).get("id", "?") for r in recs]
+    mint, verdict = coupled_transition_mint(frames, acts, passable=({5}, {5}), max_size=1)
+    assert mint is not None, "minter did not fire on the dense m0r0 transition residual"
+    assert "INTENDED_FREE" in {a.name for a in mint.predicate.atoms}
+    assert verdict == "RE-DERIVATION", verdict     # honest: INTENDED_FREE is already in the kernel

@@ -140,6 +140,62 @@ def two_body_drive_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency",
     return best
 
 
+from .dsl import Context as _Context
+from .minting import two_part_mdl as _two_part_mdl
+
+# the atoms already IN Γ (the current kernel). A size-1 mint of any of these is a RE-DERIVATION, not a Region-III
+# fill (NOVELTY TEST: φ ∉ atoms(Γ)). New novelty requires a NEW atom type (e.g. a two-body relational predicate)
+# or a composition Γ cannot reduce to a single atom.
+_KERNEL_ATOM_PREFIXES = ("INTENDED_FREE", "INTENDED_COLOUR==", "colour==", "ACTS_TOWARD", "NEAR", "TOUCH",
+                         "SAME_ROW", "SAME_COL")
+
+
+def coupled_transition_mint(frames: List[np.ndarray], acts: List[str], passable=({5}, {5}), max_size: int = 1):
+    """Run the residual-driven MDL minter (the RED BLOCK) on a two-body game's TRANSITION residual: Γ predicts
+    each body moves by its learned map; the residual is where a body is BLOCKED (a wall). Returns (Mint, verdict)
+    where verdict applies the NOVELTY TEST -- 'RE-DERIVATION' if φ reduces to an existing kernel atom, else
+    'NOVEL'. Honest by construction: on m0r0 the per-body dynamics are pure affordance, so it re-derives
+    INTENDED_FREE (machinery validated, NOT a Region-III fill)."""
+    colour, ag = learn_two_body(frames, acts)
+    if colour is None or ag is None or not ag.ready():
+        return None, "no-coupling"
+    exc = []
+    for i in range(1, len(frames)):
+        b0 = _bodies_c(frames[i - 1], colour); b1 = _bodies_c(frames[i], colour)
+        if len(b0) != 2 or len(b1) != 2:
+            continue
+        h, w = np.asarray(frames[i - 1]).shape
+        for j in range(2):
+            vec = ag.body_map(j).get(acts[i])
+            if not vec or vec == (0, 0):
+                continue
+            r, c = b0[j]; ir, ic = r + vec[0], c + vec[1]
+            icol = int(np.asarray(frames[i - 1])[ir, ic]) if (0 <= ir < h and 0 <= ic < w) else -1
+            exc.append((_Context(focus_rc=b0[j], focus_colour=colour, target_rc=b0[j], action_vec=vec,
+                                 intended_free=(icol in passable[j]), intended_colour=(icol if icol >= 0 else None)),
+                        b0[j] != b1[j]))
+    if len(exc) < 2:
+        return None, "no-exceptions"
+    m = _two_part_mdl(exc, max_size=max_size)
+    if m is None:
+        return None, "no-mint"
+    names = {a.name for a in m.predicate.atoms}
+    novel = not all(any(n.startswith(p) for p in _KERNEL_ATOM_PREFIXES) for n in names)
+    return m, ("NOVEL" if novel else "RE-DERIVATION")
+
+
+def _bodies_c(frame, colour, max_body_cells=400):
+    m = np.asarray(frame) == colour
+    if not m.any():
+        return []
+    lab, k = ndimage.label(m); out = []
+    for i in range(1, k + 1):
+        ys, xs = np.where(lab == i)
+        if ys.size <= max_body_cells:
+            out.append((int(round(ys.mean())), int(round(xs.mean()))))
+    return sorted(out, key=lambda p: p[1])
+
+
 def two_body_search_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", passable_cell,
                            stride: int = 1, max_expand: int = 40000) -> Optional[str]:
     """JOINT-STATE BFS over the coupled two-body state (both body cells). Each action moves EACH body by its
