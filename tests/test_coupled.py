@@ -6,7 +6,8 @@ This is the organ a single-body navigator lacks (why the current agent wins 0 on
 import sys, os, glob, json
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from newhorse.redux_arch.coupled import TwoBodyAgency, find_two_body_colour, learn_two_body
+from newhorse.redux_arch.coupled import (TwoBodyAgency, find_two_body_colour, learn_two_body,
+                                         two_body_drive_action)
 
 
 class MirrorWorld:
@@ -42,6 +43,40 @@ def test_two_body_perception_reads_the_mirror_coupling_synthetic():
     assert m0["U"] == (-1, 0) and m1["U"] == (-1, 0)         # vertical: same direction
     assert m0["Lm"][1] == -m1["Lm"][1]                       # horizontal: opposite columns (mirror)
     assert ag.conserved().get("col_sum") is True             # (cL+cR) column-sum invariant
+
+
+def test_driver_meets_the_two_bodies_via_the_coupling():
+    # learn the mirror coupling, then DRIVE the two bodies to MEET (inter-body distance -> adjacent). The win
+    # relation for m0r0 is "the two bodies become one component"; the driver reduces their separation.
+    w = MirrorWorld()
+    frames = [w.frame()]; acts = ["RESET"]
+    for a in (["U", "D", "Lm", "Rm"] * 5):
+        frames.append(w.step(a)); acts.append(a)
+    colour, ag = learn_two_body(frames, acts)
+    assert ag.ready()
+    # translate the learned world-action labels back through the SAME world; drive toward MEET
+    def passable(i, dest):
+        return 0 <= dest[0] < 20 and 0 <= dest[1] < 20        # open field (no walls needed for this convergence)
+    w2 = MirrorWorld()
+    def bodies():
+        m = w2.frame() == 7
+        from scipy import ndimage as _nd
+        lab, k = _nd.label(m); cs = []
+        for i in range(1, k + 1):
+            ys, xs = np.where(lab == i); cs.append((round(ys.mean()), round(xs.mean())))
+        return sorted(cs, key=lambda p: p[1])
+    met = False
+    for _ in range(30):
+        b = bodies()
+        if len(b) < 2:
+            met = True; break                                # merged into one component
+        if abs(b[0][0] - b[1][0]) + abs(b[0][1] - b[1][1]) <= 1:
+            met = True; break
+        a = two_body_drive_action(b, ag, passable)
+        if a is None:
+            break
+        w2.step(a)
+    assert met, "driver failed to bring the two bodies together"
 
 
 def test_two_body_perception_on_real_m0r0_recording():

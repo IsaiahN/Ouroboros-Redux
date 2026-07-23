@@ -116,6 +116,30 @@ def find_two_body_colour(frames: List[np.ndarray], max_body_cells: int = 400) ->
     return best
 
 
+def two_body_drive_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency",
+                          passable, goal: str = "meet") -> Optional[str]:
+    """Drive the two coupled bodies toward the win relation MEET (become one component). Greedy: pick the action
+    that most reduces the inter-body Manhattan distance, PREDICTING each body's move via its learned map and
+    treating a move into a non-passable cell as BLOCKED (the body stays) -- which is exactly the wall-break that
+    lets the mirror invariant be broken (a shared action moves only the un-blocked body). Generic (min inter-body
+    distance), never an m0r0 hand-solve. `passable(body_index, dest_cell)->bool`."""
+    if len(bodies) < 2:
+        return None
+    maps = [ag.body_map(0), ag.body_map(1)]
+    acts = set(maps[0]) | set(maps[1])
+    best, best_d = None, None
+    for a in sorted(acts):
+        nb = []
+        for i, (r, c) in enumerate(bodies):
+            d = maps[i].get(a, (0, 0))
+            dest = (r + d[0], c + d[1])
+            nb.append(dest if passable(i, dest) else (r, c))
+        dist = abs(nb[0][0] - nb[1][0]) + abs(nb[0][1] - nb[1][1])
+        if best_d is None or dist < best_d:
+            best_d, best = dist, a
+    return best
+
+
 def learn_two_body(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int], Optional[TwoBodyAgency]]:
     """Discover the coupled colour and learn both bodies' per-action displacement from a frame/action stream."""
     colour = find_two_body_colour(frames)

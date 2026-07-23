@@ -23,6 +23,8 @@ from .bridge import _px_centroid
 from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer
+from .coupled import learn_two_body, two_body_drive_action
+from scipy import ndimage as _ndi
 from .dsl import Predicate, make_atom
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
@@ -136,5 +138,83 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
                     salient=cands, target_colour=target_colour, min_target_dist=min_target_dist,
                     mode=("explore" if explore else "exploit"),
                     coverage=(explorer.coverage() if explorer is not None else None), log=log)
+    finally:
+        session.close()
+
+
+def _two_bodies(frame, colour, max_body_cells=400):
+    m = np.asarray(frame) == colour
+    if not m.any():
+        return []
+    lab, k = _ndi.label(m); out = []
+    for i in range(1, k + 1):
+        ys, xs = np.where(lab == i)
+        if ys.size <= max_body_cells:
+            out.append((int(round(ys.mean())), int(round(xs.mean()))))
+    return sorted(out, key=lambda p: p[1])
+
+
+def run_coupled_live(game_id="m0r0-492f87ba", warmup=40, max_actions=300, wall_cap_s=200.0,
+                     tags=None):
+    """TWO-BODY driver live: learn the coupling, then drive both bodies toward MEET (become one component -- the
+    m0r0 win relation). Passability per body = colours that body's own trajectory stepped onto (leak-free)."""
+    from ..arc3_env import Arc3Session
+    session = Arc3Session(game_id, tags=tags or ["redux-triality", "coupled-live", game_id])
+    log = []
+    try:
+        snap = session.open()
+        avail = [v for v in snap["available"] if v != 6]
+        if not avail:
+            return dict(game=game_id, outcome="no_discrete_actions", levels_completed=snap["levels_completed"],
+                        view_url=session.view_url, log=log)
+        labels = ["A%d" % v for v in avail]; val_of = {"A%d" % v: v for v in avail}
+        frames = [np.asarray(snap["grid"])]; acts = ["RESET"]
+        best_levels = snap["levels_completed"]; t0 = time.time()
+        for i in range(warmup):
+            snap = session.step(val_of[labels[i % len(labels)]])
+            frames.append(np.asarray(snap["grid"])); acts.append(labels[i % len(labels)])
+            best_levels = max(best_levels, snap["levels_completed"])
+            if snap["done"]:
+                break
+        colour, ag = learn_two_body(frames, acts)
+        if colour is None or ag is None or not ag.ready():
+            return dict(game=game_id, outcome="coupling_underdetermined", levels_completed=best_levels,
+                        view_url=session.view_url, colour=colour,
+                        nbodies=(ag.n_controllable() if ag else 0), log=log)
+        # per-body passable = before-colour of cells each body entered during warmup
+        passable = [set(), set()]
+        for i in range(1, len(frames)):
+            b0, b1 = _two_bodies(frames[i - 1], colour), _two_bodies(frames[i], colour)
+            if len(b0) == 2 and len(b1) == 2:
+                for j in range(2):
+                    if b0[j] != b1[j]:
+                        r, c = b1[j]; h, w = frames[i - 1].shape
+                        if 0 <= r < h and 0 <= c < w:
+                            passable[j].add(int(frames[i - 1][r, c]))
+        log.append("LEARN colour=%s bodymaps=%s passable=%s" %
+                   (colour, [ag.body_map(0), ag.body_map(1)], [sorted(passable[0]), sorted(passable[1])]))
+        steps = warmup; outcome = "action_cap"; min_dist = None
+        while steps < max_actions and (time.time() - t0) < wall_cap_s:
+            grid = np.asarray(snap["grid"]); h, w = grid.shape
+            bodies = _two_bodies(grid, colour)
+            if len(bodies) < 2:
+                min_dist = 0
+                lbl = labels[steps % len(labels)]           # merged (or lost) -> nudge
+            else:
+                d = abs(bodies[0][0] - bodies[1][0]) + abs(bodies[0][1] - bodies[1][1])
+                min_dist = d if min_dist is None else min(min_dist, d)
+                def passfn(i, dest, _g=grid, _h=h, _w=w):
+                    r, c = dest
+                    return 0 <= r < _h and 0 <= c < _w and (not passable[i] or int(_g[r, c]) in passable[i])
+                lbl = two_body_drive_action(bodies, ag, passfn) or labels[steps % len(labels)]
+            prev = snap["levels_completed"]
+            snap = session.step(val_of[lbl], reasoning={"why": "drive two bodies to MEET"})
+            if snap["levels_completed"] > prev:
+                log.append("LEVEL UP %d->%d at step %d" % (prev, snap["levels_completed"], steps))
+            best_levels = max(best_levels, snap["levels_completed"]); steps += 1
+            if snap["done"]:
+                outcome = snap["state"]; break
+        return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
+                    view_url=session.view_url, colour=colour, min_body_dist=min_dist, log=log)
     finally:
         session.close()
