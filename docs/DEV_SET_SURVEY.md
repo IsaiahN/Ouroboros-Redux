@@ -5,9 +5,11 @@ environments, plus prior-beat runs for wa30/tr87/tu93/g50t. Signal per game: can
 did it win? how much did it cover?
 
 ## Categories (25 games)
-- **CLICK-ONLY — agent cannot act at all (6):** s5i5, lp85, tn36, vc33, r11l, ft09. `no_discrete_actions`: their
-  only action is a coordinate CLICK (ACTION6), which the agent filters out. ~24% of the dev set is entirely
-  locked out without a click modality.
+- **CLICK-ONLY (6):** s5i5, lp85, tn36, vc33, r11l, ft09. Only action is a coordinate CLICK (ACTION6).
+  **UPDATE 2026-07-23: NOW ACTIONABLE** — `redux_arch/click.py` (click_targets + ClickProber + run_click_live)
+  reclaims the click modality. Live on s5i5 (scorecard 0c410a76): 50 clicks, board responds to every one
+  (colour-3→4 placement mechanic), GAME_OVER at the 50-click budget, levels 0. Coverage unlock; win mechanic
+  (WHICH clicks advance) still unlearned. The other 5 remain to be censused live.
 - **UNDRIVABLE by perception (7):** su15, sb26, lf52, sc25, re86, tr87, g50t. Directional actions exist but the
   translate-based detector can't lock a cursor/vecs — trail-drawing cursors (g50t), non-mover/state puzzles
   (sc25), or no clean single mover.
