@@ -8,8 +8,9 @@ cross-game blackboard transfer the official swarm lacks.
 import sys, os, glob, json
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from newhorse.redux_arch.policy import (ReduxPolicy, Blackboard, _prefix, level_delta,
-                                        CLICK, TWO_BODY, DIRECTIONAL, PENDING)
+from newhorse.redux_arch.policy import (ReduxPolicy, Blackboard, _prefix, level_delta, GoalProbe,
+                                        _nearest_colour_centroid, CLICK, TWO_BODY, DIRECTIONAL, PENDING)
+from newhorse.redux_arch.coupled import two_body_goal_action, learn_two_body
 
 
 class AMirror:
@@ -143,6 +144,57 @@ def test_level_change_rederives_when_referent_gone():
     assert p.level_model["decision"] == "rederive"
     assert p._warm_start == n_before                                   # warmup counter reset -> re-warms
     assert p.prior is not None and p.prior["tb_colour"] == 7           # prior retained (transfer, not discard)
+
+
+def test_goal_probe_rotates_meet_then_new_actors_and_locks():
+    p = GoalProbe(referent_colours=[6, 8], meet_first=True, budget=3)
+    assert p.current() == ("meet", None)                   # try the transferred goal first (cheap)
+    for _ in range(3):
+        p.tick()
+    assert p.current() == ("near", 6)                      # rotated to the first NEW actor
+    for _ in range(3):
+        p.tick()
+    assert p.current() == ("near", 8)                      # then the second
+    p.lock()                                               # a hypothesis paid off
+    before = p.current()
+    for _ in range(10):
+        p.tick()
+    assert p.locked and p.current() == before              # locked: no more rotation
+
+
+def test_nearest_colour_centroid_picks_and_excludes_self():
+    g = np.zeros((20, 20), dtype=int); g[2, 2] = 6; g[15, 15] = 6; g[10, 10] = 7
+    # nearest colour-6 blob to a body near (3,3) is the (2,2) one
+    assert _nearest_colour_centroid(g, 6, (3, 3), exclude=7) == (2, 2)
+    assert _nearest_colour_centroid(g, 7, (0, 0), exclude=7) is None   # never target the bodies' own colour
+
+
+def test_two_body_goal_action_drives_a_body_toward_a_target():
+    w = AMirror()
+    frames = [w.frame()]; acts = ["RESET"]
+    for a in (["A1", "A2", "A3", "A4"] * 5):
+        frames.append(w.step(a)); acts.append(a)
+    colour, ag = learn_two_body(frames, acts)
+    assert ag is not None and ag.ready()
+    passable = lambda i, dest: 0 <= dest[0] < 20 and 0 <= dest[1] < 20
+    bodies = [[3, 4], [3, 15]]                               # body0 at (3,4)
+    target = (0, 4)                                          # straight up from body0
+    a = two_body_goal_action(bodies, ag, passable, target, which=0)
+    # the chosen action should reduce body0's distance to the target
+    d0 = abs(bodies[0][0] - target[0]) + abs(bodies[0][1] - target[1])
+    mp = ag.body_map(0)[a]
+    nd = abs(bodies[0][0] + mp[0] - target[0]) + abs(bodies[0][1] + mp[1] - target[1])
+    assert nd < d0
+
+
+def test_keep_on_two_body_arms_the_goal_probe_with_new_actors():
+    p = _run_closed_loop(AMirror(), avail=[1, 2, 3, 4, 5], n=12)
+    assert p.family == TWO_BODY
+    # graduate to a level that still has the two bodies (KEEP) PLUS a new actor colour 6
+    nf = np.zeros((20, 20), dtype=int); nf[10, 4] = 7; nf[10, 15] = 7; nf[5, 9] = 6
+    p.observe(nf, [1, 2, 3, 4, 5], levels_completed=1)
+    assert p.level_model["decision"] == "keep"
+    assert p._probe is not None and ("near", 6) in p._probe.hypotheses   # probe armed with the new actor
 
 
 def test_router_two_body_on_real_m0r0_recording():

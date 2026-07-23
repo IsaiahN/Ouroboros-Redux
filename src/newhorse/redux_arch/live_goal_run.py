@@ -166,9 +166,13 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
             best_levels = max(best_levels, snap["levels_completed"]); steps += 1
             if snap["done"]:
                 outcome = snap["state"]; break
+        probe = None
+        if pol._probe is not None:
+            probe = dict(hypotheses=pol._probe.hypotheses, current=pol._probe.current(),
+                         idx=pol._probe.idx, locked=pol._probe.locked)
         return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
                     family=pol.family, view_url=session.view_url, log=log,
-                    level_deltas=pol.level_deltas)
+                    level_deltas=pol.level_deltas, probe=probe)
     finally:
         session.close()
 

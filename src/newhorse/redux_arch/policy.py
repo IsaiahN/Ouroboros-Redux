@@ -20,11 +20,12 @@ from __future__ import annotations
 from typing import List, Optional, Tuple, Dict, Any
 import threading
 import numpy as np
+from scipy import ndimage as _ndi
 from .replay import learn_basis
 from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer
-from .coupled import learn_two_body, two_body_search_action, two_body_drive_action
+from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action)
 from .click import click_targets, grid_sweep, ClickProber
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -56,8 +57,64 @@ class Blackboard:
 BLACKBOARD = Blackboard()
 
 
+class GoalProbe:
+    """Abductive GOAL-HYPOTHESIS search for a two-body game after a KEEP graduation. The motion model transferred,
+    but the transferred goal (MEET) stopped yielding reward on the new level -- so the OBJECTIVE changed even though
+    the coupling didn't. With no reward yet to abduce from (cold start: no L2 recording), we ENUMERATE candidate
+    goals -- MEET first (cheap: maybe it still works), then NEAR(body, X) for each NEW actor colour X the level
+    added -- and probe each for a budget of actions, rotating when it doesn't pay off. Live reward arbitrates; once
+    a hypothesis pays, coupled_goal_mint can CONSOLIDATE it. Reclaim the mechanism (abduce-then-verify), never the
+    answer."""
+
+    def __init__(self, referent_colours, meet_first: bool = True, budget: int = 22):
+        self.hypotheses = ([("meet", None)] if meet_first else []) + [("near", int(c)) for c in referent_colours]
+        if not self.hypotheses:
+            self.hypotheses = [("meet", None)]
+        self.idx = 0
+        self.steps = 0
+        self.budget = int(budget)
+        self.locked = False
+
+    def current(self):
+        return self.hypotheses[self.idx]
+
+    def tick(self) -> None:
+        if self.locked:
+            return
+        self.steps += 1
+        if self.steps >= self.budget:
+            self.rotate()
+
+    def rotate(self) -> None:
+        self.idx = (self.idx + 1) % len(self.hypotheses)
+        self.steps = 0
+
+    def lock(self) -> None:
+        """A hypothesis paid off (reward). Stop rotating -- this is the level's objective."""
+        self.locked = True
+
+
 def _prefix(game_id: str) -> str:
     return (game_id or "").split("-")[0]
+
+
+def _nearest_colour_centroid(grid, colour: int, ref_cell, exclude: Optional[int] = None):
+    """Centroid of the colour-`colour` component nearest `ref_cell` (the candidate goal referent to drive toward).
+    None if the colour is absent. `exclude` skips the bodies' own colour so a body never targets itself."""
+    if exclude is not None and int(colour) == int(exclude):
+        return None
+    m = np.asarray(grid) == int(colour)
+    if not m.any():
+        return None
+    lab, k = _ndi.label(m)
+    best, best_d = None, None
+    for i in range(1, k + 1):
+        ys, xs = np.where(lab == i)
+        c = (int(round(ys.mean())), int(round(xs.mean())))
+        d = abs(c[0] - ref_cell[0]) + abs(c[1] - ref_cell[1])
+        if best_d is None or d < best_d:
+            best_d, best = d, c
+    return best
 
 
 def level_delta(prev_frame, new_frame, prev_avail, new_avail) -> Dict[str, Any]:
@@ -93,6 +150,7 @@ class ReduxPolicy:
         self.prior: Optional[Dict[str, Any]] = None     # the frozen transferred model at the last boundary
         self.level_model: Optional[Dict[str, Any]] = None   # current hypothesis of THIS level's mechanics
         self.level_deltas: List[Dict[str, Any]] = []
+        self._probe: Optional[GoalProbe] = None         # active goal-hypothesis search (two-body, post-KEEP)
         # learned organ params
         self.cursor: Optional[int] = None
         self.vecs: Dict[str, Tuple[int, int]] = {}
@@ -114,6 +172,8 @@ class ReduxPolicy:
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
         self._avail = [int(a) for a in available]
         if int(levels_completed) > self.level:
+            if self._probe is not None and not self._probe.locked:
+                self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
             self._on_level_change(int(levels_completed), old_avail)
         self.level = int(levels_completed)
 
@@ -220,6 +280,9 @@ class ReduxPolicy:
         self.bb.post(_prefix(self.game_id), graduated_to=new_level, last_delta=self.level_model)
         if survives:
             self._reparameterize(cur)
+            # two-body KEEP: the coupling transferred but the OBJECTIVE may have graduated -> probe the new actors
+            if self.family == TWO_BODY:
+                self._probe = GoalProbe(referent_colours=delta["new_colours"])
         else:
             self._rederive()
 
@@ -266,14 +329,24 @@ class ReduxPolicy:
     def _act_two_body(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
         grid = self.frames[-1]; h, w = grid.shape
         bodies = _two_bodies(grid, self.tb_colour)
-        if len(bodies) < 2:
-            return self._cycle(labels), None                        # merged/lost -> nudge
-        def passcell(i, cell, _g=grid, _h=h, _w=w, _s=self.stride, _p=self.tb_pass):
-            r, c = cell[0] * _s, cell[1] * _s
-            return 0 <= r < _h and 0 <= c < _w and (not _p[i] or int(_g[r, c]) in _p[i])
         def passpx(i, dest, _g=grid, _h=h, _w=w, _p=self.tb_pass):
             r, c = dest
             return 0 <= r < _h and 0 <= c < _w and (not _p[i] or int(_g[r, c]) in _p[i])
+        def passcell(i, cell, _g=grid, _h=h, _w=w, _s=self.stride, _p=self.tb_pass):
+            r, c = cell[0] * _s, cell[1] * _s
+            return 0 <= r < _h and 0 <= c < _w and (not _p[i] or int(_g[r, c]) in _p[i])
+        # GOAL-HYPOTHESIS probe (post-KEEP graduation): drive toward the current hypothesis referent, rotating
+        if self._probe is not None:
+            kind, colour = self._probe.current()
+            self._probe.tick()
+            if kind == "near" and colour is not None and len(bodies) >= 2:
+                tgt = _nearest_colour_centroid(grid, colour, bodies[0], exclude=self.tb_colour)
+                if tgt is not None:
+                    lbl = two_body_goal_action(bodies, self.ag, passpx, tgt, which=0) or self._cycle(labels)
+                    return lbl, None
+            # kind == "meet" (or no such actor present) -> fall through to the MEET driver below
+        if len(bodies) < 2:
+            return self._cycle(labels), None                        # merged/lost -> nudge
         lbl = (two_body_search_action(bodies, self.ag, passcell, self.stride)
                or two_body_drive_action(bodies, self.ag, passpx)
                or self._cycle(labels))

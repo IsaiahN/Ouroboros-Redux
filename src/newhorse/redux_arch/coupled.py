@@ -140,6 +140,30 @@ def two_body_drive_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency",
     return best
 
 
+def two_body_goal_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", passable, target: Tuple[int, int],
+                         which: int = 0) -> Optional[str]:
+    """Drive the coupled two-body state so that body `which` approaches a TARGET CELL (not the other body). This is
+    the generalisation of two_body_drive_action's MEET (min body-body distance) to an arbitrary goal referent --
+    used by the goal-HYPOTHESIS probe when the transferred MEET goal stops yielding reward on a graduated level and
+    a NEW actor becomes the candidate objective. Greedy over the learned per-body maps; a blocked move keeps the
+    body (mirror-break emerges). `passable(body_index, dest_cell)->bool`."""
+    if len(bodies) <= which:
+        return None
+    maps = [ag.body_map(0), ag.body_map(1)]
+    acts = set(maps[0]) | set(maps[1])
+    best, best_d = None, None
+    for a in sorted(acts):
+        nb = []
+        for i, (r, c) in enumerate(bodies):
+            d = maps[i].get(a, (0, 0))
+            dest = (r + d[0], c + d[1])
+            nb.append(dest if passable(i, dest) else (r, c))
+        dist = abs(nb[which][0] - target[0]) + abs(nb[which][1] - target[1])
+        if best_d is None or dist < best_d:
+            best_d, best = dist, a
+    return best
+
+
 from .dsl import Context as _Context
 from .minting import two_part_mdl as _two_part_mdl
 
