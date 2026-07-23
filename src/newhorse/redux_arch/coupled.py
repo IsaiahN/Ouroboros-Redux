@@ -140,6 +140,48 @@ def two_body_drive_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency",
     return best
 
 
+def two_body_search_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", passable_cell,
+                           stride: int = 1, max_expand: int = 40000) -> Optional[str]:
+    """JOINT-STATE BFS over the coupled two-body state (both body cells). Each action moves EACH body by its
+    learned per-action displacement UNLESS its destination cell is non-passable (blocked → the body stays) — so a
+    wall that blocks one body while the shared action moves the other (breaking the mirror invariant) emerges
+    naturally in the search. Goal = the two bodies adjacent/overlapping (they MEET → one component). Returns the
+    FIRST action of the shortest joint path, or None. `passable_cell(body_index, (row,col)_cell) -> bool`.
+
+    This is the fix for the greedy driver's local-minimum stall: the bodies sit in separate maze halves and must
+    route to a connecting channel + break the mirror, which greedy one-step distance-reduction cannot find."""
+    from collections import deque
+    s = max(1, int(stride))
+    to_cell = lambda p: (int(round(p[0] / s)), int(round(p[1] / s)))
+    maps = [{a: (int(round(v[0] / s)), int(round(v[1] / s))) for a, v in ag.body_map(i).items()} for i in range(2)]
+    acts = sorted(set(maps[0]) | set(maps[1]))
+    start = (to_cell(bodies[0]), to_cell(bodies[1]))
+    adjacent = lambda st: abs(st[0][0] - st[1][0]) + abs(st[0][1] - st[1][1]) <= 1
+    if adjacent(start):
+        return None
+    seen = {start: None}
+    q = deque([start]); expand = 0
+    while q and expand < max_expand:
+        st = q.popleft(); expand += 1
+        c0, c1 = st
+        for a in acts:
+            d0, d1 = maps[0].get(a, (0, 0)), maps[1].get(a, (0, 0))
+            n0 = (c0[0] + d0[0], c0[1] + d0[1]); n1 = (c1[0] + d1[0], c1[1] + d1[1])
+            n0 = n0 if passable_cell(0, n0) else c0
+            n1 = n1 if passable_cell(1, n1) else c1
+            ns = (n0, n1)
+            if ns == st or ns in seen:
+                continue
+            seen[ns] = (st, a)
+            if adjacent(ns):
+                cur, first = ns, a
+                while seen[cur] is not None:
+                    prev, act = seen[cur]; first = act; cur = prev
+                return first
+            q.append(ns)
+    return None
+
+
 def learn_two_body(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int], Optional[TwoBodyAgency]]:
     """Discover the coupled colour and learn both bodies' per-action displacement from a frame/action stream."""
     colour = find_two_body_colour(frames)

@@ -7,7 +7,71 @@ import sys, os, glob, json
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from newhorse.redux_arch.coupled import (TwoBodyAgency, find_two_body_colour, learn_two_body,
-                                         two_body_drive_action)
+                                         two_body_drive_action, two_body_search_action)
+from scipy import ndimage as _nd
+
+
+class TwoHalfMaze:
+    """13x13, floor 0, a wall on col 6 for rows 0..8 with a CHANNEL open at rows 9..12. Two bodies (colour 7),
+    one each side. U/D move both the same; Cv (converge) L+col/R-col; Dv diverge. A body is blocked by wall/edge.
+    The only way for the bodies to MEET is DOWN to the channel then converge across it -- greedy stalls at the
+    wall (col 6, row 2), the joint search routes through the channel."""
+    def __init__(self):
+        self.g = np.zeros((13, 13), dtype=int); self.g[0:9, 6] = 1
+        self.L = [2, 3]; self.R = [2, 9]
+
+    def _pass(self, cell):
+        r, c = cell; return 0 <= r < 13 and 0 <= c < 13 and self.g[r, c] == 0
+
+    def frame(self):
+        f = self.g.copy(); f[tuple(self.L)] = 7; f[tuple(self.R)] = 7; return f
+
+    def step(self, a):
+        if a in ("U", "D"):
+            d = (-1, 0) if a == "U" else (1, 0)
+            for b in (self.L, self.R):
+                nb = (b[0] + d[0], b[1] + d[1])
+                if self._pass(nb): b[0], b[1] = nb
+        elif a in ("Cv", "Dv"):
+            dl = 1 if a == "Cv" else -1
+            if self._pass((self.L[0], self.L[1] + dl)): self.L[1] += dl
+            if self._pass((self.R[0], self.R[1] - dl)): self.R[1] -= dl
+        return self.frame()
+
+
+def _bodies_of(frame, colour=7):
+    m = frame == colour; lab, k = _nd.label(m); cs = []
+    for i in range(1, k + 1):
+        ys, xs = np.where(lab == i); cs.append((round(ys.mean()), round(xs.mean())))
+    return sorted(cs, key=lambda p: p[1])
+
+
+def _drive(world, chooser, budget=200):
+    for _ in range(budget):
+        b = _bodies_of(world.frame())
+        if len(b) < 2 or abs(b[0][0] - b[1][0]) + abs(b[0][1] - b[1][1]) <= 1:
+            return True
+        a = chooser(b)
+        if a is None:
+            return False
+        world.step(a)
+    return False
+
+
+def test_joint_search_merges_where_greedy_stalls():
+    warm = TwoHalfMaze()
+    frames = [warm.frame()]; acts = ["RESET"]
+    for a in (["U", "D", "Cv", "Dv"] * 4):
+        frames.append(warm.step(a)); acts.append(a)
+    colour, ag = learn_two_body(frames, acts)
+    assert colour == 7 and ag.ready()
+    pass_px = lambda i, dest: TwoHalfMaze()._pass(dest)          # shared static maze
+    # GREEDY stalls at the wall:
+    greedy = _drive(TwoHalfMaze(), lambda b: two_body_drive_action(b, ag, pass_px))
+    assert greedy is False, "greedy unexpectedly merged (test no longer discriminates)"
+    # JOINT SEARCH routes down through the channel and merges:
+    searched = _drive(TwoHalfMaze(), lambda b: two_body_search_action(b, ag, lambda i, c: TwoHalfMaze()._pass(c), 1))
+    assert searched is True, "joint search failed to merge the two bodies"
 
 
 class MirrorWorld:

@@ -23,7 +23,7 @@ from .bridge import _px_centroid
 from .goal import salient_targets, approachable_component_centroid
 from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer
-from .coupled import learn_two_body, two_body_drive_action
+from .coupled import learn_two_body, two_body_drive_action, two_body_search_action
 from scipy import ndimage as _ndi
 from .dsl import Predicate, make_atom
 
@@ -191,8 +191,10 @@ def run_coupled_live(game_id="m0r0-492f87ba", warmup=40, max_actions=300, wall_c
                         r, c = b1[j]; h, w = frames[i - 1].shape
                         if 0 <= r < h and 0 <= c < w:
                             passable[j].add(int(frames[i - 1][r, c]))
-        log.append("LEARN colour=%s bodymaps=%s passable=%s" %
-                   (colour, [ag.body_map(0), ag.body_map(1)], [sorted(passable[0]), sorted(passable[1])]))
+        stride = max((max(abs(v[0]), abs(v[1])) for m in (ag.body_map(0), ag.body_map(1)) for v in m.values()),
+                     default=1) or 1
+        log.append("LEARN colour=%s stride=%s bodymaps=%s passable=%s" %
+                   (colour, stride, [ag.body_map(0), ag.body_map(1)], [sorted(passable[0]), sorted(passable[1])]))
         steps = warmup; outcome = "action_cap"; min_dist = None
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
             grid = np.asarray(snap["grid"]); h, w = grid.shape
@@ -203,10 +205,15 @@ def run_coupled_live(game_id="m0r0-492f87ba", warmup=40, max_actions=300, wall_c
             else:
                 d = abs(bodies[0][0] - bodies[1][0]) + abs(bodies[0][1] - bodies[1][1])
                 min_dist = d if min_dist is None else min(min_dist, d)
-                def passfn(i, dest, _g=grid, _h=h, _w=w):
+                def passfn(i, dest, _g=grid, _h=h, _w=w):    # px-space passability (greedy fallback)
                     r, c = dest
                     return 0 <= r < _h and 0 <= c < _w and (not passable[i] or int(_g[r, c]) in passable[i])
-                lbl = two_body_drive_action(bodies, ag, passfn) or labels[steps % len(labels)]
+                def passcell(i, cell, _g=grid, _h=h, _w=w, _s=stride):   # cell-space passability (joint search)
+                    r, c = cell[0] * _s, cell[1] * _s
+                    return 0 <= r < _h and 0 <= c < _w and (not passable[i] or int(_g[r, c]) in passable[i])
+                lbl = (two_body_search_action(bodies, ag, passcell, stride)   # JOINT SEARCH to MEET
+                       or two_body_drive_action(bodies, ag, passfn)           # greedy fallback
+                       or labels[steps % len(labels)])
             prev = snap["levels_completed"]
             snap = session.step(val_of[lbl], reasoning={"why": "drive two bodies to MEET"})
             if snap["levels_completed"] > prev:
