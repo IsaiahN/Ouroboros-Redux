@@ -51,20 +51,30 @@ class Arc3Session:
     snapshot = {grid, available:[int], levels_completed:int, state:str, done:bool}."""
 
     def __init__(self, game_id: str, *, tags: Optional[List[str]] = None, save_recording: bool = True,
-                 min_interval: float = 0.13, logger=None):
+                 min_interval: float = 0.13, logger=None, scorecard_id: Optional[str] = None, limiter=None):
         key = os.environ.get("ARC_API_KEY", "")
         if not key:
             raise RuntimeError("ARC_API_KEY not set -- the key is env-only, never written to disk")
         self.game_id = game_id
         self._arc = arc_agi.Arcade(operation_mode=OperationMode.ONLINE, arc_api_key=key, logger=logger)
-        self.scorecard_id = self._arc.open_scorecard(tags=tags or ["new-horse", "brick9", game_id])
+        if scorecard_id:                                    # SWARM: many games share ONE scorecard (we don't own it)
+            self.scorecard_id = scorecard_id
+            self._owns_card = False
+        else:
+            self.scorecard_id = self._arc.open_scorecard(tags=tags or ["new-horse", "brick9", game_id])
+            self._owns_card = True
         self.view_url = "https://arcprize.org/scorecards/%s" % self.scorecard_id
         self._env = self._arc.make(game_id, scorecard_id=self.scorecard_id, save_recording=save_recording)
         self._min_interval = float(min_interval)
         self._last = 0.0
         self._obs = None
+        self._limiter = limiter                             # shared global RPM cap across all swarm threads
 
     def _throttle(self):
+        if self._limiter is not None:                       # global rate limit (600 RPM shared per key) wins
+            self._limiter.acquire()
+            self._last = time.time()
+            return
         dt = time.time() - self._last
         if dt < self._min_interval:
             time.sleep(self._min_interval - dt)
@@ -95,6 +105,8 @@ class Arc3Session:
         return self._snapshot()
 
     def close(self):
+        if not getattr(self, "_owns_card", True):           # swarm: the swarm owns/closes the shared scorecard
+            return None
         try:
             return self._arc.close_scorecard(self.scorecard_id)
         except Exception:
