@@ -74,6 +74,23 @@ class TwoBodyAgency:
             return False
         return all(len(self.body_map(i)) >= 2 for i in range(self._nbodies))
 
+    def both_action_count(self) -> int:
+        """Actions under which BOTH bodies have a consistent non-zero shift -- the count of genuinely coupled
+        controls. Real two-body control moves both bodies under most actions; a paint/co-existence coincidence does
+        not."""
+        if (self._nbodies or 0) < 2:
+            return 0
+        m0, m1 = self.body_map(0), self.body_map(1)
+        return sum(1 for a in m0 if a in m1)
+
+    def is_coupled(self, min_both: int = 3) -> bool:
+        """Accept as a real TWO-BODY cursor only if: exactly 2 bodies, each mapped, they co-move under >= min_both
+        actions, AND a joint quantity is conserved (the mirror/rigid invariant). This rejects paint games whose
+        multiple components merely CO-EXIST and drift (no conserved coupling, few co-moving actions)."""
+        return (self.ready() and self.n_controllable() == 2
+                and self.both_action_count() >= min_both
+                and any(self.conserved().values()))
+
     def conserved(self) -> Dict[str, bool]:
         """Which joint quantity is invariant: `<axis>_sum` (cL+cR const, the mirror) or `<axis>_diff` (cL-cR const,
         rigid translation), read across the actions both bodies have a mapped shift for."""
@@ -96,8 +113,12 @@ def find_two_body_colour(frames: List[np.ndarray], max_body_cells: int = 400) ->
     """The coupled cursor's colour = the one whose components are consistently >=2 AND translate across frames
     (two small mobile bodies), preferring the most-mobile such colour. Excludes big static regions/walls."""
     F = [np.asarray(f) for f in frames]
+    vals, cnts = np.unique(np.concatenate([f.ravel() for f in F]), return_counts=True)
+    bg = int(vals[int(np.argmax(cnts))])                 # the background is never the coupled cursor
     best, best_motion = None, -1.0
     for c in sorted(set(int(v) for f in F for v in np.unique(f))):
+        if c == bg:
+            continue
         counts, motion, last = [], 0.0, None
         for f in F:
             m = (f == c)

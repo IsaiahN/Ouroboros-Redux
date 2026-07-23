@@ -197,3 +197,40 @@ def test_coupled_goal_mint_abduces_MEET_from_m0r0_reward():
     assert mint is not None, "goal-mint did not fire on the m0r0 reward residual"
     assert "NEAR(focus,target)" in {a.name for a in mint.predicate.atoms}   # the two bodies MEET
     assert verdict == "RE-DERIVATION", verdict                              # honest: NEAR is already in Γ
+
+
+def test_is_coupled_rejects_static_coexisting_pair():
+    # two blobs of a colour that co-exist but never move -> no coupling, must NOT route two-body (the paint trap)
+    from newhorse.redux_arch.coupled import learn_two_body
+    frames, acts = [], []
+    for i in range(8):
+        g = np.zeros((20, 20), dtype=int); g[3:5, 3:5] = 7; g[3:5, 15:17] = 7   # static pair
+        g[10, i % 18] = 4                                                        # something else changes (paint-ish)
+        frames.append(g); acts.append("RESET" if i == 0 else "A%d" % (1 + i % 4))
+    colour, ag = learn_two_body(frames, acts)
+    assert ag is None or not ag.is_coupled(), "static co-existing pair wrongly accepted as two-body"
+
+
+def test_is_coupled_rejects_independent_movers():
+    # two blobs moving INDEPENDENTLY (no conserved joint quantity) -> not coupling
+    from newhorse.redux_arch.coupled import TwoBodyAgency
+    ag = TwoBodyAgency(7)
+    a = np.zeros((20, 20), dtype=int); a[5, 5] = 7; a[5, 15] = 7
+    for step in range(6):
+        b = np.zeros((20, 20), dtype=int)
+        b[5 + step + 1, 5] = 7                      # body 0 slides down
+        b[5, 15] = 7                                # body 1 static -> no invariant, only one body moves
+        ag.observe(a, "A2", b); a = b
+    assert not ag.is_coupled()
+
+
+def test_is_coupled_accepts_real_m0r0():
+    import glob, json
+    hits = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "..", "recordings", "*", "m0r0-*.jsonl")))
+    if not hits:
+        import pytest; pytest.skip("no m0r0 recording")
+    recs = [json.loads(l)["data"] for l in open(hits[0]).read().splitlines()]
+    frames = [np.asarray(np.array(r["frame"])[-1]) for r in recs][:40]
+    acts = [r.get("action_input", {}).get("id", "?") for r in recs][:40]
+    colour, ag = learn_two_body(frames, acts)
+    assert ag is not None and ag.is_coupled() and ag.both_action_count() >= 3   # genuine mirror coupling

@@ -286,7 +286,7 @@ class ReduxPolicy:
         (its coupled-colour test is specific); then single-body drivable; else undrivable."""
         fw, aw = self.frames[self._lvl0:], self.acts[self._lvl0:]
         colour, ag = learn_two_body(fw, aw)
-        if ag is not None and ag.ready() and ag.n_controllable() >= 2:
+        if ag is not None and ag.is_coupled():             # real coupling (conserved invariant + co-moving), not paint
             self.family = TWO_BODY
             self.tb_colour = colour
             self.ag = ag
