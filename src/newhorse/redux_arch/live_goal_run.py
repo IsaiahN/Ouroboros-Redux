@@ -142,6 +142,36 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
         session.close()
 
 
+def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200.0,
+                    tags: Optional[List[str]] = None, blackboard=None) -> Dict[str, Any]:
+    """Drive the CONTROL-INVERSION ReduxPolicy against ONE live game, per-step -- the single-game shape of what the
+    swarm runs per thread. Proves the refactored policy preserves each organ's competence live. The policy routes
+    the family itself (click / two-body / directional) from the warmup stream; no per-game wiring here."""
+    from ..arc3_env import Arc3Session
+    from .policy import ReduxPolicy
+    session = Arc3Session(game_id, tags=tags or ["redux-triality", "policy-live", game_id])
+    log: List[str] = []
+    try:
+        snap = session.open()
+        pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)
+        best_levels = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"
+        while steps < max_actions and (time.time() - t0) < wall_cap_s:
+            pol.observe(snap["grid"], snap["available"])
+            lbl, data = pol.choose()
+            val = int(lbl[1:])
+            prev = snap["levels_completed"]
+            snap = session.step(val, data=data, reasoning={"why": "ReduxPolicy family=%s" % pol.family})
+            if snap["levels_completed"] > prev:
+                log.append("LEVEL UP %d->%d at step %d (family=%s)" % (prev, snap["levels_completed"], steps, pol.family))
+            best_levels = max(best_levels, snap["levels_completed"]); steps += 1
+            if snap["done"]:
+                outcome = snap["state"]; break
+        return dict(game=game_id, outcome=outcome, levels_completed=best_levels, steps=steps,
+                    family=pol.family, view_url=session.view_url, log=log)
+    finally:
+        session.close()
+
+
 def run_click_live(game_id: str = "s5i5-18d95033", max_actions: int = 120, wall_cap_s: float = 200.0,
                    tags: Optional[List[str]] = None) -> Dict[str, Any]:
     """CLICK modality live: for a coordinate-only game (available == [6]), perceive candidate click points and probe
