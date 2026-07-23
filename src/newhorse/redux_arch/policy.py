@@ -29,6 +29,8 @@ from .coupled import (learn_two_body, two_body_search_action, two_body_drive_act
                       two_body_deliver_action)
 from .click import click_targets, grid_sweep, ClickProber
 from .loci import LociTracker
+from .boundary import BoundaryDiff, diff_identities, Quarantine
+from .novelty_ledger import guarded_promote
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
 from .live_goal_run import _learn_passable, _two_bodies
@@ -193,7 +195,10 @@ class ReduxPolicy:
         self.level_model: Optional[Dict[str, Any]] = None   # current hypothesis of THIS level's mechanics
         self.level_deltas: List[Dict[str, Any]] = []
         self._probe: Optional[GoalProbe] = None         # active goal-hypothesis search (two-body, post-KEEP)
-        self.tracker = LociTracker()                    # persistent-identity substrate the boundary diff (beat B) reads
+        self.tracker = LociTracker()                    # persistent-identity substrate the boundary diff reads
+        self.quarantine = Quarantine()                  # PARK unresolved boundary residuals under a decay bound
+        self.boundary: Optional[BoundaryDiff] = None    # the latest loci-based boundary diff
+        self.novel_loci: List[int] = []                 # NOVEL locus ids at the last boundary (beat C explores these)
         # learned organ params
         self.cursor: Optional[int] = None
         self.vecs: Dict[str, Tuple[int, int]] = {}
@@ -211,14 +216,15 @@ class ReduxPolicy:
         """Record the freshly observed frame (result of the previously emitted action) + its available actions. If
         the level advanced, run the curriculum re-derivation (freeze prior, diff, keep/re-parameterize/re-derive)."""
         old_avail = list(self._avail)
+        prev_ids = set(self.tracker.ids())              # object identities as of the PREVIOUS frame (pre-redraw)
         self.frames.append(np.asarray(grid))
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
         self._avail = [int(a) for a in available]
-        self.tracker.observe(self.frames[-1])           # maintain persistent object identity (passive; read by beat B)
+        self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
-            self._on_level_change(int(levels_completed), old_avail)
+            self._on_level_change(int(levels_completed), old_avail, prev_ids)
         self.level = int(levels_completed)
 
     def _labels(self, avail: List[int]) -> List[str]:
@@ -303,33 +309,59 @@ class ReduxPolicy:
                         if 0 <= r < h and 0 <= c < w:
                             self.tb_pass[j].add(int(fw[i - 1][r, c]))
 
-    # ---- curriculum: level-boundary re-derivation --------------------------------------------------------------
-    def _on_level_change(self, new_level: int, old_avail: List[int]) -> None:
-        """A level graduated. Freeze the transferred model as PRIOR, DIFF old-vs-new, and decide KEEP (organ's
-        referent survives → transfer wholesale, the organ reads the live grid), RE-PARAMETERIZE (rebuild the
-        cheap per-level bits, e.g. click candidates), or RE-DERIVE (referent gone → the mechanic changed → re-warm
-        + re-route on the new level, keeping the prior). This is graduated learning: additive over a transferred
-        base, not from scratch. THINKING is free, so diffing every boundary is pure RHAE upside."""
+    def mint_gate(self, verdict: str, name: str, bits: float, context: str = "", **paths) -> bool:
+        """Every predicate promotion goes through here: a NOVEL mint is parked for HUMAN confirmation
+        (novelty_ledger.guarded_promote), never self-certified by the build. RE-DERIVATION passes. Returns whether
+        the build may ACT on the minted predicate. Beat B wires the discipline; beats C/D route real mints through it."""
+        return guarded_promote(verdict, name, bits, self.game_id, context=context, **paths)
+
+    # ---- curriculum: level-boundary diff + re-derivation (Tether §3.5) ------------------------------------------
+    def _on_level_change(self, new_level: int, old_avail: List[int], prev_ids: set) -> None:
+        """A level graduated. Build the loci-based BOUNDARY DIFF (TRANSFERRED/NOVEL/GONE by tracked identity, plus
+        the colour/action deltas), freeze the transferred model as PRIOR, and decide:
+          - REBINDING (the control set changed → new/gone actions) → RE-DERIVE: re-fit params, do not treat as a new
+            mechanism (Tether: broken-by-rebinding, the ACTS_TOWARD-in-a-new-costume trap);
+          - KEEP (organ referent survives) → transfer the model; two-body arms the goal probe on the NOVEL actors;
+          - RE-DERIVE (referent gone) → re-warm + re-route on the new level, prior retained.
+        NOVEL loci are surfaced for beat C (direct empowerment there first). The quarantine DECAYS each boundary."""
         prev = self.frames[-2] if len(self.frames) >= 2 else self.frames[-1]
         cur = self.frames[-1]
         delta = level_delta(prev, cur, old_avail, self._avail)
+        transferred, novel, gone = diff_identities(prev_ids, self.tracker.loci())
+        self.boundary = BoundaryDiff(level=new_level, transferred=transferred, novel=novel, gone=gone,
+                                     new_colours=delta["new_colours"], gone_colours=delta["gone_colours"],
+                                     new_actions=delta["new_actions"], gone_actions=delta["gone_actions"])
+        self.novel_loci = list(novel)                           # the new actors -> exploration/empowerment targets
+        self.quarantine.tick()                                  # PARK decay: unresolved residuals age out
+
         self.prior = dict(family=self.family, cursor=self.cursor, vecs=dict(self.vecs),
                           passable=set(self.passable), tb_colour=self.tb_colour,
                           target_colour=self.target_colour, from_level=self.level)
         survives = self._referent_survives(cur)
-        self._lvl0 = len(self.frames) - 1                        # the redraw frame starts the new level's stream
-        decision = "keep" if survives else "rederive"
+        self._lvl0 = len(self.frames) - 1                       # the redraw frame starts the new level's stream
+        # broken-by-REBINDING (control set changed) forces a re-fit even if the referent survives
+        if self.boundary.rebinding:
+            decision = "rederive(rebinding)"
+        elif survives:
+            decision = "keep"
+        else:
+            decision = "rederive"
         self.level_model = dict(level=new_level, family_before=self.family, decision=decision,
+                                transferred=transferred, novel=novel, gone=gone, rebinding=self.boundary.rebinding,
                                 new_colours=delta["new_colours"], gone_colours=delta["gone_colours"],
                                 new_actions=delta["new_actions"], gone_actions=delta["gone_actions"])
         self.level_deltas.append(self.level_model)
         self.bb.post(_prefix(self.game_id), graduated_to=new_level, last_delta=self.level_model)
-        if survives:
+        if decision == "keep":
             self._reparameterize(cur)
-            # two-body KEEP: the coupling transferred but the OBJECTIVE may have graduated -> probe the new actors
+            # two-body KEEP: the coupling transferred but the OBJECTIVE may have graduated -> probe the NOVEL actors
             if self.family == TWO_BODY:
                 self._probe = GoalProbe(referent_colours=delta["new_colours"])
         else:
+            # unresolved mechanism at this boundary: PARK the novel-actor residual with a decay budget (beat C wakes
+            # it by manufacturing reward). Any predicate minted from it later MUST clear novelty_ledger.guarded_promote.
+            if novel:
+                self.quarantine.park("novel@L%d" % new_level, dict(novel=novel, colours=delta["new_colours"]), budget=3)
             self._rederive()
 
     def _referent_survives(self, cur) -> bool:
