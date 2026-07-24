@@ -86,6 +86,35 @@ def test_play_policy_routes_and_reports_via_fake_session():
     assert r["family"] == TWO_BODY and r["game"] == "m0r0-x"
 
 
+class _FlakyOpenSession(FakeSession):
+    """open() raises `fail_n` times (a transient reset 500 under concurrency) then succeeds -- the exact failure
+    that dropped m0r0 from the swarm-L scorecard. The retry loop must recover instead of returning an error."""
+    def __init__(self, world, avail, fail_n):
+        super().__init__(world, avail)
+        self._fail_n = fail_n; self.open_calls = 0
+    def open(self):
+        self.open_calls += 1
+        if self.open_calls <= self._fail_n:
+            raise RuntimeError("online reset returned None (rate limit / server 500)")
+        return self._snap()
+
+
+def test_play_policy_recovers_from_transient_open_failures():
+    bb = Blackboard()
+    s = _FlakyOpenSession(_TwoBody(), [1, 2, 3, 4, 5], fail_n=3)   # fails 3x then opens -- within the 6 retries
+    r = _play_policy(s, bb, "m0r0-x", max_actions=12, wall_cap_s=5, open_backoff=0.0)
+    assert r["family"] == TWO_BODY                                  # recovered and played, not an open_error
+    assert s.open_calls == 4                                        # 3 failures + 1 success
+
+
+def test_play_policy_reports_open_error_only_after_exhausting_retries():
+    bb = Blackboard()
+    s = _FlakyOpenSession(_TwoBody(), [1, 2, 3, 4, 5], fail_n=99)  # never opens
+    r = _play_policy(s, bb, "x-1", max_actions=5, wall_cap_s=5, open_retries=4, open_backoff=0.0)
+    assert r["family"] == "error" and r["outcome"].startswith("open_error")
+    assert s.open_calls == 4                                        # tried exactly open_retries times
+
+
 def test_swarm_runs_all_families_concurrently_and_shares_blackboard():
     worlds = {"m0r0-a": (_TwoBody(), [1, 2, 3, 4, 5], None),
               "s5i5-a": (_Click(), [6], None),

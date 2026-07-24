@@ -16,6 +16,7 @@ from typing import List, Dict, Any, Optional, Callable
 import os
 import time
 import threading
+import random
 from .policy import ReduxPolicy, Blackboard
 
 
@@ -39,10 +40,12 @@ class RateLimiter:
 
 
 def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int, wall_cap_s: float,
-                 open_retries: int = 3, open_backoff: float = 1.5) -> Dict[str, Any]:
+                 open_retries: int = 6, open_backoff: float = 1.5) -> Dict[str, Any]:
     """Drive one ReduxPolicy through one (already-constructed) session to completion. Session is duck-typed on the
     Arc3Session interface: open()/step(val, data=)/close() returning snapshot dicts. Shared blackboard for transfer.
-    open() is retried with backoff: under swarm concurrency the reset can transiently 500/return-None."""
+    open() is retried with EXPONENTIAL, JITTERED backoff: under swarm concurrency the reset can transiently
+    500/return-None, and un-jittered retries re-collide in lockstep -- the swarm-L run lost m0r0 to exactly this.
+    Jitter de-correlates concurrent retries so a game is not silently dropped from the scorecard."""
     log: List[str] = []
     try:
         snap = None; last = None
@@ -51,8 +54,8 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
                 snap = session.open(); break
             except Exception as e:                          # transient server 500 / None reset under concurrency
                 last = e
-                if open_backoff:
-                    time.sleep(open_backoff * (attempt + 1))
+                if open_backoff:                            # exp backoff (cap 12s) + jitter to break lockstep
+                    time.sleep(min(12.0, open_backoff * (2 ** attempt)) * (0.5 + random.random()))
         if snap is None:
             return dict(game=game_id, family="error", levels=0, steps=0,
                         outcome="open_error:%s" % (type(last).__name__ if last else "none"), log=log)
