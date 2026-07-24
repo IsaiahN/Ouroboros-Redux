@@ -23,13 +23,41 @@ Vec = Tuple[int, int]
 
 
 class TwoBodyAgency:
-    def __init__(self, colour: int, *, max_shift: int = 40, min_obs: int = 3, max_body_cells: int = 400):
-        self.colour = int(colour)
+    """Two coupled bodies discovered from a frame/action stream. Bodies can be either (a) two same-COLOUR components
+    (`colour` = int -- e.g. m0r0's two maroon avatars) or (b) two DIFFERENT-coloured bodies (`colour` = (c0, c1) --
+    a red cursor + a blue cursor that co-move). Same-colour mode segments the one colour into components and orders
+    them left-to-right; two-colour mode takes one component per colour, body i = colour[i]. Downstream (body_map,
+    is_coupled, conserved) is colour-agnostic -- it operates on body indices -- so the coupling test (co-move under
+    >= min_both actions + a conserved sum/diff invariant) is the SAME precision gate in both modes."""
+    def __init__(self, colour, *, max_shift: int = 40, min_obs: int = 3, max_body_cells: int = 400):
+        self.two_colour = isinstance(colour, (tuple, list))
+        if self.two_colour:
+            self.colours = tuple(int(c) for c in colour)
+            self.colour = self.colours[0]                    # back-compat scalar (first body's colour)
+        else:
+            self.colour = int(colour)
+            self.colours = (self.colour,)
         self.max_shift, self.min_obs, self.max_body_cells = int(max_shift), int(min_obs), int(max_body_cells)
         self.disp: Dict[int, Dict[str, List[Vec]]] = defaultdict(lambda: defaultdict(list))
         self._nbodies: Optional[int] = None
 
+    def _one_component(self, frame: np.ndarray, colour: int) -> Optional[Tuple[float, float]]:
+        """Centroid of colour's single small component (None if absent or split into >1 small components)."""
+        m = np.asarray(frame) == colour
+        if not m.any():
+            return None
+        lab, k = ndimage.label(m)
+        small = []
+        for i in range(1, k + 1):
+            ys, xs = np.where(lab == i)
+            if ys.size <= self.max_body_cells:
+                small.append((float(ys.mean()), float(xs.mean())))
+        return small[0] if len(small) == 1 else None
+
     def _components(self, frame: np.ndarray) -> List[Tuple[float, float]]:
+        if self.two_colour:                                  # one body per colour, order fixed by self.colours
+            cs = [self._one_component(frame, c) for c in self.colours]
+            return list(cs) if all(c is not None for c in cs) else []
         m = np.asarray(frame) == self.colour
         if not m.any():
             return []
@@ -335,12 +363,72 @@ def two_body_deliver_action(bodies, ag, passable_cell, target0, target1, stride:
     return _two_body_bfs(bodies, ag, passable_cell, stride, goal_fn, max_expand)
 
 
-def learn_two_body(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[int], Optional[TwoBodyAgency]]:
-    """Discover the coupled colour and learn both bodies' per-action displacement from a frame/action stream."""
+def find_two_colour_bodies(frames: List[np.ndarray], max_body_cells: int = 400) -> Optional[Tuple[int, int]]:
+    """Two DIFFERENT non-bg colours that EACH have a single small MOBILE component -- the different-coloured
+    two-body case the same-colour detector cannot see (e.g. a red cursor + a blue cursor that mirror). Returns the
+    pair with the most combined motion, ordered by colour. Loose on purpose: the real precision gate is downstream
+    (`is_coupled` requires >= min_both co-moving actions AND a conserved invariant), so two UNRELATED movers of
+    different colours are still rejected there -- this only has to SURFACE the candidate pair."""
+    F = [np.asarray(f) for f in frames]
+    if len(F) < 2:
+        return None
+    vals, cnts = np.unique(np.concatenate([f.ravel() for f in F]), return_counts=True)
+    bg = int(vals[int(np.argmax(cnts))])
+    motion: Dict[int, int] = {}
+    present: Dict[int, int] = {}
+    for c in sorted(set(int(v) for f in F for v in np.unique(f))):
+        if c == bg:
+            continue
+        last, mv, seen = None, 0, 0
+        for f in F:
+            cen = _single_small_centroid(f, c, max_body_cells)
+            if cen is None:
+                last = None; continue
+            seen += 1
+            if last is not None and cen != last:
+                mv += 1
+            last = cen
+        if seen >= 2 and mv > 0:                             # a single small component that actually moves
+            motion[c] = mv; present[c] = seen
+    movers = sorted(motion, key=lambda c: (-motion[c], c))
+    if len(movers) < 2:
+        return None
+    a, b = sorted(movers[:2])
+    return (a, b)
+
+
+def _single_small_centroid(frame: np.ndarray, colour: int, max_body_cells: int) -> Optional[Tuple[int, int]]:
+    m = np.asarray(frame) == colour
+    if not m.any():
+        return None
+    lab, k = ndimage.label(m)
+    small = []
+    for i in range(1, k + 1):
+        ys, xs = np.where(lab == i)
+        if ys.size <= max_body_cells:
+            small.append((round(ys.mean()), round(xs.mean())))
+    return small[0] if len(small) == 1 else None
+
+
+def learn_two_body(frames: List[np.ndarray], acts: List[str]) -> Tuple[Optional[object], Optional[TwoBodyAgency]]:
+    """Discover the coupled body/bodies and learn each body's per-action displacement. Tries the same-COLOUR case
+    first (two components of one colour); if that does not yield a genuinely coupled agency, falls back to the
+    two-COLOUR case (two different-coloured mobile bodies). Precision is preserved because `is_coupled` -- the
+    conserved-invariant + co-move gate -- is applied by the caller identically in both modes."""
     colour = find_two_body_colour(frames)
-    if colour is None:
-        return None, None
-    ag = TwoBodyAgency(colour)
-    for i in range(1, len(frames)):
-        ag.observe(frames[i - 1], acts[i], frames[i])
-    return colour, ag
+    same = None
+    if colour is not None:
+        same = TwoBodyAgency(colour)
+        for i in range(1, len(frames)):
+            same.observe(frames[i - 1], acts[i], frames[i])
+        if same.is_coupled():
+            return colour, same
+    pair = find_two_colour_bodies(frames)
+    if pair is not None:
+        ag = TwoBodyAgency(pair)
+        for i in range(1, len(frames)):
+            ag.observe(frames[i - 1], acts[i], frames[i])
+        if ag.is_coupled():
+            return pair, ag
+    # neither coupled: return the same-colour attempt (back-compat: caller re-checks is_coupled and moves on)
+    return (colour, same) if same is not None else (None, None)

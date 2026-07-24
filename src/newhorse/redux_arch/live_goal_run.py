@@ -243,7 +243,23 @@ def run_click_live(game_id: str = "s5i5-18d95033", max_actions: int = 120, wall_
 
 
 def _two_bodies(frame, colour, max_body_cells=400):
-    m = np.asarray(frame) == colour
+    """The two body centroids. `colour` is an int (two same-colour components, sorted left-to-right) OR a
+    (c0, c1) pair (one component per colour, body i = colour[i]) -- the different-coloured two-body case."""
+    f = np.asarray(frame)
+    if isinstance(colour, (tuple, list)):                    # two-colour: one small component per colour, in order
+        out = []
+        for c in colour:
+            m = f == int(c)
+            if not m.any():
+                return []
+            lab, k = _ndi.label(m)
+            small = [(int(round(np.where(lab == i)[0].mean())), int(round(np.where(lab == i)[1].mean())))
+                     for i in range(1, k + 1) if np.where(lab == i)[0].size <= max_body_cells]
+            if len(small) != 1:
+                return []
+            out.append(small[0])
+        return out
+    m = f == colour
     if not m.any():
         return []
     lab, k = _ndi.label(m); out = []
