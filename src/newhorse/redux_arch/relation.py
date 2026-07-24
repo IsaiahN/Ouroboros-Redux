@@ -31,6 +31,7 @@ class RelationCtx:
     passable: frozenset = field(default_factory=frozenset)
     bg: int = 0
     reach_goal: Optional[Tuple[int, int, int, int]] = None   # the LOCKED goal bbox the bank pins across frames (REACH)
+    match_roles: Optional[Tuple[np.ndarray, np.ndarray]] = None   # (WORKSPACE, REFERENCE) sub-grids, role by mutation
 
 
 def _centroid_colour(g: np.ndarray, colour: int) -> Optional[Tuple[float, float]]:
@@ -226,12 +227,22 @@ class Match(_Relation):
         return best
 
     def discrepancy(self, g, refs, ctx):
-        best = self._best_pair(g, refs)
+        if ctx.match_roles is not None:                       # role-aware: measure the DIRECTED workspace->reference gap
+            from .transform import panel_transform_distance
+            d, _ = panel_transform_distance(ctx.match_roles[0], ctx.match_roles[1])
+            if d is not None:
+                return float(d)
+        best = self._best_pair(g, refs)                       # fallback: closest matchable panel pair (no roles yet)
         return best[0] if best is not None else None
 
     def residual(self, g, refs, ctx):
-        """The RESIDUAL transform (rotation/recolour still to null) relating the closest workspace/reference panel pair,
-        or None. What the Locksmith operator planner (L2/L3) must reduce to identity. Exposed now; unconsumed until then."""
+        """The RESIDUAL transform (rotation/recolour still to null) relating WORKSPACE->REFERENCE (directed, when roles
+        are known) or the closest matchable panel pair -- what the Locksmith operator planner (L2/L3) must reduce to
+        identity. Exposed now; consumed by L2."""
+        if ctx.match_roles is not None:
+            from .transform import panel_transform_distance
+            _, t = panel_transform_distance(ctx.match_roles[0], ctx.match_roles[1])
+            return t
         best = self._best_pair(g, refs)
         return best[1] if best is not None else None
 
@@ -266,6 +277,10 @@ class RelationBank:
         self._reach_goal: Optional[Tuple[int, int, int, int]] = None   # the pinned REACH goal (identity lock)
         self._shape: Tuple[int, int] = (0, 0)
         self._last = None                                    # (frame, refs, ctx) of the last observe (for match_residual)
+        self._region_hash: Dict[Tuple[int, int, int, int], List[bytes]] = {}   # panel bbox -> recent content hashes
+        self._region_sub: Dict[Tuple[int, int, int, int], np.ndarray] = {}     # panel bbox -> latest sub-grid
+        self._roles: Optional[Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int]]] = None   # (ws_bbox, ref_bbox)
+        self._role_win = 8
 
     def _resolve_reach_goal(self, g: np.ndarray, refs: List[Referent], ctx: RelationCtx):
         """Pin the REACH goal ACROSS frames: keep tracking the same goal region (the referent that still overlaps the
@@ -296,10 +311,47 @@ class RelationBank:
         g, refs, ctx = self._last
         return self._rel("MATCH").residual(g, refs, ctx)
 
+    def _resolve_roles(self, g: np.ndarray, refs: List[Referent]):
+        """Assign WORKSPACE vs REFERENCE roles by INVARIANCE, not position or size: across recent frames the WORKSPACE is
+        the panel region whose content MUTATES (the agent is acting on it), the REFERENCE is a panel of the SAME shape
+        whose content is INVARIANT (the target the agent is bringing the workspace to). General principle -- it names no
+        game and reads no pixel threshold; it just watches which region the agent changes. Feeds directed MATCH."""
+        cur = {}
+        for r in refs:
+            if r.kind != "panel":
+                continue
+            b = r.bbox
+            sub = g[b[0]:b[2] + 1, b[1]:b[3] + 1]
+            cur[b] = sub
+            self._region_hash.setdefault(b, []).append(sub.tobytes())
+            if len(self._region_hash[b]) > self._role_win:
+                self._region_hash[b] = self._region_hash[b][-self._role_win:]
+            self._region_sub[b] = sub
+        for b in [k for k in self._region_hash if k not in cur]:   # prune regions gone from the frame (level redraw)
+            self._region_hash.pop(b, None); self._region_sub.pop(b, None)
+        mutated = [b for b, hs in self._region_hash.items() if len(hs) >= 3 and len(set(hs)) > 1]
+        invariant = [b for b, hs in self._region_hash.items() if len(hs) >= 3 and len(set(hs)) == 1]
+        self._roles = None
+        for ws in mutated:                                    # a workspace + an invariant reference of the SAME shape
+            for ref in invariant:
+                if self._region_sub[ws].shape == self._region_sub[ref].shape:
+                    self._roles = (ws, ref)
+                    return
+        return
+
+    def role_bboxes(self):
+        """(workspace_bbox, reference_bbox) if roles were assigned, else None. Telemetry / for the L2 operator learner
+        (which watches the WORKSPACE and attributes its changes to the agent's contacts)."""
+        return self._roles
+
     def observe(self, frame, refs: List[Referent], ctx: RelationCtx) -> None:
         g = np.asarray(frame)
         self._shape = (int(g.shape[0]), int(g.shape[1]))
         self._last = (g, list(refs), ctx)
+        self._resolve_roles(g, refs)
+        if self._roles is not None:
+            ws, ref = self._roles
+            ctx.match_roles = (self._region_sub[ws], self._region_sub[ref])
         ctx.reach_goal = self._resolve_reach_goal(g, refs, ctx)   # pin the goal so REACH's discrepancy is comparable
         for r in self.relations:
             try:
