@@ -329,3 +329,15 @@ class RelationBank:
     def discrepancies(self) -> Dict[str, Optional[float]]:
         """The latest discrepancy per relation (telemetry / for Brick 4 to reason over)."""
         return {n: (seq[-1] if seq else None) for n, seq in self.hist.items()}
+
+    def selected_delta(self) -> float:
+        """The DROP in the selected relation's discrepancy from the previous step to the current (positive = the gap
+        closed = good). 0.0 if no relation is selected or too few points. This is the dense reward the effect tier
+        reinforces on when a relation is confidently selected (Brick 4b)."""
+        sel = self.selected()
+        if sel is None:
+            return 0.0
+        seq = [v for v in self.hist[sel] if v is not None]
+        if len(seq) < 2:
+            return 0.0
+        return float(seq[-2] - seq[-1])

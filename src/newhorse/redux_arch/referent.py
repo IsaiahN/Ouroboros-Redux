@@ -169,11 +169,84 @@ def _find_endpoints(g: np.ndarray, bg: int, cell_cap: int = 12) -> List[Referent
     return out
 
 
+def _centroid(cells: List[Tuple[int, int]]) -> Tuple[float, float]:
+    return float(np.mean([r for r, _ in cells])), float(np.mean([c for _, c in cells]))
+
+
+def _cluster_two(cents: List[Tuple[float, float]]):
+    """Deterministically split centroids into TWO groups: seed with the farthest-apart pair, then 3 Lloyd iterations.
+    Returns (labels, mean0, mean1) or None if it cannot form two non-empty groups. No randomness (resume-safe)."""
+    import math
+    n = len(cents)
+    if n < 2:
+        return None
+    si, sj, best = 0, 1, -1.0
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = math.hypot(cents[i][0] - cents[j][0], cents[i][1] - cents[j][1])
+            if d > best:
+                best, si, sj = d, i, j
+    m0, m1 = cents[si], cents[sj]
+    labels = [0] * n
+    for _ in range(3):
+        for k, p in enumerate(cents):
+            d0 = math.hypot(p[0] - m0[0], p[1] - m0[1]); d1 = math.hypot(p[0] - m1[0], p[1] - m1[1])
+            labels[k] = 0 if d0 <= d1 else 1
+        g0 = [cents[k] for k in range(n) if labels[k] == 0]
+        g1 = [cents[k] for k in range(n) if labels[k] == 1]
+        if not g0 or not g1:
+            return None
+        m0 = (float(np.mean([p[0] for p in g0])), float(np.mean([p[1] for p in g0])))
+        m1 = (float(np.mean([p[0] for p in g1])), float(np.mean([p[1] for p in g1])))
+    return labels, m0, m1
+
+
+def _find_node_pairs(g: np.ndarray, bg: int, seen_colours: set, min_frag: int = 2,
+                     max_share: float = 0.15) -> List[Referent]:
+    """A colour whose (noise-filtered) components cluster into TWO well-SEPARATED groups -- the general 'two nodes to
+    connect' the exact-2-small-pair detector misses when a node is fragmented or the two nodes differ in size. Emitted
+    as an ENDPOINTS referent (so CONNECT consumes it). Precision-first: only when the two clusters are far apart
+    relative to their own spread, the colour is not a large structural fill, and it isn't already an exact pair."""
+    import math
+    H, W = g.shape
+    area = H * W
+    out: List[Referent] = []
+    for c in [int(v) for v in np.unique(g) if int(v) != bg and int(v) not in seen_colours]:
+        comps = [cm for cm in _components(g == c) if len(cm) >= min_frag]   # drop single-cell noise
+        if len(comps) < 2:
+            continue
+        total = sum(len(cm) for cm in comps)
+        if total > max_share * area:                          # a big structural colour (maze/wall) is not a node set
+            continue
+        cents = [_centroid(cm) for cm in comps]
+        sizes = [len(cm) for cm in comps]
+        res = _cluster_two(cents)
+        if res is None:
+            continue
+        labels, m0, m1 = res
+        inter = math.hypot(m0[0] - m1[0], m0[1] - m1[1])
+        intra = 0.0
+        for k, p in enumerate(cents):
+            m = m0 if labels[k] == 0 else m1
+            intra = max(intra, math.hypot(p[0] - m[0], p[1] - m[1]))
+        if inter < max(3.0 * max(intra, 1.0), 0.15 * min(H, W)):   # clearly separated AND a real fraction apart
+            continue
+        s0 = sum(sizes[k] for k in range(len(comps)) if labels[k] == 0)
+        s1 = sum(sizes[k] for k in range(len(comps)) if labels[k] == 1)
+        allcells = [cell for cm in comps for cell in cm]
+        union = _bbox(allcells)
+        cen = [(round(m0[0], 1), round(m0[1], 1)), (round(m1[0], 1), round(m1[1], 1))]
+        out.append(Referent("endpoints", union, c, {"centroids": cen, "sizes": [s0, s1], "clustered": True}))
+    return out
+
+
 def find_referents(frame, bg: Optional[int] = None) -> List[Referent]:
-    """Every frame-native referent in a single frame: bordered panels, edge legends, matched endpoint pairs. Empty on a
-    structureless board (precision-first). Order: panels, legends, endpoints (most-to-least enclosing)."""
+    """Every frame-native referent in a single frame: bordered panels, edge legends, matched endpoint pairs (exact-small
+    and clustered node pairs). Empty on a structureless board (precision-first). Order: panels, legends, endpoints."""
     g = np.asarray(frame)
     if g.ndim != 2 or g.size == 0:
         return []
     b = _bg(g, bg)
-    return _find_panels(g, b) + _find_legends(g, b) + _find_endpoints(g, b)
+    eps = _find_endpoints(g, b)
+    node_pairs = _find_node_pairs(g, b, seen_colours={r.colour for r in eps})
+    return _find_panels(g, b) + _find_legends(g, b) + eps + node_pairs

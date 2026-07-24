@@ -234,6 +234,8 @@ class ReduxPolicy:
         self._relation_selected: Optional[str] = None    # the relation the env is confidently rewarding (or None)
         self._relation_kinds_seen: set = set()           # union of relations ever selected this episode (telemetry)
         self.n_relation_drive = 0                        # times a directional move was steered toward a relation target
+        self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
+        self.n_rel_reinforce = 0                          # times an effect pick was biased toward closing the relation
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -317,6 +319,14 @@ class ReduxPolicy:
         self._relation_selected = self.relations.selected()
         if self._relation_selected is not None:
             self._relation_kinds_seen.add(self._relation_selected)
+            # Brick 4b: when a relation is confidently SELECTED, credit the last action with the DROP it produced in
+            # that relation's discrepancy (EMA) -- the dense reward the effect tier reinforces on so no-cursor games
+            # (where the directional drive can't apply) still follow the relation the env rewards. Mirrors Brick 1.
+            if len(self.frames) >= 2:
+                a = self.acts[-1]
+                if a not in ("RESET", "?", None):
+                    d = self.relations.selected_delta()
+                    self._rel_credit[a] = 0.6 * self._rel_credit.get(a, 0.0) + 0.4 * d
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
@@ -733,12 +743,29 @@ class ReduxPolicy:
             return best
         return lbl
 
+    def _relation_reinforce(self, lbl: str, labels: List[str]) -> str:
+        """Brick 4b: when a relation is confidently SELECTED, nudge an EXPLORATORY effect pick toward the action that has
+        historically CLOSED that relation's discrepancy the most -- the no-cursor analogue of the directional relation
+        drive (a game like a trail-draw connect has no cursor to route, but the effect action that shrinks the CONNECT
+        gap is still learnable and repeatable). EARNED-gated (only once a relation is selected). Leaves click (A6) coords
+        untouched so the click win is safe. Only swaps to a strictly-positive, better-credited action; else lbl stands."""
+        if self._relation_selected is None or not self._rel_credit:
+            return lbl
+        cand = [l for l in labels if l != "A6"]
+        best = max(cand, key=lambda x: self._rel_credit.get(x, 0.0), default=None)
+        if best is not None and self._rel_credit.get(best, 0.0) > self._rel_credit.get(lbl, 0.0) \
+                and self._rel_credit.get(best, 0.0) > 0.0 and best != lbl:
+            self.n_rel_reinforce += 1
+            return best
+        return lbl
+
     def _act_effect(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
         """Tier-1 affordance drive: press the EFFECTIVE actions (learned live from R_τ), avoiding no-ops / undo,
         curiosity-ordered within the effective set. Cold start explores to gather effect evidence. Purposeful action
         on paint/toggle/place games that have no drivable cursor."""
         a = self.effect_aff.choose(labels, self._effect_visits)
         a = self._progress_reinforce(a, labels)               # bias the effective-action pick up the progress gradient
+        a = self._relation_reinforce(a, labels)               # then toward closing the SELECTED relation's discrepancy
         self._effect_visits[a] = self._effect_visits.get(a, 0) + 1
         return a, None
 

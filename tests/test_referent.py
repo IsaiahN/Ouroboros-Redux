@@ -83,6 +83,39 @@ def test_solid_and_striped_boards_yield_no_panel():
     assert not [r for r in find_referents(striped) if r.kind == "panel"]
 
 
+def test_clustered_node_pair_detected():
+    """A colour whose FRAGMENTS form two well-separated groups (a fragmented / unequal connect-node pair the exact-2
+    detector misses) registers as an endpoints referent via clustering."""
+    g = np.zeros((24, 24), dtype=int)
+    g[2, 2] = 5; g[2, 3] = 5; g[3, 2] = 5                    # node A: a 3-cell blob (top-left)...
+    g[4, 5] = 5; g[4, 6] = 5                                 # ...plus a 2-cell fragment nearby (same cluster)
+    g[20, 20] = 5; g[20, 21] = 5; g[21, 20] = 5             # node B: a blob (bottom-right)...
+    g[18, 18] = 5; g[18, 19] = 5                             # ...plus a fragment nearby
+    refs = [r for r in find_referents(g) if r.kind == "endpoints"]
+    assert len(refs) == 1
+    assert refs[0].colour == 5 and refs[0].detail.get("clustered") is True
+    (ar, ac), (br, bc) = refs[0].detail["centroids"]
+    assert (ar < 12) != (br < 12)                            # the two group centroids are on opposite ends
+
+
+def test_bunched_fragments_are_not_a_node_pair():
+    """Several fragments bunched in ONE region do not separate into two distant nodes -> no clustered pair (precision)."""
+    g = np.zeros((24, 24), dtype=int)
+    g[2, 2] = 5; g[2, 3] = 5                                 # three small fragments, all within a tight top-left box
+    g[2, 6] = 5; g[3, 6] = 5
+    g[5, 3] = 5; g[5, 4] = 5
+    assert not [r for r in find_referents(g) if r.kind == "endpoints"]
+
+
+def test_exact_small_pair_not_double_emitted():
+    """A colour that is an exact 2-small-component pair is emitted once (by the exact detector), not also re-clustered."""
+    g = np.zeros((16, 16), dtype=int)
+    g[2, 2] = 5; g[2, 3] = 5
+    g[12, 12] = 5; g[12, 13] = 5
+    eps = [r for r in find_referents(g) if r.kind == "endpoints"]
+    assert len(eps) == 1
+
+
 def test_three_components_is_not_endpoints():
     """Three components of one colour is not a matched PAIR -> no endpoints referent (precision)."""
     g = np.zeros((14, 14), dtype=int)

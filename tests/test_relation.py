@@ -9,7 +9,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from newhorse.redux_arch.relation import RelationBank, RelationCtx
 from newhorse.redux_arch.referent import Referent
-from newhorse.redux_arch.policy import ReduxPolicy, Blackboard, DIRECTIONAL
+from newhorse.redux_arch.policy import ReduxPolicy, Blackboard, DIRECTIONAL, EFFECT
 
 
 # ---- each relation is measured + selected as its discrepancy closes -------------------------------------------
@@ -104,6 +104,35 @@ def test_no_referent_no_relation_selected():
         bank.observe(g, [], ctx)
     assert bank.selected() is None
     assert bank.drive_target() is None
+
+
+# ---- Brick 4b: the SELECTED relation's discrepancy drop is the dense reward the effect tier reinforces on --------
+def test_selected_delta_positive_when_gap_closing():
+    bank = RelationBank(min_obs=4, min_range=1.0)
+    ctx = RelationCtx(cursor=None, passable=frozenset(), bg=0)
+    ep = Referent("endpoints", (5, 2, 5, 12), 4, {"centroids": [(5.0, 2.0), (5.0, 12.0)], "sizes": [1, 1]})
+    for k in range(0, 9):
+        g = np.zeros((10, 14), dtype=int); g[5, 2] = 4; g[5, 12] = 4
+        for c in range(3, 3 + k):
+            g[5, c] = 4
+        bank.observe(g, [ep], ctx)
+    assert bank.selected() == "CONNECT"
+    assert bank.selected_delta() > 0.0                       # the last step closed the gap -> positive reward
+
+
+def test_relation_reinforce_prefers_the_gap_closing_effect_action():
+    """When a relation is selected, the effect tier swaps an exploratory pick for the action that best closed the
+    relation's discrepancy -- and does nothing when no relation is selected, and never selects a click (A6) coord."""
+    pol = ReduxPolicy(game_id="rr-x", blackboard=Blackboard(), warmup_cap=0)
+    pol._relation_selected = "CONNECT"
+    pol._rel_credit = {"A5": 0.5, "A7": -0.1}
+    assert pol._relation_reinforce("A7", ["A5", "A7"]) == "A5"       # biased toward the gap-closing action
+    assert pol.n_rel_reinforce == 1
+    pol._relation_selected = None                                     # not selected -> untouched (earned-gated)
+    assert pol._relation_reinforce("A7", ["A5", "A7"]) == "A7"
+    pol._relation_selected = "CONNECT"
+    pol._rel_credit = {"A6": 9.0, "A5": 0.1}                          # a click coord is never a per-label candidate
+    assert pol._relation_reinforce("A5", ["A5", "A6"]) == "A5"
 
 
 # ---- policy integration: a directional move is steered toward the relation target -----------------------------
