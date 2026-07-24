@@ -143,10 +143,14 @@ def run_goal_live(game_id: str = "ls20-9607627b", warmup: int = 60, max_actions:
 
 
 def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200.0,
-                    tags: Optional[List[str]] = None, blackboard=None) -> Dict[str, Any]:
+                    tags: Optional[List[str]] = None, blackboard=None, retry_cap: int = 6) -> Dict[str, Any]:
     """Drive the CONTROL-INVERSION ReduxPolicy against ONE live game, per-step -- the single-game shape of what the
     swarm runs per thread. Proves the refactored policy preserves each organ's competence live. The policy routes
-    the family itself (click / two-body / directional) from the warmup stream; no per-game wiring here."""
+    the family itself (click / two-body / directional) from the warmup stream; no per-game wiring here.
+
+    DON'T-DIE: on GAME_OVER (not a WIN), the policy has recorded what killed it; the runner issues the legitimate
+    post-death RESET (bounded by retry_cap and the action budget) so the retry can avoid the fatal action instead of
+    ending the run at the first death. A real WIN still stops immediately."""
     from .sdk_guard import assert_online_sdk
     assert_online_sdk()                                   # fail loud on wrong interpreter/SDK before touching the wire
     from ..arc3_env import Arc3Session
@@ -156,9 +160,21 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
     try:
         snap = session.open()
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)
-        best_levels = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"
+        best_levels = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"; retries = 0
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
-            pol.observe(snap["grid"], snap["available"], snap["levels_completed"])
+            pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap["state"])
+            if snap["done"]:
+                if snap["state"] == "WIN":
+                    outcome = "WIN"; break
+                # GAME_OVER: death recorded in observe(); retry via post-death RESET if budget/cap remain
+                if retries >= retry_cap:
+                    outcome = "GAME_OVER"; break
+                retries += 1; steps += 1
+                log.append("DEATH #%d at step %d (deaths=%d, distinct=%d) -> RESET"
+                           % (retries, steps, pol.n_deaths, pol.deaths.distinct_causes))
+                snap = session.reset_after_death(reasoning={"why": "don't-die retry after GAME_OVER"})
+                pol.note_reset()
+                continue
             lbl, data = pol.choose()
             val = int(lbl[1:])
             prev = snap["levels_completed"]
@@ -166,8 +182,6 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
             if snap["levels_completed"] > prev:
                 log.append("LEVEL UP %d->%d at step %d (family=%s)" % (prev, snap["levels_completed"], steps, pol.family))
             best_levels = max(best_levels, snap["levels_completed"]); steps += 1
-            if snap["done"]:
-                outcome = snap["state"]; break
         probe = None
         if pol._probe is not None:
             probe = dict(hypotheses=pol._probe.hypotheses, current=pol._probe.current(),
@@ -177,7 +191,9 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                     level_deltas=pol.level_deltas, probe=probe, abduced=pol.abduced,
                     directed_active=(pol._directed is not None),
                     effective=pol.effect_aff.effective(), effect_visits=dict(pol._effect_visits),
-                    undo=pol.effect_aff.undo())
+                    undo=pol.effect_aff.undo(),
+                    deaths=pol.n_deaths, distinct_death_causes=pol.deaths.distinct_causes,
+                    retries=retries, vetoes=pol.n_vetoes)
     finally:
         session.close()
 

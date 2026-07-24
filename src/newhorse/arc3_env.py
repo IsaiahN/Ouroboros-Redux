@@ -104,6 +104,16 @@ class Arc3Session:
             self._obs = o
         return self._snapshot()
 
+    def reset_after_death(self, reasoning: Optional[dict] = None) -> Dict[str, Any]:
+        """Restart the game after a GAME_OVER via the RESET action, so play continues within the same action budget.
+        This is the LEGITIMATE post-death retry the environment offers (the game is already over) -- NOT the banned
+        in-play reset (resetting a live level to cheese exploration). Returns the restart snapshot."""
+        self._throttle()
+        o = _retry(lambda: self._env.step(GameAction.RESET, data={}, reasoning=reasoning), tries=3, base=0.6)
+        if o is not None:
+            self._obs = o
+        return self._snapshot()
+
     def close(self):
         if not getattr(self, "_owns_card", True):           # swarm: the swarm owns/closes the shared scorecard
             return None

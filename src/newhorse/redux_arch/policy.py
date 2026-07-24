@@ -32,6 +32,7 @@ from .click import click_targets, grid_sweep, ClickProber
 from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
 from .affordance import EffectAffordance
+from .survival import DeathMemory
 from .novelty_ledger import guarded_promote
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -205,6 +206,10 @@ class ReduxPolicy:
         self._directed: Optional[DirectedExplorer] = None   # boundary-directed empowerment over the novel actors
         self.effect_aff = EffectAffordance()            # Tier-1 affordance: which actions are effective (from R_τ)
         self._effect_visits: Dict[str, int] = {}        # curiosity within the effective-action set
+        self.deaths = DeathMemory()                     # DON'T-DIE organ: remembers (board, action) that killed us
+        self.n_deaths = 0                               # deaths observed this episode (GAME_OVER transitions)
+        self.n_vetoes = 0                               # times a known-fatal action was swapped for a safe one
+        self._state = "NOT_FINISHED"                    # last observed game state (for death detection)
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -220,13 +225,21 @@ class ReduxPolicy:
         self.explorer: Optional[CuriosityExplorer] = None
 
     # ---- observation -------------------------------------------------------------------------------------------
-    def observe(self, grid, available: List[int], levels_completed: int = 0) -> None:
+    def observe(self, grid, available: List[int], levels_completed: int = 0, state: Optional[str] = None) -> None:
         """Record the freshly observed frame (result of the previously emitted action) + its available actions. If
-        the level advanced, run the curriculum re-derivation (freeze prior, diff, keep/re-parameterize/re-derive)."""
+        the level advanced, run the curriculum re-derivation (freeze prior, diff, keep/re-parameterize/re-derive).
+        If `state` is GAME_OVER, the just-emitted action ended the run -> record the death so the retry avoids it."""
         old_avail = list(self._avail)
         prev_ids = set(self.tracker.ids())              # object identities as of the PREVIOUS frame (pre-redraw)
         self.frames.append(np.asarray(grid))
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
+        if state is not None:
+            self._state = str(state)
+            if str(state) == "GAME_OVER" and len(self.frames) >= 2:
+                # the action self.acts[-1] (taken from board self.frames[-2]) ended the run -> remember it as fatal
+                if self.deaths.note_death(self.frames[-2], self.acts[-1]):
+                    pass
+                self.n_deaths += 1
         self._avail = [int(a) for a in available]
         self._levels.append(int(levels_completed))      # reward stream (for goal abduction on reward)
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
@@ -249,9 +262,36 @@ class ReduxPolicy:
     # ---- the per-step decision (control-inversion core) --------------------------------------------------------
     def choose(self) -> Tuple[str, Optional[dict]]:
         lbl, data = self._decide()
+        lbl, data = self._survival_veto(lbl, data)
         self._pending = lbl
         self.n_emitted += 1
         return lbl, data
+
+    def note_reset(self) -> None:
+        """Called by the runner after a post-death RESET restarts the level. The next observed frame is the restart,
+        not the product of a chosen action -> label it RESET so no spurious effect/death is attributed to an action."""
+        self._pending = "RESET"
+        self._state = "NOT_FINISHED"
+
+    def _survival_veto(self, lbl: str, data: Optional[dict]) -> Tuple[str, Optional[dict]]:
+        """DON'T-DIE: if the chosen directional/effect action is known-fatal from the CURRENT board, swap it for a
+        still-available action that is NOT known-fatal here. Click (A6) is exempt -- its hazard lives in the click
+        coordinate, not the action label, so vetoing A6 wholesale would blind the click prober. If no board is
+        observed yet, or every available action is fatal here, the original choice stands (never freeze)."""
+        if lbl == "A6" or not self.frames:
+            return lbl, data
+        cur = self.frames[-1]
+        if not self.deaths.is_fatal(cur, lbl):
+            return lbl, data
+        # this exact action killed us from this exact board before -> pick a safe alternative
+        candidates = [l for l in self._labels(self._avail) if l != "A6"]
+        safe = [l for l in self.deaths.safe(cur, candidates) if l != lbl]
+        if not safe:
+            return lbl, data                            # dead-end board: divergence had to happen earlier
+        # least-recently-emitted safe action (curiosity), deterministic tiebreak
+        pick = min(safe, key=lambda x: (self.acts.count(x), x))
+        self.n_vetoes += 1
+        return pick, None
 
     def _decide(self) -> Tuple[str, Optional[dict]]:
         avail = self._avail

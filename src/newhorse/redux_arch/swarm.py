@@ -57,19 +57,30 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
             return dict(game=game_id, family="error", levels=0, steps=0,
                         outcome="open_error:%s" % (type(last).__name__ if last else "none"), log=log)
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)
-        best = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"
+        can_retry = hasattr(session, "reset_after_death")   # live sessions retry after death; simple fakes may not
+        retry_cap = 6
+        best = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"; retries = 0
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
-            pol.observe(snap["grid"], snap["available"], snap["levels_completed"])
+            pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap.get("state"))
+            if snap["done"]:
+                if snap["state"] == "WIN":
+                    outcome = "WIN"; break
+                if not can_retry or retries >= retry_cap:
+                    outcome = "GAME_OVER"; break
+                retries += 1; steps += 1
+                log.append("DEATH #%d @%d -> RESET" % (retries, steps))
+                snap = session.reset_after_death()
+                pol.note_reset()
+                continue
             lbl, data = pol.choose()
             prev = snap["levels_completed"]
             snap = session.step(int(lbl[1:]), data=data)
             if snap["levels_completed"] > prev:
                 log.append("LEVEL UP %d->%d @%d" % (prev, snap["levels_completed"], steps))
             best = max(best, snap["levels_completed"]); steps += 1
-            if snap["done"]:
-                outcome = snap["state"]; break
         return dict(game=game_id, family=pol.family, levels=best, steps=steps, outcome=outcome,
-                    view_url=getattr(session, "view_url", None), log=log)
+                    view_url=getattr(session, "view_url", None), log=log,
+                    deaths=pol.n_deaths, retries=retries, vetoes=pol.n_vetoes)
     except Exception as e:                                   # one game's failure must not sink the swarm
         return dict(game=game_id, family="error", levels=0, steps=0, outcome="error:%s" % type(e).__name__, log=log)
     finally:
