@@ -147,6 +147,8 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
     """Drive the CONTROL-INVERSION ReduxPolicy against ONE live game, per-step -- the single-game shape of what the
     swarm runs per thread. Proves the refactored policy preserves each organ's competence live. The policy routes
     the family itself (click / two-body / directional) from the warmup stream; no per-game wiring here."""
+    from .sdk_guard import assert_online_sdk
+    assert_online_sdk()                                   # fail loud on wrong interpreter/SDK before touching the wire
     from ..arc3_env import Arc3Session
     from .policy import ReduxPolicy
     session = Arc3Session(game_id, tags=tags or ["redux-triality", "policy-live", game_id])

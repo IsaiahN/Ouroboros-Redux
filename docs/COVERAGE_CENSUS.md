@@ -1,46 +1,67 @@
-# Coverage census — measured routing of the redux-triality policy across all 25 dev games
+# Coverage census — measured routing + WIN CEILING of the redux-triality policy across all 25 dev games
 
-Measured live (`run_policy_live`, max_actions=22): what family the ONE router assigns each game, and whether it
-scored. This REPLACES the estimates in DEV_SET_SURVEY.md with real routing.
+Measured live via `run_policy_live`. Two probes: **routing** (max_actions=22, "does it act?") and the **win ceiling**
+(max_actions=80, "does it win with the current organs, or die, or stall?"). Numbers are live, not estimated.
 
-| game | family | levels | outcome |
-|------|--------|--------|---------|
-| ar25 | directional | 0 | action_cap |
-| bp35 | directional | 0 | GAME_OVER |
-| cd82 | directional | 0 | action_cap |
-| cn04 | directional | 0 | action_cap |
-| dc22 | directional | 0 | action_cap |
-| ft09 | click | 0 | action_cap |
-| g50t | effect | 0 | action_cap |
-| ka59 | directional | 0 | action_cap |
-| lf52 | effect | 0 | action_cap |
-| lp85 | click | 0 | action_cap |
-| ls20 | directional | 0 | action_cap |
-| m0r0 | two_body | 1 | action_cap |
-| r11l | click | 0 | action_cap |
-| re86 | directional | 0 | action_cap |
-| s5i5 | click | 0 | action_cap |
-| sb26 | effect | 0 | action_cap |
-| sc25 | directional | 0 | action_cap |
-| sk48 | directional | 0 | action_cap |
-| sp80 | directional | 0 | action_cap |
-| su15 | click | 0 | action_cap |
-| tn36 | click | 1 | action_cap |
-| tr87 | effect | 0 | action_cap |
-| tu93 | directional | 0 | action_cap |
-| vc33 | click | 0 | action_cap |
-| wa30 | directional | 0 | action_cap |
+| game | family | levels@80 | outcome@80 | died@step | class |
+|------|--------|-----------|------------|-----------|-------|
+| ar25 | directional | 0 | GAME_OVER | 64 | death |
+| bp35 | directional | 0 | GAME_OVER | 16 | death (fastest) |
+| cd82 | directional | 0 | action_cap | — | stall |
+| cn04 | directional | 0 | GAME_OVER | 75 | death |
+| dc22 | directional | 0 | action_cap | — | stall |
+| ft09 | click | 0 | action_cap | — | stall |
+| g50t | effect | 0 | action_cap | — | stall |
+| ka59 | directional | 0 | action_cap | — | stall |
+| lf52 | effect | 0 | GAME_OVER | 64 | death |
+| lp85 | click | 0 | action_cap | — | stall |
+| ls20 | directional | 0 | action_cap | — | stall |
+| m0r0 | two_body | **1** | action_cap | — | **WIN L1** (survives) |
+| r11l | click | 0 | GAME_OVER | 60 | death |
+| re86 | directional | 0 | action_cap | — | stall |
+| s5i5 | click | 0 | GAME_OVER | 50 | death |
+| sb26 | effect | 0 | GAME_OVER | 65 | death |
+| sc25 | directional | 0 | GAME_OVER | 52 | death |
+| sk48 | directional | 0 | action_cap | — | stall |
+| sp80 | directional | 0 | GAME_OVER | 30 | death |
+| su15 | click | 0 | GAME_OVER | 43 | death |
+| tn36 | click | **1** | GAME_OVER | 71 | **WIN L1 then dies L2** |
+| tr87 | effect | 0 | action_cap | — | stall |
+| tu93 | directional | 0 | GAME_OVER | 50 | death |
+| vc33 | click | 0 | GAME_OVER | 50 | death |
+| wa30 | directional | 0 | action_cap | — | stall |
 
-## Summary
-- **Actionable: 25/25** — every dev game routes to a driving family; **ZERO undrivable** (was 18/25 before beats D/E).
-- By family: directional 13, click 7, effect 4, two_body 1.
-- **Wins (levels>0): 2** — m0r0 L1 (two_body), tn36 L1 (click).
+## Win ceiling — the headline
+- **Wins @80 actions: 2/25** (m0r0 L1, tn36 L1). **IDENTICAL to the 22-action probe.** Quadrupling the action
+  budget (22 → 80) unlocked **zero** new wins. **The bottleneck is NOT the action budget — it is the win predicate.**
+- **Actionable: still 25/25** — every game routes to a driving family and learns which actions have an effect
+  (`eff=...` populated on nearly all). The agent acts purposefully everywhere; it just doesn't convert to reward.
+
+## Two honest failure classes (the real frontier)
+The 23 non-winning games split cleanly into two mechanically distinct classes:
+
+**DEATH — 13 games hit GAME_OVER (the agent gets killed).** bp35 dies at step 16, sp80 at 30, su15 at 43. The
+agent walks into a game-over transition it never learns to avoid. This is a **general, non-fabricated lever**: the
+reward residual R_ρ carries a strong *negative* signal (the run ending) that the current stack does not use to steer
+*away*. A survival / hazard-avoidance organ — "the last action before GAME_OVER is to be avoided in that state" —
+is a domain-general win-adjacent improvement that needs no per-game code and no minted novelty. tn36 shows this
+sharply: it WINS L1, then dies on L2 — death, not stall, is what caps it.
+
+**STALL — 12 games survive to the 80-cap with no win and no death.** reach-target / curiosity / effect-press all
+exhaust without ever triggering reward. For these the win predicate is genuinely unlearned — this is **mint_gate /
+human-confirmation territory** (a novel win-predicate per game). NOT fabricated here.
 
 ## Honest notes
-- **tn36 WON L1 via CLICK** — a new win beyond m0r0: the ClickProber's curiosity stumbled into a winning click.
-- **ka59 routes DIRECTIONAL**, though the charter calls it a two-body game. Under the tightened is_coupled (>=3
-  co-moving actions + conserved invariant) ka59 does not meet the two-body bar in a 22-action probe — either its
-  coupling needs a longer warmup to show, or it is not a clean mirror. A real finding to revisit, not a mis-fix.
-- Wins are under a SHORT 22-action probe; games needing more actions to win are undercounted here. The census
-  measures ROUTING (actionability), not the win ceiling.
-- levels-0 on a routed game = acts but the win mechanic is unlearned (expected; winning is the hard part).
+- The census measures live behavior, not a claim of competence. levels-0 on a routed game = acts but the win
+  mechanic is unlearned (expected; winning is the hard part).
+- ka59 routes DIRECTIONAL though the charter calls it two-body; under the tightened `is_coupled` bar it doesn't
+  present as a clean mirror in this probe. A finding to revisit, not a mis-fix.
+- **Next lever (highest general value): the DON'T-DIE organ** for the 13 death games — avoid the GAME_OVER
+  transition from R_ρ's negative signal. Then win-predicate mining for the 12 stalls (mint-gate territory).
+
+## Provenance / integrity note
+Run under `python3.12` (the interpreter carrying the online ARC-AGI-3 SDK, `arc_agi.Arcade` +
+`OperationMode.ONLINE`). On the container this beat ran in, the default `python3` had silently become 3.11 carrying
+the WRONG package (the static `arc-agi==0.0.7` dataset lib, no `Arcade`) — a first probe under it errored on every
+game (ImportError) and those poisoned rows were discarded, not recorded. The live stack fails LOUD on the wrong SDK
+(no fake wins possible); a guard + the interpreter requirement are now pinned so a future run cannot silently drift.

@@ -93,6 +93,8 @@ def run_swarm(game_ids: List[str], max_actions: int = 60, wall_cap_s: float = 15
     arc = None
 
     if session_factory is None:
+        from .sdk_guard import assert_online_sdk
+        assert_online_sdk()                                  # fail loud on wrong interpreter/SDK before live swarm
         import arc_agi
         try:
             from arc_agi.base import OperationMode
