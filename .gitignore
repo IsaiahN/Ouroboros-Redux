@@ -8,3 +8,7 @@ recordings/
 # scratch render artifacts (LAW-0 tooling) and live recordings
 *.png
 recordings/
+
+# harness runtime artifacts
+environment_files/
+*.recording.jsonl
