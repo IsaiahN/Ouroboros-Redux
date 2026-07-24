@@ -35,6 +35,7 @@ from .affordance import EffectAffordance
 from .survival import DeathMemory, AvatarHazard
 from .progress import ProgressProbe
 from .referent import find_referents, Referent
+from .relation import RelationBank, RelationCtx
 from .novelty_ledger import guarded_promote
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -229,6 +230,10 @@ class ReduxPolicy:
         self._referents: List[Referent] = []            # Brick 2: frame-native reference regions in the CURRENT frame
         self.n_referent_frames = 0                       # frames on which >=1 referent was detected (telemetry)
         self._referent_kinds_seen: set = set()           # union of referent kinds seen across the episode (telemetry)
+        self.relations = RelationBank()                  # Brick 3: relation-hypothesis tester (MATCH/CONNECT/…/REACH)
+        self._relation_selected: Optional[str] = None    # the relation the env is confidently rewarding (or None)
+        self._relation_kinds_seen: set = set()           # union of relations ever selected this episode (telemetry)
+        self.n_relation_drive = 0                        # times a directional move was steered toward a relation target
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -302,6 +307,16 @@ class ReduxPolicy:
         if self._referents:
             self.n_referent_frames += 1
             self._referent_kinds_seen.update(r.kind for r in self._referents)
+        # Brick 3: test the relation hypotheses against the env's own signal. The bank measures each relation's
+        # frame-native discrepancy every step; a relation is SELECTED only once its discrepancy is confidently shrinking
+        # under play. Observing-only here; the selected relation steers the DIRECTIONAL target in _act_directional (the
+        # two-body + click committed plans never consult it, so the wins are preserved).
+        rctx = RelationCtx(cursor=self.cursor, passable=frozenset(self.passable or ()),
+                           bg=_bg_colour(self.frames[-1]))
+        self.relations.observe(self.frames[-1], self._referents, rctx)
+        self._relation_selected = self.relations.selected()
+        if self._relation_selected is not None:
+            self._relation_kinds_seen.add(self._relation_selected)
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
@@ -327,6 +342,12 @@ class ReduxPolicy:
         edge legends, matched endpoint pairs). Brick 3 reads these to hypothesise a win relation and test it against the
         environment's own signal; empty until a structural referent appears. Names no game; decides no action."""
         return self._referents
+
+    def relation(self) -> Tuple[Optional[str], Optional[Tuple[int, int]]]:
+        """§Brick 3 accessor: (selected relation name, its drive-target cell). The selected relation is the one whose
+        frame-native discrepancy is confidently shrinking under play -- the hypothesis the environment is rewarding.
+        None until the tester is confident. The relation SET is general; which one wins is discovered, never encoded."""
+        return self._relation_selected, self.relations.drive_target()
 
     def note_reset(self) -> None:
         """Called by the runner after a post-death RESET restarts the level. The next observed frame is the restart,
@@ -663,6 +684,19 @@ class ReduxPolicy:
             r, c = dest
             return 0 <= r < _h and 0 <= c < _w and int(_g[r, c]) in _p
         avatar = (int(round(cur[0])), int(round(cur[1])))
+        # Brick 3: steer toward the relation the env is REWARDING -- but only once EARNED. A relation drives the target
+        # ONLY when the tester has CONFIDENTLY selected it (its discrepancy is measurably shrinking under play). Before
+        # that, exploration is left untouched, so curiosity still gathers affordance/effect evidence (the earlier organs
+        # are not starved by an unconfirmed hypothesis). Committed wins never reach here (two-body + click are separate
+        # families). This is the honest test-then-commit: hypothesise, watch the env's own signal, steer only on confirm.
+        rsel, rtgt = self._relation_selected, self.relations.drive_target()
+        if rsel is not None and rtgt is not None:
+            target = (max(0, min(h - 1, int(rtgt[0]))), max(0, min(w - 1, int(rtgt[1]))))
+            lbl = (bfs_path_action(grid, avatar, target, self.vecs, self.passable, self.stride)
+                   or plan_action(avatar, target, self.vecs, ACTS_TOWARD, passable_px))
+            if lbl:
+                self.n_relation_drive += 1
+                return lbl, None
         if self.target_colour is not None:
             tgt = approachable_component_centroid(grid, self.target_colour, self.passable)
             if tgt is not None:

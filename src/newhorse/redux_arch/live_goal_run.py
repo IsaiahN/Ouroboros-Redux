@@ -199,7 +199,10 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                     progress_confident=pol.progress.confident(), progress_value=round(pol.progress.value(), 3),
                     progress_colour=pol.progress.best_colour(), prog_reinforce=pol.n_prog_reinforce,
                     referent_frames=pol.n_referent_frames,
-                    referent_kinds=sorted(pol._referent_kinds_seen))
+                    referent_kinds=sorted(pol._referent_kinds_seen),
+                    relation_selected=pol._relation_selected,
+                    relations_seen=sorted(pol._relation_kinds_seen),
+                    relation_drive=pol.n_relation_drive)
     finally:
         session.close()
 
