@@ -59,6 +59,16 @@ human-confirmation territory** (a novel win-predicate per game). NOT fabricated 
 - **Next lever (highest general value): the DON'T-DIE organ** for the 13 death games — avoid the GAME_OVER
   transition from R_ρ's negative signal. Then win-predicate mining for the 12 stalls (mint-gate territory).
 
+## Beat H — the DON'T-DIE organ closed the DEATH class (live, 80 actions each)
+`survival.DeathMemory` + the post-death RESET retry loop, run on all 13 death games:
+- **beat G: 13/13 ended in GAME_OVER. beat H: 13/13 now SURVIVE to the action cap** (0 end on GAME_OVER).
+- **distinct_death_causes == deaths on EVERY game** — no death cause ever repeated (the exact-board veto works as
+  designed). Most die once, record the cause, never die that way again; bp35 (fastest death @16) died 4× with 6
+  vetoes then threaded a survivable maze path. Rendered bp35 = a real avatar navigating corridors across resets.
+- **HONEST: survival ≠ win.** Only tn36 still reaches a win (L1, unchanged). The 13 DEATH games became STALL games
+  — full budget to explore now, but the win predicate stays unlearned (mint-gate territory). Removing death as a
+  confound is real, general progress on the right axis, NOT a new win count. Win tally still 2/25 (m0r0, tn36).
+
 ## Provenance / integrity note
 Run under `python3.12` (the interpreter carrying the online ARC-AGI-3 SDK, `arc_agi.Arcade` +
 `OperationMode.ONLINE`). On the container this beat ran in, the default `python3` had silently become 3.11 carrying
