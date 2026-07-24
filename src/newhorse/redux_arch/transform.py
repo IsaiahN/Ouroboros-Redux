@@ -136,6 +136,51 @@ def detect_global_transform(before, after) -> Optional[Transform]:
     return None
 
 
+# steps to REALISE a dihedral element as primitive operator applications (a gradient for the MATCH tester): a quarter
+# turn or a single reflection is 1 op, a half turn is 2. identity is 0.
+_GEOM_STEPS = {"identity": 0, "rot90": 1, "rot270": 1, "rot180": 2,
+               "flip_lr": 1, "flip_ud": 1, "transpose": 1, "anti_transpose": 1}
+
+
+def panel_transform_distance(a, b) -> Tuple[Optional[float], Optional[Transform]]:
+    """How far a WORKSPACE panel `a` is from a REFERENCE panel `b` in the operator sense -- the CONCEPT behind
+    edit-to-match and Locksmith (ls20): the key must be brought to the lock, and the two can differ by a dihedral
+    ROTATION/REFLECTION and/or a colour RECOLOUR (Lane-C's own vocabulary), not just cell-for-cell.
+
+    Returns (distance, transform) where distance == 0 IFF a equals b exactly, and DECREASES as a is transformed toward
+    b: if a clean D4+recolour transform T with T(a)==b exists, distance = (rotation/reflection steps) + (#recoloured
+    colours) -- the number of primitive operators still to apply, and `transform` is the RESIDUAL to null (what the
+    operator planner must undo). Otherwise (same shape but not transform-related -- the ft09 cell-edit case) distance =
+    the number of differing cells (raw edit distance) and `transform` is None. (None, None) if the shapes are
+    incomparable. Frame-native; names no game."""
+    a, b = np.asarray(a), np.asarray(b)
+    exact: Optional[Tuple[float, Transform]] = None
+    soft: Optional[float] = None
+    for name, g in GEOMS.items():
+        ga = np.asarray(g(a))
+        if ga.shape != b.shape:
+            continue
+        perm = _colour_perm(ga, b)
+        if perm is not None:                                  # a clean transform relates them
+            nrec = sum(1 for (x, y) in perm if x != y)
+            dist = float(_GEOM_STEPS[name] + nrec)
+            kind = ("identity" if name == "identity" and nrec == 0 else
+                    "recolour" if name == "identity" else
+                    "geom" if nrec == 0 else "geom+recolour")
+            t = Transform(kind, None if name == "identity" else name,
+                          frozenset((x, y) for (x, y) in perm if x != y) or None, dist)
+            if exact is None or dist < exact[0]:
+                exact = (dist, t)
+        else:
+            hc = float((ga != b).sum())
+            soft = hc if soft is None else min(soft, hc)
+    if exact is not None:
+        return exact
+    if soft is not None:
+        return soft, None                                     # same shape, not transform-related -> raw edit distance
+    return None, None
+
+
 class TransformProbe:
     """Accumulates which global transform (if any) relates successive frames of a stream. The dominant recurring
     non-None transform is the level's frame-transform bracket; if transitions are mostly None, the game is per-object

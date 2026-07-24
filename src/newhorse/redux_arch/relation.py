@@ -194,31 +194,46 @@ class Connect(_Relation):
 
 
 class Match(_Relation):
-    """Make a workspace panel equal a reference panel (edit-to-match). Discrepancy = the minimum Hamming distance
-    (per-cell mismatch fraction) between any two equal-shape panels -- 0 when a workspace has been driven to equal the
-    reference. Measured now; its EDIT primitive is Brick 4 (so not drivable at the click tier here, to keep the click
-    win intact)."""
+    """Bring a WORKSPACE panel to equal a REFERENCE panel -- the concept behind edit-to-match (ft09/cd82) AND Locksmith
+    (ls20: make the KEY match the LOCK). The two can differ by a dihedral ROTATION/REFLECTION and/or a RECOLOUR, so the
+    discrepancy is TRANSFORM-AWARE (Lane-C `panel_transform_distance`): the number of primitive operators still to apply
+    (rotation steps + recolours), or the raw cell-edit distance when they are the same shape but not transform-related
+    (ft09). 0 exactly when the workspace equals the reference. Measured + a RESIDUAL exposed (what a driver must undo);
+    the operator/edit DRIVE is the Locksmith L2/L3 bricks, so not drivable here (keeps the click win intact)."""
     name = "MATCH"
     drivable = False
 
-    def _groups(self, g, refs):
-        groups: Dict[Tuple[int, int], List[np.ndarray]] = defaultdict(list)
+    def _panels(self, g, refs):
+        out = []
         for r in refs:
             if r.kind != "panel":
                 continue
             r0, c0, r1, c1 = r.bbox
-            sub = g[r0:r1 + 1, c0:c1 + 1]
-            groups[sub.shape].append(sub)
-        return groups
+            out.append(g[r0:r1 + 1, c0:c1 + 1])
+        return out
+
+    def _best_pair(self, g, refs):
+        from .transform import panel_transform_distance
+        panels = self._panels(g, refs)
+        best = None                                           # (dist, residual)
+        for i in range(len(panels)):
+            for j in range(i + 1, len(panels)):
+                d, t = panel_transform_distance(panels[i], panels[j])
+                if d is None:
+                    continue
+                if best is None or d < best[0]:
+                    best = (float(d), t)
+        return best
 
     def discrepancy(self, g, refs, ctx):
-        best = None
-        for shape, subs in self._groups(g, refs).items():
-            for i in range(len(subs)):
-                for j in range(i + 1, len(subs)):
-                    ham = float((subs[i] != subs[j]).mean())
-                    best = ham if best is None else min(best, ham)
-        return best
+        best = self._best_pair(g, refs)
+        return best[0] if best is not None else None
+
+    def residual(self, g, refs, ctx):
+        """The RESIDUAL transform (rotation/recolour still to null) relating the closest workspace/reference panel pair,
+        or None. What the Locksmith operator planner (L2/L3) must reduce to identity. Exposed now; unconsumed until then."""
+        best = self._best_pair(g, refs)
+        return best[1] if best is not None else None
 
 
 class Order(_Relation):
@@ -250,6 +265,7 @@ class RelationBank:
         self.mono_thresh = float(mono_thresh)
         self._reach_goal: Optional[Tuple[int, int, int, int]] = None   # the pinned REACH goal (identity lock)
         self._shape: Tuple[int, int] = (0, 0)
+        self._last = None                                    # (frame, refs, ctx) of the last observe (for match_residual)
 
     def _resolve_reach_goal(self, g: np.ndarray, refs: List[Referent], ctx: RelationCtx):
         """Pin the REACH goal ACROSS frames: keep tracking the same goal region (the referent that still overlaps the
@@ -271,9 +287,19 @@ class RelationBank:
         self._reach_goal = min(cand, key=lambda r: _bbox_area(r.bbox)).bbox
         return self._reach_goal
 
+    def match_residual(self):
+        """The RESIDUAL transform (rotation/recolour still to null) for the closest workspace/reference panel pair in
+        the last observed frame -- what the Locksmith operator planner (L2/L3) must reduce to identity. None until a
+        matchable panel pair appears. Exposed now; its consumer is the L2 operator-effect learner."""
+        if self._last is None:
+            return None
+        g, refs, ctx = self._last
+        return self._rel("MATCH").residual(g, refs, ctx)
+
     def observe(self, frame, refs: List[Referent], ctx: RelationCtx) -> None:
         g = np.asarray(frame)
         self._shape = (int(g.shape[0]), int(g.shape[1]))
+        self._last = (g, list(refs), ctx)
         ctx.reach_goal = self._resolve_reach_goal(g, refs, ctx)   # pin the goal so REACH's discrepancy is comparable
         for r in self.relations:
             try:
