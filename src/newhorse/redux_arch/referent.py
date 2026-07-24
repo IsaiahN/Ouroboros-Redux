@@ -111,9 +111,30 @@ def _distinct_nonbg(a: np.ndarray, bg: int) -> List[int]:
     return sorted(int(v) for v in np.unique(a) if int(v) != bg)
 
 
+def _ordered_tokens(band: np.ndarray, horizontal: bool, bg: int) -> List[int]:
+    """Read a legend band's tokens in READING ORDER (left-to-right for a horizontal strip, top-to-bottom for a vertical
+    one), run-length collapsed: consecutive cells of the same colour are ONE token, a background gap ends a token, so
+    [r r . b b] -> [r, b] and [r r . r r] -> [r, r]. This is the ORDER structure (family B) that a distinct-token SET
+    throws away. Frame-native; names no game."""
+    from collections import Counter
+    band = np.asarray(band)
+    L = band.shape[1] if horizontal else band.shape[0]
+    seq: List[int] = []
+    prev = None
+    for i in range(L):
+        line = band[:, i] if horizontal else band[i, :]
+        nz = [int(v) for v in np.asarray(line).ravel().tolist() if int(v) != bg]
+        col = Counter(nz).most_common(1)[0][0] if nz else None
+        if col is not None and col != prev:
+            seq.append(col)
+        prev = col
+    return seq
+
+
 def _find_legends(g: np.ndarray, bg: int) -> List[Referent]:
     """A thin edge LEGEND strip: a band of width <=3 along one edge holding >=3 distinct tokens, separated from the
-    play area by a mostly-bg gap line. The key that names what the colours mean."""
+    play area by a mostly-bg gap line. The key that names what the colours mean -- now with the tokens in READING ORDER
+    (detail['sequence']) so ORDER games (family B) can compare sequences, not just sets."""
     H, W = g.shape
     out: List[Referent] = []
     cands = []
@@ -132,15 +153,18 @@ def _find_legends(g: np.ndarray, bg: int) -> List[Referent]:
         sep_line = g[sep]
         if float((np.asarray(sep_line) == bg).mean()) < 0.6:   # must be set APART from the interior by a bg gap
             continue
-        out.append(Referent("legend", (r0, c0, r1, c1), None, {"tokens": tokens, "n_tokens": len(tokens)}))
-    # keep only the most compact strip per set of tokens (avoid width 1/2/3 duplicates of the same legend)
-    best: Dict[Tuple[int, ...], Referent] = {}
-    for r in out:
-        k = tuple(r.detail["tokens"])
-        cur = best.get(k)
-        if cur is None or _area(r.bbox) < _area(cur.bbox):
-            best[k] = r
-    return list(best.values())
+        seq = _ordered_tokens(band, horizontal=_edge in ("top", "bottom"), bg=bg)
+        out.append(Referent("legend", (r0, c0, r1, c1), None,
+                            {"tokens": tokens, "n_tokens": len(tokens), "sequence": seq}))
+    # merge only the width-1/2/3 duplicates of the SAME strip (they OVERLAP in position); keep two DISTINCT-edge legends
+    # even when their sequences later coincide (a reference vs a workspace row that has been brought to match it).
+    def _ov(a, b):
+        return not (a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1])
+    kept: List[Referent] = []
+    for r in sorted(out, key=lambda x: _area(x.bbox)):        # smallest (most compact) strip first
+        if not any(_ov(r.bbox, k.bbox) for k in kept):
+            kept.append(r)
+    return kept
 
 
 def _area(b: Tuple[int, int, int, int]) -> int:

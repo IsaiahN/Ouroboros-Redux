@@ -206,7 +206,8 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                     rel_reinforce=pol.n_rel_reinforce,
                     multi_avatar_drive=pol.n_multi_avatar_drive,
                     match_roles_assigned=(pol.relations.role_bboxes() is not None),
-                    match_discrepancy=pol.relations.discrepancies().get("MATCH"))
+                    match_discrepancy=pol.relations.discrepancies().get("MATCH"),
+                    order_discrepancy=pol.relations.discrepancies().get("ORDER"))
     finally:
         session.close()
 

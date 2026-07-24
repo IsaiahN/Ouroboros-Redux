@@ -247,10 +247,46 @@ class Match(_Relation):
         return best[1] if best is not None else None
 
 
+def _levenshtein(a: List[int], b: List[int]) -> int:
+    """Edit distance between two token sequences (insert/delete/substitute). This is the ORDER-native discrepancy: it
+    counts the moves to bring one sequence to the other's ORDER, so a PERMUTATION reads as a few edits (not many cell
+    diffs, as 2-D MATCH would). Distinct from MATCH by construction."""
+    m, n = len(a), len(b)
+    if m == 0:
+        return n
+    if n == 0:
+        return m
+    prev = list(range(n + 1))
+    for i in range(1, m + 1):
+        cur = [i] + [0] * n
+        for j in range(1, n + 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (0 if a[i - 1] == b[j - 1] else 1))
+        prev = cur
+    return prev[n]
+
+
 class Order(_Relation):
-    """Act on items in the reference's sequence (legend-driven order). Enumerated; its sequencing primitive is Brick 4,
-    so no discrepancy is emitted yet (never selected until then)."""
+    """Act on items in the reference's SEQUENCE (legend-driven order: family B -- tr87/su15/sb26). Discrepancy = the
+    minimum EDIT DISTANCE between two ordered token sequences read from the frame (a REFERENCE sequence and a WORKSPACE
+    sequence being brought to it) -- 0 when a workspace sequence matches the reference's order. Order-native (a
+    permutation is a few edits), distinct from MATCH's 2-D content comparison. Measured now; the act-in-order DRIVE is a
+    later brick, so not drivable here. Needs >=2 ordered sequences (else None)."""
     name = "ORDER"
+
+    def _sequences(self, refs):
+        return [tuple(r.detail["sequence"]) for r in refs
+                if r.kind == "legend" and len(r.detail.get("sequence", [])) >= 2]
+
+    def discrepancy(self, g, refs, ctx):
+        seqs = self._sequences(refs)
+        if len(seqs) < 2:
+            return None
+        best = None
+        for i in range(len(seqs)):
+            for j in range(i + 1, len(seqs)):
+                d = _levenshtein(list(seqs[i]), list(seqs[j]))
+                best = d if best is None else min(best, d)
+        return None if best is None else float(best)
 
 
 class Arrange(_Relation):
