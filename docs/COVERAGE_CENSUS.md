@@ -87,3 +87,16 @@ scorecard: **https://arcprize.org/scorecards/8a41d995-fdaa-4e77-85b6-946d1cb4c20
 - **Wins: 2/25 — m0r0 L1 (two_body) + tn36 L1 (click)** — the honest ledger, now proven through the OFFICIAL harness
   across the full dev set. Remaining 23 need novel win-predicates (mint_gate/human); not fabricated.
 The agent is EVAL-SUBMITTABLE and validated at full submission shape.
+
+## §XIX-compliant OFFICIAL-HARNESS run, all 25 (reset_earned gate in force)
+After Isaiah's §XIX ruling (option B: a post-GAME_OVER RESET must be EARNED by the agent's own reasoning backed by
+evidence from play/game-memory — implemented as "the death taught a NEW avoidable cause"), re-ran all 25 through the
+real `Agent.main()` loop with the gate active. One card: **https://arcprize.org/scorecards/ddc1f033-3436-436c-936f-2bbf89d031ae**
+(25 games / 62s).
+- **25/25 actionable, 0 undrivable, 0 errors; wins 2/25 (m0r0 L1, tn36 L1)** — unchanged, honest ledger.
+- **18 deaths, 18 EARNED resets** — every death this run taught a NEW avoidable cause (the dev death-games keep
+  hitting fresh fatal boards = genuine learning), so the gate permitted every retry and **0 games ended early**. The
+  gate is NOT a no-op: it DENIES a repeat-death with no new learning (unit-tested `test_first_death_earns_reset_repeat_does_not`)
+  and ends the session at GAME_OVER per §XIX — this dev set just never repeated a death this run. Each earned reset
+  carries the agent's evidence-cited rationale, recorded in the reset reasoning (nothing silent).
+The agent is eval-submittable AND §XIX-compliant on the submission path.
