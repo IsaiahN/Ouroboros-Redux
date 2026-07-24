@@ -194,7 +194,8 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                     effective=pol.effect_aff.effective(), effect_visits=dict(pol._effect_visits),
                     undo=pol.effect_aff.undo(),
                     deaths=pol.n_deaths, distinct_death_causes=pol.deaths.distinct_causes,
-                    retries=retries, vetoes=pol.n_vetoes)
+                    retries=retries, vetoes=pol.n_vetoes,
+                    hazard_vetoes=pol.n_hazard_vetoes, hazard_colours=sorted(pol.hazard.fatal_colours()))
     finally:
         session.close()
 

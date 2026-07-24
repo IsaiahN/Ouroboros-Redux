@@ -28,6 +28,35 @@ def board_fingerprint(grid) -> int:
 
 
 @dataclass
+class AvatarHazard:
+    """Avatar-centric hazard generalization (Tether: R_ρ negative pole, generalized). The exact-board DeathMemory
+    vetoes only a pixel-identical board, so the agent must die ONCE at EACH new fatal board. But a death often has a
+    LOCAL cause: the cursor MOVED ONTO a particular colour (a lava/wall/pit cell). Learning that fatal DESTINATION
+    COLOUR lets the veto generalize across DIFFERENT boards -- after one death the agent avoids every move onto that
+    colour. Domain-general: it names no game; the fatal colour is read live from where the cursor died.
+
+    PRECISION: the BACKGROUND colour is NEVER a hazard (moving across bg is normal traversal) -- recording bg would
+    freeze the agent, since bg is everywhere. So note() excludes bg. A colour that is only *sometimes* fatal is a
+    (rare) false positive bounded by the same 'never freeze' fallback the caller applies."""
+    _fatal: "Set[int]" = field(default_factory=set)         # colours the cursor died entering (bg excluded)
+
+    def note(self, dest_colour, bg) -> bool:
+        """Record that entering `dest_colour` ended the run. Excludes the background. Returns True if newly learned."""
+        if dest_colour is None or int(dest_colour) < 0 or int(dest_colour) == int(bg):
+            return False
+        c = int(dest_colour)
+        new = c not in self._fatal
+        self._fatal.add(c)
+        return new
+
+    def is_fatal_colour(self, colour) -> bool:
+        return colour is not None and int(colour) in self._fatal
+
+    def fatal_colours(self) -> "Set[int]":
+        return set(self._fatal)
+
+
+@dataclass
 class DeathMemory:
     """Records (board fingerprint -> set of actions that ended the run from that board) and vetoes those actions when
     the board recurs. Purely mechanical; carries no game knowledge."""

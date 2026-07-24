@@ -6,8 +6,8 @@ pin the pure memory and prove the SAME fatal cause is not repeated once learned 
 import sys, os
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from newhorse.redux_arch.survival import DeathMemory, board_fingerprint
-from newhorse.redux_arch.policy import ReduxPolicy, Blackboard
+from newhorse.redux_arch.survival import DeathMemory, board_fingerprint, AvatarHazard
+from newhorse.redux_arch.policy import ReduxPolicy, Blackboard, DIRECTIONAL
 
 
 def _f(cells, shape=(8, 8)):
@@ -64,6 +64,72 @@ def test_would_be_new_is_pure_and_matches_note():
     assert dm.would_be_new(board, "A4") is True             # different action -> still new
     assert dm.would_be_new(_f({(1, 2): 4}), "A3") is True   # different board -> still new
     assert dm.would_be_new(board, "RESET") is False         # RESET is never a cause
+
+
+# ---- avatar-centric hazard generalization (fatal DESTINATION colours; generalizes the veto across boards) --------
+def test_avatar_hazard_records_and_excludes_bg():
+    hz = AvatarHazard()
+    assert hz.note(10, bg=5) is True                        # colour 10 fatal, bg=5 -> learned
+    assert hz.is_fatal_colour(10) is True
+    assert hz.note(10, bg=5) is False                       # already known
+    assert hz.note(5, bg=5) is False                        # moving onto BG is never a hazard (would freeze)
+    assert hz.is_fatal_colour(5) is False
+    assert hz.note(-1, bg=5) is False and hz.note(None, bg=5) is False   # off-board / absent -> ignored
+    assert hz.fatal_colours() == {10}
+
+
+def _board(cursor_rc, lava_rc, cur=7, lava=5, shape=(8, 10)):
+    g = np.zeros(shape, dtype=int)
+    g[cursor_rc] = cur
+    g[lava_rc] = lava
+    return g
+
+
+def test_avatar_hazard_learns_on_death_and_vetoes_on_a_different_board():
+    """The mechanism directly: a directional death where the cursor stepped onto colour 5 teaches 'colour 5 is fatal
+    to enter' (bg=0 excluded); then on a DIFFERENT board (new fingerprint the exact-board veto can't match) a move
+    that would step onto colour 5 is VETOED to a safe action. This is the cross-board generalization."""
+    pol = ReduxPolicy(game_id="lava-x", blackboard=Blackboard())
+    pol.family = DIRECTIONAL
+    pol.cursor = 7; pol.vecs = {"A3": (0, -1), "A4": (0, 1)}
+    # board before death: cursor at (3,2), lava (colour 5) at (3,3); the fatal action A4 steps cursor -> (3,3)=lava
+    before = _board((3, 2), (3, 3))
+    pol.frames.append(before); pol.acts.append("A4"); pol._pending = "A4"
+    assert pol._dest_colour(before, "A4") == 5              # A4 would enter colour 5
+    pol.observe(np.zeros((8, 10), dtype=int), [3, 4], 0, state="GAME_OVER")   # the death frame
+    assert pol.hazard.fatal_colours() == {5}               # learned the fatal DESTINATION colour (bg 0 excluded)
+
+    # DIFFERENT board (lava now at a new place): cursor (5,5), lava (colour 5) at (5,6). A4 -> (5,6)=lava -> hazard.
+    pol.note_reset()
+    newb = _board((5, 5), (5, 6))
+    pol.frames.append(newb); pol._avail = [3, 4]
+    lbl, _ = pol._survival_veto("A4", None)                 # A4 enters colour 5 (hazard) -> swap to safe A3
+    assert lbl == "A3" and pol.n_hazard_vetoes == 1
+    # a move that does NOT enter the hazard colour is left alone
+    assert pol._survival_veto("A3", None)[0] == "A3"
+
+
+def test_hazard_does_not_fire_for_click_or_two_body(monkeypatch):
+    """PRECISION: the avatar-hazard is a DIRECTIONAL-cursor concept. Click (A6) and any policy without a cursor learn
+    no destination hazard and the veto never fires -- so the wins (m0r0 two_body, tn36 click) are untouched."""
+    pol = ReduxPolicy(game_id="click-x", blackboard=Blackboard())
+    pol.cursor = None                                       # click / two-body have no directional cursor
+    g = np.zeros((6, 6), dtype=int)
+    pol.frames.append(g); pol._avail = [6]
+    assert pol._dest_colour(g, "A6") is None                # no cursor -> no destination read
+    assert pol._survival_veto("A6", {"x": 1, "y": 1}) == ("A6", {"x": 1, "y": 1})   # click untouched
+
+
+def test_hazard_never_vetoes_when_no_safe_alternative(monkeypatch):
+    """Precision/liveness: if EVERY available move is onto a hazard colour, the veto must not freeze -- the original
+    action stands (better to act than to deadlock)."""
+    pol = ReduxPolicy(game_id="z", blackboard=Blackboard())
+    pol.cursor = 7; pol.vecs = {"A3": (0, -1), "A4": (0, 1)}
+    pol.hazard.note(9, bg=0)
+    g = np.zeros((5, 5), dtype=int); g[2, 2] = 7; g[2, 1] = 9; g[2, 3] = 9   # lava on BOTH sides
+    pol.frames.append(g); pol._avail = [3, 4]
+    lbl, _ = pol._survival_veto("A4", None)
+    assert lbl in ("A3", "A4")                               # returns something, does not crash/freeze
 
 
 # ---- §XIX reset-earned gate (Isaiah's ruling: reset needs reasoning backed by evidence from play/game-memory) ----

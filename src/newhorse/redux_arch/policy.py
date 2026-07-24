@@ -32,7 +32,7 @@ from .click import click_targets, grid_sweep, ClickProber
 from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
 from .affordance import EffectAffordance
-from .survival import DeathMemory
+from .survival import DeathMemory, AvatarHazard
 from .novelty_ledger import guarded_promote
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -107,6 +107,13 @@ class GoalProbe:
 
 def _prefix(game_id: str) -> str:
     return (game_id or "").split("-")[0]
+
+
+def _bg_colour(grid) -> int:
+    """The background = the most common colour (never a hazard; the avatar-hazard learner excludes it)."""
+    g = np.asarray(grid)
+    vals, cnts = np.unique(g, return_counts=True)
+    return int(vals[int(np.argmax(cnts))])
 
 
 def _md(a, b) -> int:
@@ -207,6 +214,8 @@ class ReduxPolicy:
         self.effect_aff = EffectAffordance()            # Tier-1 affordance: which actions are effective (from R_τ)
         self._effect_visits: Dict[str, int] = {}        # curiosity within the effective-action set
         self.deaths = DeathMemory()                     # DON'T-DIE organ: remembers (board, action) that killed us
+        self.hazard = AvatarHazard()                    # avatar-centric: fatal DESTINATION colours (generalizes veto)
+        self.n_hazard_vetoes = 0                        # times a move into a known-fatal colour was swapped out
         self.n_deaths = 0                               # deaths observed this episode (GAME_OVER transitions)
         self.n_vetoes = 0                               # times a known-fatal action was swapped for a safe one
         self._state = "NOT_FINISHED"                    # last observed game state (for death detection)
@@ -241,6 +250,11 @@ class ReduxPolicy:
                 # the action self.acts[-1] (taken from board self.frames[-2]) ended the run -> remember it as fatal
                 new_cause = self.deaths.note_death(self.frames[-2], self.acts[-1])
                 self.n_deaths += 1
+                # avatar-centric: if a cursor+vec is known, learn the DESTINATION COLOUR the cursor died entering
+                # (bg excluded) so the veto generalizes across boards, not just this pixel-identical one.
+                dcol = self._dest_colour(self.frames[-2], self.acts[-1])
+                if dcol is not None:
+                    self.hazard.note(dcol, _bg_colour(self.frames[-2]))
                 # §XIX RESET-EARNED gate (Isaiah's ruling, option B): a post-GAME_OVER restart is EARNED only when the
                 # agent can reason its way to needing it AND back that reasoning with evidence from play / past losses.
                 # Mechanical criterion: this death taught a NEW avoidable cause (a fresh board+action the death-memory
@@ -309,24 +323,55 @@ class ReduxPolicy:
             return False
         return self.deaths.would_be_new(self.frames[-1], self._pending)
 
+    def _dest_colour(self, grid, lbl: str) -> Optional[int]:
+        """The colour the cursor would ENTER by taking directional action `lbl` from `grid` -- cursor centroid +
+        learned vec, read off the board. None unless a cursor colour + a vec for lbl are known and in-bounds. This is
+        what the avatar-centric hazard reads/writes: 'moving onto colour X ended the run'."""
+        if self.cursor is None or lbl not in (self.vecs or {}):
+            return None
+        g = np.asarray(grid)
+        m = (g == self.cursor)
+        if not m.any():
+            return None
+        ys, xs = np.where(m)
+        r0, c0 = int(round(ys.mean())), int(round(xs.mean()))
+        dr, dc = self.vecs[lbl]
+        r, c = r0 + dr, c0 + dc
+        h, w = g.shape
+        return int(g[r, c]) if (0 <= r < h and 0 <= c < w) else None
+
+    def _hazard_dest(self, lbl: str) -> bool:
+        """True iff directional action lbl would move the cursor onto a colour LEARNED to be fatal (avatar-centric)."""
+        if lbl == "A6" or not self.frames or not self.hazard.fatal_colours():
+            return False
+        return self.hazard.is_fatal_colour(self._dest_colour(self.frames[-1], lbl))
+
     def _survival_veto(self, lbl: str, data: Optional[dict]) -> Tuple[str, Optional[dict]]:
-        """DON'T-DIE: if the chosen directional/effect action is known-fatal from the CURRENT board, swap it for a
-        still-available action that is NOT known-fatal here. Click (A6) is exempt -- its hazard lives in the click
-        coordinate, not the action label, so vetoing A6 wholesale would blind the click prober. If no board is
-        observed yet, or every available action is fatal here, the original choice stands (never freeze)."""
+        """DON'T-DIE: veto the chosen directional/effect action if it is known-fatal, then pick a safe alternative.
+        TWO complementary vetoes: (1) EXACT-board -- this action killed us from this pixel-identical board; and
+        (2) AVATAR-CENTRIC -- this directional move would step the cursor onto a colour we LEARNED is fatal, on ANY
+        board (generalizes across boards, so we avoid a hazard we have only met once, elsewhere). Click (A6) is exempt
+        (its hazard is the coordinate, not the label). If every available action is fatal here, the original stands
+        (never freeze)."""
         if lbl == "A6" or not self.frames:
             return lbl, data
         cur = self.frames[-1]
-        if not self.deaths.is_fatal(cur, lbl):
+        exact_fatal = self.deaths.is_fatal(cur, lbl)
+        hazard_fatal = self._hazard_dest(lbl)
+        if not (exact_fatal or hazard_fatal):
             return lbl, data
-        # this exact action killed us from this exact board before -> pick a safe alternative
+        # pick a still-available action that is NEITHER exact-fatal here NOR a move onto a learned hazard colour
         candidates = [l for l in self._labels(self._avail) if l != "A6"]
-        safe = [l for l in self.deaths.safe(cur, candidates) if l != lbl]
+        safe = [l for l in self.deaths.safe(cur, candidates)
+                if l != lbl and not self._hazard_dest(l)]
         if not safe:
             return lbl, data                            # dead-end board: divergence had to happen earlier
         # least-recently-emitted safe action (curiosity), deterministic tiebreak
         pick = min(safe, key=lambda x: (self.acts.count(x), x))
-        self.n_vetoes += 1
+        if hazard_fatal and not exact_fatal:
+            self.n_hazard_vetoes += 1
+        else:
+            self.n_vetoes += 1
         return pick, None
 
     def _decide(self) -> Tuple[str, Optional[dict]]:
