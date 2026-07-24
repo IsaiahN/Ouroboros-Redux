@@ -30,6 +30,7 @@ class RelationCtx:
     cursor: Optional[int] = None            # the avatar/cursor colour, if the game routes a body; else None
     passable: frozenset = field(default_factory=frozenset)
     bg: int = 0
+    reach_goal: Optional[Tuple[int, int, int, int]] = None   # the LOCKED goal bbox the bank pins across frames (REACH)
 
 
 def _centroid_colour(g: np.ndarray, colour: int) -> Optional[Tuple[float, float]]:
@@ -53,6 +54,11 @@ def _bbox_area(b: Tuple[int, int, int, int]) -> int:
 def _contains(b: Tuple[int, int, int, int], pt: Tuple[float, float]) -> bool:
     r0, c0, r1, c1 = b
     return r0 <= pt[0] <= r1 and c0 <= pt[1] <= c1
+
+
+def _overlap(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> bool:
+    """Do two bboxes intersect? (used to keep a locked goal pinned to the referent that still covers it)."""
+    return not (a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1])
 
 
 def _bfs_dist(g: np.ndarray, start: Tuple[int, int], goal: Tuple[int, int], passable: frozenset,
@@ -122,33 +128,36 @@ class Reach(_Relation):
     name = "REACH"
     drivable = True
 
-    def _goal(self, g, refs, ctx):
+    def _goal_bbox(self, g, refs, ctx):
+        """The goal bbox: the bank's LOCKED goal if it pinned one (stable across frames -> monotone discrepancy),
+        otherwise the smallest referent the cursor is not already inside (standalone fallback for direct use)."""
         cc = _centroid_colour(g, ctx.cursor) if ctx.cursor is not None else None
-        if cc is None or not refs:
+        if cc is None:
             return None, None
+        if ctx.reach_goal is not None:
+            return cc, ctx.reach_goal
         cand = [r for r in refs if not _contains(r.bbox, cc)]
         if not cand:
-            return None, None
-        goal = min(cand, key=lambda r: _bbox_area(r.bbox))    # a goal is a small, distinct region
-        return cc, goal
+            return cc, None
+        return cc, min(cand, key=lambda r: _bbox_area(r.bbox)).bbox
 
     def discrepancy(self, g, refs, ctx):
-        cc, goal = self._goal(g, refs, ctx)
-        if cc is None:
+        cc, gb = self._goal_bbox(g, refs, ctx)
+        if cc is None or gb is None:
             return None
-        gc = _bbox_centre(goal.bbox)
+        gc = _bbox_centre(gb)
         start = (int(round(cc[0])), int(round(cc[1])))
         gcell = (int(round(gc[0])), int(round(gc[1])))
-        d = _bfs_dist(g, start, gcell, ctx.passable, goal.bbox)   # maze-honest distance (monotone as we approach)
+        d = _bfs_dist(g, start, gcell, ctx.passable, gb)      # maze-honest distance (monotone as we approach)
         if d is not None:
             return float(d)
         return float(hypot(cc[0] - gc[0], cc[1] - gc[1]))     # fallback: no passable set / unreachable -> straight line
 
     def target(self, g, refs, ctx):
-        cc, goal = self._goal(g, refs, ctx)
-        if goal is None:
+        cc, gb = self._goal_bbox(g, refs, ctx)
+        if gb is None:
             return None
-        gr, gc = _bbox_centre(goal.bbox)
+        gr, gc = _bbox_centre(gb)
         return int(round(gr)), int(round(gc))
 
 
@@ -238,9 +247,31 @@ class RelationBank:
         self.min_obs = int(min_obs)
         self.min_range = float(min_range)
         self.mono_thresh = float(mono_thresh)
+        self._reach_goal: Optional[Tuple[int, int, int, int]] = None   # the pinned REACH goal (identity lock)
+
+    def _resolve_reach_goal(self, g: np.ndarray, refs: List[Referent], ctx: RelationCtx):
+        """Pin the REACH goal ACROSS frames: keep tracking the same goal region (the referent that still overlaps the
+        locked bbox) so the discrepancy sequence measures distance to ONE goal and stays monotone as the body
+        approaches. Re-pin (to the smallest referent the cursor is not inside) only when the lock is lost."""
+        cc = _centroid_colour(g, ctx.cursor) if ctx.cursor is not None else None
+        if cc is None:
+            self._reach_goal = None
+            return None
+        cand = [r for r in refs if not _contains(r.bbox, cc)]
+        if not cand:
+            self._reach_goal = None
+            return None
+        if self._reach_goal is not None:
+            keep = [r for r in cand if _overlap(r.bbox, self._reach_goal)]
+            if keep:
+                self._reach_goal = min(keep, key=lambda r: _bbox_area(r.bbox)).bbox
+                return self._reach_goal
+        self._reach_goal = min(cand, key=lambda r: _bbox_area(r.bbox)).bbox
+        return self._reach_goal
 
     def observe(self, frame, refs: List[Referent], ctx: RelationCtx) -> None:
         g = np.asarray(frame)
+        ctx.reach_goal = self._resolve_reach_goal(g, refs, ctx)   # pin the goal so REACH's discrepancy is comparable
         for r in self.relations:
             try:
                 d = r.discrepancy(g, refs, ctx)
@@ -265,7 +296,9 @@ class RelationBank:
         return next(r for r in self.relations if r.name == name)
 
     def selected(self) -> Optional[str]:
-        """The relation whose discrepancy is confidently shrinking (ranked by net decrease), or None."""
+        """The relation whose discrepancy is confidently shrinking under play (ranked by net decrease), or None -- the
+        relation's own shrinking gap IS the reward signal being tested; a driven relation that keeps closing its
+        discrepancy is the hypothesis the environment rewards."""
         best, best_key = None, None
         for name, seq in self.hist.items():
             vals = [v for v in seq if v is not None]

@@ -51,6 +51,37 @@ def test_match_measures_panel_hamming_to_zero():
     assert bank.selected() == "MATCH"
 
 
+# ---- Brick 4: REACH goal-identity LOCK keeps the discrepancy monotone (so selection is reliable live) ----------
+def test_reach_goal_lock_holds_goal_under_a_nearer_distractor():
+    """The bank PINS the goal across frames: a smaller, nearer distractor referent appearing mid-approach must NOT
+    hijack REACH's goal (which would make the discrepancy jump and defeat selection). It stays locked on the original
+    goal, so the sequence is monotone and REACH is selected -- the fix for Brick 3's live-selection limitation."""
+    bank = RelationBank(min_obs=5, min_range=1.0)
+    ctx = RelationCtx(cursor=7, passable=frozenset(), bg=0)
+    A = Referent("panel", (2, 2, 6, 6), 5, {})               # the real goal: centre (4,4), area 25
+    for i, r in enumerate(range(14, 7, -1)):                  # cursor walks toward A
+        g = np.zeros((20, 20), dtype=int); g[r, r] = 7
+        refs = [A]
+        if i >= 3:                                            # a SMALLER (area 9), NEARER distractor appears
+            refs.append(Referent("panel", (r - 1, r + 2, r + 1, r + 4), 6, {}))
+        bank.observe(g, refs, ctx)
+    assert bank.selected() == "REACH"
+    assert bank.drive_target() == (4, 4)                      # locked on A, not the smaller nearer distractor
+
+
+def test_reach_goal_relocks_when_goal_disappears():
+    bank = RelationBank(min_obs=3, min_range=1.0)
+    ctx = RelationCtx(cursor=7, passable=frozenset(), bg=0)
+    for _ in range(3):
+        g = np.zeros((16, 16), dtype=int); g[10, 10] = 7
+        bank.observe(g, [Referent("panel", (2, 2, 4, 4), 5, {})], ctx)
+    assert bank._reach_goal == (2, 2, 4, 4)
+    for _ in range(3):
+        g = np.zeros((16, 16), dtype=int); g[7, 7] = 7
+        bank.observe(g, [Referent("panel", (12, 12, 14, 14), 6, {})], ctx)   # old goal gone -> re-pin
+    assert bank._reach_goal == (12, 12, 14, 14)
+
+
 # ---- the tester prefers the shrinking relation over a static one ----------------------------------------------
 def test_tester_prefers_the_shrinking_relation():
     bank = RelationBank(min_obs=5, min_range=1.0)
