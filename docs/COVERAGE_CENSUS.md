@@ -100,3 +100,62 @@ real `Agent.main()` loop with the gate active. One card: **https://arcprize.org/
   and ends the session at GAME_OVER per §XIX — this dev set just never repeated a death this run. Each earned reset
   carries the agent's evidence-cited rationale, recorded in the reset reasoning (nothing silent).
 The agent is eval-submittable AND §XIX-compliant on the submission path.
+
+---
+
+## SCAFFOLD COVERAGE CENSUS (2026-07-24, post-Brick-5) — where the reasoning scaffold fires
+
+Probed 13 games across every archetype with `run_policy_live(max_actions=50)`, recording family + referents +
+relation selected (post-4c target-stability gate) + drive/reinforce counts + deaths + levels. Purpose: measure where
+Bricks 1–5 actually HELP vs are inert/mis-fire, before building more (contamination-risky) drivers.
+
+| game | archetype | family | referents | relation | rel_drive | multi_drive | levels |
+|------|-----------|--------|-----------|----------|-----------|-------------|--------|
+| ft09 | edit-to-match | click | panel | — | 0 | 0 | 0 |
+| cd82 | edit-to-match | directional | endpoints,panel | REACH | 39 | 0 | 0 |
+| g50t | colour-swap (NOT connect) | effect | endpoints,panel | CONNECT* | 0 | 0 | 0 |
+| lf52 | connect click-draw | effect | endpoints,panel | — | 0 | 0 | 0 |
+| tr87 | legend-select | effect† | endpoints,panel | — | 0 | 0† | 0 |
+| su15 | legend-order | click | endpoints,panel | CONNECT* | 0 | 0 | 0 |
+| ls20 | maze-reach | directional | endpoints,panel | REACH | 10 | 0 | 0 |
+| ar25 | directional | directional | endpoints,legend,panel | REACH | 40 | 0 | 0 |
+| wa30 | directional | directional | endpoints,panel | REACH | 40 | 0 | 0 |
+| sc25 | directional | directional | endpoints,legend,panel | — | 0 | 0 | 0 |
+| ka59 | multi-avatar (turn-based) | directional | endpoints,panel | REACH | 0 | 0 | 0 |
+| bp35 | block-arrange | directional | legend,panel | — | 0 | 0 | 0 |
+| m0r0 | coupled two-body | two_body | endpoints | — | 0 | 0 | **1 WIN** |
+| tn36 | click | click | endpoints,panel | CONNECT* | 0 | 0 | **1 WIN** |
+
+`*` = harmless CONNECT false-positive (effect/click family → no drive/reinforce; wins untouched).
+`†` = tr87 initially MIS-ROUTED to `multi_avatar` (drive 46) — a Brick-5 precision REGRESSION found by this census and
+FIXED same beat (see below); re-probe shows `effect`, multi_drive 0.
+
+### What the scaffold does WELL
+- **Referent detection (Brick 2) fires broadly** — panel + endpoints on nearly every game; legend on ar25/sc25/bp35.
+- **REACH actively NAVIGATES the directional/maze family** — cd82 39, ar25 40, wa30 40, ls20 10 drives/50 steps. The
+  agent pilots toward a reference goal, the clearest working value of the scaffold (post-4a goal-lock).
+- **The 2 wins are preserved and correctly routed** — m0r0 two_body, tn36 click; the relation/multi-avatar layers never
+  touch their committed plans.
+
+### What MIS-FIRES or is INERT (the honest gaps)
+1. **Brick-5 MULTI_AVATAR was too loose** — activated on tr87 (legend-select, not multi-avatar) and drove 46 actions.
+   ROOT CAUSE: `independent_multi` required only "2 mapped uncoupled bodies", which two co-toggling legend tiles satisfy.
+   FIX (this beat): require a SOLO control per body (an action that moves one avatar while the other stays) = evidence of
+   genuine separate steering. tr87 re-probes as `effect`; the synthetic 2-avatar routing test still passes; a new test
+   asserts co-moving-without-solo is rejected. Wins preserved.
+2. **REACH mis-applies on non-maze directional games** — cd82 (edit-to-match) is driven as reach-the-referent (39
+   drives) though its win is a tile MATCH, not a reach. REACH treats any directional+referent game as reach; harmless
+   exploration, but not solving. (A relation-disambiguation step — try MATCH/ARRANGE too, keep the reward-positive — is
+   the general remedy, but their DRIVES are click-tier, which we hold off to protect the tn36 win.)
+3. **Edit-to-match click games (ft09) are under-served** — click family, only a panel referent, progress NOT confident,
+   no relation engaged. MATCH is measured but not drivable at the click tier (by design, to protect tn36).
+4. **CONNECT false-positives** (g50t colour-swap, su15, tn36) — harmless (no action), but noisy telemetry.
+
+### The honest CEILING (surfaced for Isaiah — he holds the general-vs-game-specific fork)
+The general scaffold NAVIGATES (REACH drives 4–5 directional games) and REASONS (referents + relation tester fire), but
+converts to **0 new wins**. The gap to each next win is game-specific GOAL/GATE identification: WHICH referent is the
+true goal (vs a legend/decoy), collect-then-reach key/gate logic, the per-game control model (ka59 turn-based, g50t
+colour-swap). These cannot be solved by a purely-general organ without risking the contamination boundary (encoding a
+per-game answer). **Recommendation: the general scaffold is at its natural completion; the next wins likely require
+either (a) a general GATE/KEY-aware routing + relation-disambiguation layer that still tests against the env's own
+reward, or (b) explicit authorization for carefully-bounded game-specific drivers.** Awaiting Isaiah's fork.

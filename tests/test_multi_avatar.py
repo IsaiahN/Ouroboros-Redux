@@ -47,6 +47,17 @@ def test_coupled_pair_is_not_independent_multi():
     assert not independent_multi(ag)
 
 
+def test_co_moving_without_solo_control_is_not_independent_multi():
+    """Precision (from the coverage census: Brick 5 mis-fired on a legend game): two components that move under the SAME
+    actions -- no action steers one alone -- are NOT independently-steered avatars, even when they are not conserved-
+    coupled. Without a SOLO control per body the router must not claim them."""
+    a = {"A1": (1, 0), "A2": (0, 1), "A3": (1, 1)}
+    b = {"A1": (0, 1), "A2": (1, 0), "A3": (1, 1)}          # same action set, no conserved invariant, NO solo action
+    ag = _build_ag(a, b)
+    assert not ag.is_coupled()                              # not conserved-coupled...
+    assert not independent_multi(ag)                        # ...but rejected: neither body has an action that moves it alone
+
+
 def test_multi_avatar_routes_both_avatars_to_their_targets():
     ag = _build_ag(TRUE0, TRUE1)
     p0, p1 = (3, 3), (3, 15)

@@ -214,11 +214,15 @@ def two_body_goal_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", pas
 
 
 def independent_multi(ag: "TwoBodyAgency", min_both: int = 3) -> bool:
-    """INDEPENDENT multi-avatar: exactly 2 bodies, EACH separately mapped (we can steer each), but NOT coupled -- they
-    do NOT co-move under a conserved invariant (that is the two-body organ's job). This is the G5 gap: two avatars the
-    author routes SEPARATELY, which the `is_coupled` bar correctly rejects. General: names no game; the maps + the
-    not-coupled verdict are read from the frame/action stream, never encoded."""
-    return ag is not None and ag.n_controllable() == 2 and ag.ready() and not ag.is_coupled(min_both=min_both)
+    """INDEPENDENT multi-avatar: exactly 2 bodies, EACH separately mapped, NOT coupled (no co-move + conserved
+    invariant -- that is the two-body organ's job), AND each with a SOLO control -- an action that moves that avatar
+    while leaving the other put. The solo requirement is the precision gate: it demands EVIDENCE of separate steering,
+    so two components that merely co-move or co-toggle (paint / legend tiles, not steerable avatars) are rejected.
+    General: names no game; the maps + verdicts are read from the frame/action stream, never encoded."""
+    if ag is None or ag.n_controllable() != 2 or not ag.ready() or ag.is_coupled(min_both=min_both):
+        return False
+    m0, m1 = set(ag.body_map(0)), set(ag.body_map(1))
+    return bool(m0 - m1) and bool(m1 - m0)   # each avatar has >=1 action that moves it alone -> genuine separate control
 
 
 def multi_avatar_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", passable,
