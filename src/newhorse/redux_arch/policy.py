@@ -33,6 +33,7 @@ from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
 from .affordance import EffectAffordance
 from .survival import DeathMemory, AvatarHazard
+from .progress import ProgressProbe
 from .novelty_ledger import guarded_promote
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -221,6 +222,9 @@ class ReduxPolicy:
         self._state = "NOT_FINISHED"                    # last observed game state (for death detection)
         self._reset_earned = False                      # §XIX reset-earned gate: did the last death EARN a retry?
         self._reset_rationale = ""                      # the agent's evidence-cited reasoning for (not) resetting
+        self.progress = ProgressProbe()                 # Brick 1: dense monotone progress signal (the authors' gradient)
+        self._prog_credit: Dict[str, float] = {}        # action -> EMA of progress-delta after it (reinforcement)
+        self.n_prog_reinforce = 0                       # times an exploratory pick was biased toward progress
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -281,6 +285,13 @@ class ReduxPolicy:
             two_ago = self.frames[-3] if len(self.frames) >= 3 else None
             prev_action = self.acts[-2] if len(self.acts) >= 2 else None
             self.effect_aff.update(self.frames[-2], self.acts[-1], self.frames[-1], two_ago, prev_action)
+        # Brick 1: track the dense progress gradient and credit the last action with the progress it produced
+        self.progress.observe(self.frames[-1])
+        if len(self.frames) >= 2 and self.progress.confident():
+            a = self.acts[-1]
+            if a not in ("RESET", "?", None):
+                d = self.progress.delta()
+                self._prog_credit[a] = 0.6 * self._prog_credit.get(a, 0.0) + 0.4 * d   # EMA of progress-per-action
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
@@ -651,9 +662,25 @@ class ReduxPolicy:
             self.explorer = CuriosityExplorer()
         pick = self.explorer.choose(avatar, self.vecs, passable_px, self.stride)
         if pick is None:
-            return self._cycle(labels)
+            return self._progress_reinforce(self._cycle(labels), labels)
         lbl, cell = pick
         self.explorer.visit(lbl, cell)
+        return self._progress_reinforce(lbl, labels)          # bias undirected exploration up the progress gradient
+
+    def _progress_reinforce(self, lbl: str, labels: List[str]) -> str:
+        """Brick 1: when a CONFIDENT progress signal exists, nudge an EXPLORATORY pick toward the available action that
+        has historically RAISED progress the most (the authors' 'follow the bar'). Only swaps to a strictly-positive,
+        better-credited action; otherwise the original curiosity pick stands. Applied ONLY at exploratory picks
+        (directional curiosity / effect) -- committed organ plans (two-body BFS, reach-target, click coords) are
+        untouched, so the wins are preserved. General: it ranks by measured progress-per-action, names no game."""
+        if not self.progress.confident() or not self._prog_credit:
+            return lbl
+        cand = [l for l in labels if l != "A6"]               # click coords aren't a per-label credit
+        best = max(cand, key=lambda x: self._prog_credit.get(x, 0.0), default=None)
+        if best is not None and self._prog_credit.get(best, 0.0) > self._prog_credit.get(lbl, 0.0) \
+                and self._prog_credit.get(best, 0.0) > 0.0 and best != lbl:
+            self.n_prog_reinforce += 1
+            return best
         return lbl
 
     def _act_effect(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
@@ -661,6 +688,7 @@ class ReduxPolicy:
         curiosity-ordered within the effective set. Cold start explores to gather effect evidence. Purposeful action
         on paint/toggle/place games that have no drivable cursor."""
         a = self.effect_aff.choose(labels, self._effect_visits)
+        a = self._progress_reinforce(a, labels)               # bias the effective-action pick up the progress gradient
         self._effect_visits[a] = self._effect_visits.get(a, 0) + 1
         return a, None
 
