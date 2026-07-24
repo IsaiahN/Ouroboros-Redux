@@ -34,6 +34,7 @@ from .boundary import BoundaryDiff, diff_identities, Quarantine
 from .affordance import EffectAffordance
 from .survival import DeathMemory, AvatarHazard
 from .progress import ProgressProbe
+from .referent import find_referents, Referent
 from .novelty_ledger import guarded_promote
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
@@ -225,6 +226,9 @@ class ReduxPolicy:
         self.progress = ProgressProbe()                 # Brick 1: dense monotone progress signal (the authors' gradient)
         self._prog_credit: Dict[str, float] = {}        # action -> EMA of progress-delta after it (reinforcement)
         self.n_prog_reinforce = 0                       # times an exploratory pick was biased toward progress
+        self._referents: List[Referent] = []            # Brick 2: frame-native reference regions in the CURRENT frame
+        self.n_referent_frames = 0                       # frames on which >=1 referent was detected (telemetry)
+        self._referent_kinds_seen: set = set()           # union of referent kinds seen across the episode (telemetry)
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -292,6 +296,12 @@ class ReduxPolicy:
             if a not in ("RESET", "?", None):
                 d = self.progress.delta()
                 self._prog_credit[a] = 0.6 * self._prog_credit.get(a, 0.0) + 0.4 * d   # EMA of progress-per-action
+        # Brick 2: read the frame-native reference regions in the current frame (the authors' 'find the legend' step).
+        # Stored for Brick 3 to reason a win relation over; it does not steer any action yet (see referents()).
+        self._referents = find_referents(self.frames[-1])
+        if self._referents:
+            self.n_referent_frames += 1
+            self._referent_kinds_seen.update(r.kind for r in self._referents)
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
@@ -311,6 +321,12 @@ class ReduxPolicy:
         self._pending = lbl
         self.n_emitted += 1
         return lbl, data
+
+    def referents(self) -> List[Referent]:
+        """§Brick 2 accessor: the frame-native reference regions detected in the most recent frame (bordered panels,
+        edge legends, matched endpoint pairs). Brick 3 reads these to hypothesise a win relation and test it against the
+        environment's own signal; empty until a structural referent appears. Names no game; decides no action."""
+        return self._referents
 
     def note_reset(self) -> None:
         """Called by the runner after a post-death RESET restarts the level. The next observed frame is the restart,
