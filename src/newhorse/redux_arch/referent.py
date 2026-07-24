@@ -264,13 +264,42 @@ def _find_node_pairs(g: np.ndarray, bg: int, seen_colours: set, min_frag: int = 
     return out
 
 
+def _panel_sequence(g: np.ndarray, bbox: Tuple[int, int, int, int], bg: int) -> Optional[List[int]]:
+    """If a detected panel's region is an ELONGATED linear strip (a bordered token ROW/COLUMN -- the sequence bars that
+    sit in the INTERIOR of family-B games like tr87/sb26, which the edge-only legend scan misses), read its tokens in
+    reading order along the long axis. >=3 distinct tokens required. None if the region is not elongated (a square
+    symbol display or a big panel stays a panel, not a sequence). General: names no game; aspect-ratio + token-count
+    gated, no pixel threshold."""
+    r0, c0, r1, c1 = bbox
+    h, w = r1 - r0 + 1, c1 - c0 + 1
+    if min(h, w) < 1 or max(h, w) < 3 * min(h, w):            # not clearly elongated -> not a linear sequence
+        return None
+    seq = _ordered_tokens(g[r0:r1 + 1, c0:c1 + 1], horizontal=(w >= h), bg=bg)
+    return seq if len(seq) >= 3 else None
+
+
+def _find_panel_sequences(g: np.ndarray, panels: List[Referent], bg: int) -> List[Referent]:
+    """Re-read each elongated panel as an ordered token SEQUENCE (a legend), so framed INTERIOR token strips -- not just
+    thin EDGE bands -- feed the ORDER relation. Reuses the detected panels + `_ordered_tokens`; precision from
+    `_panel_sequence` (elongated + >=3 tokens)."""
+    out: List[Referent] = []
+    for p in panels:
+        seq = _panel_sequence(g, p.bbox, bg)
+        if seq is not None:
+            out.append(Referent("legend", p.bbox, None,
+                                {"tokens": sorted(set(seq)), "n_tokens": len(set(seq)), "sequence": seq}))
+    return out
+
+
 def find_referents(frame, bg: Optional[int] = None) -> List[Referent]:
-    """Every frame-native referent in a single frame: bordered panels, edge legends, matched endpoint pairs (exact-small
-    and clustered node pairs). Empty on a structureless board (precision-first). Order: panels, legends, endpoints."""
+    """Every frame-native referent in a single frame: bordered panels, legends (thin EDGE bands AND elongated INTERIOR
+    framed token strips, each with an ordered `sequence`), matched endpoint pairs (exact-small and clustered node pairs).
+    Empty on a structureless board (precision-first). Order: panels, legends, endpoints."""
     g = np.asarray(frame)
     if g.ndim != 2 or g.size == 0:
         return []
     b = _bg(g, bg)
+    panels = _find_panels(g, b)
     eps = _find_endpoints(g, b)
     node_pairs = _find_node_pairs(g, b, seen_colours={r.colour for r in eps})
-    return _find_panels(g, b) + _find_legends(g, b) + eps + node_pairs
+    return panels + _find_legends(g, b) + _find_panel_sequences(g, panels, b) + eps + node_pairs
