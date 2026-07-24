@@ -62,9 +62,28 @@ def test_driver_click_game_emits_action6_with_coords():
     assert 0 <= ga.action_data.x < 24 and 0 <= ga.action_data.y < 24
 
 
-def test_is_done_on_terminal_states():
-    drv = PolicyDriver()
+def test_is_done_win_ends_but_game_over_retries_first():
+    drv = PolicyDriver(retry_cap=3)
     g = np.zeros((4, 4), dtype=int)
     assert drv.is_done(_fd(g, [GameAction.ACTION1], state=GameState.WIN)) is True
-    assert drv.is_done(_fd(g, [GameAction.ACTION1], state=GameState.GAME_OVER)) is True
     assert drv.is_done(_fd(g, [GameAction.ACTION1], state=GameState.NOT_FINISHED)) is False
+    # GAME_OVER is NOT done while retries remain (the don't-die organ restarts the level)
+    assert drv.is_done(_fd(g, [GameAction.ACTION1], state=GameState.GAME_OVER)) is False
+    drv.retries = 3                                          # budget spent
+    assert drv.is_done(_fd(g, [GameAction.ACTION1], state=GameState.GAME_OVER)) is True
+
+
+def test_death_emits_reset_and_records_then_gives_up():
+    """The harness-contract death-retry: on GAME_OVER choose() emits RESET (up to retry_cap), recording the death so
+    the retry can avoid the fatal action -- replicating run_policy_live's loop inside the per-step Agent contract."""
+    drv = PolicyDriver(game_id="x-1", blackboard=Blackboard(), retry_cap=2)
+    g = np.zeros((6, 6), dtype=int); g[2, 2] = 3
+    # a couple of live steps so the policy has frames/acts to attribute a death to
+    for _ in range(3):
+        drv.choose(_fd(g, [GameAction.ACTION1, GameAction.ACTION2]))
+    over = _fd(g, [GameAction.ACTION1, GameAction.ACTION2], state=GameState.GAME_OVER)
+    assert drv.choose(over) == GameAction.RESET and drv.retries == 1     # first death -> RESET
+    assert drv.choose(over) == GameAction.RESET and drv.retries == 2     # second death -> RESET
+    assert drv.policy.n_deaths >= 2                                      # deaths were recorded (state threaded through)
+    # budget spent: is_done now True, so the harness loop will exit rather than RESET forever
+    assert drv.is_done(over) is True
