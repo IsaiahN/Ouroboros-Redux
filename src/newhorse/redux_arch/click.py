@@ -17,7 +17,8 @@ We reclaim the MECHANISM (choose-a-click-that-informs), never a per-game answer.
 change before it "says" a target is productive.
 """
 from __future__ import annotations
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Set
+from .survival import board_fingerprint
 import numpy as np
 from scipy import ndimage as _ndi
 
@@ -100,6 +101,8 @@ class ClickProber:
                 self.targets.append(rc)
         self.tries: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}
         self.changed: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}
+        self.novel: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}   # clicks that reached an UNSEEN board
+        self._seen: Set[int] = set()                        # board-state fingerprints ever observed
         self._last: Optional[Tuple[int, int]] = None
 
     def choose(self) -> Optional[Tuple[int, int]]:
@@ -110,9 +113,11 @@ class ClickProber:
         if untried:
             pick = untried[0]                                   # sweep every candidate at least once first
         else:
-            # exploit: most-productive target, tie-broken by least-tried (keep sampling productive regions)
-            pick = max(self.targets, key=lambda t: (self.changed[t], -self.tries[t]))
-            if self.changed[pick] == 0:                         # nothing perceptual ever moved -> least-tried anything
+            # exploit: prefer targets that reach NOVEL board states -- a cell that merely TOGGLES (reverts to an
+            # already-seen state) scores changed>0 forever but adds no new territory, so it must not out-rank a
+            # target still discovering unseen configurations. Novelty first, then raw change, then least-tried.
+            pick = max(self.targets, key=lambda t: (self.novel[t], self.changed[t], -self.tries[t]))
+            if self.novel[pick] == 0 and self.changed[pick] == 0:   # nothing ever moved -> least-tried anything
                 pick = min(self.targets, key=lambda t: self.tries[t])
         self._last = pick
         return pick
@@ -122,9 +127,15 @@ class ClickProber:
         if self._last is None:
             return False
         self.tries[self._last] += 1
-        did = not np.array_equal(np.asarray(prev_frame), np.asarray(new_frame))
+        p, n = np.asarray(prev_frame), np.asarray(new_frame)
+        did = not np.array_equal(p, n)
+        fp_new = board_fingerprint(n)
+        novel = did and (fp_new not in self._seen)          # changed AND reached a state never seen before
+        self._seen.add(board_fingerprint(p)); self._seen.add(fp_new)
         if did:
             self.changed[self._last] += 1
+        if novel:
+            self.novel[self._last] += 1
         return did
 
     def refresh(self, new_candidates: List[Tuple[int, int]]) -> int:
@@ -136,6 +147,7 @@ class ClickProber:
                 self.targets.append(rc)
                 self.tries[rc] = 0
                 self.changed[rc] = 0
+                self.novel[rc] = 0
                 added += 1
         return added
 
