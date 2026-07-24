@@ -95,6 +95,32 @@ def test_tester_prefers_the_shrinking_relation():
     assert bank._decreasing(bank.hist["CONNECT"])[2] == 0.0   # CONNECT net decrease is 0 -> not rewarded, not selected
 
 
+# ---- Brick 4c precision: a shrinking discrepancy with a TELEPORTING target is not trusted ---------------------
+def test_jumping_target_rejected_even_as_gap_shrinks():
+    """A discrepancy that shrinks while the relation's DRIVE-TARGET teleports each step (a spurious selection from
+    unrelated dynamics -- e.g. two 'nodes' swapping position, as a colour-swap puzzle does) is NOT selected."""
+    bank = RelationBank(min_obs=5, min_range=1.0)
+    ctx = RelationCtx(cursor=None, passable=frozenset(), bg=0)
+    for k in range(8):
+        g = np.zeros((40, 40), dtype=int)
+        row = 2.0 if k % 2 == 0 else 34.0                    # the pair (and its midpoint target) jumps top<->bottom
+        ep = Referent("endpoints", (0, 0, 39, 39), 4, {"centroids": [(row, 2.0), (row, float(30 - k))], "sizes": [1, 1]})
+        bank.observe(g, [ep], ctx)
+    assert bank._decreasing(bank.hist["CONNECT"])[2] > 0      # the gap genuinely shrank...
+    assert bank.selected() != "CONNECT"                      # ...but the teleporting target defeats trust (rejected)
+
+
+def test_stable_target_still_selected():
+    """The control: the same shrinking CONNECT gap with a STABLE target IS selected (the gate rejects only jumpers)."""
+    bank = RelationBank(min_obs=5, min_range=1.0)
+    ctx = RelationCtx(cursor=None, passable=frozenset(), bg=0)
+    for k in range(8):
+        g = np.zeros((40, 40), dtype=int)
+        ep = Referent("endpoints", (0, 0, 39, 39), 4, {"centroids": [(20.0, 2.0), (20.0, float(30 - k))], "sizes": [1, 1]})
+        bank.observe(g, [ep], ctx)
+    assert bank.selected() == "CONNECT"
+
+
 # ---- precision: no referent forces no relation ----------------------------------------------------------------
 def test_no_referent_no_relation_selected():
     bank = RelationBank()

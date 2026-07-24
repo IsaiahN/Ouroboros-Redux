@@ -243,11 +243,13 @@ class RelationBank:
         self.relations: List[_Relation] = [Reach(), Connect(), Match(), Order(), Arrange()]
         self.hist: Dict[str, List[Optional[float]]] = {r.name: [] for r in self.relations}
         self.last_target: Dict[str, Optional[Tuple[int, int]]] = {r.name: None for r in self.relations}
+        self.target_hist: Dict[str, List[Optional[Tuple[int, int]]]] = {r.name: [] for r in self.relations}
         self.n = 0
         self.min_obs = int(min_obs)
         self.min_range = float(min_range)
         self.mono_thresh = float(mono_thresh)
         self._reach_goal: Optional[Tuple[int, int, int, int]] = None   # the pinned REACH goal (identity lock)
+        self._shape: Tuple[int, int] = (0, 0)
 
     def _resolve_reach_goal(self, g: np.ndarray, refs: List[Referent], ctx: RelationCtx):
         """Pin the REACH goal ACROSS frames: keep tracking the same goal region (the referent that still overlaps the
@@ -271,6 +273,7 @@ class RelationBank:
 
     def observe(self, frame, refs: List[Referent], ctx: RelationCtx) -> None:
         g = np.asarray(frame)
+        self._shape = (int(g.shape[0]), int(g.shape[1]))
         ctx.reach_goal = self._resolve_reach_goal(g, refs, ctx)   # pin the goal so REACH's discrepancy is comparable
         for r in self.relations:
             try:
@@ -280,7 +283,21 @@ class RelationBank:
                 d, t = None, None                             # a relation must never crash the policy
             self.hist[r.name].append(None if d is None else float(d))
             self.last_target[r.name] = t
+            self.target_hist[r.name].append(t)
         self.n += 1
+
+    def _target_stable(self, name: str) -> bool:
+        """Precision gate: a relation is trusted only if its DRIVE-TARGET is COHERENT across the recent window -- a real
+        relation has a persistent goal, while a spurious selection (a discrepancy that shrank because unrelated cells
+        teleported, e.g. two 'nodes' swapping colour/position) has a target that jumps around. Relations that expose no
+        target (measured-only, e.g. MATCH) are not penalised. REACH's goal-lock keeps its target pinned -> stable."""
+        import math
+        recent = [t for t in self.target_hist[name][-self.min_obs:] if t is not None]
+        if len(recent) < 2:
+            return True                                        # no target to destabilise (measured-only relation)
+        spread = max(math.hypot(a[0] - b[0], a[1] - b[1]) for a in recent for b in recent)
+        thresh = max(4.0, 0.08 * min(self._shape) if min(self._shape) else 4.0)
+        return spread <= thresh
 
     @staticmethod
     def _decreasing(seq: List[Optional[float]]):
@@ -308,7 +325,7 @@ class RelationBank:
             if m is None:
                 continue
             noninc, rng, netdec = m
-            if noninc >= self.mono_thresh and rng >= self.min_range and netdec > 0:
+            if noninc >= self.mono_thresh and rng >= self.min_range and netdec > 0 and self._target_stable(name):
                 key = (netdec, noninc)
                 if best_key is None or key > best_key:
                     best_key, best = key, name
