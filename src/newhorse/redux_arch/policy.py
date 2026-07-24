@@ -27,7 +27,7 @@ from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer, DirectedExplorer
 from .coupled import coupled_goal_mint
 from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action,
-                      two_body_deliver_action)
+                      two_body_deliver_action, independent_multi, multi_avatar_action)
 from .click import click_targets, grid_sweep, ClickProber
 from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
@@ -44,8 +44,8 @@ from .live_goal_run import _learn_passable, _two_bodies
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 
 # game families the router dispatches to
-PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE = \
-    "pending", "click", "two_body", "directional", "effect", "undrivable"
+PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE, MULTI_AVATAR = \
+    "pending", "click", "two_body", "directional", "effect", "undrivable", "multi_avatar"
 
 
 class Blackboard:
@@ -236,6 +236,7 @@ class ReduxPolicy:
         self.n_relation_drive = 0                        # times a directional move was steered toward a relation target
         self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
         self.n_rel_reinforce = 0                          # times an effect pick was biased toward closing the relation
+        self.n_multi_avatar_drive = 0                     # G5: times two independent avatars were routed to their goals
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -451,6 +452,8 @@ class ReduxPolicy:
             self._route(avail, dirs)
         if self.family == TWO_BODY:
             return self._act_two_body(labels)
+        if self.family == MULTI_AVATAR:
+            return self._act_multi_avatar(labels)
         if self.family == DIRECTIONAL:
             return self._act_directional(labels)
         if self.family == EFFECT:
@@ -473,6 +476,15 @@ class ReduxPolicy:
             self.stride = max((max(abs(v[0]), abs(v[1])) for m in (ag.body_map(0), ag.body_map(1)) for v in m.values()),
                               default=1) or 1
             self.bb.post(_prefix(self.game_id), family=TWO_BODY, colour=colour)
+            return
+        if independent_multi(ag):                          # G5: 2 bodies each steerable but NOT coupled -> route each
+            self.family = MULTI_AVATAR
+            self.tb_colour = colour
+            self.ag = ag
+            self._learn_tb_passable(colour)
+            self.stride = max((max(abs(v[0]), abs(v[1])) for m in (ag.body_map(0), ag.body_map(1)) for v in m.values()),
+                              default=1) or 1
+            self.bb.post(_prefix(self.game_id), family=MULTI_AVATAR, colour=colour)
             return
         cursor, vecs = learn_basis(fw, aw)
         if not (cursor is not None and vecs):             # trail-drawing / multi-mover games defeat the footprint
@@ -684,6 +696,53 @@ class ReduxPolicy:
                or two_body_drive_action(bodies, self.ag, passpx)
                or self._cycle(labels))
         return lbl, None
+
+    def _ma_targets(self, bodies, grid) -> Optional[List[Tuple[int, int]]]:
+        """Assign each independently-steerable avatar to its OWN goal, FRAME-NATIVELY: candidate goals are the referent
+        regions the avatars are NOT standing on (the reference cells they must reach); each avatar takes its nearest
+        distinct goal (greedy). None if there are fewer goal referents than avatars (nothing to route to). Names no
+        game -- the goals come from the referent detector, the assignment from geometry."""
+        goals: List[Tuple[int, int]] = []
+        for r in self._referents:
+            r0, c0, r1, c1 = r.bbox
+            if any(r0 <= b[0] <= r1 and c0 <= b[1] <= c1 for b in bodies):    # skip the region an avatar occupies
+                continue
+            goals.append((int(round((r0 + r1) / 2.0)), int(round((c0 + c1) / 2.0))))
+        if len(goals) < len(bodies):
+            return None
+        assigned: List[Optional[Tuple[int, int]]] = [None] * len(bodies)
+        used: set = set()
+        for i in range(len(bodies)):
+            best, bd = None, None
+            for j, g in enumerate(goals):
+                if j in used:
+                    continue
+                d = abs(bodies[i][0] - g[0]) + abs(bodies[i][1] - g[1])
+                if bd is None or d < bd:
+                    bd, best = d, j
+            if best is None:
+                return None
+            used.add(best); assigned[i] = goals[best]
+        return [t for t in assigned if t is not None]
+
+    def _act_multi_avatar(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
+        """G5: route TWO independently-steerable avatars, each toward its own goal referent, using the learned per-body
+        maps (the coupled organ's is_coupled bar rejected these, so the two-body driver never fired). Falls back to a
+        cycle when goals or a helpful action are missing -- so it never freezes and keeps gathering evidence."""
+        grid = self.frames[-1]; h, w = grid.shape
+        bodies = _two_bodies(grid, self.tb_colour)
+        if len(bodies) < 2:
+            return self._cycle(labels), None
+        targets = self._ma_targets(bodies, grid)
+        if targets is None:
+            return self._cycle(labels), None
+        def passpx(i, dest, _g=grid, _h=h, _w=w, _p=self.tb_pass):
+            r, c = dest
+            return 0 <= r < _h and 0 <= c < _w and (not _p[i] or int(_g[r, c]) in _p[i])
+        lbl = multi_avatar_action(bodies, self.ag, passpx, targets)
+        if lbl is not None:
+            self.n_multi_avatar_drive += 1
+        return (lbl or self._cycle(labels)), None
 
     def _act_directional(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
         grid = self.frames[-1]; h, w = grid.shape

@@ -203,7 +203,8 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                     relation_selected=pol._relation_selected,
                     relations_seen=sorted(pol._relation_kinds_seen),
                     relation_drive=pol.n_relation_drive,
-                    rel_reinforce=pol.n_rel_reinforce)
+                    rel_reinforce=pol.n_rel_reinforce,
+                    multi_avatar_drive=pol.n_multi_avatar_drive)
     finally:
         session.close()
 

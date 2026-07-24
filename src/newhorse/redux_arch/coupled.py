@@ -213,6 +213,33 @@ def two_body_goal_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", pas
     return best
 
 
+def independent_multi(ag: "TwoBodyAgency", min_both: int = 3) -> bool:
+    """INDEPENDENT multi-avatar: exactly 2 bodies, EACH separately mapped (we can steer each), but NOT coupled -- they
+    do NOT co-move under a conserved invariant (that is the two-body organ's job). This is the G5 gap: two avatars the
+    author routes SEPARATELY, which the `is_coupled` bar correctly rejects. General: names no game; the maps + the
+    not-coupled verdict are read from the frame/action stream, never encoded."""
+    return ag is not None and ag.n_controllable() == 2 and ag.ready() and not ag.is_coupled(min_both=min_both)
+
+
+def multi_avatar_action(bodies: List[Tuple[int, int]], ag: "TwoBodyAgency", passable,
+                        targets: List[Tuple[int, int]]) -> Optional[str]:
+    """Route TWO independently-steerable avatars each to its OWN target. Advance the avatar currently FARTHEST (Manhattan)
+    from its target toward it, using that body's learned per-action map; a body whose move is blocked stays put
+    (`passable(body_index, dest_cell)->bool`). When each action moves only one avatar (true independence), driving one
+    does not disturb the other; when an action happens to move both, the farthest-first ordering still reduces the total
+    gap. Returns None if there is nothing left to drive (both at target / no mapped action helps)."""
+    if len(bodies) < 2 or len(targets) < len(bodies) or ag is None:
+        return None
+    dists = [abs(bodies[i][0] - targets[i][0]) + abs(bodies[i][1] - targets[i][1]) for i in range(len(bodies))]
+    for which in sorted(range(len(bodies)), key=lambda i: -dists[i]):   # farthest-from-its-target first
+        if dists[which] == 0:
+            continue
+        a = two_body_goal_action(bodies, ag, passable, targets[which], which=which)
+        if a is not None:
+            return a
+    return None
+
+
 from .dsl import Context as _Context
 from .minting import two_part_mdl as _two_part_mdl
 
