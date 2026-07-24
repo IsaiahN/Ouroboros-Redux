@@ -54,6 +54,78 @@ def test_ignores_reset_and_none():
     assert dm.n_deaths == 0
 
 
+def test_would_be_new_is_pure_and_matches_note():
+    dm = DeathMemory()
+    board = _f({(1, 1): 4})
+    assert dm.would_be_new(board, "A3") is True             # not yet recorded
+    assert dm.n_deaths == 0 and dm.distinct_causes == 0     # ...and it did NOT mutate
+    dm.note_death(board, "A3")
+    assert dm.would_be_new(board, "A3") is False            # now known -> not new
+    assert dm.would_be_new(board, "A4") is True             # different action -> still new
+    assert dm.would_be_new(_f({(1, 2): 4}), "A3") is True   # different board -> still new
+    assert dm.would_be_new(board, "RESET") is False         # RESET is never a cause
+
+
+# ---- §XIX reset-earned gate (Isaiah's ruling: reset needs reasoning backed by evidence from play/game-memory) ----
+class _TwoTrap:
+    """A corridor with TWO distinct fatal boards. ACTION3 moves right; column 4 kills AND column 6 kills, from two
+    different board configs. First death (col4) is a NEW cause -> reset earned. If the agent then walks into the
+    SAME col4 death again (veto disabled for the test), that repeat is NOT a new cause -> reset not earned."""
+    def __init__(self):
+        self.pos = 1; self.dead = False
+    def _g(self, state="NOT_FINISHED"):
+        g = np.zeros((8, 8), dtype=int)
+        if not self.dead:
+            g[3, self.pos] = 2
+        return dict(grid=g, available=[3, 4], levels_completed=0, state=state, done=state in ("GAME_OVER", "WIN"))
+    def open(self): self.pos = 1; self.dead = False; return self._g()
+    def step(self, v):
+        self.pos += 1 if v == 3 else -1
+        if self.pos in (4, 6):
+            self.dead = True; return self._g("GAME_OVER")
+        return self._g()
+    def reset(self): self.pos = 1; self.dead = False; return self._g()
+
+
+def test_first_death_earns_reset_repeat_does_not():
+    pol = ReduxPolicy(game_id="trap-x", blackboard=Blackboard(), warmup_cap=1)
+    w = _TwoTrap()
+    # drive to the FIRST death (a new cause) -> earned
+    snap = w.open()
+    pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap["state"])
+    lbl, _ = pol.choose(); snap = w.step(int(lbl[1:]))
+    while not snap["done"]:
+        pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap["state"])
+        lbl, _ = pol.choose(); snap = w.step(int(lbl[1:]))
+    pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap["state"])
+    earned1, why1 = pol.reset_earned()
+    assert earned1 is True and "reset_earned" in why1 and "NEW avoidable cause" in why1
+    # now FORCE the exact same death again (same board+action) and check it does NOT earn a reset
+    fatal_board = pol.frames[-2]; fatal_act = pol.acts[-1]
+    pol.note_reset()
+    pol.frames.append(np.asarray(fatal_board)); pol.acts.append(fatal_act)  # re-enter the fatal board
+    pol._pending = fatal_act
+    pol.observe(np.zeros((8, 8), dtype=int), [3, 4], 0, state="GAME_OVER")   # same (board,action) death repeats
+    earned2, why2 = pol.reset_earned()
+    assert earned2 is False and "NOT earned" in why2 and "repeats" in why2   # no new learning -> not earned (§XIX)
+
+
+def test_would_earn_reset_predicate_agrees_with_reset_earned():
+    """The harness is_done uses would_earn_reset() BEFORE the death frame is observed; it must predict the same
+    earned/not-earned that observe()->reset_earned() then produces."""
+    pol = ReduxPolicy(game_id="trap-y", blackboard=Blackboard(), warmup_cap=1)
+    w = _TwoTrap(); snap = w.open()
+    pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap["state"])
+    lbl, _ = pol.choose()
+    # before submitting the (fatal) action, the predicate sees a fresh board+action -> would earn
+    assert pol.would_earn_reset() is True
+    snap = w.step(int(lbl[1:]))
+    while not snap["done"]:
+        pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap["state"])
+        assert pol.would_earn_reset() == pol.deaths.would_be_new(pol.frames[-1], pol._pending)
+        lbl, _ = pol.choose(); snap = w.step(int(lbl[1:]))
+
+
 # ---- policy integration on a synthetic CLIFF world --------------------------------------------------------------
 class _Cliff:
     """A 1-D corridor. An avatar (colour 2) sits at column `pos` on row 3. ACTION3 moves it right, ACTION4 left.
@@ -102,7 +174,8 @@ def test_policy_stops_repeating_the_same_fatal_death():
         if snap["done"]:
             if snap["state"] == "WIN":
                 break
-            if retries >= retry_cap:
+            earned, _why = pol.reset_earned()               # §XIX: retry only if the death EARNED it (new cause)
+            if not earned or retries >= retry_cap:
                 break
             retries += 1; steps += 1
             snap = w.reset_after_death(); pol.note_reset(); continue

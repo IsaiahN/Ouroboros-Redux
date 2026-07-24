@@ -68,11 +68,13 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
             if snap["done"]:
                 if snap["state"] == "WIN":
                     outcome = "WIN"; break
-                if not can_retry or retries >= retry_cap:
-                    outcome = "GAME_OVER"; break
+                # §XIX: retry ONLY if the reset is EARNED (death taught a NEW avoidable cause)
+                earned, why = pol.reset_earned()
+                if not can_retry or not earned or retries >= retry_cap:
+                    outcome = "GAME_OVER"; log.append("no RESET (earned=%s): %s" % (earned, why)); break
                 retries += 1; steps += 1
-                log.append("DEATH #%d @%d -> RESET" % (retries, steps))
-                snap = session.reset_after_death()
+                log.append("EARNED RESET #%d @%d: %s" % (retries, steps, why))
+                snap = session.reset_after_death(reasoning={"why": why, "reset_earned": True})
                 pol.note_reset()
                 continue
             lbl, data = pol.choose()

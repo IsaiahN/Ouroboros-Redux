@@ -166,13 +166,14 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
             if snap["done"]:
                 if snap["state"] == "WIN":
                     outcome = "WIN"; break
-                # GAME_OVER: death recorded in observe(); retry via post-death RESET if budget/cap remain
-                if retries >= retry_cap:
-                    outcome = "GAME_OVER"; break
+                # GAME_OVER: death recorded in observe(). §XIX -- a retry is issued ONLY if the reset is EARNED
+                # (the death taught a NEW avoidable cause); an unearned death ends the session.
+                earned, why = pol.reset_earned()
+                if not earned or retries >= retry_cap:
+                    outcome = "GAME_OVER"; log.append("no RESET (earned=%s cap=%d): %s" % (earned, retry_cap, why)); break
                 retries += 1; steps += 1
-                log.append("DEATH #%d at step %d (deaths=%d, distinct=%d) -> RESET"
-                           % (retries, steps, pol.n_deaths, pol.deaths.distinct_causes))
-                snap = session.reset_after_death(reasoning={"why": "don't-die retry after GAME_OVER"})
+                log.append("EARNED RESET #%d at step %d: %s" % (retries, steps, why))
+                snap = session.reset_after_death(reasoning={"why": why, "reset_earned": True})
                 pol.note_reset()
                 continue
             lbl, data = pol.choose()

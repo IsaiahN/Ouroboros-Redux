@@ -55,14 +55,17 @@ class PolicyDriver:
         self.retries = 0
 
     def is_done(self, latest_frame) -> bool:
-        """WIN ends the game. GAME_OVER ends it ONLY once the death-retry budget is spent -- while retries remain the
-        agent is NOT done: choose() will emit RESET to restart the level (the don't-die organ, beat H) so a single
-        death does not terminate the episode in the official-harness loop the way it would if is_done were True here."""
+        """WIN ends the game. GAME_OVER ends it UNLESS the post-death RESET is EARNED under §XIX (Isaiah's ruling):
+        the death about to be recorded must teach a NEW avoidable cause (the agent reasons, from its own play +
+        game-memory, that it needs the return-to-start primitive to apply a learned veto). is_done is consulted
+        BEFORE choose() observes the death frame, so it uses `would_earn_reset()` -- the non-mutating predicate that
+        mirrors the criterion choose() will apply -- keeping the two in agreement. An UNEARNED death ends the session
+        at GAME_OVER, exactly as §XIX requires; a retry is never issued unearned on the submission path."""
         st = getattr(latest_frame, "state", None)
         if st == GameState.WIN:
             return True
         if st == GameState.GAME_OVER:
-            return self.retries >= self.retry_cap
+            return self.retries >= self.retry_cap or not self.policy.would_earn_reset()
         return False
 
     def choose(self, latest_frame) -> GameAction:
@@ -71,10 +74,12 @@ class PolicyDriver:
         level = int(getattr(latest_frame, "levels_completed", 0) or 0)
         state = state_name(latest_frame)
         self.policy.observe(grid, avail, level, state=state)          # state -> death recorded on GAME_OVER
-        if state == "GAME_OVER" and self.retries < self.retry_cap:    # legitimate post-death RESET, then retry
-            self.retries += 1
-            self.policy.note_reset()
-            return GameAction.RESET
+        if state == "GAME_OVER":
+            earned, _why = self.policy.reset_earned()                 # §XIX: RESET only if the death earned it
+            if earned and self.retries < self.retry_cap:
+                self.retries += 1
+                self.policy.note_reset()
+                return GameAction.RESET
         label, data = self.policy.choose()
         return to_game_action(label, data)
 

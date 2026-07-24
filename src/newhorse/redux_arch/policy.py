@@ -210,6 +210,8 @@ class ReduxPolicy:
         self.n_deaths = 0                               # deaths observed this episode (GAME_OVER transitions)
         self.n_vetoes = 0                               # times a known-fatal action was swapped for a safe one
         self._state = "NOT_FINISHED"                    # last observed game state (for death detection)
+        self._reset_earned = False                      # §XIX reset-earned gate: did the last death EARN a retry?
+        self._reset_rationale = ""                      # the agent's evidence-cited reasoning for (not) resetting
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -237,9 +239,27 @@ class ReduxPolicy:
             self._state = str(state)
             if str(state) == "GAME_OVER" and len(self.frames) >= 2:
                 # the action self.acts[-1] (taken from board self.frames[-2]) ended the run -> remember it as fatal
-                if self.deaths.note_death(self.frames[-2], self.acts[-1]):
-                    pass
+                new_cause = self.deaths.note_death(self.frames[-2], self.acts[-1])
                 self.n_deaths += 1
+                # §XIX RESET-EARNED gate (Isaiah's ruling, option B): a post-GAME_OVER restart is EARNED only when the
+                # agent can reason its way to needing it AND back that reasoning with evidence from play / past losses.
+                # Mechanical criterion: this death taught a NEW avoidable cause (a fresh board+action the death-memory
+                # did not already hold) -> the agent has a concrete, evidence-backed veto it can ONLY apply by
+                # retrying, and no in-play action escapes GAME_OVER. A death that REPEATS a known cause taught nothing
+                # new -> a retry would farm the restart with no reasoned basis -> NOT earned, the session ends (§XIX).
+                self._reset_earned = bool(new_cause)
+                if new_cause:
+                    self._reset_rationale = (
+                        "reset_earned: death #%d at level %d — action %s from this board ended the run and is a NEW "
+                        "avoidable cause (%d distinct causes now in game-memory); GAME_OVER leaves no in-play action, "
+                        "so return-to-start is the missing primitive I need to apply the learned veto."
+                        % (self.n_deaths, self.level, self.acts[-1], self.deaths.distinct_causes))
+                else:
+                    self._reset_rationale = (
+                        "reset NOT earned: death #%d repeats a cause already in game-memory (action %s from a board I "
+                        "already recorded as fatal) — this attempt taught nothing new, so a retry has no reasoned "
+                        "basis for a different outcome. Session ends at GAME_OVER (§XIX)."
+                        % (self.n_deaths, self.acts[-1]))
         self._avail = [int(a) for a in available]
         self._levels.append(int(levels_completed))      # reward stream (for goal abduction on reward)
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
@@ -272,6 +292,22 @@ class ReduxPolicy:
         not the product of a chosen action -> label it RESET so no spurious effect/death is attributed to an action."""
         self._pending = "RESET"
         self._state = "NOT_FINISHED"
+        self._reset_earned = False                      # the earned grant is consumed by the reset
+
+    def reset_earned(self) -> Tuple[bool, str]:
+        """§XIX gate: (earned?, rationale). True only when the last death taught a NEW avoidable cause -- the agent
+        has reasoned, from its own play + game-memory, that it needs the return-to-start primitive to apply a learned
+        veto. Callers must NOT issue a post-GAME_OVER RESET unless this is True. The rationale is recorded (nothing
+        silent) so every earned/denied reset carries the agent's evidence-cited reasoning."""
+        return self._reset_earned, self._reset_rationale
+
+    def would_earn_reset(self) -> bool:
+        """Predicate form for the harness is_done (which is consulted BEFORE the death frame is observed): would the
+        death about to be recorded -- fatal action self._pending taken from the last-observed board -- be a NEW cause?
+        Mirrors the reset_earned criterion without mutating, so is_done and choose() agree."""
+        if not self.frames:
+            return False
+        return self.deaths.would_be_new(self.frames[-1], self._pending)
 
     def _survival_veto(self, lbl: str, data: Optional[dict]) -> Tuple[str, Optional[dict]]:
         """DON'T-DIE: if the chosen directional/effect action is known-fatal from the CURRENT board, swap it for a

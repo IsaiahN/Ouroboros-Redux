@@ -53,6 +53,14 @@ class DeathMemory:
             return False
         return action in self._fatal.get(board_fingerprint(context_grid), ())
 
+    def would_be_new(self, context_grid, action: str) -> bool:
+        """Would recording (context_grid, action) as a death be a NEW cause (not seen before)? Pure -- mutates
+        nothing. Used by the reset-earned gate to decide, BEFORE recording, whether this death teaches something new
+        (a fresh avoidable cause = evidence that a retry has a reasoned basis for a different outcome)."""
+        if action in ("RESET", "?", None) or context_grid is None:
+            return False
+        return (board_fingerprint(context_grid), action) not in self._causes
+
     def fatal_here(self, context_grid) -> Set[str]:
         """The set of actions known-fatal from this exact board."""
         if context_grid is None:
