@@ -8,7 +8,8 @@ m0r0 stays same-colour two_body, ka59 directional, tr87 effect), so this is eval
 import sys, os
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from newhorse.redux_arch.coupled import (find_two_colour_bodies, learn_two_body, TwoBodyAgency)
+from newhorse.redux_arch.coupled import (find_two_colour_bodies, learn_two_body, TwoBodyAgency,
+                                         two_body_drive_action)
 from newhorse.redux_arch.live_goal_run import _two_bodies
 
 
@@ -78,6 +79,23 @@ def test_two_independent_movers_not_coupled():
     # even if a pair is surfaced, the invariant gate rejects it -> NOT accepted as two-body
     if ag is not None and getattr(ag, "two_colour", False):
         assert not ag.is_coupled()                            # precision: no conserved coupling
+
+
+def test_two_colour_drives_to_meet():
+    """Not just detection -- the whole loop: a two-colour coupled world must DRIVE toward MEET. The MEET action must
+    reduce the inter-body distance (proves _two_bodies + body_map + drive all work in two-colour mode)."""
+    frames, acts = _mirror_world()
+    colour, ag = learn_two_body(frames, acts)
+    assert colour == (2, 3) and ag.is_coupled()
+    g = np.zeros((10, 16), dtype=int); g[5, 3] = 2; g[5, 12] = 3   # red left, blue right, far apart
+    bodies = _two_bodies(g, colour)
+    d0 = abs(bodies[0][0] - bodies[1][0]) + abs(bodies[0][1] - bodies[1][1])
+    act = two_body_drive_action(bodies, ag, lambda i, dest: True, goal="meet")
+    assert act is not None
+    mp = [ag.body_map(0), ag.body_map(1)]
+    nb = [(bodies[i][0] + mp[i].get(act, (0, 0))[0], bodies[i][1] + mp[i].get(act, (0, 0))[1]) for i in range(2)]
+    d1 = abs(nb[0][0] - nb[1][0]) + abs(nb[0][1] - nb[1][1])
+    assert d1 < d0                                            # the chosen action closes the gap
 
 
 def test_same_colour_still_preferred_when_present():
