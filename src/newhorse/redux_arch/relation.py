@@ -461,14 +461,29 @@ class RelationBank:
         """The latest discrepancy per relation (telemetry / for Brick 4 to reason over)."""
         return {n: (seq[-1] if seq else None) for n, seq in self.hist.items()}
 
+    def delta(self, name: str) -> float:
+        """The DROP in relation `name`'s discrepancy from its previous measured value to its current one (positive = the
+        gap closed = good). 0.0 if it has fewer than two measured points. General over any relation, selected or not."""
+        seq = [v for v in self.hist.get(name, []) if v is not None]
+        if len(seq) < 2:
+            return 0.0
+        return float(seq[-2] - seq[-1])
+
     def selected_delta(self) -> float:
         """The DROP in the selected relation's discrepancy from the previous step to the current (positive = the gap
         closed = good). 0.0 if no relation is selected or too few points. This is the dense reward the effect tier
         reinforces on when a relation is confidently selected (Brick 4b)."""
         sel = self.selected()
-        if sel is None:
-            return 0.0
-        seq = [v for v in self.hist[sel] if v is not None]
-        if len(seq) < 2:
-            return 0.0
-        return float(seq[-2] - seq[-1])
+        return 0.0 if sel is None else self.delta(sel)
+
+    def max_measured(self) -> Optional[str]:
+        """The relation with the LARGEST current discrepancy that is actually MEASURING (non-None), or None. This is the
+        relation the agent should EPISTEMICALLY probe when nothing is confidently selected yet: a measured-but-unselected
+        gap is a candidate goal whose DRIVABILITY is untested, and selection can only fire once some action is seen to
+        shrink it. General: it names no game and privileges no relation; the frames' own discrepancies decide."""
+        best, best_d = None, 0.0
+        for name, seq in self.hist.items():
+            cur = seq[-1] if seq else None
+            if cur is not None and cur > best_d:
+                best, best_d = name, float(cur)
+        return best

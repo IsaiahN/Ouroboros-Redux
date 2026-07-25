@@ -150,13 +150,13 @@ def test_relation_reinforce_prefers_the_gap_closing_effect_action():
     """When a relation is selected, the effect tier swaps an exploratory pick for the action that best closed the
     relation's discrepancy -- and does nothing when no relation is selected, and never selects a click (A6) coord."""
     pol = ReduxPolicy(game_id="rr-x", blackboard=Blackboard(), warmup_cap=0)
-    pol._relation_selected = "CONNECT"
+    pol._relation_selected = "CONNECT"; pol._probe_rel = "CONNECT"    # the driven relation (selected subsumes probe)
     pol._rel_credit = {"A5": 0.5, "A7": -0.1}
     assert pol._relation_reinforce("A7", ["A5", "A7"]) == "A5"       # biased toward the gap-closing action
     assert pol.n_rel_reinforce == 1
-    pol._relation_selected = None                                     # not selected -> untouched (earned-gated)
+    pol._relation_selected = None; pol._probe_rel = None              # nothing driven -> untouched
     assert pol._relation_reinforce("A7", ["A5", "A7"]) == "A7"
-    pol._relation_selected = "CONNECT"
+    pol._relation_selected = "CONNECT"; pol._probe_rel = "CONNECT"
     pol._rel_credit = {"A6": 9.0, "A5": 0.1}                          # a click coord is never a per-label candidate
     assert pol._relation_reinforce("A5", ["A5", "A6"]) == "A5"
 

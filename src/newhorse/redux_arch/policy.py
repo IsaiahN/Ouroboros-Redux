@@ -232,6 +232,7 @@ class ReduxPolicy:
         self._referent_kinds_seen: set = set()           # union of referent kinds seen across the episode (telemetry)
         self.relations = RelationBank()                  # Brick 3: relation-hypothesis tester (MATCH/CONNECT/…/REACH)
         self._relation_selected: Optional[str] = None    # the relation the env is confidently rewarding (or None)
+        self._probe_rel: Optional[str] = None            # the relation the effect tier drives: selected, else largest measured gap
         self._relation_kinds_seen: set = set()           # union of relations ever selected this episode (telemetry)
         self.n_relation_drive = 0                        # times a directional move was steered toward a relation target
         self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
@@ -320,13 +321,21 @@ class ReduxPolicy:
         self._relation_selected = self.relations.selected()
         if self._relation_selected is not None:
             self._relation_kinds_seen.add(self._relation_selected)
-            # Brick 4b: when a relation is confidently SELECTED, credit the last action with the DROP it produced in
-            # that relation's discrepancy (EMA) -- the dense reward the effect tier reinforces on so no-cursor games
-            # (where the directional drive can't apply) still follow the relation the env rewards. Mirrors Brick 1.
+        # The relation the effect tier drives toward: the confidently-SELECTED one if there is one, else the LARGEST
+        # MEASURED gap as an EPISTEMIC PROBE. This closes the bootstrap chicken-and-egg -- selection can only fire once
+        # some action is seen to shrink a relation, but before selection the pre-4b code credited nothing, so a measured
+        # gap (e.g. ORDER on an effect game) sat flat and never got a chance to be driven. Probing the largest measured
+        # gap is the spec's "act to test drivability" (§3.5 probe-to-isolate): general, names no game, credits only real
+        # drops. Committed win plans (two-body, click) never consult this, so the wins are untouched.
+        self._probe_rel = self._relation_selected or self.relations.max_measured()
+        if self._probe_rel is not None:
+            # Brick 4b + probe: credit the last action with the DROP it produced in the driven relation's discrepancy
+            # (EMA) -- the dense reward the effect tier reinforces on so no-cursor games still follow the gap the env
+            # rewards, and so a measured-but-unselected gap can be intervened on until the tester can select it.
             if len(self.frames) >= 2:
                 a = self.acts[-1]
                 if a not in ("RESET", "?", None):
-                    d = self.relations.selected_delta()
+                    d = self.relations.delta(self._probe_rel)
                     self._rel_credit[a] = 0.6 * self._rel_credit.get(a, 0.0) + 0.4 * d
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
@@ -803,12 +812,14 @@ class ReduxPolicy:
         return lbl
 
     def _relation_reinforce(self, lbl: str, labels: List[str]) -> str:
-        """Brick 4b: when a relation is confidently SELECTED, nudge an EXPLORATORY effect pick toward the action that has
-        historically CLOSED that relation's discrepancy the most -- the no-cursor analogue of the directional relation
-        drive (a game like a trail-draw connect has no cursor to route, but the effect action that shrinks the CONNECT
-        gap is still learnable and repeatable). EARNED-gated (only once a relation is selected). Leaves click (A6) coords
-        untouched so the click win is safe. Only swaps to a strictly-positive, better-credited action; else lbl stands."""
-        if self._relation_selected is None or not self._rel_credit:
+        """Brick 4b + probe: nudge an EXPLORATORY effect pick toward the action that has historically CLOSED the DRIVEN
+        relation's discrepancy the most -- the no-cursor analogue of the directional relation drive (a legend/effect game
+        has no cursor to route, but the effect action that shrinks the gap is still learnable and repeatable). The driven
+        relation is the confidently-SELECTED one, or -- before selection -- the largest MEASURED gap being epistemically
+        probed (`_probe_rel`), so a measured-but-unselected relation gets intervened on until the tester can select it.
+        Leaves click (A6) coords untouched so the click win is safe. Only swaps to a strictly-positive, better-credited
+        action; else lbl stands -- so a probe with no gap-closing evidence yet changes nothing."""
+        if self._probe_rel is None or not self._rel_credit:
             return lbl
         cand = [l for l in labels if l != "A6"]
         best = max(cand, key=lambda x: self._rel_credit.get(x, 0.0), default=None)
