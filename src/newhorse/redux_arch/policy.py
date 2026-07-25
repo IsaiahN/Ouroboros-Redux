@@ -29,6 +29,7 @@ from .coupled import coupled_goal_mint
 from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action,
                       two_body_deliver_action, independent_multi, multi_avatar_action)
 from .click import click_targets, grid_sweep, ClickProber
+from .engagement import EngagementMeter
 from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
 from .affordance import EffectAffordance
@@ -251,6 +252,13 @@ class ReduxPolicy:
         self.tb_pass: List[set] = [set(), set()]
         self.prober: Optional[ClickProber] = None
         self.explorer: Optional[CuriosityExplorer] = None
+        # board-response organ: does the board ANSWER what we do (budget/timer bands masked out)? Drives the modality
+        # escalation that refuses a null intervention -- see engagement.py and _modality_escalate.
+        self.engage = EngagementMeter()
+        self._escalated: Optional[str] = None            # the action a modality escalation switched us to (if any)
+        self._pre_esc_family: Optional[str] = None       # family to restore if an escalation to CLICK proves null too
+        self.n_modality_escalations = 0                  # telemetry: times a frozen board forced a modality switch
+        self.n_modality_reverts = 0                      # telemetry: escalations undone because the new modality was null too
 
     # ---- observation -------------------------------------------------------------------------------------------
     def observe(self, grid, available: List[int], levels_completed: int = 0, state: Optional[str] = None) -> None:
@@ -294,6 +302,8 @@ class ReduxPolicy:
         self._avail = [int(a) for a in available]
         self._levels.append(int(levels_completed))      # reward stream (for goal abduction on reward)
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
+        # board-response: how much did the board ANSWER the action that produced this frame (budget bands masked)?
+        self.engage.observe(self.frames[-1], self.acts[-1] if self.acts else None)
         if len(self.frames) >= 2:                       # Tier-1 affordance: accumulate per-action effect from R_τ
             two_ago = self.frames[-3] if len(self.frames) >= 3 else None
             prev_action = self.acts[-2] if len(self.acts) >= 2 else None
@@ -450,8 +460,8 @@ class ReduxPolicy:
         if self.family == PENDING and not dirs and 6 in avail:
             self.family = CLICK
             self.bb.post(_prefix(self.game_id), family=CLICK)
-        if self.family == CLICK:
-            return self._act_click()
+        if self.family == CLICK and self._pre_esc_family is None:
+            return self._act_click()                     # a natively-routed click game (the committed click win)
         # minimal warmup: observe each directional action ~once (THINKING is free; ACTIONS are squared-costly).
         # Counted PER LEVEL (self._warm_start), so a re-derivation on a graduated level re-warms cleanly.
         warmup_needed = 0 if not dirs else min(self.warmup_cap, max(len(dirs), 2))
@@ -459,6 +469,11 @@ class ReduxPolicy:
             return self._cycle(labels), None
         if self.family == PENDING:
             self._route(avail, dirs)
+        esc = self._modality_escalate(labels)            # refuse the null intervention: switch modality on a frozen board
+        if esc is not None:
+            if esc == "A6":
+                return self._act_click()
+            return esc, None
         if self.family == TWO_BODY:
             return self._act_two_body(labels)
         if self.family == MULTI_AVATAR:
@@ -468,6 +483,48 @@ class ReduxPolicy:
         if self.family == EFFECT:
             return self._act_effect(labels)
         return self._act_fallback(labels)
+
+    def _modality_escalate(self, labels: List[str]) -> Optional[str]:
+        """REFUSE THE NULL INTERVENTION. An action that leaves the board unchanged is predicted perfectly by 'nothing
+        happens' -> R_τ = 0 -> no gradient, nothing to mint, nothing to transfer. When the board has been FROZEN under
+        everything tried for a full window and an AVAILABLE action has never been tried, switch modality and try it;
+        sight showed the agent burning whole budgets on one inert action while a click modality sat unused. Escalating
+        to click makes the switch permanent (the click organ then runs its own prober), because a game whose board only
+        answers clicks is a click game however many directional labels it advertises.
+
+        The switch is REVERSIBLE, which is what keeps it safe: a directional game whose agent has merely jammed against
+        a wall will escalate, find clicks null too, and be handed back to its own organ (n_modality_reverts). The verdict
+        on the NEW modality uses `failed_trial`, not `is_null` -- EQUAL EVIDENCE before a verdict: the modality we
+        escalated TO gets at least as many probes as the window that condemned the one it replaced. A modality that
+        carries a coordinate misses for reasons of AIM, and a couple of misses must not be read as the modality being
+        dead. Conversely one real board response commits us to it. Committed
+        verified win organs (two-body, multi-avatar, and a natively-routed click game) are exempt outright, and
+        escalation cannot fire while the board is answering. General: names no game, reads no pixels."""
+        if self.family in (TWO_BODY, MULTI_AVATAR):
+            return None
+        if self.family == CLICK and self._pre_esc_family is None:
+            return None                                  # the committed click organ owns this game
+        if self._escalated is not None and self._escalated in labels:
+            if not self.engage.failed_trial(self._escalated):
+                if self._escalated == "A6" and self._pre_esc_family is not None \
+                        and self.engage.answered("A6"):
+                    self._pre_esc_family = None          # the click modality has moved the board -> commit to it
+                return self._escalated                   # the new modality still has its fair trial -> stay in it
+            if self._escalated == "A6" and self._pre_esc_family is not None:
+                self.family = self._pre_esc_family       # the new modality is null too -> undo, hand the game back
+                self._pre_esc_family = None
+                self.n_modality_reverts += 1
+            self._escalated = None                       # fall through and look for another untried modality
+        esc = self.engage.escalate(labels)
+        if esc is None:
+            return None
+        self._escalated = esc
+        self.n_modality_escalations += 1
+        if esc == "A6":
+            self._pre_esc_family = self.family
+            self.family = CLICK
+            self.bb.post(_prefix(self.game_id), family=CLICK, via="modality_escalation")
+        return esc
 
     # ---- routing -----------------------------------------------------------------------------------------------
     def _route(self, avail: List[int], dirs: List[int]) -> None:
