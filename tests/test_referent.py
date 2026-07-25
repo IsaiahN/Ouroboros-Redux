@@ -123,6 +123,62 @@ def test_three_components_is_not_endpoints():
     assert not [r for r in find_referents(g) if r.kind == "endpoints"]
 
 
+# ---- a pair must live in ONE space of action: suppress the STRADDLING (board-spanning) false pair ---------------
+def test_a_pair_straddling_a_legend_and_the_workspace_is_not_endpoints():
+    """The false object §7 warns about. One marker sits IN the legend (it is a token of the key) and its twin sits out
+    in the workspace. Read as 'endpoints', the pair's bounding box spans from the reference to the play area and
+    matches nothing on the board -- and every separation/direction/reach measured on it is consistent but lying. It is
+    a correspondence between a description and a thing described, not two things to be joined."""
+    g = np.zeros((16, 16), dtype=int)
+    g[0, 1] = 3; g[0, 3] = 4; g[0, 5] = 5                     # legend row: tokens {3,4,5}; row 1 is the bg separator
+    g[12, 12] = 5                                             # the workspace twin of the legend's colour-5 token
+    refs = find_referents(g)
+    assert [r for r in refs if r.kind == "legend"]            # the legend itself is still found...
+    assert not [r for r in refs if r.kind == "endpoints"]     # ...but the straddling pair is not minted
+
+
+def test_a_pair_wholly_in_the_workspace_survives_a_legend_being_present():
+    """No over-reach: the ordinary connect case (both markers in the open play area) is untouched by the filter, even
+    when a legend exists elsewhere on the board."""
+    g = np.zeros((16, 16), dtype=int)
+    g[0, 1] = 3; g[0, 3] = 4; g[0, 5] = 6                     # a legend that does NOT key colour 5
+    g[10, 2] = 5; g[12, 12] = 5                               # both markers out in the play area
+    eps = [r for r in find_referents(g) if r.kind == "endpoints"]
+    assert len(eps) == 1 and eps[0].colour == 5
+    assert eps[0].detail["context"] == "open"                 # legibility: the surviving pair records where it lives
+
+
+def test_a_pair_wholly_inside_one_panel_survives():
+    """No over-reach, second case: both markers inside the SAME named region are a within-panel pair, in one space, and
+    are kept. The filter suppresses the STRADDLE, not membership."""
+    g = np.zeros((20, 20), dtype=int)
+    blk = np.full((10, 10), 4, dtype=int)
+    blk[0, :] = blk[-1, :] = 2; blk[:, 0] = blk[:, -1] = 8    # a thick MIXED frame -> a block panel, not a ring
+    blk[3:5, 3:5] = 9
+    blk[6, 6] = 5; blk[8, 3] = 5                              # two colour-5 markers, both inside the block
+    g[5:15, 5:15] = blk
+    refs = find_referents(g)
+    panels = [r for r in refs if r.kind == "panel"]
+    assert len(panels) == 1 and panels[0].bbox == (5, 5, 14, 14)
+    # (the frame's own opposing bars also read as small matched pairs here; they too are wholly inside the panel, so
+    # the same rule keeps them -- membership is not what this filter suppresses. The colour-5 pair is the one at issue.)
+    eps = [r for r in refs if r.kind == "endpoints" and r.colour == 5]
+    assert len(eps) == 1
+    assert eps[0].detail["context"].startswith("region:")
+
+
+def test_a_clustered_node_pair_straddling_a_legend_is_suppressed():
+    """The same rule reaches the CLUSTERED node-pair detector: fragments bunched in the legend plus fragments out in
+    the workspace form two well-separated groups, and would otherwise mint a board-spanning connect target."""
+    g = np.zeros((24, 24), dtype=int)
+    g[0, 1] = 3; g[0, 3] = 4                                  # legend tokens...
+    g[0, 6] = g[0, 7] = 5; g[0, 10] = g[0, 11] = 5           # ...including two colour-5 fragments IN the legend
+    g[20, 3] = g[20, 4] = 5; g[22, 8] = g[22, 9] = 5         # and two fragments out in the workspace
+    refs = find_referents(g)
+    assert [r for r in refs if r.kind == "legend"]
+    assert not [r for r in refs if r.kind == "endpoints"]
+
+
 # ---- policy integration: referents are stored + exposed, and steer nothing -------------------------------------
 def test_policy_stores_and_exposes_referents():
     """The policy computes referents each observe and exposes them via referents(); on a panel board it finds one, on

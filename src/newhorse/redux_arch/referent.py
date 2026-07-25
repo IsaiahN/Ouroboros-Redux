@@ -334,10 +334,46 @@ def _find_panel_sequences(g: np.ndarray, panels: List[Referent], bg: int) -> Lis
     return out
 
 
+def _cent_in(pt, pb) -> bool:
+    return pb[0] <= pt[0] <= pb[2] and pb[1] <= pt[1] <= pb[3]
+
+
+def _context_of(pt, boxes: List[Tuple[int, int, int, int]]) -> int:
+    """Which NAMED REGION a locus sits in -- the index of the smallest region containing it, or -1 for the open play
+    area. `boxes` must be pre-sorted smallest-first so the most specific region wins (a marker inside a token strip
+    inside a panel belongs to the strip)."""
+    for i, bb in enumerate(boxes):
+        if _cent_in(pt, bb):
+            return i
+    return -1
+
+
+def _same_context(ref: Referent, boxes: List[Tuple[int, int, int, int]]) -> bool:
+    """Do BOTH loci of a marker pair live in the SAME context -- both inside one named region, or both in the open play
+    area? A CONNECT/REACH/joinable relation is only well-posed between two loci in ONE SPACE OF ACTION. When a pair
+    STRADDLES a region boundary -- one marker inside a legend or panel, its twin out in the workspace -- it is not two
+    things to be joined; it is a correspondence between a DESCRIPTION and a thing described. Reporting it as endpoints
+    mints an object whose bounding box spans from the reference to the workspace and matches nothing on the board, and
+    every downstream measurement taken on it (separation, direction, reachability) is then consistent but LYING (§7:
+    a wrong object basis is inherited by everything below it).
+
+    Note what this does NOT do: a pair with both markers in the open play area survives (the ordinary connect case),
+    and so does a pair with both markers inside the SAME region (a within-panel pair). It suppresses only the straddle.
+    No thresholds, no magnitudes -- it reuses the regions this module has already named, so it cannot drift."""
+    cents = ref.detail.get("centroids", [])
+    if len(cents) < 2:
+        return True
+    return len({_context_of(ct, boxes) for ct in cents}) == 1
+
+
 def find_referents(frame, bg: Optional[int] = None) -> List[Referent]:
     """Every frame-native referent in a single frame: bordered panels, legends (thin EDGE bands AND elongated INTERIOR
     framed token strips, each with an ordered `sequence`), matched endpoint pairs (exact-small and clustered node pairs).
-    Empty on a structureless board (precision-first). Order: panels, legends, endpoints."""
+    Empty on a structureless board (precision-first). Order: panels, legends, endpoints.
+
+    Two precision filters run on the marker pairs before they are returned, both of them re-using regions this function
+    has ALREADY named (no new detector, no new threshold): a pair enclosed by a framed display is that display's own
+    content, and a pair that STRADDLES a named region is not a pair at all (see `_same_context`)."""
     g = np.asarray(frame)
     if g.ndim != 2 or g.size == 0:
         return []
@@ -353,11 +389,10 @@ def find_referents(frame, bg: Optional[int] = None) -> List[Referent]:
             panels.append(rp)
         ring_boxes.append(rp.bbox)
 
+    legends = _find_legends(g, b)
+    panel_seqs = _find_panel_sequences(g, panels, b)
     eps = _find_endpoints(g, b)
     node_pairs = _find_node_pairs(g, b, seen_colours={r.colour for r in eps})
-
-    def _cent_in(pt, pb):
-        return pb[0] <= pt[0] <= pb[2] and pb[1] <= pt[1] <= pb[3]
 
     def _enclosed(ref):                                       # a marker pair whose EVERY marker sits inside a framed display
         cents = ref.detail.get("centroids", [])
@@ -365,4 +400,14 @@ def find_referents(frame, bg: Optional[int] = None) -> List[Referent]:
     if ring_boxes:                                            # enclosed markers belong to their panel, not a free endpoint pair
         eps = [e for e in eps if not _enclosed(e)]
         node_pairs = [n for n in node_pairs if not _enclosed(n)]
-    return panels + _find_legends(g, b) + _find_panel_sequences(g, panels, b) + eps + node_pairs
+
+    # Every region this frame has named as reference-bearing structure, smallest first so the most specific one wins.
+    ctx_boxes = sorted((r.bbox for r in panels + legends + panel_seqs), key=_area)
+    if ctx_boxes:
+        eps = [e for e in eps if _same_context(e, ctx_boxes)]
+        node_pairs = [n for n in node_pairs if _same_context(n, ctx_boxes)]
+    for r in eps + node_pairs:                                # legibility: record WHERE the surviving pair lives
+        cents = r.detail.get("centroids", [])
+        k = _context_of(cents[0], ctx_boxes) if cents else -1
+        r.detail["context"] = "open" if k < 0 else "region:%d" % k
+    return panels + legends + panel_seqs + eps + node_pairs

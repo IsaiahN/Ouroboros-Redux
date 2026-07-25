@@ -23,9 +23,11 @@ def _two_legends(top_seq, bot_seq, H=14, W=16):
 
 def test_delta_tracks_an_order_gap_and_max_measured_returns_a_measured_relation():
     # NOTE (targeting caveat): max_measured() ranks by RAW discrepancy across relations, whose scales differ (ORDER =
-    # edit distance, CONNECT = pixel distance). On these frames the shared tokens also form endpoint pairs so CONNECT
-    # co-measures; the probe target is therefore heuristic and validated LIVE, not asserted here. What IS pinned: delta
-    # computes a relation's OWN drop, and a probe target exists whenever anything measures.
+    # edit distance, CONNECT = pixel distance). The probe target is therefore heuristic and validated LIVE, not asserted
+    # here. What IS pinned: delta computes a relation's OWN drop, and a probe target exists whenever anything measures.
+    # (Until the same-context filter in referent.py, the shared tokens of these two legends ALSO minted a straddling
+    # endpoint pair per colour, so CONNECT co-measured a pixel distance between a reference token and its workspace
+    # twin. That measurement was on a false object and is now gone -- the loss is a correction, not a regression.)
     bank = RelationBank(min_obs=5, min_range=1.0)
     ctx = RelationCtx(cursor=None, passable=frozenset(), bg=0)
     g = _two_legends([3, 4, 5, 6], [6, 5, 4, 3])                 # a full reversal -> ORDER edit distance 4
@@ -90,6 +92,9 @@ def test_probe_bootstraps_order_selection_over_a_closing_stream():
     for ws in stream:
         g = _two_legends(ref, ws)
         bank.observe(g, find_referents(g), ctx)
-        assert bank.max_measured() is not None                   # a probe target exists at every step (something measures)
+        if bank.discrepancies().get("ORDER"):                    # while a gap is OPEN there must be a probe target...
+            assert bank.max_measured() == "ORDER"
+    assert bank.max_measured() is None                           # ...and once it closes there is nothing left to probe
+
     assert bank.discrepancies()["ORDER"] == 0.0
     assert bank.selected() == "ORDER"                            # the confidently-closing ORDER gap gets selected
