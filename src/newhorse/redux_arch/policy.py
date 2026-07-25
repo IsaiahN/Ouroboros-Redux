@@ -38,6 +38,7 @@ from .progress import ProgressProbe
 from .referent import find_referents, Referent
 from .relation import RelationBank, RelationCtx
 from .novelty_ledger import guarded_promote
+from .abort_code import ChainLedger
 from .bridge import _px_centroid
 from .dsl import Predicate, make_atom
 from .live_goal_run import _learn_passable, _two_bodies
@@ -225,6 +226,9 @@ class ReduxPolicy:
         self._state = "NOT_FINISHED"                    # last observed game state (for death detection)
         self._reset_earned = False                      # §XIX reset-earned gate: did the last death EARN a retry?
         self._reset_rationale = ""                      # the agent's evidence-cited reasoning for (not) resetting
+        # TETHER-STAGE instrument: per-SEGMENT chain accounting. Not a proxy -- every signal below is set from the
+        # exact call site of the event it names, so an unwired organ reports as unwired instead of as absent evidence.
+        self.chain = ChainLedger()
         self.progress = ProgressProbe()                 # Brick 1: dense monotone progress signal (the authors' gradient)
         self._prog_credit: Dict[str, float] = {}        # action -> EMA of progress-delta after it (reinforcement)
         self.n_prog_reinforce = 0                       # times an exploratory pick was biased toward progress
@@ -269,6 +273,7 @@ class ReduxPolicy:
         prev_ids = set(self.tracker.ids())              # object identities as of the PREVIOUS frame (pre-redraw)
         self.frames.append(np.asarray(grid))
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
+        self.chain.note_step()                          # this frame belongs to the currently open chain segment
         if state is not None:
             self._state = str(state)
             if str(state) == "GAME_OVER" and len(self.frames) >= 2:
@@ -286,6 +291,9 @@ class ReduxPolicy:
                 # did not already hold) -> the agent has a concrete, evidence-backed veto it can ONLY apply by
                 # retrying, and no in-play action escapes GAME_OVER. A death that REPEATS a known cause taught nothing
                 # new -> a retry would farm the restart with no reasoned basis -> NOT earned, the session ends (§XIX).
+                # a death CLOSES the chain segment: this is the "task failed" event the whole chain hangs off, and it
+                # is scored at whatever stage the segment actually reached (never inferred, never back-filled).
+                self.chain.end_segment("death")
                 self._reset_earned = bool(new_cause)
                 if new_cause:
                     self._reset_rationale = (
@@ -607,6 +615,19 @@ class ReduxPolicy:
         the build may ACT on the minted predicate. Beat B wires the discipline; beats C/D route real mints through it."""
         return guarded_promote(verdict, name, bits, self.game_id, context=context, **paths)
 
+    # ---- TETHER-STAGE instrument (per-stall abort code) ---------------------------------------------------------
+    def end_run(self) -> None:
+        """Close the final chain segment. A run that ends on the action cap / wall clock / a GAME_OVER with no earned
+        reset is a STALL and is scored, exactly like a death: the task did not close. Runners MUST call this, or the
+        last segment silently never reports. Idempotent -- a segment with no observed frame is a no-op."""
+        self.chain.end_segment("run_end")
+
+    def chain_report(self) -> Dict[str, Any]:
+        """The measured stage distribution. This REPLACES the old per-run `_tether_stage` proxy, which inferred
+        `diff_ran` from the relation layer and conflated MINTED with the human gate's `acted`. Report what it says,
+        however low: an instrument built to read higher measures nothing."""
+        return self.chain.report()
+
     # ---- curriculum: level-boundary diff + re-derivation (Tether §3.5) ------------------------------------------
     def _on_level_change(self, new_level: int, old_avail: List[int], prev_ids: set) -> None:
         """A level graduated. Build the loci-based BOUNDARY DIFF (TRANSFERRED/NOVEL/GONE by tracked identity, plus
@@ -616,6 +637,11 @@ class ReduxPolicy:
           - KEEP (organ referent survives) → transfer the model; two-body arms the goal probe on the NOVEL actors;
           - RE-DERIVE (referent gone) → re-warm + re-route on the new level, prior retained.
         NOVEL loci are surfaced for beat C (direct empowerment there first). The quarantine DECAYS each boundary."""
+        # The segment that just ended ended in an ADVANCE. A level cleared by search/drive is NOT a tether firing
+        # (membrane rule §3.6/§5.1 + sole-metric §0), so it is counted apart and never scored as a stage -- it can
+        # neither be read as CLEARED nor dilute the stall distribution. Everything noted below belongs to the NEW
+        # segment, which is the one that will have to either reuse what this boundary produced, or stall.
+        self.chain.end_segment("advance")
         # ABDUCE-ON-REWARD: if we were directed-exploring the novel actors and the level just advanced, the directed
         # empowerment MANUFACTURED a reward -> abduce the objective from the reward residual, GATED (never self-certified).
         if self._directed is not None:
@@ -625,6 +651,9 @@ class ReduxPolicy:
             except Exception:
                 mint, verdict = None, "no-mint"
             if mint is not None:
+                # MINTED is recorded here, upstream of mint_gate: parking a novel predicate for human confirmation is
+                # a GATE decision, and scoring it as "no mint" would report the gate as a library failure.
+                self.chain.note_mint()
                 name = "+".join(sorted(a.name for a in mint.predicate.atoms))
                 acted = self.mint_gate(verdict, name, float(getattr(mint, "bits", 0.0)),
                                        context="directed-empowerment@L%d" % self.level)
@@ -638,6 +667,9 @@ class ReduxPolicy:
         self.boundary = BoundaryDiff(level=new_level, transferred=transferred, novel=novel, gone=gone,
                                      new_colours=delta["new_colours"], gone_colours=delta["gone_colours"],
                                      new_actions=delta["new_actions"], gone_actions=delta["gone_actions"])
+        # the §3.5 boundary diff RAN for the new segment. The residual is non-empty exactly when the transferred model
+        # fails to account for the graduated environment: identities appeared/vanished, or the control set rebound.
+        self.chain.note_diff(residual_nonempty=bool(novel or gone or self.boundary.rebinding))
         self.novel_loci = list(novel)                           # the new actors -> exploration/empowerment targets
         self.quarantine.tick()                                  # PARK decay: unresolved residuals age out
 

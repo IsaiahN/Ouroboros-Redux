@@ -142,3 +142,84 @@ class TetherProbe:
             "note": None if f is None else note(f),
             "counts": {st.name: n for st, n in sorted(self.counts.items())},
         }
+
+
+@dataclass
+class ChainLedger:
+    """PER-SEGMENT chain accounting -- the instrument that turns "which link breaks" from a guess into a measured
+    distribution.
+
+    A SEGMENT is one span of play between two break events. It ends in exactly one of three ways:
+      * ADVANCE  -- a level was cleared. This is a clear by SEARCH/DRIVE, never by transfer, so by the membrane rule
+                    (§3.6/§5.1 + sole-metric §0) it is NOT a tether firing and is NOT scored as a stage at all. It is
+                    counted separately so it can never inflate the stall distribution in either direction.
+      * DEATH    -- a stall. Scored.
+      * RUN_END  -- a stall (action cap / wall clock / GAME_OVER with no earned reset). Scored.
+
+    Signals are scoped to the segment, not cumulated over the run: the chain claim is "THIS task failed -> mint from
+    THIS residual -> reuse elsewhere", so a mint in segment 3 must not credit the stall in segment 7. Cumulative
+    signals would silently ratchet the reported stage upward and make a wiring gap look like progress.
+
+    Nothing here infers a signal from a proxy. Each note_* is called from the exact site where the event happens, and
+    a signal with no call site stays False -- which is the honest report that the organ is not wired, and is precisely
+    what this instrument exists to surface."""
+    probe: "TetherProbe" = field(default_factory=lambda: TetherProbe())
+    advances: int = 0                                  # segments ended by a level advance (drive/search, not tether)
+    stalls: int = 0
+    _sig: ChainSignals = field(default_factory=ChainSignals)
+    _reasons: Counter = field(default_factory=Counter)
+    _steps: int = 0                                    # frames observed inside the CURRENT segment
+
+    def note_step(self) -> None:
+        """One observation landed in the current segment. An EMPTY segment (no frame between two break events -- e.g.
+        a run that ends on the same frame as the death that closed the previous segment) is not a stall and must not
+        be scored: it would manufacture a DIED_PRE_DIFF out of an accounting artefact."""
+        self._steps += 1
+
+    def note_diff(self, residual_nonempty: bool = False) -> None:
+        """A boundary diff (§3.5) actually ran for THIS segment. `residual_nonempty` iff it left structure the
+        transferred model does not account for -- NOVEL/GONE identities or a rebinding."""
+        self._sig.diff_ran = True
+        if residual_nonempty:
+            self._sig.residual_nonempty = True
+
+    def note_mint(self) -> None:
+        """A minter returned a real Mint from this segment's residual. NOT the human gate: a mint that is parked for
+        confirmation still MINTED, and conflating the two would report a gate decision as a library failure."""
+        self._sig.minted = True
+
+    def note_reuse_attempt(self) -> None:
+        """A FRESH task's residual was offered to the promoted library (Consolidator.explains). Until some call site
+        exists this stays False and the ceiling is REUSE_UNWIRED -- an implementation verdict, never an architectural one."""
+        self._sig.reuse_attempted = True
+
+    def note_reuse(self) -> None:
+        """The promoted library EXPLAINED a fresh task without re-minting -- transfer."""
+        self._sig.reused = True
+
+    def note_transfer_clear(self) -> None:
+        """Acting on a TRANSFERRED operator cleared a break. Callers must never pass a raw level advance here."""
+        self._sig.cleared = True
+
+    def end_segment(self, reason: str) -> Optional[Stage]:
+        """Close the current segment and open a fresh one. Returns the stage if this was a scored STALL, or None if
+        the segment ended in an advance (deliberately unscored) or was empty (no frame observed -- an accounting
+        artefact, not a stall)."""
+        if self._steps == 0:
+            return None                                # nothing was played in this segment; closing it is a no-op
+        self._reasons[str(reason)] += 1
+        st: Optional[Stage] = None
+        if reason == "advance":
+            self.advances += 1
+        else:
+            self.stalls += 1
+            st = self.probe.record(self._sig)
+        self._sig = ChainSignals()                     # signals belong to a segment, never to the run
+        self._steps = 0
+        return st
+
+    def report(self) -> Dict[str, object]:
+        r = dict(self.probe.report())
+        r.update(stalls=self.stalls, advances=self.advances,
+                 segment_ends={k: n for k, n in sorted(self._reasons.items())})
+        return r

@@ -99,3 +99,81 @@ def test_real_non_transfer_is_an_architecture_stall_not_a_wiring_gap():
     sig = ChainSignals(diff_ran=True, residual_nonempty=True, minted=True, reuse_attempted=True, reused=explained)
     assert classify(sig) == Stage.MINTED_UNUSED
     assert indicts(classify(sig)) == "architecture"
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# ChainLedger -- PER-SEGMENT accounting. The instrument exists to answer "which link breaks" with a measured
+# distribution instead of a guess, so its own failure modes are the ones that would make it LIE: crediting one
+# segment's mint to another segment's stall, scoring a level advance as a tether outcome, or inventing stalls out of
+# empty segments. Each test below pins one of those.
+# ---------------------------------------------------------------------------------------------------------------
+from newhorse.redux_arch.abort_code import ChainLedger
+
+
+def _play(led, n=1):
+    for _ in range(n):
+        led.note_step()
+
+
+def test_ledger_scores_each_stall_at_the_stage_that_stall_reached():
+    led = ChainLedger()
+    _play(led); assert led.end_segment("death") is Stage.DIED_PRE_DIFF
+    _play(led); led.note_diff(residual_nonempty=True)
+    assert led.end_segment("death") is Stage.MINT_UNFIRED
+    _play(led); led.note_diff(residual_nonempty=True); led.note_mint()
+    assert led.end_segment("run_end") is Stage.REUSE_UNWIRED
+
+
+def test_signals_do_not_leak_across_segments():
+    """A mint in segment 1 must NOT credit the stall in segment 2. Cumulative signals would ratchet the reported
+    stage upward and make a wiring gap read as progress -- the exact misreport this instrument is built to prevent."""
+    led = ChainLedger()
+    _play(led); led.note_diff(residual_nonempty=True); led.note_mint()
+    assert led.end_segment("death") is Stage.REUSE_UNWIRED
+    _play(led)
+    assert led.end_segment("death") is Stage.DIED_PRE_DIFF          # fresh segment starts from nothing
+    assert led.report()["counts"] == {"DIED_PRE_DIFF": 1, "REUSE_UNWIRED": 1}
+
+
+def test_a_level_advance_is_counted_but_never_scored():
+    """Membrane rule (§3.6/§5.1 + sole-metric §0): a level cleared by search/drive is not a tether firing. It must
+    neither read as CLEARED nor enter the stall distribution in either direction."""
+    led = ChainLedger()
+    _play(led); led.note_diff(residual_nonempty=True); led.note_mint()
+    assert led.end_segment("advance") is None
+    r = led.report()
+    assert r["advances"] == 1 and r["stalls"] == 0
+    assert r["counts"] == {} and r["furthest_stage"] is None
+
+
+def test_an_empty_segment_is_not_a_stall():
+    """A run that ends on the same frame as the death which already closed the segment must not manufacture a
+    second, frameless DIED_PRE_DIFF out of the accounting."""
+    led = ChainLedger()
+    _play(led)
+    assert led.end_segment("death") is Stage.DIED_PRE_DIFF
+    assert led.end_segment("run_end") is None                        # nothing was played since
+    assert led.report()["stalls"] == 1
+    assert led.report()["segment_ends"] == {"death": 1}
+
+
+def test_ledger_never_reports_architecture_until_reuse_is_attempted():
+    """REUSE_UNWIRED vs MINTED_UNUSED is load-bearing: a mint never OFFERED to a fresh residual is a wiring gap.
+    Only a genuinely attempted reuse that the library failed to explain may indict the tether."""
+    led = ChainLedger()
+    _play(led); led.note_diff(residual_nonempty=True); led.note_mint()
+    led.end_segment("death")
+    assert led.report()["indicts"] == "implementation"
+    _play(led); led.note_diff(residual_nonempty=True); led.note_mint(); led.note_reuse_attempt()
+    assert led.end_segment("death") is Stage.MINTED_UNUSED
+    assert led.report()["indicts"] == "architecture"
+
+
+def test_transfer_clear_is_the_one_firing_and_requires_transfer():
+    led = ChainLedger()
+    _play(led); led.note_diff(residual_nonempty=True); led.note_mint()
+    led.note_reuse_attempt(); led.note_reuse()
+    assert led.end_segment("death") is Stage.USED_NOCLEAR            # transferred but the drive layer did not close
+    _play(led); led.note_diff(residual_nonempty=True); led.note_mint()
+    led.note_reuse_attempt(); led.note_reuse(); led.note_transfer_clear()
+    assert led.end_segment("run_end") is Stage.CLEARED

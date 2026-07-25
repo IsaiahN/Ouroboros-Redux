@@ -150,3 +150,40 @@ def test_swarm_one_game_error_does_not_sink_the_rest():
     res = run_swarm(["bad-1", "ls20-b"], max_actions=12, wall_cap_s=5, session_factory=factory, start_stagger_s=0.0, open_backoff=0.0)
     assert res["results"]["bad-1"]["family"] == "error"              # isolated failure
     assert res["families"]["ls20-b"] == DIRECTIONAL                  # the healthy game still ran
+
+
+# ---- TETHER-STAGE distribution ------------------------------------------------------------------------------
+# The swarm is where most play happens and it reported no stage code at all, so the measured stall distribution was
+# blind to nearly every stall the build has ever produced. These pin that every game now reports, that the pooled
+# distribution adds up, and that the pooling can never over-credit.
+
+def test_every_swarm_result_carries_a_measured_tether_stage():
+    worlds = {"m0r0-a": (_TwoBody(), [1, 2, 3, 4, 5], None),
+              "ls20-a": (_Dir(), [1, 2, 3, 4, 5], None)}
+    def factory(gid, scorecard_id=None, limiter=None):
+        w, avail, win = worlds[gid]
+        return FakeSession(w, avail, win_after=win)
+    res = run_swarm(list(worlds), max_actions=14, wall_cap_s=8, rpm=6000,
+                    session_factory=factory, start_stagger_s=0.0, open_backoff=0.0)
+    for gid in worlds:
+        ts = res["results"][gid]["tether_stage"]
+        assert ts["stalls"] >= 1                                      # the action cap is a stall and is scored
+        assert ts["furthest_stage"] is not None
+    d = res["tether_chain"]
+    assert d["games_reporting"] == len(worlds)
+    assert d["stalls"] == sum(res["results"][g]["tether_stage"]["stalls"] for g in worlds)
+    assert sum(d["counts"].values()) == d["stalls"]                   # every stall lands in exactly one bucket
+    assert d["indicts"] != "architecture"                             # reuse is not wired; it may never say this
+
+
+def test_pooled_distribution_takes_the_deepest_stall_not_the_average():
+    from newhorse.redux_arch.swarm import tether_distribution
+    fake = {"a": dict(tether_stage=dict(counts={"DIED_PRE_DIFF": 3}, stalls=3, advances=0,
+                                        furthest_stage="DIED_PRE_DIFF", furthest_rank=0)),
+            "b": dict(tether_stage=dict(counts={"MINT_UNFIRED": 1}, stalls=1, advances=2,
+                                        furthest_stage="MINT_UNFIRED", furthest_rank=2)),
+            "c": dict(outcome="open_error:X")}                        # a game that never ran contributes nothing
+    d = tether_distribution(fake)
+    assert d["worst_stage"] == "MINT_UNFIRED" and d["indicts"] == "gate/implementation"
+    assert d["stalls"] == 4 and d["advances"] == 2 and d["games_reporting"] == 2
+    assert d["counts"] == {"DIED_PRE_DIFF": 3, "MINT_UNFIRED": 1}

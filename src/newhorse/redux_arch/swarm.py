@@ -83,9 +83,14 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
             if snap["levels_completed"] > prev:
                 log.append("LEVEL UP %d->%d @%d" % (prev, snap["levels_completed"], steps))
             best = max(best, snap["levels_completed"]); steps += 1
+        # TETHER-STAGE: the swarm is where MOST play happens and it reported no stage code at all, so the measured
+        # stall distribution was blind to nearly every stall the build has ever produced. Close the last segment and
+        # report what the chain actually reached -- per stall, not per run.
+        pol.end_run()
         return dict(game=game_id, family=pol.family, levels=best, steps=steps, outcome=outcome,
                     view_url=getattr(session, "view_url", None), log=log,
-                    deaths=pol.n_deaths, retries=retries, vetoes=pol.n_vetoes)
+                    deaths=pol.n_deaths, retries=retries, vetoes=pol.n_vetoes,
+                    tether_stage=pol.chain_report())
     except Exception as e:                                   # one game's failure must not sink the swarm
         return dict(game=game_id, family="error", levels=0, steps=0, outcome="error:%s" % type(e).__name__, log=log)
     finally:
@@ -162,4 +167,33 @@ def run_swarm(game_ids: List[str], max_actions: int = 60, wall_cap_s: float = 15
     families = {g: r.get("family") for g, r in results.items()}
     return dict(view_url=view_url, scorecard_id=card_id, results=results, families=families,
                 blackboard_prefixes=sorted({g.split("-")[0] for g in results}),
-                total_levels=sum(int(r.get("levels", 0)) for r in results.values()))
+                total_levels=sum(int(r.get("levels", 0)) for r in results.values()),
+                tether_chain=tether_distribution(results))
+
+
+def tether_distribution(results: Dict[str, Any]) -> Dict[str, Any]:
+    """Pool every game's per-stall stage codes into ONE distribution over the whole sweep -- the artefact directive 1
+    asks for: not "detection is inert" as a guess about stage 1, but a measured count of which link breaks and how
+    often. `worst` is the deepest stage ANY stall reached; it is the only figure entitled to say anything about the
+    architecture, and it says 'architecture' only at MINTED_UNUSED."""
+    counts: Dict[str, int] = {}
+    stalls = advances = 0
+    worst_rank = -1
+    worst = None
+    for r in results.values():
+        ts = r.get("tether_stage") or {}
+        for k, n in (ts.get("counts") or {}).items():
+            counts[k] = counts.get(k, 0) + int(n)
+        stalls += int(ts.get("stalls") or 0)
+        advances += int(ts.get("advances") or 0)
+        rank = ts.get("furthest_rank")
+        if rank is not None and int(rank) > worst_rank:
+            worst_rank, worst = int(rank), ts.get("furthest_stage")
+    out: Dict[str, Any] = dict(counts=dict(sorted(counts.items())), stalls=stalls, advances=advances,
+                               games_reporting=sum(1 for r in results.values() if r.get("tether_stage")),
+                               worst_stage=worst, worst_rank=(None if worst_rank < 0 else worst_rank))
+    if worst is not None:
+        from .abort_code import Stage, indicts, note
+        out["indicts"] = indicts(Stage[worst])
+        out["note"] = note(Stage[worst])
+    return out

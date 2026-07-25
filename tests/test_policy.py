@@ -240,3 +240,60 @@ def test_router_two_body_on_real_m0r0_recording():
     p.frames = [np.asarray(f) for f in frames]; p.acts = acts        # inject the real stream, then route
     p._route([1, 2, 3, 4, 5], [1, 2, 3, 4, 5])
     assert p.family == TWO_BODY and p.tb_colour == 10                # the navy two bodies (real m0r0)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# TETHER-STAGE instrument, WIRED. The unit tests in test_abort_code.py pin the ledger's arithmetic; these pin that
+# the live policy actually CALLS it -- an instrument that is correct in isolation and never invoked reports the same
+# thing as no instrument at all. What matters here is that the call sites exist and are scoped correctly, NOT that
+# the reported stage is high: "instrument, then report what it says, however low."
+# ---------------------------------------------------------------------------------------------------------------
+
+def _drive(pol, world, n, level=0, state=None):
+    for _ in range(n):
+        pol.observe(world.frame(), [1, 2, 3, 4], level, state=state)
+        lbl, _d = pol.choose()
+        world.step(lbl)
+
+
+def test_policy_scores_a_death_as_a_stall_at_the_stage_it_reached():
+    pol = ReduxPolicy(game_id="probe-a", blackboard=Blackboard(), warmup_cap=4)
+    w = ADrive()
+    _drive(pol, w, 8)
+    pol.observe(w.frame(), [1, 2, 3, 4], 0, state="GAME_OVER")
+    r = pol.chain_report()
+    assert r["stalls"] == 1 and r["segment_ends"] == {"death": 1}
+    # nothing minted and no boundary diff ran inside that segment -> the honest floor, not an architecture verdict
+    assert r["furthest_stage"] == "DIED_PRE_DIFF" and r["indicts"] == "implementation"
+
+
+def test_a_level_advance_closes_a_segment_without_scoring_it():
+    """The membrane rule at the wiring level: advancing a level is a clear by SEARCH/DRIVE. It must close the
+    segment (so the next stall is not credited with this level's evidence) and must not enter the distribution."""
+    pol = ReduxPolicy(game_id="probe-b", blackboard=Blackboard(), warmup_cap=4)
+    w = ADrive()
+    _drive(pol, w, 6, level=0)
+    _drive(pol, w, 6, level=1)                      # crosses the boundary -> _on_level_change
+    r = pol.chain_report()
+    assert r["advances"] == 1 and r["stalls"] == 0
+    assert r["counts"] == {} and r["furthest_stage"] is None
+
+
+def test_end_run_closes_the_final_segment_exactly_once():
+    pol = ReduxPolicy(game_id="probe-c", blackboard=Blackboard(), warmup_cap=4)
+    _drive(pol, ADrive(), 6)
+    pol.end_run()
+    pol.end_run()                                   # idempotent: no frames were observed in between
+    r = pol.chain_report()
+    assert r["stalls"] == 1 and r["segment_ends"] == {"run_end": 1}
+
+
+def test_the_boundary_diff_is_the_only_thing_that_sets_diff_ran():
+    """The old proxy inferred `diff_ran` from the RELATION layer having any discrepancy at all -- a different organ.
+    A segment in which no level boundary was crossed must report DIED_PRE_DIFF no matter how busy the relation
+    layer was, because the §3.5 boundary diff genuinely did not run."""
+    pol = ReduxPolicy(game_id="probe-d", blackboard=Blackboard(), warmup_cap=4)
+    _drive(pol, ADrive(), 12)
+    assert pol.relations.discrepancies()            # the relation layer is measuring things
+    pol.end_run()
+    assert pol.chain_report()["furthest_stage"] == "DIED_PRE_DIFF"

@@ -26,27 +26,24 @@ from .explore import CuriosityExplorer
 from .coupled import learn_two_body, two_body_drive_action, two_body_search_action
 from scipy import ndimage as _ndi
 from .dsl import Predicate, make_atom
-from .abort_code import ChainSignals, classify, indicts
+# (the stage codes themselves now live on the policy's ChainLedger; nothing here classifies from proxies)
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 
 
 def _tether_stage(pol) -> Dict[str, Any]:
-    """The honest TETHER-STAGE ceiling this run reached (abort_code.py). Read ONLY from what is actually wired into the
-    live loop: the relation residual/discrepancy machinery (the diff) and the reward-boundary mint gate (`pol.abduced`).
-    The reuse organ (Consolidator) is NOT wired into the runner, so reuse is never ATTEMPTED live -> a run that mints
-    honestly tops out at REUSE_UNWIRED (an IMPLEMENTATION/wiring gap), and this code must NEVER report 'architecture'.
-    A level cleared by search/drive is deliberately NOT fed as `cleared` (the membrane rule §3.6/§5.1 + sole-metric §0): CLEARED requires a transfer,
-    which cannot happen until reuse is wired."""
-    md = pol.relations.discrepancies().get("MATCH")
-    od = pol.relations.discrepancies().get("ORDER")
-    abduced = getattr(pol, "abduced", []) or []
-    diff_ran = (md is not None) or (od is not None) or bool(abduced)
-    residual_nonempty = bool(abduced) or (md is not None and md > 0) or (od is not None and od > 0)
-    minted = any(a.get("acted") for a in abduced)
-    sig = ChainSignals(diff_ran=diff_ran, residual_nonempty=residual_nonempty, minted=minted)  # reuse unwired -> False
-    st = classify(sig)
-    return {"stage": st.name, "rank": int(st), "indicts": indicts(st)}
+    """The measured TETHER-STAGE distribution for this run (abort_code.ChainLedger), closing the final segment first.
+
+    This used to be a per-RUN PROXY: it inferred `diff_ran` from whether the RELATION layer had any discrepancy at all
+    (not from whether the §3.5 boundary diff ever ran), and it read `minted` off `acted` -- the HUMAN gate -- so a
+    predicate parked for confirmation was reported as "no mint", i.e. a gate decision written up as a library failure.
+    Both readings are gone. Every signal now comes from the exact call site of the event it names, scoped to the
+    SEGMENT it happened in, so the answer to "which link breaks" is a measured distribution rather than a guess.
+
+    A level cleared by search/drive is still deliberately never `cleared` (the membrane rule §3.6/§5.1 + sole-metric
+    §0): CLEARED requires a TRANSFER, which cannot happen until the reuse organ is wired."""
+    pol.end_run()                                   # the final segment is a STALL unless it already closed
+    return pol.chain_report()
 
 
 def _learn_passable(frames: List[np.ndarray], cursor: Optional[int]) -> set:
