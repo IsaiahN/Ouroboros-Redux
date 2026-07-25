@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from newhorse.redux_arch.sdk_guard import assert_online_sdk
 from newhorse.redux_arch.swarm import run_swarm
+from newhorse.redux_arch.receipt import ResidualEvent, render_one, firings
 
 
 def environment_ids():
@@ -46,14 +47,42 @@ def main() -> None:
 
     print("\nscorecard: %s" % res.get("view_url"))
     print("total_levels: %s" % res.get("total_levels"))
-    print("\n%-18s %-14s %6s %6s %6s  %s" % ("game", "family", "levels", "stalls", "adv", "furthest stage"))
+    # `maxL` is the CARRIER-REACH column: a within-run-across-levels echo needs a run that crosses TWO boundaries
+    # (mint at 0->1, then REACH 1->2 to offer it). If no game shows maxL>=2, that carrier has zero live instances
+    # and wiring it would ship a correct, inert mechanism. Printed per game so the claim is checkable, not asserted.
+    print("\n%-18s %-14s %5s %6s %6s %6s %6s %6s  %s"
+          % ("game", "family", "maxL", "stalls", "adv", "resid", "mint", "fired", "furthest stage"))
     for gid in sorted(res["results"]):
         r = res["results"][gid]
         ts = r.get("tether_stage") or {}
-        print("%-18s %-14s %6s %6s %6s  %s" % (gid, r.get("family"), r.get("levels"),
-                                               ts.get("stalls"), ts.get("advances"), ts.get("furthest_stage")))
+        ec = r.get("echo") or {}
+        print("%-18s %-14s %5s %6s %6s %6s %6s %6s  %s"
+              % (gid, r.get("family"), r.get("levels"), ts.get("stalls"), ts.get("advances"),
+                 ec.get("residual_nonempty"), ec.get("minted"), ec.get("fired"), ts.get("furthest_stage")))
     print("\n=== POOLED TETHER-STAGE DISTRIBUTION ===")
     print(json.dumps(res.get("tether_chain"), indent=2, sort_keys=True))
+
+    # DIRECTIVE 5: a firing is a RECEIPT, not a claim. Every transfer is rendered in full, with its echo KIND and
+    # the caveat that a within-game echo is a weaker claim than a cross-game one. No receipt => it did not fire.
+    print("\n=== FIRING RECEIPTS ===")
+    evs = []
+    for gid in sorted(res["results"]):
+        for d in (res["results"][gid].get("firings") or []):
+            evs.append(ResidualEvent(**{k: v for k, v in d.items() if k != "fired"}))
+    for e in firings(evs):
+        print(render_one(e))
+    # THE DENOMINATOR MUST BE THE SWEEP'S, NOT THE SHIPPED FIRINGS'. Only FIRING receipts cross the process
+    # boundary (a full per-event dump would be megabytes), so `summary_line(evs)` here would count only firings and
+    # print "break events=0" on a sweep that had nineteen of them -- a silence rendered as a zero. The pooled echo
+    # block is computed inside each policy over EVERY break event, so it is the honest count of what did not fire.
+    ec = (res.get("tether_chain") or {}).get("echo") or {}
+    if not evs:
+        print("NO FIRING. Not a claim about the architecture -- a count over EVERY break event in this sweep:")
+    print("  break events=%d | residual computed=%d | non-empty=%d | minted=%d | promoted into Γ=%d | "
+          "offered to Γ=%d | FIRED=%d | cleared=%d"
+          % (ec.get("break_events", 0), ec.get("diff_ran", 0), ec.get("residual_nonempty", 0),
+             ec.get("minted", 0), ec.get("promoted", 0), ec.get("reuse_attempted", 0),
+             ec.get("fired", 0), ec.get("cleared", 0)))
 
 
 if __name__ == "__main__":

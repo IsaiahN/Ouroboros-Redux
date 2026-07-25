@@ -90,7 +90,8 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
         return dict(game=game_id, family=pol.family, levels=best, steps=steps, outcome=outcome,
                     view_url=getattr(session, "view_url", None), log=log,
                     deaths=pol.n_deaths, retries=retries, vetoes=pol.n_vetoes,
-                    tether_stage=pol.chain_report())
+                    tether_stage=pol.chain_report(), echo=pol.echo_report(),
+                    firings=pol.firing_receipts())
     except Exception as e:                                   # one game's failure must not sink the swarm
         return dict(game=game_id, family="error", levels=0, steps=0, outcome="error:%s" % type(e).__name__, log=log)
     finally:
@@ -196,4 +197,31 @@ def tether_distribution(results: Dict[str, Any]) -> Dict[str, Any]:
         from .abort_code import Stage, indicts, note
         out["indicts"] = indicts(Stage[worst])
         out["note"] = note(Stage[worst])
+    out.update(echo_pool(results))
     return out
+
+
+def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
+    """Pool the ECHO/receipt accounting across the sweep. Two things are reported that a stage histogram cannot say:
+    (1) CARRIER REACH -- how many games ever reach a SECOND level in one run, the question that decides whether a
+    within-run-across-levels echo has any live instance at all (the 43rd-audit caution: do NOT wire a carrier with
+    nothing to fire on); (2) FIRINGS BY KIND, never summed, because a within-run echo and a cross-game echo are
+    different strength claims and a single 'transfers' total would launder the weaker into the stronger."""
+    keys = ("break_events", "diff_ran", "residual_nonempty", "minted", "promoted", "reuse_attempted",
+            "fired", "cleared")
+    tot = {k: 0 for k in keys}
+    kinds: Dict[str, int] = {}
+    lvl_hist: Dict[str, int] = {}
+    reach_l2 = 0
+    for r in results.values():
+        e = r.get("echo") or {}
+        for k in keys:
+            tot[k] += int(e.get(k) or 0)
+        for k, n in (e.get("firing_kinds") or {}).items():
+            kinds[k] = kinds.get(k, 0) + int(n)
+        lv = int(r.get("levels") or 0)
+        lvl_hist[str(lv)] = lvl_hist.get(str(lv), 0) + 1
+        if lv >= 2:
+            reach_l2 += 1
+    return dict(echo=dict(tot, firing_kinds=kinds), games_reaching_L2=reach_l2,
+                max_level_histogram=dict(sorted(lvl_hist.items())))

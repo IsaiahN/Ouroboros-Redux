@@ -262,3 +262,39 @@ class AffordanceMintBridge:
             ctx = replace(ctx, intended_free=bool(free) if free is not None else False)
         self.engine.observe(ctx, moved)
         self.engine.maybe_mint()
+
+
+def transition_residual(frames, acts, focus_colour: Optional[int], vecs: Optional[dict],
+                        passable=None, stride: int = 1, bg: Optional[int] = None):
+    """R_τ OVER A WHOLE SEGMENT: the transition residual the base grammar mispredicts, as an exception list.
+
+    Γ's base rule is "the action displaces the focus by its learned vector". The exception list is every step where
+    that rule was TESTABLE -- a learned vec exists for the action and the focus is on the board -- paired with
+    whether it actually held. This is the SAME per-step labelling `affordance_step` already does; the only new thing
+    is that it runs over a segment instead of one step, so a residual exists at every break event and not only at a
+    level advance.
+
+    Spec grounding (§4.3 SUPPORT): R_τ answers on EVERY step and is near-ideal; R_ρ speaks only on success and is
+    near-mute. The build minted only off R_ρ, which is why the residual organ was gated behind the very outcome it
+    exists to produce. This function is the R_τ stream, nothing more -- no new referent kind, no new atom, no
+    detector (directive 4 stands).
+
+    Returns None iff the residual COULD NOT BE COMPUTED (no learned focus colour, no learned vecs, no testable step)
+    -- the honest DIED_PRE_DIFF. Returns a possibly-uniform list iff it RAN; a uniform list is RESIDUAL_EMPTY. The
+    two must never be collapsed: "the organ never ran" and "the organ ran and found nothing" indict different layers.
+    """
+    if focus_colour is None or not vecs or len(frames) < 2:
+        return None
+    ps = frozenset(int(c) for c in passable) if passable else None
+    exc = []
+    n = min(len(frames), len(acts))
+    for i in range(1, n):
+        vec = vecs.get(acts[i])
+        if not vec or tuple(vec) == (0, 0):
+            continue                                     # Γ predicts no displacement -> nothing to be wrong about
+        step = affordance_step(frames[i - 1], frames[i], int(focus_colour), tuple(vec), stride,
+                               passable=ps, bg=bg)
+        if step is None:
+            continue                                     # focus not locatable on this pair
+        exc.append(step)
+    return exc if exc else None

@@ -39,7 +39,10 @@ from .referent import find_referents, Referent
 from .relation import RelationBank, RelationCtx
 from .novelty_ledger import guarded_promote
 from .abort_code import ChainLedger
-from .bridge import _px_centroid
+from .bridge import _px_centroid, transition_residual
+from .consolidate import Consolidator
+from .minting import two_part_mdl, _entropy_bits
+from .receipt import ResidualEvent, task_id as _task_id, echo_kind as _echo_kind, summary as _receipt_summary
 from .dsl import Predicate, make_atom
 from .live_goal_run import _learn_passable, _two_bodies
 
@@ -229,7 +232,13 @@ class ReduxPolicy:
         # TETHER-STAGE instrument: per-SEGMENT chain accounting. Not a proxy -- every signal below is set from the
         # exact call site of the event it names, so an unwired organ reports as unwired instead of as absent evidence.
         self.chain = ChainLedger()
-        self.progress = ProgressProbe()                 # Brick 1: dense monotone progress signal (the authors' gradient)
+        # ECHO -> PROMOTE, hung on the live policy (directive 2b). Γ starts EMPTY and grows only by the echo rule; a
+        # residual is offered to it BEFORE any new mint, so reuse is tested on a residual φ was not minted for.
+        self.echo = Consolidator(echo_threshold=2)
+        self.receipts: List[ResidualEvent] = []          # one record per break event -- firing or not (directive 5)
+        self._seg0 = 0                                   # index in self.frames where the OPEN chain segment begins
+        self._seg_n = 0                                  # how many chain segments have been closed (task counter)
+        self.progress = ProgressProbe()               # Brick 1: dense monotone progress signal (the authors' gradient)
         self._prog_credit: Dict[str, float] = {}        # action -> EMA of progress-delta after it (reinforcement)
         self.n_prog_reinforce = 0                       # times an exploratory pick was biased toward progress
         self._referents: List[Referent] = []            # Brick 2: frame-native reference regions in the CURRENT frame
@@ -293,7 +302,7 @@ class ReduxPolicy:
                 # new -> a retry would farm the restart with no reasoned basis -> NOT earned, the session ends (§XIX).
                 # a death CLOSES the chain segment: this is the "task failed" event the whole chain hangs off, and it
                 # is scored at whatever stage the segment actually reached (never inferred, never back-filled).
-                self.chain.end_segment("death")
+                self._close_segment("death")
                 self._reset_earned = bool(new_cause)
                 if new_cause:
                     self._reset_rationale = (
@@ -616,11 +625,111 @@ class ReduxPolicy:
         return guarded_promote(verdict, name, bits, self.game_id, context=context, **paths)
 
     # ---- TETHER-STAGE instrument (per-stall abort code) ---------------------------------------------------------
+    def _residual_pass(self, reason: str) -> Optional[ResidualEvent]:
+        """THE BRICK. At the break event that is closing the current segment: build the segment's R_τ residual, offer
+        it to the promoted library BEFORE minting anything, then mint from it and feed the mint to the echo clock.
+        Every chain signal below is noted from THIS site, which is the site where the thing it names actually happens.
+
+        WHY AT EVERY BREAK AND NOT ONLY AT AN ADVANCE. The measurement said `diff_identities` is invoked from exactly
+        one place, `_on_level_change`, which fires only when levels_completed increases -- so on a game that never
+        advances a level there is NO residual, ever, and DIED_PRE_DIFF was reporting a GATE, not a perception verdict.
+        §4.3 SUPPORT is the ground: R_τ (transition residual) answers every step and is near-ideal; R_ρ (reward
+        residual) speaks only on success and is near-mute -- and the build minted only off R_ρ. A DEATH is the
+        tether's canonical first term ("a task FAILS -> an operator is minted from the residual"); computing a
+        residual only when the drive layer SUCCEEDS inverts that. This widens a TRIGGER. It adds no referent kind, no
+        atom, no detector (directive 4 stands).
+
+        OVERTURN TEST (the one the ground-maintainer named): if this trigger collapses DIED_PRE_DIFF into
+        RESIDUAL_EMPTY rather than into MINT_UNFIRED, it is manufacturing reach and must be reverted."""
+        lo = max(0, min(int(self._seg0), len(self.frames)))
+        frames, acts = self.frames[lo:], self.acts[lo:]
+        exc = transition_residual(frames, acts, self.cursor, self.vecs,
+                                  passable=self.passable, stride=self.stride)
+        if exc is None:
+            return None                       # NO OBSERVABLE -> the diff could not run. DIED_PRE_DIFF, honestly.
+        n = len(exc)
+        k = sum(1 for _, o in exc if o)
+        base = _entropy_bits(n, k)
+        # non-empty means "structure the base grammar does not account for": the outcomes are MIXED. A uniform
+        # residual is pure -- Γ was right every time, or wrong every time -- and there is nothing for a predicate to
+        # split. This is exactly the precondition two_part_mdl tests, so RESIDUAL_EMPTY cannot be a rubber stamp.
+        nonempty = bool(n >= 2 and base > 0.0)
+        self.chain.note_diff(residual_nonempty=nonempty)
+        tid = _task_id(self.game_id, self.level, self._seg_n)
+        ev = ResidualEvent(game=self.game_id, level=self.level, segment=self._seg_n, reason=str(reason),
+                           steps=int(self.chain.steps_in_segment), task_id=tid, diff_ran=True,
+                           n_exceptions=n, n_positive=k, baseline_bits=float(base),
+                           residual_nonempty=nonempty, library_size_before=len(self.echo.library))
+        self.receipts.append(ev)
+        if not nonempty:
+            return ev
+        # (c) OFFER THE FRESH RESIDUAL TO Γ *BEFORE* MINTING. Order is load-bearing: scoring the library after a
+        # fresh mint would let the mint answer its own question. Only counted as an ATTEMPT when Γ is NON-EMPTY --
+        # offering a residual to an empty library is not an attempt at reuse, and calling it one would manufacture
+        # MINTED_UNUSED, the single code that indicts the architecture.
+        if self.echo.library:
+            self.chain.note_reuse_attempt()
+            ev.reuse_attempted = True
+            hit = self.echo.explains_scored(exc)
+            if hit is not None:
+                pred, gain = hit
+                self.chain.note_reuse()
+                ev.transferred = str(pred)
+                ev.transfer_gain_bits = float(gain)
+                ev.minted_on = self.echo.echo_tasks(pred)
+                ev.echo_kind = _echo_kind(tid, ev.minted_on)
+        # NOTE-transfer-CLEAR stays deliberately UNWIRED this beat: `cleared` requires the transferred φ to STEER
+        # ACTION, which is the operator layer -- the last link, and the worst place for a first end-to-end run. The
+        # honest ceiling here is USED_NOCLEAR, and a receipt says so in words.
+        mint = two_part_mdl(exc, max_size=2)
+        if mint is not None:
+            self.chain.note_mint()
+            ev.minted = True
+            ev.minted_phi = str(mint.predicate)
+            ev.minted_bits = float(getattr(mint, "saved_bits", 0.0))
+            ev.minted_support = int(getattr(mint, "support", 0))
+            ev.key = "+".join(sorted(a.name for a in mint.predicate.atoms))
+            ev.promoted = self.echo.observe_mint(tid, mint)      # the Predicate OBJECT, not its name (directive 2a)
+            ev.echo_count = len(self.echo.echo_tasks(mint.predicate))
+        return ev
+
+    def _close_segment(self, reason: str) -> None:
+        """The ONE route by which a chain segment ends. Runs the residual pass first (so the segment's own signals
+        are set before it is scored), then closes and scores it, then re-bases the segment window.
+
+        `_seg0` after a DEATH is len(frames): the next frame is the post-death restart board, and the
+        death-board -> restart-board discontinuity is not play. After an ADVANCE it is len(frames)-1: the redraw
+        frame legitimately opens the new level's stream (this matches `_lvl0`)."""
+        if self.chain.steps_in_segment > 0:
+            try:
+                ev = self._residual_pass(reason)
+            except Exception:
+                ev = None                                       # a residual that raises must not sink the run
+        else:
+            ev = None
+        st = self.chain.end_segment(reason)
+        if ev is not None:
+            ev.stage = None if st is None else st.name
+        self._seg_n += 1
+        self._seg0 = max(0, len(self.frames) - 1) if reason == "advance" else len(self.frames)
+
     def end_run(self) -> None:
         """Close the final chain segment. A run that ends on the action cap / wall clock / a GAME_OVER with no earned
         reset is a STALL and is scored, exactly like a death: the task did not close. Runners MUST call this, or the
         last segment silently never reports. Idempotent -- a segment with no observed frame is a no-op."""
-        self.chain.end_segment("run_end")
+        self._close_segment("run_end")
+
+    def echo_report(self) -> Dict[str, Any]:
+        """The ECHO clock's state plus the break-event accounting. `firing_kinds` is reported SEPARATELY per kind so
+        no pooled summary can add a within-run echo to a cross-game one and call the total 'transfers'."""
+        r = dict(_receipt_summary(self.receipts))
+        r.update(library=[str(p) for p in self.echo.library], echo_threshold=self.echo.echo_threshold)
+        return r
+
+    def firing_receipts(self) -> List[Dict[str, Any]]:
+        """Rendered-ready dicts for every FIRING. Empty list is the honest report that nothing fired -- no receipt,
+        no firing, and no prose is permitted to bridge that gap."""
+        return [e.to_dict() for e in self.receipts if e.fired]
 
     def chain_report(self) -> Dict[str, Any]:
         """The measured stage distribution. This REPLACES the old per-run `_tether_stage` proxy, which inferred
@@ -641,7 +750,7 @@ class ReduxPolicy:
         # (membrane rule §3.6/§5.1 + sole-metric §0), so it is counted apart and never scored as a stage -- it can
         # neither be read as CLEARED nor dilute the stall distribution. Everything noted below belongs to the NEW
         # segment, which is the one that will have to either reuse what this boundary produced, or stall.
-        self.chain.end_segment("advance")
+        self._close_segment("advance")
         # ABDUCE-ON-REWARD: if we were directed-exploring the novel actors and the level just advanced, the directed
         # empowerment MANUFACTURED a reward -> abduce the objective from the reward residual, GATED (never self-certified).
         if self._directed is not None:
@@ -657,7 +766,15 @@ class ReduxPolicy:
                 name = "+".join(sorted(a.name for a in mint.predicate.atoms))
                 acted = self.mint_gate(verdict, name, float(getattr(mint, "bits", 0.0)),
                                        context="directed-empowerment@L%d" % self.level)
-                self.abduced.append(dict(from_level=self.level, verdict=verdict, name=name, acted=acted))
+                # DIRECTIVE 2a: the Predicate OBJECT survives the mint site. φ did not die at run end -- it died
+                # HERE, where this site used to reduce it to `name`, a string the echo clock cannot score and
+                # `explains()` cannot evaluate. The gate still receives the name (it gates on identity); the OBJECT
+                # goes to Γ's echo clock, keyed by its atom set, so a later residual can be scored against it.
+                promoted = self.echo.observe_mint(
+                    _task_id(self.game_id, self.level, self._seg_n, stream="rho"), mint)
+                self.abduced.append(dict(from_level=self.level, verdict=verdict, name=name, acted=acted,
+                                         predicate=mint.predicate, promoted=promoted,
+                                         echo_tasks=self.echo.echo_tasks(mint.predicate)))
             self._directed = None
 
         prev = self.frames[-2] if len(self.frames) >= 2 else self.frames[-1]

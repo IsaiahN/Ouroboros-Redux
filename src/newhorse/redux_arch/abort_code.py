@@ -94,11 +94,12 @@ def classify(s: ChainSignals) -> Stage:
     coerced (transfer implies attempt; a clear implies a transfer) so a partial/loose signal set can never over-credit."""
     reused = bool(s.reused or s.cleared)
     reuse_attempted = bool(s.reuse_attempted or reused)
+    minted = bool(s.minted or reused)      # you cannot reuse what was never minted: a transfer implies a mint
     if not s.diff_ran:
         return Stage.DIED_PRE_DIFF
     if not s.residual_nonempty:
         return Stage.RESIDUAL_EMPTY
-    if not s.minted:
+    if not minted:
         return Stage.MINT_UNFIRED
     if not reuse_attempted:
         return Stage.REUSE_UNWIRED
@@ -169,6 +170,13 @@ class ChainLedger:
     _sig: ChainSignals = field(default_factory=ChainSignals)
     _reasons: Counter = field(default_factory=Counter)
     _steps: int = 0                                    # frames observed inside the CURRENT segment
+
+    @property
+    def steps_in_segment(self) -> int:
+        """Frames observed inside the CURRENTLY OPEN segment. Callers that want to do work at a break event (build a
+        residual, offer it to the library) must skip an EMPTY segment for exactly the reason `end_segment` does: it
+        is an accounting artefact, not a task that failed, and scoring it would manufacture evidence."""
+        return int(self._steps)
 
     def note_step(self) -> None:
         """One observation landed in the current segment. An EMPTY segment (no frame between two break events -- e.g.

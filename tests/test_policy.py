@@ -257,14 +257,19 @@ def _drive(pol, world, n, level=0, state=None):
 
 
 def test_policy_scores_a_death_as_a_stall_at_the_stage_it_reached():
+    """A death is a STALL and is scored at whatever stage the segment reached. Since the residual trigger widened to
+    every break event, a death now also RUNS the R_tau residual -- so the stage this reaches depends on what the
+    residual said, and the assertion is on the ACCOUNTING (one stall, closed by a death, scored at an
+    implementation-layer stage), never on the stage being high."""
     pol = ReduxPolicy(game_id="probe-a", blackboard=Blackboard(), warmup_cap=4)
     w = ADrive()
     _drive(pol, w, 8)
     pol.observe(w.frame(), [1, 2, 3, 4], 0, state="GAME_OVER")
     r = pol.chain_report()
     assert r["stalls"] == 1 and r["segment_ends"] == {"death": 1}
-    # nothing minted and no boundary diff ran inside that segment -> the honest floor, not an architecture verdict
-    assert r["furthest_stage"] == "DIED_PRE_DIFF" and r["indicts"] == "implementation"
+    # an open toy board with nothing to block the cursor: Gamma predicts every move correctly, so the residual is
+    # PURE and nothing is minted. RESIDUAL_EMPTY here is an honest report of a uniform stream, not manufactured reach.
+    assert r["furthest_stage"] in ("DIED_PRE_DIFF", "RESIDUAL_EMPTY") and r["indicts"] in ("implementation", "library")
 
 
 def test_a_level_advance_closes_a_segment_without_scoring_it():
@@ -288,12 +293,18 @@ def test_end_run_closes_the_final_segment_exactly_once():
     assert r["stalls"] == 1 and r["segment_ends"] == {"run_end": 1}
 
 
-def test_the_boundary_diff_is_the_only_thing_that_sets_diff_ran():
+def test_diff_ran_is_never_inferred_from_another_organ():
     """The old proxy inferred `diff_ran` from the RELATION layer having any discrepancy at all -- a different organ.
-    A segment in which no level boundary was crossed must report DIED_PRE_DIFF no matter how busy the relation
-    layer was, because the §3.5 boundary diff genuinely did not run."""
+    That is the proxy lie this instrument exists to kill, and it survives the trigger widening intact: `diff_ran` is
+    set from ONE place, a residual actually computed off frames+acts. With no learned cursor colour there is no
+    observable to compute one from, so the segment reports DIED_PRE_DIFF no matter how busy the relation layer is.
+
+    (What CHANGED with the widening is only WHEN a residual is computed -- every break event, not only a level
+    advance. What did not change is that nothing else may set the flag.)"""
     pol = ReduxPolicy(game_id="probe-d", blackboard=Blackboard(), warmup_cap=4)
     _drive(pol, ADrive(), 12)
     assert pol.relations.discrepancies()            # the relation layer is measuring things
+    pol.cursor = None                               # remove the observable; the relation layer stays as busy as ever
     pol.end_run()
     assert pol.chain_report()["furthest_stage"] == "DIED_PRE_DIFF"
+    assert pol.receipts == [], "no residual computed => no receipt; the two must never come apart"

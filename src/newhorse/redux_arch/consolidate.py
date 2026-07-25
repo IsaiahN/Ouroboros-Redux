@@ -46,17 +46,23 @@ class Consolidator:
             self.log.append("PROMOTE  φ=(%s) into Γ -- echoed on tasks %s"
                             % (mint.predicate, sorted(seen)))
             return True
-        self.log.append("HOLD  φ=(%s) minted on %s (%d/%d tasks -- not yet echoed)"
-                        % (mint.predicate, task_id, len(seen), self.echo_threshold))
+        if already:
+            self.log.append("RE-MINT  φ=(%s) minted again on %s -- already in Γ (%d tasks)"
+                            % (mint.predicate, task_id, len(seen)))
+        else:
+            self.log.append("HOLD  φ=(%s) minted on %s (%d/%d tasks -- not yet echoed)"
+                            % (mint.predicate, task_id, len(seen), self.echo_threshold))
         return False
 
-    def explains(self, exceptions: List[Exception_]) -> Optional[Predicate]:
-        """Does Γ (a promoted predicate) already account for these exceptions? If so, the new task is solved
-        WITHOUT re-minting -- the transfer payoff. A promoted φ 'explains' the residual by the SAME two-part MDL
-        criterion the minter uses -- it COMPRESSES it (L(R|φ)+L(φ) < L(R)) -- not by perfect purity (real
-        residuals are noisy; the minter itself accepts imperfect splits that compress). No DSL search happens
-        here: we only score the already-promoted library predicates, so this is transfer, not a re-mint. Returns
-        the best-compressing promoted predicate, or None if none compresses this residual."""
+    def echo_tasks(self, pred: Predicate) -> List[str]:
+        """The distinct task ids this predicate has been minted on. The RECEIPT needs these, not just a count: a φ
+        that echoed across two GAMES is a strictly stronger transfer claim than one that echoed across two segments
+        of one run, and a receipt that reports only "it echoed" hides that difference (§5.1 source amnesia)."""
+        return sorted(self._tasks_by_key.get(_key(pred), set()))
+
+    def explains_scored(self, exceptions: List[Exception_]):
+        """`explains`, but returning (φ, bits saved) so the firing receipt can record the MDL delta the transfer
+        actually bought instead of merely asserting that one happened."""
         n = len(exceptions)
         if n == 0:
             return None
@@ -74,7 +80,18 @@ class Consolidator:
             gain = base - (l_given + pred.cost())            # bits saved by using this known φ (no search cost)
             if gain > best_gain:
                 best, best_gain = pred, gain
-        return best
+        return None if best is None else (best, float(best_gain))
+
+    def explains(self, exceptions: List[Exception_]) -> Optional[Predicate]:
+        """Does Γ (a promoted predicate) already account for these exceptions? If so, the new task is solved
+        WITHOUT re-minting -- the transfer payoff. A promoted φ 'explains' the residual by the SAME two-part MDL
+        criterion the minter uses -- it COMPRESSES it (L(R|φ)+L(φ) < L(R)) -- not by perfect purity (real
+        residuals are noisy; the minter itself accepts imperfect splits that compress). No DSL search happens
+        here: we only score the already-promoted library predicates, so this is transfer, not a re-mint. Returns
+        the best-compressing promoted predicate, or None if none compresses this residual. Thin wrapper over
+        `explains_scored` -- ONE scoring body, so the receipt's bits and the verdict can never disagree."""
+        r = self.explains_scored(exceptions)
+        return None if r is None else r[0]
 
 
 def _pure(outcomes: List[bool]) -> bool:
