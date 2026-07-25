@@ -185,7 +185,18 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     for e in firings(evs):
         k = e.echo_kind or "within-run-across-segments"
         kinds[k] = kinds.get(k, 0) + 1
-    return dict(break_events=len(evs),
+    # WHICH φ was minted, and on WHICH tasks -- the carrier-verification measure for the NEXT carrier, kept as an
+    # instrument reading rather than a guess. A cross-game Γ can only ever fire if two DIFFERENT games mint the SAME
+    # key; pooled across a sweep this says whether that carrier has a live instance BEFORE anyone wires it (the
+    # 43rd-audit caution). Task ids carry the game id, so the pooled sets stay attributable.
+    minted_keys: Dict[str, List[str]] = {}
+    for e in evs:
+        if e.minted and e.key:
+            ts = minted_keys.setdefault(e.key, [])
+            if e.task_id not in ts:
+                ts.append(e.task_id)
+    return dict(minted_keys={k: sorted(v) for k, v in sorted(minted_keys.items())},
+                break_events=len(evs),
                 diff_ran=sum(1 for e in evs if e.diff_ran),
                 residual_nonempty=sum(1 for e in evs if e.residual_nonempty),
                 minted=sum(1 for e in evs if e.minted),

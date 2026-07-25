@@ -212,6 +212,7 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     tot = {k: 0 for k in keys}
     kinds: Dict[str, int] = {}
     lvl_hist: Dict[str, int] = {}
+    mkeys: Dict[str, set] = {}
     reach_l2 = 0
     for r in results.values():
         e = r.get("echo") or {}
@@ -219,9 +220,18 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
             tot[k] += int(e.get(k) or 0)
         for k, n in (e.get("firing_kinds") or {}).items():
             kinds[k] = kinds.get(k, 0) + int(n)
+        for k, ts in (e.get("minted_keys") or {}).items():
+            mkeys.setdefault(k, set()).update(ts)
         lv = int(r.get("levels") or 0)
         lvl_hist[str(lv)] = lvl_hist.get(str(lv), 0) + 1
         if lv >= 2:
             reach_l2 += 1
+    # CARRIER REACH FOR THE *CROSS-GAME* Γ, measured before anything is wired to it. Γ is per-policy today, so a
+    # shared library could only ever promote a φ that two DIFFERENT games mint independently. `_games` counts the
+    # distinct games behind each key; a key minted many times inside ONE game is worth zero to this carrier, and
+    # collapsing the two counts would be exactly the "wire a carrier with nothing to fire on" mistake.
+    key_games = {k: sorted({t.split("#", 1)[0] for t in ts}) for k, ts in sorted(mkeys.items())}
     return dict(echo=dict(tot, firing_kinds=kinds), games_reaching_L2=reach_l2,
-                max_level_histogram=dict(sorted(lvl_hist.items())))
+                max_level_histogram=dict(sorted(lvl_hist.items())),
+                minted_key_games=key_games,
+                keys_minted_on_2plus_games=sum(1 for g in key_games.values() if len(g) >= 2))

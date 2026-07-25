@@ -276,3 +276,42 @@ def test_the_uncleared_note_stays_true_or_this_test_fails():
         "note_transfer_clear now has call sites %s -- USED_NOCLEAR is no longer a wiring ceiling, so "
         "receipt.UNCLEARED_NOTE is stale and must be rewritten before this can pass." % callers)
     assert "no call site" in UNCLEARED_NOTE
+
+
+def test_minted_keys_names_the_tasks_so_the_next_carrier_can_be_verified_not_guessed():
+    """The cross-game Γ can only fire if two DIFFERENT games mint the SAME key. Before this, the sweep shipped only
+    FIRING receipts, so that question could only be answered by re-running with a shared library already wired --
+    i.e. by wiring the carrier first and finding out afterwards, the exact 43rd-audit mistake. Catches a summary that
+    reports 'minted=2' without saying WHAT was minted or WHERE."""
+    from newhorse.redux_arch.receipt import summary
+    pol = _armed_policy("m0r0")
+    for seed in (1, 2):
+        frames, acts = _room(seed=seed)
+        _feed(pol, frames, acts)
+        pol._close_segment("death")
+    s = summary(pol.receipts)
+    assert s["minted"] >= 2
+    mk = s["minted_keys"]
+    assert mk, "a mint with no key recorded is a mint the next carrier cannot be checked against"
+    for key, tasks in mk.items():
+        assert tasks == sorted(set(tasks)), "task ids must be distinct: a re-mint on ONE task is not an echo"
+        assert all(t.startswith("m0r0#") for t in tasks)
+
+
+def test_pooled_key_reach_counts_GAMES_not_mints():
+    """A key minted five times inside one game is worth ZERO to a cross-game library. Catches a pooled reading that
+    counts mints (or task ids, which are per-segment) and reports a live cross-game carrier that does not exist."""
+    from newhorse.redux_arch.swarm import echo_pool
+    one_game = {"a": {"levels": 0, "echo": {"minted": 3, "minted_keys": {
+        "INTENDED_FREE": ["ab12#L0#s0.tau", "ab12#L0#s1.tau", "ab12#L0#s2.tau"]}}}}
+    p = echo_pool(one_game)
+    assert p["keys_minted_on_2plus_games"] == 0
+    assert p["minted_key_games"]["INTENDED_FREE"] == ["ab12"]
+
+    two_games = dict(one_game)
+    two_games["b"] = {"levels": 0, "echo": {"minted": 1, "minted_keys": {
+        "INTENDED_FREE": ["cd34#L0#s0.tau"], "OTHER": ["cd34#L0#s1.tau"]}}}
+    p2 = echo_pool(two_games)
+    assert p2["keys_minted_on_2plus_games"] == 1
+    assert p2["minted_key_games"]["INTENDED_FREE"] == ["ab12", "cd34"]
+    assert p2["minted_key_games"]["OTHER"] == ["cd34"]
