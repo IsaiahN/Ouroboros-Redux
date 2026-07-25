@@ -26,8 +26,27 @@ from .explore import CuriosityExplorer
 from .coupled import learn_two_body, two_body_drive_action, two_body_search_action
 from scipy import ndimage as _ndi
 from .dsl import Predicate, make_atom
+from .abort_code import ChainSignals, classify, indicts
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
+
+
+def _tether_stage(pol) -> Dict[str, Any]:
+    """The honest TETHER-STAGE ceiling this run reached (abort_code.py). Read ONLY from what is actually wired into the
+    live loop: the relation residual/discrepancy machinery (the diff) and the reward-boundary mint gate (`pol.abduced`).
+    The reuse organ (Consolidator) is NOT wired into the runner, so reuse is never ATTEMPTED live -> a run that mints
+    honestly tops out at REUSE_UNWIRED (an IMPLEMENTATION/wiring gap), and this code must NEVER report 'architecture'.
+    A level cleared by search/drive is deliberately NOT fed as `cleared` (spec §7.2b): CLEARED requires a transfer,
+    which cannot happen until reuse is wired."""
+    md = pol.relations.discrepancies().get("MATCH")
+    od = pol.relations.discrepancies().get("ORDER")
+    abduced = getattr(pol, "abduced", []) or []
+    diff_ran = (md is not None) or (od is not None) or bool(abduced)
+    residual_nonempty = bool(abduced) or (md is not None and md > 0) or (od is not None and od > 0)
+    minted = any(a.get("acted") for a in abduced)
+    sig = ChainSignals(diff_ran=diff_ran, residual_nonempty=residual_nonempty, minted=minted)  # reuse unwired -> False
+    st = classify(sig)
+    return {"stage": st.name, "rank": int(st), "indicts": indicts(st)}
 
 
 def _learn_passable(frames: List[np.ndarray], cursor: Optional[int]) -> set:
@@ -207,7 +226,8 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                     multi_avatar_drive=pol.n_multi_avatar_drive,
                     match_roles_assigned=(pol.relations.role_bboxes() is not None),
                     match_discrepancy=pol.relations.discrepancies().get("MATCH"),
-                    order_discrepancy=pol.relations.discrepancies().get("ORDER"))
+                    order_discrepancy=pol.relations.discrepancies().get("ORDER"),
+                    tether_stage=_tether_stage(pol))
     finally:
         session.close()
 
