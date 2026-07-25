@@ -107,6 +107,49 @@ def _find_panels(g: np.ndarray, bg: int, min_area: int = 20) -> List[Referent]:
     return out
 
 
+def _find_ring_panels(g: np.ndarray, bg: int, max_interior_frac: float = 0.35) -> List[Referent]:
+    """A framed SYMBOL DISPLAY: a single-colour BORDER RING -- one component whose cells lie almost entirely on the
+    perimeter of its OWN bounding box and cover most of that perimeter (all four sides present) -- enclosing an interior
+    that carries some content. Emitted as a `panel` on the enclosed interior. This is the reference/goal display the
+    DENSE-block panel test in `_find_panels` misses: the frame encloses mostly background (low overall fill), so a solid
+    key/lock or target-symbol box reads as scattered markers instead of a panel. Precision-first: the ring must be a
+    genuine CLOSED border (not two facing bars), mostly hollow (not a filled block), and enclose real content; the ring
+    colour must not be a large structural fill. Names no game; ratio/fraction gated, no pixel threshold."""
+    H, W = g.shape
+    area_board = H * W
+    out: List[Referent] = []
+    for c in [int(v) for v in np.unique(g) if int(v) != bg]:
+        for comp in _components(g == c):
+            n = len(comp)
+            if n < 8:                                          # a frame is a loop of cells, not a couple of dots
+                continue
+            r0, c0, r1, c1 = _bbox(comp)
+            h, w = r1 - r0 + 1, c1 - c0 + 1
+            if h < 3 or w < 3:                                 # need an enclosable interior
+                continue
+            if h * w >= 0.9 * area_board:                      # the whole board is not a framed display
+                continue
+            on_perim = sum(1 for (r, cc) in comp if r in (r0, r1) or cc in (c0, c1))
+            if n - on_perim > max_interior_frac * n:           # a ring is (mostly) hollow, not a filled block
+                continue
+            perim_total = 2 * h + 2 * w - 4
+            if on_perim < 0.8 * perim_total:                   # must cover most of its bbox perimeter (a closed frame)
+                continue
+            top = any(r == r0 for r, _ in comp); bot = any(r == r1 for r, _ in comp)
+            left = any(cc == c0 for _, cc in comp); right = any(cc == c1 for _, cc in comp)
+            if not (top and bot and left and right):           # two facing bars are not an enclosure
+                continue
+            interior = g[r0 + 1:r1, c0 + 1:c1]
+            icols = sorted(int(v) for v in np.unique(interior) if int(v) not in (bg, c))
+            if interior.size == 0 or not icols:                # an enclosed display carries a symbol
+                continue
+            out.append(Referent("panel", (r0 + 1, c0 + 1, r1 - 1, c1 - 1), c,
+                                 {"via": "ring", "interior_colours": icols,
+                                  "fill": round(float((interior != bg).mean()), 3),
+                                  "border_frac": round(on_perim / perim_total, 3), "area": (h - 2) * (w - 2)}))
+    return out
+
+
 def _distinct_nonbg(a: np.ndarray, bg: int) -> List[int]:
     return sorted(int(v) for v in np.unique(a) if int(v) != bg)
 
@@ -300,6 +343,26 @@ def find_referents(frame, bg: Optional[int] = None) -> List[Referent]:
         return []
     b = _bg(g, bg)
     panels = _find_panels(g, b)
+    ring_panels = _find_ring_panels(g, b)
+
+    def _ov(a, bb):
+        return not (a[2] < bb[0] or bb[2] < a[0] or a[3] < bb[1] or bb[3] < a[1])
+    ring_boxes = []
+    for rp in ring_panels:                                    # a framed display already found as a block/ring panel is not re-added
+        if not any(_ov(rp.bbox, p.bbox) for p in panels):
+            panels.append(rp)
+        ring_boxes.append(rp.bbox)
+
     eps = _find_endpoints(g, b)
     node_pairs = _find_node_pairs(g, b, seen_colours={r.colour for r in eps})
+
+    def _cent_in(pt, pb):
+        return pb[0] <= pt[0] <= pb[2] and pb[1] <= pt[1] <= pb[3]
+
+    def _enclosed(ref):                                       # a marker pair whose EVERY marker sits inside a framed display
+        cents = ref.detail.get("centroids", [])
+        return bool(cents) and all(any(_cent_in(ct, pb) for pb in ring_boxes) for ct in cents)
+    if ring_boxes:                                            # enclosed markers belong to their panel, not a free endpoint pair
+        eps = [e for e in eps if not _enclosed(e)]
+        node_pairs = [n for n in node_pairs if not _enclosed(n)]
     return panels + _find_legends(g, b) + _find_panel_sequences(g, panels, b) + eps + node_pairs
