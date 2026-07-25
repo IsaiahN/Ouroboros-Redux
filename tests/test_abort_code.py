@@ -1,7 +1,7 @@
 """The per-stall TETHER STAGE code (abort_code.py). The bar is ONE firing of the whole loop -- fail -> mint from the
 residual -> reuse where it was NOT minted -> clear a break -- so a stall must report HOW FAR down that chain it got, and
 an implementation/library/gate stall must never be read as an architecture verdict. These tests pin each stage label, the
-load-bearing REUSE_UNWIRED vs MINTED_UNUSED split, the §7.2b rule that a raw level advance is not a firing, and -- via the
+load-bearing REUSE_UNWIRED vs MINTED_UNUSED split, the membrane/sole-metric rule that a raw level advance is not a firing, and -- via the
 REAL mint+consolidate organs -- that the classifier reads a genuine transfer as reaching the reuse boundary. Names no game."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -47,7 +47,7 @@ def test_reuse_unwired_is_not_an_architecture_verdict():
 
 
 def test_a_level_advance_alone_never_sets_cleared():
-    """§7.2b: clearing levels by search proves nothing. `cleared` requires a transfer (`reused`) first; a caller passing
+    """membrane rule (§3.6/§5.1): clearing levels by search/playback proves nothing. `cleared` requires a transfer (`reused`) first; a caller passing
     only cleared=True (as a raw level advance would) is coerced back -- it cannot jump to CLEARED."""
     st = classify(ChainSignals(diff_ran=True, residual_nonempty=True, minted=True, cleared=True))
     assert st == Stage.CLEARED  # coercion makes cleared imply reused+attempted -- so callers must NOT pass a bare level advance

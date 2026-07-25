@@ -36,7 +36,7 @@ def _tether_stage(pol) -> Dict[str, Any]:
     live loop: the relation residual/discrepancy machinery (the diff) and the reward-boundary mint gate (`pol.abduced`).
     The reuse organ (Consolidator) is NOT wired into the runner, so reuse is never ATTEMPTED live -> a run that mints
     honestly tops out at REUSE_UNWIRED (an IMPLEMENTATION/wiring gap), and this code must NEVER report 'architecture'.
-    A level cleared by search/drive is deliberately NOT fed as `cleared` (spec §7.2b): CLEARED requires a transfer,
+    A level cleared by search/drive is deliberately NOT fed as `cleared` (the membrane rule §3.6/§5.1 + sole-metric §0): CLEARED requires a transfer,
     which cannot happen until reuse is wired."""
     md = pol.relations.discrepancies().get("MATCH")
     od = pol.relations.discrepancies().get("ORDER")

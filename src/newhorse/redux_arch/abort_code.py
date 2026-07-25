@@ -24,7 +24,7 @@ The split of "minted but never reused" into REUSE_UNWIRED vs MINTED_UNUSED is lo
 never offered to a fresh task's residual is a WIRING gap, not an architecture verdict. Only MINTED_UNUSED -- reuse
 genuinely attempted on a fresh task and the promoted library failed to explain it -- is allowed to indict the tether.
 
-A break cleared by SEARCH or the drive layer (a level simply advancing) is NOT a tether firing (spec §7.2b) and can
+A break cleared by SEARCH or the drive layer (a level simply advancing) is NOT a tether firing (the membrane rule §3.6/§5.1 + sole-metric §0) and can
 never set CLEARED: `cleared` here means specifically that acting on a TRANSFERRED operator closed the break, which
 requires `reused` first. Callers must not pass a raw level-advance as `cleared`.
 """
@@ -80,7 +80,7 @@ def note(stage: Stage) -> str:
 class ChainSignals:
     """Booleans about how far one stall walked the tether chain. Later signals imply earlier ones; `classify`
     normalises so an inconsistent caller (e.g. reused=True, reuse_attempted=False) is coerced, not mislabelled.
-    `cleared` means a TRANSFERRED operator closed a break -- never a raw level advance (spec §7.2b)."""
+    `cleared` means a TRANSFERRED operator closed a break -- never a raw level advance (the membrane rule §3.6/§5.1 + sole-metric §0)."""
     diff_ran: bool = False
     residual_nonempty: bool = False
     minted: bool = False
