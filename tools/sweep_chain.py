@@ -84,6 +84,22 @@ def main() -> None:
              ec.get("minted", 0), ec.get("promoted", 0), ec.get("reuse_attempted", 0),
              ec.get("fired", 0), ec.get("cleared", 0)))
 
+    # THE SHARED-Γ UNDO, PRE-REGISTERED BEFORE THIS SWEEP AND EVALUATED BY THE SCRIPT, NOT BY THE READER.
+    # Written down before the run: "a cross-game Γ is worth keeping only if reuse_attempted > 0 AND a promoted φ is
+    # offered on a game it was not minted on. If Γ fills but reuse_attempted stays 0, the wiring is decorative and
+    # reverts." Printing the verdict here is the point -- a criterion a human evaluates after seeing the numbers is
+    # a criterion that gets met.
+    att, foreign = int(ec.get("reuse_attempted", 0)), int(ec.get("reuse_attempted_foreign", 0))
+    keep = att > 0 and foreign > 0
+    print("\n=== SHARED-Γ PRE-REGISTERED UNDO ===")
+    print("  offered to Γ=%d | of those, offered a φ minted on ANOTHER GAME=%d" % (att, foreign))
+    print("  VERDICT: %s" % ("KEEP -- Γ crossed a game boundary at the offer site." if keep else
+                             ("REVERT -- Γ filled but nothing was ever offered: decorative wiring."
+                              if att == 0 else
+                              "REVERT -- every offer was same-game: the SHARING bought nothing, only the library did.")))
+    print("  This says nothing about whether φ EXPLAINED anything (fired=%d) -- an offer is an opportunity, not a"
+          " transfer." % int(ec.get("fired", 0)))
+
 
 if __name__ == "__main__":
     main()

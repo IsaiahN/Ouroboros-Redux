@@ -59,6 +59,14 @@ def _parts(tid: str):
     return g, lvl, seg
 
 
+def game_of(tid: str) -> str:
+    """The GAME a task id belongs to. THE ONE PLACE that knows the id's shape. It was known in three places
+    (`_parts` here, a hand-rolled split in swarm's carrier-reach pool, and now Γ's cross-game test); three copies of
+    a format is how a later change to `task_id` silently turns a cross-game count into a within-game one while every
+    test still passes."""
+    return _parts(tid)[0]
+
+
 def echo_kind(current: str, minted_on: List[str]) -> str:
     """The STRONGEST kind of echo represented by φ having been minted on `minted_on` and now firing on `current`.
     Strongest, not average: if any minting task was a different game, the transfer really did cross games."""
@@ -91,7 +99,15 @@ class ResidualEvent:
     residual_nonempty: bool = False
     # reuse-BEFORE-mint (the transfer test, run on a FRESH residual)
     library_size_before: int = 0
+    # THE CROSS-GAME Γ's OWN AUDIT COLUMN. `library_size_before` cannot answer the question the shared library was
+    # built to answer: a Γ of four φ that THIS game minted is, for transfer purposes, an empty library. `foreign`
+    # counts only promoted φ whose minting tasks contain NO task from this game -- i.e. the φ that would be a real
+    # transfer if they fired here. The pre-registered undo for the shared Γ is written against this field, not
+    # against `reuse_attempted`, because reuse_attempted goes positive the moment Γ is non-empty for ANY reason.
+    library_foreign_before: int = 0
     reuse_attempted: bool = False
+    reuse_attempted_foreign: bool = False  # this residual was offered a φ minted on a game that is NOT this game
+
     transferred: Optional[str] = None     # str(φ) that explained this residual without re-minting
     transfer_gain_bits: float = 0.0
     echo_kind: Optional[str] = None
@@ -136,21 +152,51 @@ class ResidualEvent:
 
 def render_one(ev: ResidualEvent) -> str:
     """Directive 5's six-field record for ONE firing, plus its caveat. Never called on a non-firing: a rendered
-    'receipt' for an event that did not fire is exactly the thing that turns a claim into fake evidence."""
+    'receipt' for an event that did not fire is exactly the thing that turns a claim into fake evidence.
+
+    A MISREPORT FIXED HERE, FOUND BY READING THE FIRST SWEEP THAT ACTUALLY FIRED. Two DIFFERENT predicates pass
+    through one break event -- the φ that TRANSFERRED (scored out of Γ, before any minting) and the φ that was
+    freshly MINTED on the same residual afterwards -- and they are routinely not the same predicate. The old
+    layout printed the minted φ, then said "for the task(s) named below", then printed `minted_on`, which is the
+    provenance of the TRANSFERRED φ. On the real receipt that read as `INTENDED_FREE` having been minted on four
+    sp80 tasks, when sp80 is where `INTENDED_COLOUR==9` came from and `INTENDED_FREE` had never touched that game.
+    A receipt that misattributes provenance is worse than no receipt: it is the fake evidence directive 5 exists
+    to forbid, produced by the very artifact meant to prevent it. So the two φ now live in separate blocks, each
+    carrying its own provenance, and neither block's prose can reach across to the other's fields.
+
+    The minting GAMES are printed alongside the tasks because the cross-game claim -- the strongest one the chain
+    can make -- is otherwise only checkable by parsing task ids by eye."""
     kind = ev.echo_kind or "within-run-across-segments"
+    games = sorted({game_of(t) for t in (ev.minted_on or [])})
+    here = game_of(ev.task_id) if ev.task_id else str(ev.game)
+    elsewhere = [g for g in games if g != here]
+    if ev.minted_phi is None:
+        mint_block = ["  ALSO MINTED HERE   (nothing was minted on this residual)"]
+    elif ev.transferred is not None and str(ev.minted_phi) == str(ev.transferred):
+        mint_block = ["  ALSO MINTED HERE   %s -- the SAME phi, re-minted on this residual (%.2f bits, support %d)"
+                      % (ev.minted_phi, ev.minted_bits, ev.minted_support),
+                      "                     A re-mint is not a second piece of evidence: it is this game agreeing"
+                      " with itself."]
+    else:
+        mint_block = ["  ALSO MINTED HERE   %s (%.2f bits, support %d) -- a DIFFERENT phi from the one that fired"
+                      % (ev.minted_phi, ev.minted_bits, ev.minted_support),
+                      "                     Its provenance is THIS task (%s) and nothing above or below applies"
+                      " to it." % ev.task_id]
     return "\n".join([
         "--- TETHER FIRING RECEIPT --------------------------------------------------",
         "  BASE FAILED HERE   game=%s level=%d segment=%d closed_by=%s after %d steps"
         % (ev.game, ev.level, ev.segment, ev.reason, ev.steps),
         "  RESIDUAL WAS       R_tau: %d testable steps, %d predicted-correctly, baseline %.2f bits"
         % (ev.n_exceptions, ev.n_positive, ev.baseline_bits),
-        "  PHI RE-MINTED HERE %s   (%.2f bits saved, support %d) -- the ORIGINAL mint's delta is in the receipt"
-        % (ev.minted_phi or "(nothing re-minted on this residual)", ev.minted_bits, ev.minted_support),
-        "                     for the task(s) named below, which is where phi was actually created.",
-        "  EVALUATED BEFORE   phi was minted on %s and scored against THIS residual before any new mint"
-        % (", ".join(ev.minted_on) or "(unknown)"),
-        "  PHI FIRED HERE     %s explained task %s, compressing it by %.2f bits without re-minting"
-        % (ev.transferred, ev.task_id, ev.transfer_gain_bits),
+        "  PHI THAT FIRED     %s" % ev.transferred,
+        "    ...WAS MINTED ON tasks %s" % (", ".join(ev.minted_on) or "(unknown)"),
+        "    ...I.E. ON GAMES %s%s" % (", ".join(games) or "(unknown)",
+                                       ("  <-- INCLUDING %s, WHICH IS NOT THIS GAME" % ", ".join(elsewhere))
+                                       if elsewhere else "  (all of them THIS game -- a within-game echo)"),
+        "    ...AND EXPLAINED %s here, compressing it by %.2f bits without re-minting"
+        % (ev.task_id, ev.transfer_gain_bits),
+        "    ...SCORED BEFORE any mint ran on this residual, so no fresh mint answered its own question",
+    ] + mint_block + [
         "  THAT CLEARED       %s" % ("yes -- the transferred operator closed the break" if ev.cleared
                                      else UNCLEARED_NOTE),
         "  ECHO KIND          %s" % kind,
@@ -216,6 +262,10 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                 minted=sum(1 for e in evs if e.minted),
                 promoted=sum(1 for e in evs if e.promoted),
                 reuse_attempted=sum(1 for e in evs if e.reuse_attempted),
+                # counted SEPARATELY from `reuse_attempted`, never folded into it: an offer of a φ this same game
+                # minted is not a transfer opportunity, and a single "attempts" total would let a shared Γ that
+                # never crossed a game boundary read exactly like one that did.
+                reuse_attempted_foreign=sum(1 for e in evs if e.reuse_attempted_foreign),
                 fired=len(firings(evs)),
                 cleared=sum(1 for e in evs if e.cleared),
                 firing_kinds=kinds,

@@ -238,11 +238,15 @@ def test_render_of_a_firing_carries_all_six_fields_and_the_weaker_claim_caveat()
         pol._close_segment("death")
     ev = [e for e in pol.receipts if e.fired][0]
     txt = render_one(ev)
-    for field in ("BASE FAILED HERE", "RESIDUAL WAS", "PHI RE-MINTED HERE", "EVALUATED BEFORE",
-                  "PHI FIRED HERE", "THAT CLEARED", "ECHO KIND", "CAVEAT"):
+    # The provenance fields were RELABELLED when the receipt was found to attribute the transferred φ's minting
+    # tasks to the freshly minted φ (see tests/test_receipt_provenance.py). The record still carries every one of
+    # directive 5's fields; what changed is that the two predicates no longer share a block.
+    for field in ("BASE FAILED HERE", "RESIDUAL WAS", "PHI THAT FIRED", "WAS MINTED ON", "I.E. ON GAMES",
+                  "AND EXPLAINED", "THAT CLEARED", "ECHO KIND", "CAVEAT"):
         assert field in txt
     assert "WEAKEST" in txt, "a within-run echo must carry its weaker-claim caveat IN the receipt"
     assert "USED_NOCLEAR" in txt
+    assert "NOT THIS GAME" not in txt, "a single-game run must never render as a crossing"
 
 
 def test_no_firing_renders_a_count_not_a_verdict():

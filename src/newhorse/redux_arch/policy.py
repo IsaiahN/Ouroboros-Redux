@@ -59,6 +59,24 @@ PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE, MULTI_AVATAR = \
 # families can never pool. See residual_bank.py for the decay bound and the evidence-not-conclusions rule.
 RESIDUAL_BANK = ResidualBank()
 
+# Γ, THE PROMOTED GRAMMAR, SHARED ACROSS GAMES. One instance for the process, because a per-policy Γ can only ever
+# promote a φ that ONE game minted twice, and the strongest transfer claim the chain can make -- a φ minted on game
+# A explaining a residual on game B -- was structurally unreachable while it stayed per-policy. This was wired only
+# after the carrier was MEASURED to have a live instance: last sweep's `keys_minted_on_2plus_games` was 1
+# (`INTENDED_FREE`, minted independently on re86 and wa30), so a shared library has something real to promote. Do
+# not widen it further without the same evidence.
+#
+# WHAT THIS DELIBERATELY DOES NOT DO: it does not persist to disk. The residual bank persists because it holds
+# EVIDENCE; Γ holds CONCLUSIONS, and a conclusions-store that accumulates across builder runs is an answer key with
+# a slow fuse -- one bad promotion outlives every run that could have overturned it, and no later sweep re-derives
+# it. Γ is rebuilt from live play every sweep, which keeps every promotion in it attributable to the run that is
+# reporting it.
+#
+# ORDER-DEPENDENCE IS REAL AND MUST BE READ AS A CAVEAT, NOT AS A RESULT: whether a game is offered a non-empty Γ
+# depends on when its threads run relative to the games that fill it. Early-scheduled games see less library than
+# late ones, so per-game reuse counts are NOT comparable within a sweep; only the pooled totals are.
+SHARED_ECHO = Consolidator(echo_threshold=2)
+
 
 class Blackboard:
     """Thread-safe cross-game memory for the swarm. Keyed by game-id PREFIX (family, not instance). Stores learned
@@ -239,9 +257,12 @@ class ReduxPolicy:
         # TETHER-STAGE instrument: per-SEGMENT chain accounting. Not a proxy -- every signal below is set from the
         # exact call site of the event it names, so an unwired organ reports as unwired instead of as absent evidence.
         self.chain = ChainLedger()
-        # ECHO -> PROMOTE, hung on the live policy (directive 2b). Γ starts EMPTY and grows only by the echo rule; a
-        # residual is offered to it BEFORE any new mint, so reuse is tested on a residual φ was not minted for.
-        self.echo = Consolidator(echo_threshold=2)
+        # ECHO -> PROMOTE (directive 2b). Γ starts EMPTY and grows only by the echo rule; a residual is offered to it
+        # BEFORE any new mint, so reuse is tested on a residual φ was not minted for. Γ IS NOW THE PROCESS-WIDE
+        # SHARED LIBRARY, not a per-policy one -- see SHARED_ECHO above for why, what it costs, and what it refuses
+        # to do. Promotion is UNCHANGED: still two DISTINCT tasks, still one task credited per mint. Sharing widens
+        # WHO can echo, never HOW EASILY.
+        self.echo = SHARED_ECHO
         self.bank = RESIDUAL_BANK                        # persistent per-family residual EVIDENCE (never conclusions)
         self.receipts: List[ResidualEvent] = []          # one record per break event -- firing or not (directive 5)
         self._seg0 = 0                                   # index in self.frames where the OPEN chain segment begins
@@ -667,7 +688,8 @@ class ReduxPolicy:
         ev = ResidualEvent(game=self.game_id, level=self.level, segment=self._seg_n, reason=str(reason),
                            steps=int(self.chain.steps_in_segment), task_id=tid, diff_ran=True,
                            n_exceptions=n, n_positive=k, baseline_bits=float(base),
-                           residual_nonempty=nonempty, library_size_before=len(self.echo.library))
+                           residual_nonempty=nonempty, library_size_before=len(self.echo.library),
+                           library_foreign_before=len(self.echo.foreign(self.game_id)))
         self.receipts.append(ev)
         if not nonempty:
             return ev
@@ -678,6 +700,12 @@ class ReduxPolicy:
         if self.echo.library:
             self.chain.note_reuse_attempt()
             ev.reuse_attempted = True
+            # The offer is made to the WHOLE library -- a within-game echo is still a real transfer across tasks and
+            # is not suppressed. What is recorded separately is whether any φ on offer came from a DIFFERENT game,
+            # because that is the condition the shared Γ was built for and the one its undo is written against. A
+            # shared library whose every offer is same-game has not crossed anything, however busy `reuse_attempted`
+            # looks.
+            ev.reuse_attempted_foreign = ev.library_foreign_before > 0
             hit = self.echo.explains_scored(exc)
             if hit is not None:
                 pred, gain = hit

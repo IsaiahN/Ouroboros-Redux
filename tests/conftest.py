@@ -1,5 +1,5 @@
 """
-conftest.py -- test isolation for the PERSISTENT residual bank.
+conftest.py -- test isolation for the two PROCESS-WIDE singletons: the persistent residual bank and the shared Γ.
 
 The bank is a process-wide singleton that writes to disk on purpose, which makes it the one piece of state in
 this build that a test run can silently carry into a LIVE run. A synthetic residual banked by a unit test and
@@ -32,3 +32,18 @@ def _empty_residual_bank(_isolate_residual_bank):
     from newhorse.redux_arch import policy
     policy.RESIDUAL_BANK.clear()
     yield
+
+
+@pytest.fixture(autouse=True)
+def _empty_shared_gamma():
+    """Per-test reset of Γ. The promoted library is now a process-wide singleton shared by every policy, which makes
+    it the SECOND piece of state a test can carry into another test -- and a worse one than the bank, because the
+    bank holds evidence that must still pass the mint gate while Γ holds CONCLUSIONS that `explains()` will apply
+    directly. Without this, a test that synthesises two mints leaves a φ in Γ, and the next test's policy reports
+    `reuse_attempted=True` against a library its game never saw: a manufactured transfer opportunity, and the one
+    route by which MINTED_UNUSED -- the only code that indicts the architecture -- becomes reachable by bookkeeping.
+    Γ is NOT redirected anywhere (unlike the bank it never touches disk), so clearing is the whole isolation."""
+    from newhorse.redux_arch import policy
+    policy.SHARED_ECHO.reset()
+    yield
+    policy.SHARED_ECHO.reset()

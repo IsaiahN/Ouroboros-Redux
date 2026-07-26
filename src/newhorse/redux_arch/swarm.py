@@ -208,7 +208,7 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     nothing to fire on); (2) FIRINGS BY KIND, never summed, because a within-run echo and a cross-game echo are
     different strength claims and a single 'transfers' total would launder the weaker into the stronger."""
     keys = ("break_events", "diff_ran", "residual_nonempty", "minted", "promoted", "reuse_attempted",
-            "fired", "cleared")
+            "reuse_attempted_foreign", "fired", "cleared")
     tot = {k: 0 for k in keys}
     kinds: Dict[str, int] = {}
     lvl_hist: Dict[str, int] = {}
@@ -230,7 +230,8 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     # shared library could only ever promote a φ that two DIFFERENT games mint independently. `_games` counts the
     # distinct games behind each key; a key minted many times inside ONE game is worth zero to this carrier, and
     # collapsing the two counts would be exactly the "wire a carrier with nothing to fire on" mistake.
-    key_games = {k: sorted({t.split("#", 1)[0] for t in ts}) for k, ts in sorted(mkeys.items())}
+    from .receipt import game_of
+    key_games = {k: sorted({game_of(t) for t in ts}) for k, ts in sorted(mkeys.items())}
     return dict(echo=dict(tot, firing_kinds=kinds), games_reaching_L2=reach_l2,
                 max_level_histogram=dict(sorted(lvl_hist.items())),
                 minted_key_games=key_games,
