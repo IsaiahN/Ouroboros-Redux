@@ -43,6 +43,7 @@ from .bridge import _px_centroid, transition_residual
 from .consolidate import Consolidator
 from .minting import two_part_mdl, _entropy_bits
 from .receipt import ResidualEvent, task_id as _task_id, echo_kind as _echo_kind, summary as _receipt_summary
+from .residual_bank import ResidualBank
 from .dsl import Predicate, make_atom
 from .live_goal_run import _learn_passable, _two_bodies
 
@@ -51,6 +52,12 @@ ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 # game families the router dispatches to
 PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE, MULTI_AVATAR = \
     "pending", "click", "two_body", "directional", "effect", "undrivable", "multi_avatar"
+
+# THE PERSISTENT RESIDUAL BANK, shared by every policy in the process and by every process through its files.
+# One instance, because the bank's whole purpose is to outlive the object that fills it: a per-policy bank would
+# die with the episode and re-create the exact discard it exists to remove. Keyed per game FAMILY inside; two
+# families can never pool. See residual_bank.py for the decay bound and the evidence-not-conclusions rule.
+RESIDUAL_BANK = ResidualBank()
 
 
 class Blackboard:
@@ -235,6 +242,7 @@ class ReduxPolicy:
         # ECHO -> PROMOTE, hung on the live policy (directive 2b). Γ starts EMPTY and grows only by the echo rule; a
         # residual is offered to it BEFORE any new mint, so reuse is tested on a residual φ was not minted for.
         self.echo = Consolidator(echo_threshold=2)
+        self.bank = RESIDUAL_BANK                        # persistent per-family residual EVIDENCE (never conclusions)
         self.receipts: List[ResidualEvent] = []          # one record per break event -- firing or not (directive 5)
         self._seg0 = 0                                   # index in self.frames where the OPEN chain segment begins
         self._seg_n = 0                                  # how many chain segments have been closed (task counter)
@@ -681,7 +689,38 @@ class ReduxPolicy:
         # NOTE-transfer-CLEAR stays deliberately UNWIRED this beat: `cleared` requires the transferred φ to STEER
         # ACTION, which is the operator layer -- the last link, and the worst place for a first end-to-end run. The
         # honest ceiling here is USED_NOCLEAR, and a receipt says so in words.
-        mint = two_part_mdl(exc, max_size=2)
+        rep: Dict[str, Any] = {}
+        mint = two_part_mdl(exc, max_size=2, report=rep)
+        ev.n_constructed = int(rep.get("n_constructed", 0))
+        ev.n_eligible = int(rep.get("n_eligible", 0))
+        ev.selection_cost_bits = float(rep.get("selection_cost_bits", 0.0))
+        # (d) BANK THE FRESH RESIDUAL -- unconditionally, and AFTER it has been scored on its own. §3.5
+        # ACCUMULATE: "deferred residual accumulates across boundaries". This is the line that removes the
+        # discard: until now `exc` died here with the segment. Evidence only; no verdict is written.
+        try:
+            self.bank.deposit(self.game_id, tid, exc)
+        except Exception:
+            pass                                                 # the bank must never sink a run
+        if mint is None:
+            # (e) THE POOLED RETRY, and ONLY when the fresh residual failed to mint. The fresh attempt above is
+            # left exactly as it was so the old measurement stays comparable; this is a strictly additional
+            # attempt on strictly more evidence, recorded in its own fields. A segment's ~5 exceptions cannot pay
+            # a ~6-bit selection cost no matter how real the rule is -- that is an arithmetic fact about the
+            # sample size, not a verdict on the architecture, and pooling is the only thing that changes it.
+            try:
+                pool, ptasks = self.bank.pool(self.game_id)
+            except Exception:
+                pool, ptasks = [], []
+            ev.pool_size, ev.pool_tasks = len(pool), list(ptasks)
+            if len(pool) > len(exc):                             # nothing to gain from a pool that IS this segment
+                ev.pool_attempted = True
+                prep: Dict[str, Any] = {}
+                pmint = two_part_mdl(pool, max_size=2, report=prep)
+                ev.pool_n_eligible = int(prep.get("n_eligible", 0))
+                ev.pool_selection_cost_bits = float(prep.get("selection_cost_bits", 0.0))
+                if pmint is not None:
+                    ev.minted_from_pool = True
+                    mint = pmint
         if mint is not None:
             self.chain.note_mint()
             ev.minted = True
@@ -689,6 +728,10 @@ class ReduxPolicy:
             ev.minted_bits = float(getattr(mint, "saved_bits", 0.0))
             ev.minted_support = int(getattr(mint, "support", 0))
             ev.key = "+".join(sorted(a.name for a in mint.predicate.atoms))
+            # CREDITED TO EXACTLY ONE TASK -- this one -- even when the evidence came from a pool spanning many.
+            # Crediting the pool's tasks would clear echo_threshold=2 on a single mint, auto-fill Γ, and make
+            # MINTED_UNUSED (the one code that indicts the architecture) reachable by bookkeeping rather than by
+            # play. Two pooled mints of the same φ on two different pools still echo, legitimately and slower.
             ev.promoted = self.echo.observe_mint(tid, mint)      # the Predicate OBJECT, not its name (directive 2a)
             ev.echo_count = len(self.echo.echo_tasks(mint.predicate))
         return ev

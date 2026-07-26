@@ -12,3 +12,6 @@ recordings/
 # harness runtime artifacts
 environment_files/
 *.recording.jsonl
+
+# persistent residual bank (evidence, not source: rebuilt by play, must not be committed)
+.residual_bank/

@@ -101,6 +101,20 @@ class ResidualEvent:
     minted_phi: Optional[str] = None
     minted_bits: float = 0.0
     minted_support: int = 0
+    # the MDL gate, exposed rather than inferred: how many candidates were CONSTRUCTED, how many were ELIGIBLE
+    # (non-trivial on these before-state contexts), and what naming one therefore cost. MINT_UNFIRED is only
+    # readable as a verdict if these three numbers are on the record next to it.
+    n_constructed: int = 0
+    n_eligible: int = 0
+    selection_cost_bits: float = 0.0
+    # the POOLED retry (persistent residual bank). Kept in SEPARATE fields from the fresh mint so the old
+    # measurement stays comparable and a pooled mint can never be read as a fresh one.
+    pool_size: int = 0                    # exceptions available from PAST segments of this game family
+    pool_tasks: List[str] = field(default_factory=list)
+    pool_attempted: bool = False
+    minted_from_pool: bool = False
+    pool_n_eligible: int = 0
+    pool_selection_cost_bits: float = 0.0
     promoted: bool = False                # this mint pushed φ over the echo threshold into Γ
     echo_count: int = 0                   # distinct tasks φ has now been minted on
     key: Optional[str] = None
@@ -204,4 +218,26 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                 reuse_attempted=sum(1 for e in evs if e.reuse_attempted),
                 fired=len(firings(evs)),
                 cleared=sum(1 for e in evs if e.cleared),
-                firing_kinds=kinds)
+                firing_kinds=kinds,
+                # the mint gate, pooled: what the MDL code was actually charged, and what the persistent bank
+                # added. `minted_from_pool` is reported SEPARATELY from `minted` -- a pooled mint is a weaker
+                # claim (it used evidence from segments other than the one it is recorded on) and adding the two
+                # into one 'minted' number would hide exactly the thing that needs checking.
+                mint_gate=dict(
+                    eligible_median=_median([e.n_eligible for e in evs if e.residual_nonempty]),
+                    constructed_median=_median([e.n_constructed for e in evs if e.residual_nonempty]),
+                    selection_cost_median=_median([e.selection_cost_bits for e in evs if e.residual_nonempty]),
+                    baseline_median=_median([e.baseline_bits for e in evs if e.residual_nonempty]),
+                    pool_attempted=sum(1 for e in evs if e.pool_attempted),
+                    pool_size_median=_median([e.pool_size for e in evs if e.pool_attempted]),
+                    minted_from_pool=sum(1 for e in evs if e.minted_from_pool),
+                ))
+
+
+def _median(xs) -> float:
+    """Median, not mean: one 300-exception pool must not be able to describe a run of five-item residuals."""
+    v = sorted(float(x) for x in xs)
+    if not v:
+        return 0.0
+    m = len(v) // 2
+    return v[m] if len(v) % 2 else 0.5 * (v[m - 1] + v[m])
