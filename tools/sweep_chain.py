@@ -82,6 +82,33 @@ def main() -> None:
         print("  ★ %d dead-diff receipt(s) on segments the ledger scored past DIED_PRE_DIFF with NO boundary diff"
               " to account for them. UNEXPLAINED -- do not fold this into the boundary story." % _unex)
 
+    # ★★★ THE DECIDE FUNNEL -- WHICH `return` ANSWERED, AND ON HOW MANY GAMES. ★★★
+    # This block exists because of last beat's finding: the Γ decision site was entered on ONE game out of
+    # twenty-four, and for two beats its zero was read as a statement about Γ when it was a statement about the
+    # agent's own control flow. `steps` is what each exit answered; `games` is how many DIFFERENT games it
+    # answered on -- printed together because a pooled step count cannot say which. `dir_*` rows are the exits
+    # inside `_act_directional`; everything else exits before the family dispatch is even reached.
+    dfn = (res.get("tether_chain") or {}).get("echo", {}).get("decide_funnel") or {}
+    dfx, dfg = (dfn.get("exits") or {}), (dfn.get("exit_games") or {})
+    print("\n=== DECIDE FUNNEL (which return answered, counted at its own exit site) ===")
+    _calls = int(dfn.get("calls", 0))
+    if not dfx:
+        print("  (no decisions recorded)")
+    for k, n in sorted(dfx.items(), key=lambda kv: (-kv[1], kv[0])):
+        print("    %-22s steps %7d (%5.1f%%)   games %3d" % (k, n, 100.0 * n / max(1, _calls), int(dfg.get(k, 0))))
+    print("  decide() calls=%d | exits counted=%d | UNCOUNTED=%d" % (_calls, sum(dfx.values()),
+                                                                     int(dfn.get("uncounted", 0))))
+    if int(dfn.get("uncounted", 0)):
+        print("  ★ IDENTITY BROKEN: a `return` in the decision path is not counted at its own site. Every number in"
+              " this block is a floor, not a measurement, until that exit is named.")
+    _below = int(dfn.get("gamma_site_reach_from_below", 0))
+    _dis = int(dfn.get("gamma_site_reach_disagreement", 0))
+    print("  Γ site reach measured FROM BELOW (dir_gamma+dir_explore)=%d | disagreement with `gamma_reached`=%d"
+          % (_below, _dis))
+    if _dis:
+        print("  ★ TWO COUNTERS OF ONE EVENT DISAGREE by %d. One of them is wrong; neither may be cited until the"
+              " difference is explained." % _dis)
+
     # DIRECTIVE 5: a firing is a RECEIPT, not a claim. Every transfer is rendered in full, with its echo KIND and
     # the caveat that a within-game echo is a weaker claim than a cross-game one. No receipt => it did not fire.
     print("\n=== FIRING RECEIPTS ===")
@@ -158,10 +185,18 @@ def main() -> None:
     print("    %-18s %7s %7s %6s %6s %7s   %11s %11s" % ("game", "reached", "noseam", "empty", "raised",
                                                          "advice", "signed@entry", "signed@close"))
     _rows = 0
+    # ★ THE GAME COUNTS BEHIND THE POOLED LINES. Every `READS AS:` below used to be phrased over pooled STEPS, so
+    # "entered 18 times ... the sign bar working as measured" was true and was about ONE GAME -- a reader who
+    # skipped the table took it as a statement about the sweep. A pooled number offered as evidence about a subset
+    # is the mis-labelled-receipt defect one level up, so every such sentence now carries its own denominator.
+    _gm_reached = _gm_noseam = _gm_advice = 0
     for gid in sorted(res["results"]):
         g = ((res["results"][gid].get("echo") or {}).get("gamma_decision") or {})
         ent = int((g.get("sign_report_at_first_entry") or {}).get("signed_at_2_families", 0))
         clo = int((g.get("sign_report") or {}).get("signed_at_2_families", 0))
+        _gm_reached += 1 if int(g.get("steps_reached", 0)) else 0
+        _gm_noseam += 1 if int(g.get("steps_noseam", 0)) else 0
+        _gm_advice += 1 if int(g.get("steps_consulted", 0)) else 0
         if not (int(g.get("steps_reached", 0)) or ent or clo):
             continue
         _rows += 1
@@ -172,26 +207,31 @@ def main() -> None:
         print("    (no game entered the decision site and none ended with a signed directive)")
     _ents, _entered = int(gd.get("segments_entered_gamma_signed", 0)), int(gd.get("segments_entered", 0))
     _contra = int(gd.get("entry_close_contradiction", 0))
+    _ng = len(res["results"]) or 1
     print("  segments that entered the site=%d | of those, Γ ALREADY SIGNED at entry=%d" % (_entered, _ents))
+    print("  GAMES BEHIND THESE POOLED NUMBERS: entered the site %d/%d | no seam %d/%d | Γ had advice %d/%d"
+          % (_gm_reached, _ng, _gm_noseam, _ng, _gm_advice, _ng))
     if _contra:
         print("  ★ DEFECT: %d segments had a signed directive AT ENTRY and still took the empty branch. The guard"
               " and `sign_report` disagree. CHASE THIS BEFORE READING ANYTHING ELSE HERE." % _contra)
     elif _entered and not _ents:
-        print("  READS AS: every entry happened while Γ was UNSIGNED for that game. Any signed directive visible in"
-              " the end-of-run snapshot arrived AFTER the site stopped being entered -- a TIMING finding about how"
-              " late Γ warms up, NOT a broken guard and NOT a wrong sign bar.")
+        print("  READS AS (over %d of %d games): every entry happened while Γ was UNSIGNED for that game. Any"
+              " signed directive visible in the end-of-run snapshot arrived AFTER the site stopped being entered"
+              " -- a TIMING finding about how late Γ warms up, NOT a broken guard and NOT a wrong sign bar."
+              % (_gm_reached, _ng))
     if _err:
         print("  ★ Γ RAISED on %d steps -- a BROKEN library, not an empty one. This is swallowed by design so a"
               " run never dies; it must never be read as 'Γ had nothing'." % _err)
     if _r == 0:
-        print("  READS AS: the decision site was NEVER ENTERED. Nothing here is a statement about Γ -- look at the"
-              " caller (`_act_directional`), not at the library.")
+        print("  READS AS (over 0 of %d games): the decision site was NEVER ENTERED. Nothing here is a statement"
+              " about Γ -- look at the caller (`_act_directional`), not at the library." % _ng)
     elif _n == _r:
-        print("  READS AS: entered %d times, and EVERY TIME without a calibrated cursor/vectors. This is a"
-              " CALIBRATION finding, not a Γ finding." % _r)
+        print("  READS AS (over %d of %d games): entered %d times, and EVERY TIME without a calibrated"
+              " cursor/vectors. This is a CALIBRATION finding, not a Γ finding." % (_gm_reached, _ng, _r))
     elif _c == 0:
-        print("  READS AS: entered %d times with a live seam on %d of them, and Γ offered a signed directive on"
-              " NONE. This is the sign bar, working as measured." % (_r, _r - _n))
+        print("  READS AS (over %d of %d games): entered %d times with a live seam on %d of them, and Γ offered a"
+              " signed directive on NONE. This is the sign bar working as measured ON THOSE %d GAMES -- it is NOT"
+              " a statement about the other %d." % (_gm_reached, _ng, _r, _r - _n, _gm_reached, _ng - _gm_reached))
     if _r != _n + _e + _err + _c:
         print("  ARITHMETIC WARNING: reached(%d) != noseam(%d)+empty(%d)+raised(%d)+advice(%d). A guard is"
               " uncounted." % (_r, _n, _e, _err, _c))

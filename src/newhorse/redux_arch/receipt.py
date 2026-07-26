@@ -198,6 +198,14 @@ class ResidualEvent:
     # of its own -- so a receipt can honestly read `diff_ran=False` on a segment the ledger scored past
     # DIED_PRE_DIFF. Set from the boundary's own call site so the reconciliation is a reading, not an inference.
     boundary_diff_ran: bool = False
+    # ★ THE DECIDE FUNNEL. Which `return` of the agent's decision path answered this segment's steps, counted at
+    # each real exit site. This exists because the Γ site's zero was for two beats read as a fact about Γ when it
+    # was a fact about REACH: the site sits last in `_act_directional` and an earlier exit answered first on all
+    # but one game. `decide_calls` is the denominator (entries to `_decide`); the two must satisfy
+    # `sum(decide_exits.values()) == decide_calls` or an exit is uncounted, and `summary()` publishes the residue
+    # rather than assuming it away.
+    decide_calls: int = 0
+    decide_exits: Dict[str, int] = field(default_factory=dict)
 
     @property
     def fired(self) -> bool:
@@ -343,13 +351,40 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     dead = [e for e in evs if not e.diff_ran]
     dead_stages: Dict[str, int] = {}
     for e in dead:
-        k = e.stage or "(unscored)"
-        if k not in ("DIED_PRE_DIFF", "(unscored)"):
+        # ★ `(unscored)` IS SPLIT BY THE SEGMENT'S REASON. `end_segment` returns None for exactly two cases -- an
+        # ADVANCE (deliberately unscored: an advance is not a stall) or an EMPTY segment (`_steps == 0`) -- and
+        # last beat's sixth dead-diff receipt landed in this bucket with no way to say which. "The sweep had two
+        # advances so it is probably the advance case" was the honest reading available, and a probable reading is
+        # not a receipt. The reason is on the event already; keying by it costs one line and closes the row.
+        k = e.stage or "(unscored:%s)" % (e.reason or "unrecorded")
+        if not (k == "DIED_PRE_DIFF" or k.startswith("(unscored")):
             k = "%s|boundary_diff=%s" % (k, "yes" if e.boundary_diff_ran else "NO")
         dead_stages[k] = dead_stages.get(k, 0) + 1
+    # ★ THE DECIDE FUNNEL, POOLED -- WITH ITS OWN IDENTITY CHECKED, NOT ASSUMED. `exit_games` counts the DISTINCT
+    # GAMES behind each exit rather than only the steps, because a pooled step count cannot answer "on how many
+    # games did this happen?" -- exactly the defect that made `steps_empty=18` read as a statement about the sweep
+    # when it was one game. `summary()` is per game, so each present key contributes 1 and `echo_pool` sums them.
+    dec_exits: Dict[str, int] = {}
+    for e in evs:
+        for k, n in (e.decide_exits or {}).items():
+            dec_exits[k] = dec_exits.get(k, 0) + int(n)
+    dec_calls = sum(e.decide_calls for e in evs)
+    # `dir_gamma` + `dir_explore` are the two exits BELOW the Γ site, so their sum is the site's reach measured
+    # from OUTSIDE it, while `gamma_reached` measures it from INSIDE. Independent counters of one event; the
+    # DIFFERENCE is published so a disagreement is visible instead of arbitrated.
+    site_from_below = dec_exits.get("dir_gamma", 0) + dec_exits.get("dir_explore", 0)
     return dict(minted_keys={k: sorted(v) for k, v in sorted(minted_keys.items())},
                 break_events=len(evs),
                 dead_diff_stages=dict(sorted(dead_stages.items())),
+                # ★ REACH BEFORE BEHAVIOUR. Which `return` of the decision path answered, and on how many games.
+                decide_funnel=dict(calls=dec_calls,
+                                   exits=dict(sorted(dec_exits.items())),
+                                   exit_games={k: 1 for k in sorted(dec_exits)},
+                                   # 0 unless a later beat adds a `return` without counting it at its own site.
+                                   uncounted=dec_calls - sum(dec_exits.values()),
+                                   gamma_site_reach_from_below=site_from_below,
+                                   gamma_site_reach_disagreement=(
+                                       site_from_below - sum(e.gamma_reached for e in evs))),
                 # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
                 # second stream arriving can never be read as the first one getting better -- the top-level totals
                 # below are a convenience, and this is the number that carries the claim.

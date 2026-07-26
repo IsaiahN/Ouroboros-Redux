@@ -319,6 +319,25 @@ class ReduxPolicy:
         # and one per step would be the same library counted many times.
         self._g_entry_report: Dict[str, int] = {}
         self._seg_boundary_diff = False                   # the §3.5 boundary diff ran INSIDE this segment (see below)
+        # ★★★ THE DECIDE FUNNEL -- REACH IS UPSTREAM OF BEHAVIOUR, AND MUST BE MEASURED FIRST. ★★★
+        # Last beat's finding: the Γ decision site was ENTERED on ONE game out of twenty-four, and for two beats
+        # its zero was read as a statement about Γ. It was a statement about the agent's own control flow: on the
+        # other DIRECTIONAL games, some EARLIER `return` in the decision path answered first, every step. A
+        # per-guard funnel INSIDE an organ can never see the calls that never arrived at it, so the counter has to
+        # live at every real exit of the path, not inside the organ at the end of it.
+        # RULES THIS OBEYS, and why:
+        #  (a) EVERY exit increments at ITS OWN `return`, with a literal name written at that site. Nothing is
+        #      derived from `family`, from a label, or from another counter -- a derived exit reason would be the
+        #      proxy defect ("never derive a chain signal from another organ") one layer down.
+        #  (b) `_dec_calls` is incremented at the TOP of `_decide`, so `sum(exits) == calls` is a real identity and
+        #      an uncounted `return` added by a later beat shows up as a non-zero `uncounted`, in the suite.
+        #  (c) The dispatch `return self._act_directional(labels)` is deliberately NOT counted -- that call has not
+        #      exited the path yet; its five own returns do the counting. Counting both would double the total and
+        #      close the identity by inflating it.
+        # It is SEGMENT-scoped like the Γ counters above, for the same reason: an exit taken in segment 3 must not
+        # decorate segment 7's receipt.
+        self._dec_calls = 0                               # entries to `_decide` (the denominator of the funnel)
+        self._dec_exits: Dict[str, int] = {}              # exit-site name -> times that `return` was the one taken
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -541,7 +560,16 @@ class ReduxPolicy:
             self.n_vetoes += 1
         return pick, None
 
+    def _exit(self, where: str, out: Tuple[str, Optional[dict]]) -> Tuple[str, Optional[dict]]:
+        """Count ONE decision-path exit, named at the site that takes it. Returns its argument unchanged so it can
+        wrap a `return` without changing what is returned -- the counter must not be able to alter the decision it
+        is measuring. `where` is a LITERAL at each call site on purpose: a name computed from state would make the
+        funnel a derivation of the thing it is supposed to audit."""
+        self._dec_exits[where] = self._dec_exits.get(where, 0) + 1
+        return out
+
     def _decide(self) -> Tuple[str, Optional[dict]]:
+        self._dec_calls += 1                             # the funnel's denominator, incremented before any guard
         avail = self._avail
         dirs = [v for v in avail if 1 <= v <= 5]
         labels = self._labels(avail)
@@ -550,28 +578,32 @@ class ReduxPolicy:
             self.family = CLICK
             self.bb.post(_prefix(self.game_id), family=CLICK)
         if self.family == CLICK and self._pre_esc_family is None:
-            return self._act_click()                     # a natively-routed click game (the committed click win)
+            return self._exit("click_native", self._act_click())   # natively-routed click game (committed click win)
         # minimal warmup: observe each directional action ~once (THINKING is free; ACTIONS are squared-costly).
         # Counted PER LEVEL (self._warm_start), so a re-derivation on a graduated level re-warms cleanly.
         warmup_needed = 0 if not dirs else min(self.warmup_cap, max(len(dirs), 2))
         if (self.n_emitted - self._warm_start) < warmup_needed:
-            return self._cycle(labels), None
+            return self._exit("warmup", (self._cycle(labels), None))
         if self.family == PENDING:
             self._route(avail, dirs)
         esc = self._modality_escalate(labels)            # refuse the null intervention: switch modality on a frozen board
         if esc is not None:
             if esc == "A6":
-                return self._act_click()
-            return esc, None
+                return self._exit("escalate_click", self._act_click())
+            return self._exit("escalate", (esc, None))
         if self.family == TWO_BODY:
-            return self._act_two_body(labels)
+            return self._exit("family_two_body", self._act_two_body(labels))
         if self.family == MULTI_AVATAR:
-            return self._act_multi_avatar(labels)
+            return self._exit("family_multi_avatar", self._act_multi_avatar(labels))
         if self.family == DIRECTIONAL:
+            # ★ NOT WRAPPED, ON PURPOSE. This dispatch has not exited the decision path -- `_act_directional`'s own
+            # five returns are the exits, and each counts itself. Wrapping here as well would double every
+            # directional step and make `sum(exits) == calls` close by inflation, which is the identity-closed-by-
+            # merging-terms defect this instrument caught inside its own printer last beat.
             return self._act_directional(labels)
         if self.family == EFFECT:
-            return self._act_effect(labels)
-        return self._act_fallback(labels)
+            return self._exit("family_effect", self._act_effect(labels))
+        return self._exit("family_fallback", self._act_fallback(labels))
 
     def _modality_escalate(self, labels: List[str]) -> Optional[str]:
         """REFUSE THE NULL INTERVENTION. An action that leaves the board unchanged is predicted perfectly by 'nothing
@@ -904,6 +936,7 @@ class ReduxPolicy:
             ev.gamma_reached, ev.gamma_noseam = int(self._g_reached), int(self._g_noseam)
             ev.gamma_empty, ev.gamma_error = int(self._g_empty), int(self._g_error)
             ev.gamma_sign_report_at_entry = dict(self._g_entry_report)
+            ev.decide_calls, ev.decide_exits = int(self._dec_calls), dict(self._dec_exits)
             src = ([] if not ev.transferred else ["explains"]) + ([] if not self._g_act else ["directive"])
             ev.reuse_source = "+".join(src) or None
             try:
@@ -916,6 +949,8 @@ class ReduxPolicy:
         self._g_reached = self._g_noseam = self._g_empty = self._g_error = 0
         self._g_entry_report = {}
         self._seg_boundary_diff = False
+        self._dec_calls = 0
+        self._dec_exits = {}
         self._seg_n += 1
         self._seg0 = max(0, len(self.frames) - 1) if reason == "advance" else len(self.frames)
 
@@ -1184,7 +1219,7 @@ class ReduxPolicy:
         grid = self.frames[-1]; h, w = grid.shape
         cur = _px_centroid(grid, self.cursor)
         if cur is None:
-            return self._cycle(labels), None
+            return self._exit("dir_no_avatar", (self._cycle(labels), None))
         def passable_px(dest, _g=grid, _h=h, _w=w, _p=self.passable):
             r, c = dest
             return 0 <= r < _h and 0 <= c < _w and int(_g[r, c]) in _p
@@ -1201,7 +1236,7 @@ class ReduxPolicy:
                    or plan_action(avatar, target, self.vecs, ACTS_TOWARD, passable_px))
             if lbl:
                 self.n_relation_drive += 1
-                return lbl, None
+                return self._exit("dir_relation_drive", (lbl, None))
         if self.target_colour is not None:
             tgt = approachable_component_centroid(grid, self.target_colour, self.passable)
             if tgt is not None:
@@ -1209,11 +1244,16 @@ class ReduxPolicy:
                 lbl = (bfs_path_action(grid, avatar, target, self.vecs, self.passable, self.stride)
                        or plan_action(avatar, target, self.vecs, ACTS_TOWARD, passable_px))
                 if lbl:
-                    return lbl, None
+                    return self._exit("dir_target_colour", (lbl, None))
         gl = self._gamma_directive(labels)
         if gl is not None:
-            return gl, None
-        return self._explore(avatar, passable_px, labels), None     # no target / boxed -> curiosity
+            return self._exit("dir_gamma", (gl, None))
+        # `dir_gamma` + `dir_explore` is the REACH of the Γ site, counted here at the two exits BELOW it, entirely
+        # independently of `_g_reached`, which is counted INSIDE it. Two independent counters of the same event
+        # that disagree mean one of them is wrong, and the summary publishes the difference rather than trusting
+        # either -- the point of a receipt is that it can be contradicted.
+        return self._exit("dir_explore",
+                          (self._explore(avatar, passable_px, labels), None))   # no target / boxed -> curiosity
 
     def _gamma_directive(self, labels: List[str]) -> Optional[str]:
         """★ THE ONLY PLACE THE SHARED LIBRARY IS ALLOWED TO CHANGE WHAT THE AGENT DOES.

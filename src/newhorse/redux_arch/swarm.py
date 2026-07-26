@@ -236,6 +236,12 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     gsign: Dict[str, Dict[str, int]] = {}
     gentry: Dict[str, Dict[str, int]] = {}
     dead_stages: Dict[str, int] = {}
+    # THE DECIDE FUNNEL, pooled by UNION for the same reason as `gdec`. `exits` sums STEPS across games; the
+    # `exit_games` sub-dict sums the per-game 1s, so the pooled report can say "this exit answered N steps across
+    # M games" in one line. Pooling only the steps would rebuild the very artefact this beat is closing.
+    dfun: Dict[str, int] = {}
+    dfun_exits: Dict[str, int] = {}
+    dfun_games: Dict[str, int] = {}
     streams: Dict[str, Dict[str, Any]] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
@@ -261,6 +267,17 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
             cscan[k] += int(cs.get(k) or 0)
         for k, n in (e.get("dead_diff_stages") or {}).items():
             dead_stages[k] = dead_stages.get(k, 0) + int(n)
+        df = e.get("decide_funnel") or {}
+        for k, v in df.items():
+            if isinstance(v, dict):
+                acc = dfun_exits if k == "exits" else (dfun_games if k == "exit_games" else None)
+                if acc is not None:
+                    for xk, xn in v.items():
+                        acc[xk] = acc.get(xk, 0) + int(xn)
+                continue
+            if isinstance(v, bool) or not isinstance(v, int):
+                continue
+            dfun[k] = dfun.get(k, 0) + int(v)
         gd = e.get("gamma_decision") or {}
         for k, v in gd.items():
             if isinstance(v, bool) or not isinstance(v, int):
@@ -301,6 +318,8 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
                           click_no_diff_reasons=dict(sorted(click_reasons.items())),
                           click_scan=dict(cscan),
                           dead_diff_stages=dict(sorted(dead_stages.items())),
+                          decide_funnel=dict(dfun, exits=dict(sorted(dfun_exits.items())),
+                                             exit_games=dict(sorted(dfun_games.items()))),
                           gamma_decision=dict(gdec, sign_report_by_game=dict(sorted(gsign.items())),
                                               sign_report_at_first_entry_by_game=dict(sorted(gentry.items())))),
                 games_reaching_L2=reach_l2,

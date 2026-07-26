@@ -359,3 +359,146 @@ def test_producer_and_consumer_agree_on_the_gamma_key_SET():
     assert set(prod) & snap                                      # the snapshots exist on the producer side...
     assert "sign_report_by_game" in pooled                       # ...and cross as PER-GAME views, never summed
     assert pooled["steps_directed"] == prod["steps_directed"] == 1
+
+
+# ==================================================================================================================
+# THE DECIDE FUNNEL. Reach is upstream of behaviour, and last beat's zero at the Γ site was a fact about the
+# agent's CONTROL FLOW read as a fact about Γ. These five pin the instrument that can tell those apart.
+# ==================================================================================================================
+
+def _decision_returns(fn):
+    """Every `return` that belongs to `fn` ITSELF -- nested helper functions are excluded, because their returns
+    exit the helper, not the decision path."""
+    import ast, inspect, textwrap
+    tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+    outer = tree.body[0]
+    out, stack = [], list(outer.body)
+    while stack:
+        n = stack.pop()
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue                                            # a nested helper's returns are not exits
+        if isinstance(n, ast.Return) and n.value is not None:
+            out.append(ast.unparse(n.value))
+        stack.extend(ast.iter_child_nodes(n))
+    return out
+
+
+def _drive(p, n):
+    """Run `n` real decide->choose steps. `_policy()` pre-seeds ONE frame with no matching action, and `observe`
+    keeps `frames` and `acts` parallel, so the seed is dropped first -- otherwise the basis learner indexes past
+    the end of `acts` and the test fails for a reason that has nothing to do with the funnel."""
+    p.frames = []
+    for _ in range(n):
+        p.observe(_board(), [1, 2, 3, 4], 0)
+        p.choose()
+    return p
+
+
+def test_every_return_in_the_decision_path_is_counted_at_ITS_OWN_exit_site():
+    """★ DIRECTIVE 1, APPLIED TO REACH. The funnel only works if the count happens at the `return` that is taken.
+    A later beat that 'simplifies' one of these into a name derived from `self.family`, or that adds a sixth
+    directional guard and forgets to wrap it, would silently move steps into a bucket that did not answer them --
+    the proxy defect, one layer down. So the shape is pinned structurally rather than by one example.
+
+    The ONE deliberate exception is the `_act_directional` dispatch: that call has NOT exited the decision path,
+    and its five own returns do the counting. Wrapping it as well would double every directional step and close
+    `sum(exits) == calls` by inflation -- the identity-closed-by-merging-terms defect the instrument caught in its
+    own printer last beat."""
+    from newhorse.redux_arch.policy import ReduxPolicy
+    dec = _decision_returns(ReduxPolicy._decide)
+    unwrapped = [r for r in dec if not r.startswith("self._exit(")]
+    assert unwrapped == ["self._act_directional(labels)"], unwrapped
+    dirn = _decision_returns(ReduxPolicy._act_directional)
+    assert dirn and all(r.startswith("self._exit(") for r in dirn), dirn
+    # Every site names itself with a LITERAL. A computed name would make the funnel a derivation of the thing it
+    # is meant to audit, so the first argument is required to be a plain string at the site.
+    import ast
+    for r in dec + dirn:
+        if r.startswith("self._exit("):
+            first = ast.parse(r).body[0].value.args[0]
+            assert isinstance(first, ast.Constant) and isinstance(first.value, str), r
+    # The two exits BELOW the Γ site are what measures its reach from outside; if they are ever renamed, the
+    # summary's `gamma_site_reach_from_below` goes quietly to zero, so the names are pinned here too.
+    names = {ast.parse(r).body[0].value.args[0].value for r in dirn}
+    assert {"dir_gamma", "dir_explore"} <= names, names
+
+
+def test_the_funnel_identity_holds_on_a_LIVE_policy_and_nothing_is_uncounted():
+    """`sum(exits) == calls` is the whole warrant for reading any percentage in this block. `calls` is incremented
+    at the TOP of `_decide`, before any guard, so an exit added without a counter shows up as a positive
+    `uncounted` HERE rather than as a plausible-looking histogram in a sweep six hours later."""
+    from newhorse.redux_arch.receipt import summary
+    p = _drive(_policy(), 6)
+    assert p._dec_calls == 6
+    assert sum(p._dec_exits.values()) == p._dec_calls
+    p._close_segment("death")
+    ev = p.receipts[-1]
+    assert ev.decide_calls == 6 and sum(ev.decide_exits.values()) == 6
+    f = summary(p.receipts)["decide_funnel"]
+    assert f["calls"] == 6 and f["uncounted"] == 0
+    assert sum(f["exits"].values()) == 6
+    # Per-segment scoping, same as the Γ counters: an exit taken in this segment must not decorate the next one.
+    assert p._dec_calls == 0 and p._dec_exits == {}
+
+
+def test_the_gamma_sites_reach_is_counted_TWICE_and_the_difference_is_published():
+    """Two independent counters of one event: `gamma_reached` from INSIDE `_gamma_directive`, and
+    `dir_gamma + dir_explore` from the two exits BELOW it. If they ever disagree one of them is wrong, and the
+    receipt publishes the difference rather than arbitrating it -- the point of a receipt is that it can be
+    contradicted."""
+    from newhorse.redux_arch.receipt import summary
+    from newhorse.redux_arch import policy as _p
+    p = _policy()
+    p.frames = []
+    for i in range(12):
+        p.observe(_board(), [1, 2, 3, 4], 0)
+        if i == 3:
+            p.family = _p.DIRECTIONAL      # the synthetic board routes to EFFECT on its own, and an agreement
+        p.choose()                          # between two counters that are both ZERO is not a measurement
+    p._close_segment("death")
+    f = summary(p.receipts)["decide_funnel"]
+    below = f["exits"].get("dir_gamma", 0) + f["exits"].get("dir_explore", 0)
+    assert below > 0, f["exits"]            # the directional path really ran, so the agreement below has content
+    assert f["gamma_site_reach_from_below"] == below
+    assert f["gamma_site_reach_disagreement"] == 0
+    assert summary(p.receipts)["gamma_decision"]["steps_reached"] == below
+    # ...and the detector is not dead: a hand-built event where the two counters disagree must SAY so.
+    from newhorse.redux_arch.receipt import ResidualEvent
+    bad = ResidualEvent(game="g", gamma_reached=0, decide_calls=1, decide_exits={"dir_explore": 1})
+    assert summary([bad])["decide_funnel"]["gamma_site_reach_disagreement"] == 1
+
+
+def test_the_unscored_dead_diff_row_is_split_by_the_SEGMENTS_REASON():
+    """★ 'PROBABLY THE ADVANCE CASE' IS NOT A RECEIPT. `end_segment` returns None for exactly two situations --
+    a deliberate ADVANCE (an advance is not a stall) and an EMPTY segment with no steps -- and last beat's sixth
+    dead-diff receipt landed in one undifferentiated `(unscored)` bucket with no way to say which. The reason is
+    already on the event; keying by it closes the row."""
+    from newhorse.redux_arch.receipt import ResidualEvent, summary
+    evs = [ResidualEvent(game="g", diff_ran=False, stage=None, reason="advance"),
+           ResidualEvent(game="g", diff_ran=False, stage=None, reason="death"),
+           ResidualEvent(game="g", diff_ran=False, stage=None, reason=""),
+           ResidualEvent(game="g", diff_ran=False, stage="DIED_PRE_DIFF", reason="death")]
+    dds = summary(evs)["dead_diff_stages"]
+    assert dds == {"(unscored:advance)": 1, "(unscored:death)": 1,
+                   "(unscored:unrecorded)": 1, "DIED_PRE_DIFF": 1}
+
+
+def test_producer_and_consumer_agree_on_the_decide_funnel_key_SET():
+    """The same guard as the Γ key-set test, for the new block: a counter added to `receipt.summary` and forgotten
+    in `swarm.echo_pool` fails here instead of being rendered as a confident measured zero in a sweep printout.
+    `exits` and `exit_games` cross as DICTS pooled by union -- `exit_games` counts the distinct GAMES behind each
+    exit, because a pooled step count cannot answer 'on how many games did this happen?', which is exactly the
+    defect that made one game's 18 steps read as a statement about the whole sweep."""
+    from newhorse.redux_arch.receipt import summary
+    from newhorse.redux_arch.swarm import echo_pool
+    p = _drive(_policy(), 4)
+    p._close_segment("death")
+    prod = summary(p.receipts)["decide_funnel"]
+    pooled = echo_pool({"cc33-cccc": {"game": "cc33-cccc", "echo": summary(p.receipts),
+                                      "tether_stage": {}, "levels": 1}})["echo"]["decide_funnel"]
+    assert set(prod) == set(pooled)
+    assert pooled["calls"] == prod["calls"] == 4
+    assert pooled["exits"] == prod["exits"]
+    # one game in, so every present exit is behind exactly one game -- and the counts are of GAMES, not steps
+    assert set(pooled["exit_games"]) == set(pooled["exits"])
+    assert set(pooled["exit_games"].values()) == {1}
