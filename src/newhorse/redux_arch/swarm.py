@@ -206,14 +206,22 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     (1) CARRIER REACH -- how many games ever reach a SECOND level in one run, the question that decides whether a
     within-run-across-levels echo has any live instance at all (the 43rd-audit caution: do NOT wire a carrier with
     nothing to fire on); (2) FIRINGS BY KIND, never summed, because a within-run echo and a cross-game echo are
-    different strength claims and a single 'transfers' total would launder the weaker into the stronger."""
+    different strength claims and a single 'transfers' total would launder the weaker into the stronger.
+
+    THE DENOMINATOR MUST CROSS THE PROCESS BOUNDARY WITH THE COUNT. A game whose session failed to open returns
+    `family="error", levels=0` and NO `tether_stage`. It used to fall straight into the level histogram as a
+    level-0 game, so a sweep of 25 games in which one CRASHED read as `games_reporting=24` beside a histogram
+    summing to 25 -- and the crash was indistinguishable, by eye, from a game that played and got nowhere. That is
+    a silence printed as a measured zero, the same shape as the "break events=0" bug, one layer up. The histogram
+    and the L2 reach now count REPORTING games only, and `games_errored` is emitted so the loss is VISIBLE rather
+    than absorbed. A game that never played is not evidence that level 0 is hard."""
     keys = ("break_events", "diff_ran", "residual_nonempty", "minted", "promoted", "reuse_attempted",
             "reuse_attempted_foreign", "fired", "cleared")
     tot = {k: 0 for k in keys}
     kinds: Dict[str, int] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
-    reach_l2 = 0
+    reach_l2 = errored = 0
     for r in results.values():
         e = r.get("echo") or {}
         for k in keys:
@@ -222,6 +230,9 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
             kinds[k] = kinds.get(k, 0) + int(n)
         for k, ts in (e.get("minted_keys") or {}).items():
             mkeys.setdefault(k, set()).update(ts)
+        if not r.get("tether_stage"):                     # never played; it has no level to report
+            errored += 1
+            continue
         lv = int(r.get("levels") or 0)
         lvl_hist[str(lv)] = lvl_hist.get(str(lv), 0) + 1
         if lv >= 2:
@@ -234,5 +245,6 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     key_games = {k: sorted({game_of(t) for t in ts}) for k, ts in sorted(mkeys.items())}
     return dict(echo=dict(tot, firing_kinds=kinds), games_reaching_L2=reach_l2,
                 max_level_histogram=dict(sorted(lvl_hist.items())),
+                games_errored=errored,
                 minted_key_games=key_games,
                 keys_minted_on_2plus_games=sum(1 for g in key_games.values() if len(g) >= 2))
