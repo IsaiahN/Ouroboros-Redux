@@ -206,6 +206,68 @@ def report(res: dict) -> None:
             else:
                 print("  VERDICT: MIXED -- neither branch holds half the steps; both readings stay open.")
 
+    # ★★★ THE CLICK BRANCH -- WHY THIS CLICK. THE LARGEST UN-ATTRIBUTED THING THE AGENT DOES. ★★★
+    # `click_native` alone took 45.4% of every decision last sweep, and it is ONE exit name over FOUR different
+    # `return`s inside `ClickProber.choose`. An exit name covering more than one return is not an attribution
+    # (RANKING 5) -- the same defect the escalation branch had, one organ over, at three times the size. These
+    # counts are string literals written at those four returns. Read them as:
+    #   untried_first             the blind enumeration -- a candidate nobody has clicked yet
+    #   exploit_scored            the learned choice -- a target whose `novel`/`changed` history out-ranks the rest
+    #   nothing_moved_least_tried the fallback: NOTHING the prober ever clicked moved the board, so it round-robins
+    #   no_targets                the degenerate corner click: perception offered no candidate at all
+    # ★ PRE-REGISTERED PREDICTION (written before the sweep that reads it, evaluated below by the script itself):
+    #   `untried_first` DOMINATES. `refresh()` folds freshly-perceived candidates in at every step, so on a board
+    #   that changes the untried queue can be replenished faster than it drains -- the agent would enumerate
+    #   forever and its learned scores would never be consulted. If `exploit_scored` dominates, the prediction is
+    #   simply wrong and that is the finding; it is published either way.
+    cbr = (dfn.get("click_branch") or {})
+    _CB_NAMED = ("untried_first", "exploit_scored", "nothing_moved_least_tried", "no_targets")
+    _clk_steps = int(dfx.get("click_native", 0)) + int(dfx.get("escalate_click", 0))
+    print("\n=== THE CLICK BRANCH (which return of ClickProber.choose produced the click) ===")
+    if not cbr:
+        print("  (no click branch recorded -- the prober never chose a target this sweep)")
+    for k in _CB_NAMED:
+        _n = int(cbr.get(k, 0))
+        print("    %-26s steps %7d (%5.1f%% of click steps)"
+              % (k, _n, 100.0 * _n / max(1, _clk_steps)))
+    for k, n in sorted(cbr.items()):
+        if k not in _CB_NAMED:
+            print("    %-26s steps %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
+    _cres = int(dfn.get("click_branch_residue", 0))
+    print("  click steps=%d | branch sum=%d | RESIDUE=%d" % (_clk_steps, sum(cbr.values()), _cres))
+    if _cres:
+        print("  ★ THE CLICK BRANCH DOES NOT SUM TO THE CLICK EXITS. Do not read any row above until the residue"
+              " is named. Every return of `choose` produces a click, so a non-zero residue means a return was"
+              " added without a literal -- or a no-step path now exists and must be excluded BY NAME.")
+    elif not _clk_steps:
+        print("  VERDICT: MUTE -- no click steps this sweep, so the branch split rules nothing out.")
+    else:
+        _uf, _ex = int(cbr.get("untried_first", 0)), int(cbr.get("exploit_scored", 0))
+        _nm, _nt = int(cbr.get("nothing_moved_least_tried", 0)), int(cbr.get("no_targets", 0))
+        _top = max((_uf, "untried_first"), (_ex, "exploit_scored"), (_nm, "nothing_moved_least_tried"),
+                   (_nt, "no_targets"))
+        if _top[1] == "untried_first" and _uf >= 0.5 * _clk_steps:
+            print("  VERDICT: ENUMERATION NEVER FINISHES -- %.1f%% of clicks go to a candidate nobody has tried."
+                  " PREDICTION HELD. The learned `novel`/`changed` scores are chosen on only %.1f%% of clicks, so"
+                  " whatever the prober learns about a target it almost never gets to act on."
+                  % (100.0 * _uf / _clk_steps, 100.0 * _ex / _clk_steps))
+        elif _top[1] == "exploit_scored" and _ex >= 0.5 * _clk_steps:
+            print("  VERDICT: THE LEARNED SCORES ARE BEING USED -- %.1f%% of clicks are the exploit branch."
+                  " PREDICTION WRONG: enumeration does finish, and the click policy's memory is live."
+                  % (100.0 * _ex / _clk_steps))
+        elif _top[1] == "nothing_moved_least_tried" and _nm >= 0.5 * _clk_steps:
+            print("  VERDICT: NOTHING IT CLICKED EVER MOVED -- %.1f%% of clicks fall through to the round-robin,"
+                  " which is reached only when EVERY candidate scores zero novel and zero changed. That is a"
+                  " statement about perception's candidates, not about the choice among them."
+                  % (100.0 * _nm / _clk_steps))
+        elif _top[1] == "no_targets" and _nt >= 0.5 * _clk_steps:
+            print("  VERDICT: PERCEPTION OFFERED NOTHING -- %.1f%% of clicks are the degenerate corner click with"
+                  " no candidate at all. The prober is not choosing; `click_targets` is empty."
+                  % (100.0 * _nt / _clk_steps))
+        else:
+            print("  VERDICT: MIXED -- no branch holds half the click steps (largest is %s at %.1f%%); the"
+                  " prediction is neither held nor refuted." % (_top[1], 100.0 * _top[0] / _clk_steps))
+
     # ★★★ THE MEMBERS QUESTION: WHICH GAMES ARE BEHIND EACH POOLED RATE. ★★★
     # Every `answered` number in the block above is pooled across that exit's games. `dir_target_colour` answered
     # 89.0% masked over TWELVE games last sweep, and that one number cannot distinguish uniform competence from
@@ -345,6 +407,70 @@ def report(res: dict) -> None:
     print("  veto steps READ by the control=%d of %d replaced (%d had no result frame) | pooled veto masked=%s"
           % (_vres, sum(dfv.values()), sum(dfv.values()) - _vres,
              ("%5.1f%%" % (100.0 * sum(dvm.values()) / _vres)) if _vres else "-- (no veto steps priced)"))
+
+    # ★★★ THE CLICK REGION -- THE CONTROL THE SELF-MOTION SPLIT COULD NOT HAVE. ★★★
+    # The block above conditions on the EMITTED LABEL, and every click carries the same label `A6`. So on click
+    # games it has exactly ONE row, nothing to vary over, and prints MUTE on every one of them -- and those games
+    # are 45.4% of the agent's decisions. A control that cannot fail is not a control. But the agent DOES vary its
+    # click: it varies WHERE. This is the SAME priced steps, re-keyed by the coarse REGION (a thirds grid over the
+    # board's own shape) of the coordinate ACTUALLY EMITTED. Same classifier as above, same sample floor:
+    #   * rates that DIFFER across regions => the change tracks WHERE it clicked => it is the agent's.
+    #   * rates ALIKE and high across every region => CONSISTENT WITH SELF-MOTION; the rate may not be cited as
+    #     competence on that game. It is the board answering, not the click.
+    #   * fewer than two regions above the floor => MUTE, published as mute.
+    # The region is DESCRIPTIVE ONLY -- computed after the fact at the pricing site, and a test asserts no decision
+    # function can read it. The moment an organ consults it, it stops being a reading and becomes a detector.
+    cra, crm, crr = ((dfn.get("click_reg_attr") or {}), (dfn.get("click_reg_moved") or {}),
+                     (dfn.get("click_reg_moved_raw") or {}))
+    print("\n=== THE CLICK REGION (does the answer rate vary with WHERE the agent clicked?) ===")
+    print("  (per-region floor for a verdict: %d priced steps; thinner regions are printed but carry no finding)"
+          % _MIN_ACT_N)
+    if not cra:
+        print("  (no click region recorded -- either no clicks were priced this sweep, or the key never fired)")
+    for k in sorted(set(kk.partition("|")[0] for kk in cra)):
+        pooled_r = _acts_of(None, k, cra)
+        _pn = sum(pooled_r.values())
+        _pm = sum(_acts_of(None, k, crm).values())
+        _pr = sum(_acts_of(None, k, crr).values())
+        print("  %-22s pooled %5.1f%% masked / %5.1f%% raw of %d priced clicks, over %d distinct regions"
+              % (k, 100.0 * _pm / max(1, _pn), 100.0 * _pr / max(1, _pn), _pn, len(pooled_r)))
+        for g, xs in sorted(fbg.items()):
+            # DROP THE ZEROS. The per-game bag carries every sub-key this game recorded under ANY funnel field, so
+            # the action-split key `<exit>|A6` arrives here with a click_reg_attr of 0 and would print as a region
+            # named `A6` with `nan%(n=0)` beside the real ones -- a row that was never computed, rendered as if it
+            # had been. It is not a region and it is not evidence; it is the other instrument's key.
+            ga = {a: n for a, n in _acts_of(None, k, {kk: vv.get("click_reg_attr", 0)
+                                                      for kk, vv in xs.items()}).items() if n}
+            if not ga:
+                continue
+            gm = _acts_of(None, k, {kk: vv.get("click_reg_moved", 0) for kk, vv in xs.items()})
+            rates = {a: 100.0 * gm.get(a, 0) / c for a, c in ga.items() if c}
+            print("      %-18s %s" % (g, "  ".join("%s %5.1f%%(n=%d)" % (a, rates.get(a, float("nan")), ga[a])
+                                                   for a in sorted(ga))))
+            solid = {a: r for a, r in rates.items() if ga[a] >= _MIN_ACT_N}
+            if len(rates) < 2:
+                verdict = "MUTE: one region only -- the agent clicked in a single third of the board"
+            elif len(solid) < 2:
+                verdict = ("MUTE: fewer than two regions reached %d priced clicks -- too thin to support"
+                           % _MIN_ACT_N)
+            else:
+                _lo, _hi = min(solid.values()), max(solid.values())
+                if _hi - _lo >= 10.0:
+                    verdict = ("REGION-CONDITIONAL by %.1f pts (%.1f%%-%.1f%%) -- the change tracks WHERE the"
+                               " click landed, so it is the agent's" % (_hi - _lo, _lo, _hi))
+                elif _hi >= 90.0:
+                    verdict = ("UNIFORM and HIGH (%.1f%%-%.1f%%) -- CONSISTENT WITH SELF-MOTION; this game's click"
+                               " rate may not be cited as competence" % (_lo, _hi))
+                else:
+                    verdict = ("UNIFORM (%.1f%%-%.1f%%) but not high -- no self-motion signature" % (_lo, _hi))
+            print("          -> %s" % verdict)
+    _a6 = sum(v for k, v in daa.items() if k.endswith("|A6"))
+    _crres = int(dfn.get("click_reg_residue", 0))
+    print("  |A6 rows of the action split=%d | region sum=%d | RESIDUE=%d" % (_a6, sum(cra.values()), _crres))
+    if _crres:
+        print("  ★ THE REGION SPLIT DOES NOT SUM TO THE `|A6` ROWS IT RE-KEYS. These are meant to be the same"
+              " steps read twice; a residue means a click was priced in one and dropped in the other -- cite"
+              " NEITHER until it is named.")
 
     # DIRECTIVE 5: a firing is a RECEIPT, not a claim. Every transfer is rendered in full, with its echo KIND and
     # the caveat that a within-game echo is a weaker claim than a cross-game one. No receipt => it did not fire.

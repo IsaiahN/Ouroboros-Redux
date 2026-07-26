@@ -389,6 +389,22 @@ class ReduxPolicy:
         self._dec_act_cells: Dict[str, int] = {}          # SUM of masked changed-cell counts (footprint SIZE)
         self._dec_act_cells_n: Dict[str, int] = {}        # its own denominator: reshape steps have no cell count and
         #                                                   are excluded rather than given a fabricated one
+        # ★★★ THE CLICK REGION -- THE CONTROL THE SELF-MOTION SPLIT COULD NOT HAVE. ★★★
+        # The action split above conditions on the EMITTED LABEL, and every click carries the same label `A6`. So
+        # on 45.4% of all decisions the split has exactly ONE row, nothing to vary over, and renders MUTE on every
+        # game -- a control that cannot fail is not a control. But the agent DOES vary its click: it varies WHERE.
+        # This keys the same reading by the COARSE REGION of the coordinate actually emitted (`click_rc[-1]`, read
+        # after the veto, never the prober's intent), so the rate has something to vary over on click games too.
+        # THE REGION IS A THIRDS GRID OVER THE BOARD'S OWN SHAPE -- frame-relative, no threshold, no colour, no
+        # component: it is DESCRIPTIVE ONLY and no organ reads it, which is what keeps it from becoming a detector.
+        # A6 steps with no recorded coordinate get their own name (`noxy`) rather than being dropped, so the sum
+        # over regions must equal the `|A6` rows of the action split exactly -- published as a residue.
+        self._dec_click_reg_attr: Dict[str, int] = {}     # "<exit>|A6@r<i>c<j>" -> priced click steps in that region
+        self._dec_click_reg_moved: Dict[str, int] = {}    # of those, the MASKED reading answered
+        self._dec_click_reg_moved_raw: Dict[str, int] = {}  # of those, ANY cell differed
+        # ★ THE CLICK BRANCH: which `return` of `ClickProber.choose` produced the click. Owned here (segment-scoped,
+        # cleared IN PLACE) and passed INTO the prober, which writes the literal at its own return.
+        self._click_branch: Dict[str, int] = {}
         self._dec_veto_attr: Dict[str, int] = {}          # exit -> vetoed steps whose result frame WAS seen
         self._dec_veto_moved: Dict[str, int] = {}         # of those, masked answered (the control reading)
         self._dec_veto_moved_raw: Dict[str, int] = {}     # of those, raw answered
@@ -695,6 +711,24 @@ class ReduxPolicy:
         if cells is not None:                            # None == a reshape, which has no comparable cell count
             self._dec_act_cells[ak] = self._dec_act_cells.get(ak, 0) + int(cells)
             self._dec_act_cells_n[ak] = self._dec_act_cells_n.get(ak, 0) + 1
+        # THE CLICK REGION, taken from the SAME reading at the SAME site. Only A6 steps have a coordinate, and the
+        # coordinate is read off `click_rc[-1]` -- what was EMITTED -- against the shape of `prev`, the board it was
+        # clicked on. An A6 with no recorded coordinate is NAMED, not dropped: the sum over these keys must equal
+        # the `|A6` rows of the action split, and a silently-skipped step would make that residue unable to fail.
+        if (self.acts[-1] if self.acts else None) == "A6":
+            rc = self.click_rc[-1] if self.click_rc else None
+            if rc is None:
+                rk = "%s|A6@noxy" % where
+            else:
+                h, w = prev.shape
+                ri = min(2, max(0, int(rc[0]) * 3 // max(1, int(h))))
+                ci = min(2, max(0, int(rc[1]) * 3 // max(1, int(w))))
+                rk = "%s|A6@r%dc%d" % (where, ri, ci)
+            self._dec_click_reg_attr[rk] = self._dec_click_reg_attr.get(rk, 0) + 1
+            if raw:
+                self._dec_click_reg_moved_raw[rk] = self._dec_click_reg_moved_raw.get(rk, 0) + 1
+            if masked:
+                self._dec_click_reg_moved[rk] = self._dec_click_reg_moved.get(rk, 0) + 1
 
     def _change_reading(self, prev, cur) -> Tuple[bool, bool, Optional[int]]:
         """The ONE implementation of 'did the board answer?', shared by the priced column and by its own control.
@@ -1122,6 +1156,10 @@ class ReduxPolicy:
             ev.decide_veto_attr, ev.decide_veto_moved = dict(self._dec_veto_attr), dict(self._dec_veto_moved)
             ev.decide_veto_moved_raw = dict(self._dec_veto_moved_raw)
             ev.decide_esc_branch = dict(self._esc_branch)
+            ev.decide_click_branch = dict(self._click_branch)
+            ev.decide_click_reg_attr = dict(self._dec_click_reg_attr)
+            ev.decide_click_reg_moved = dict(self._dec_click_reg_moved)
+            ev.decide_click_reg_moved_raw = dict(self._dec_click_reg_moved_raw)
             src = ([] if not ev.transferred else ["explains"]) + ([] if not self._g_act else ["directive"])
             ev.reuse_source = "+".join(src) or None
             try:
@@ -1147,6 +1185,14 @@ class ReduxPolicy:
         self._dec_act_cells = {}
         self._dec_act_cells_n = {}
         self._esc_branch = {}
+        # ★ CLEARED IN PLACE, NOT REBOUND. The ClickProber holds a REFERENCE to this dict and outlives the segment
+        # (it is only rebuilt on a level change), so rebinding here would leave the prober writing into a dict
+        # nobody reads and every segment after the first would report zero clicks -- a field never COMPUTED,
+        # printed as a zero, which is a mis-labelled receipt. Pinned by a two-segment test.
+        self._click_branch.clear()
+        self._dec_click_reg_attr = {}
+        self._dec_click_reg_moved = {}
+        self._dec_click_reg_moved_raw = {}
         self._dec_veto_attr = {}
         self._dec_veto_moved = {}
         self._dec_veto_moved_raw = {}
@@ -1291,7 +1337,7 @@ class ReduxPolicy:
         """Referent transferred: keep the family + motion/coupling model (the organ reads the live grid each step);
         only rebuild the cheap per-level bits."""
         if self.family == CLICK:
-            self.prober = ClickProber(click_targets(cur), grid_sweep(cur, n=8))
+            self.prober = self._new_prober(cur)
         self.explorer = None                                     # coverage novelty is per-layout
 
     def _rederive(self) -> None:
@@ -1304,10 +1350,18 @@ class ReduxPolicy:
         self.prober = None; self.explorer = None
 
     # ---- organ dispatch ----------------------------------------------------------------------------------------
+    def _new_prober(self, grid) -> ClickProber:
+        """THE ONLY PLACE A PROBER IS BUILT. There were two construction sites and only one of them passed the
+        branch dict, so every click after a level re-parameterization was written into a private dict nobody
+        reads: 126 clicks of a 1393-click sweep, counted at the exit and MISSING from the branch split. The
+        published residue is what caught it -- but a second call site is how it happened, so there is now one.
+        A carrier must be verified to have a LIVE INSTANCE before anything is wired to it."""
+        return ClickProber(click_targets(grid), grid_sweep(grid, n=8), branch=self._click_branch)
+
     def _act_click(self) -> Tuple[str, Optional[dict]]:
         grid = self.frames[-1]
         if self.prober is None:
-            self.prober = ClickProber(click_targets(grid), grid_sweep(grid, n=8))
+            self.prober = self._new_prober(grid)
         elif len(self.frames) >= 2:
             self.prober.observe(self.frames[-2], self.frames[-1])   # credit the previous click
             self.prober.refresh(click_targets(grid))

@@ -91,7 +91,8 @@ class ClickProber:
     CuriosityExplorer, but over WHERE-TO-CLICK instead of where-to-step.
     """
 
-    def __init__(self, candidates: List[Tuple[int, int]], sweep: Optional[List[Tuple[int, int]]] = None):
+    def __init__(self, candidates: List[Tuple[int, int]], sweep: Optional[List[Tuple[int, int]]] = None,
+                 branch: Optional[Dict[str, int]] = None):
         # de-dup while preserving perceptual order, then append any sweep points not already present
         self.targets: List[Tuple[int, int]] = []
         seen = set()
@@ -104,21 +105,38 @@ class ClickProber:
         self.novel: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}   # clicks that reached an UNSEEN board
         self._seen: Set[int] = set()                        # board-state fingerprints ever observed
         self._last: Optional[Tuple[int, int]] = None
+        # ★ THE CLICK BRANCH. `click_native` is 45.4% of every decision the agent makes and it is a SINGLE exit
+        # name covering FOUR different reasons to click, because every click carries the same label `A6`. An exit
+        # name that covers more than one `return` is not an attribution (RANKING 5). This dict is that attribution
+        # and nothing else: a STRING LITERAL at each `return` of `choose`, which is the real call site. It is
+        # OWNED BY THE POLICY and passed in, so it is segment-scoped there and cleared IN PLACE -- a prober that
+        # outlives a segment must keep writing into the live dict, not a rebound one it can no longer see.
+        self.branch: Dict[str, int] = {} if branch is None else branch
+
+    def _b(self, name: str) -> None:
+        self.branch[name] = self.branch.get(name, 0) + 1
 
     def choose(self) -> Optional[Tuple[int, int]]:
         """Pick the next (row, col) to click. None only if there are no candidates at all."""
         if not self.targets:
+            self._b("no_targets")                               # the degenerate corner click, named
             return None
         untried = [t for t in self.targets if self.tries[t] == 0]
         if untried:
             pick = untried[0]                                   # sweep every candidate at least once first
-        else:
-            # exploit: prefer targets that reach NOVEL board states -- a cell that merely TOGGLES (reverts to an
-            # already-seen state) scores changed>0 forever but adds no new territory, so it must not out-rank a
-            # target still discovering unseen configurations. Novelty first, then raw change, then least-tried.
-            pick = max(self.targets, key=lambda t: (self.novel[t], self.changed[t], -self.tries[t]))
-            if self.novel[pick] == 0 and self.changed[pick] == 0:   # nothing ever moved -> least-tried anything
-                pick = min(self.targets, key=lambda t: self.tries[t])
+            self._b("untried_first")
+            self._last = pick
+            return pick
+        # exploit: prefer targets that reach NOVEL board states -- a cell that merely TOGGLES (reverts to an
+        # already-seen state) scores changed>0 forever but adds no new territory, so it must not out-rank a
+        # target still discovering unseen configurations. Novelty first, then raw change, then least-tried.
+        pick = max(self.targets, key=lambda t: (self.novel[t], self.changed[t], -self.tries[t]))
+        if self.novel[pick] == 0 and self.changed[pick] == 0:   # nothing ever moved -> least-tried anything
+            pick = min(self.targets, key=lambda t: self.tries[t])
+            self._b("nothing_moved_least_tried")
+            self._last = pick
+            return pick
+        self._b("exploit_scored")
         self._last = pick
         return pick
 

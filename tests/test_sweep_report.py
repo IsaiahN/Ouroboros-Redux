@@ -240,3 +240,114 @@ def test_the_printer_renders_the_hand_back_the_release_produces():
     assert "NO step" in out, out
     assert "RESIDUE=0" in out, out
     assert "DOES NOT SUM" not in out, out
+
+
+def _click_game(gid, n, board=30):
+    """A REAL click game: `avail == [6]` routes `family` to CLICK, so every decision goes through `click_native`
+    -> `_act_click` -> `ClickProber.choose` and the branch counts come from the prober's own returns. Nothing is
+    stubbed here, because what the branch block reports is exactly which return the real prober takes."""
+    p = _policy(gid)
+    g = np.zeros((board, board), dtype=int)
+    g[3, 3], g[3, 4], g[12, 15], g[16, 6] = 4, 5, 6, 7
+    tick = 0
+    for _ in range(n):
+        p.observe(g.copy(), [6], 0)
+        p.choose()
+        tick += 1
+        g[14:16, 14:16] = tick % 5 + 1
+    p._close_segment("death")
+    return p
+
+
+def _region_game(gid, n, movers=None):
+    """A click game whose click lands in a KNOWN corner region every step, so the region control has something to
+    vary over and the test knows what it should read. The exit name is a stub one (`stub_click`) deliberately: the
+    click BRANCH identity is against the real click exits, and borrowing `click_native` here would break it and
+    make this test about the wrong block. `movers` is the set of points the board answers to; None = every step,
+    which is the self-motion board."""
+    p = _policy(gid)
+    pts = [(2, 2), (2, 27), (27, 2), (27, 27)]        # r0c0, r0c2, r2c0, r2c2 on a 30x30 board
+
+    def _stub():
+        p._dec_calls += 1
+        r, c = pts[p.n_emitted % len(pts)]
+        return p._exit("stub_click", ("A6", {"x": c, "y": r}))   # the wire carries (x, y); policy stores (row, col)
+    p._decide = _stub
+    g = np.zeros((30, 30), dtype=int)
+    g[3, 3], g[3, 4] = 4, 5
+    tick = 0
+    for _ in range(n):
+        p.observe(g.copy(), [6], 0)
+        p.choose()
+        rc = pts[(p.n_emitted - 1) % len(pts)]
+        if movers is None or rc in movers:
+            tick += 1
+            g[14:16, 14:16] = tick % 5 + 1
+    p._close_segment("death")
+    return p
+
+
+def test_the_click_branch_block_renders_and_CLOSES():
+    """The identity first, same as the escalation branch: four literals inside `ClickProber.choose` against two
+    `return`s inside `_decide`, two independent counters of the same steps. Every return of `choose` produces a
+    click, so there is nothing to exclude and the residue must be exactly zero -- if it is not, no row in the
+    block may be read."""
+    out = _section(_render(_res(cl11=_click_game("cl11-cccc", _N))), "=== THE CLICK BRANCH")
+    assert "RESIDUE=0" in out, out
+    assert "DOES NOT SUM" not in out, out
+    assert "UNNAMED BRANCH" not in out, out
+    for row in ("untried_first", "exploit_scored", "nothing_moved_least_tried", "no_targets"):
+        assert row in out, out
+
+
+def test_the_click_branch_block_EVALUATES_the_pre_registered_prediction():
+    """The prediction is `untried_first` dominates, and the SCRIPT must decide that -- not the prose written
+    afterwards. Whichever way a sweep falls, exactly one verdict line must be printed and it must name the branch
+    the numbers actually support."""
+    out = _section(_render(_res(cl11=_click_game("cl11-cccc", _N))), "=== THE CLICK BRANCH")
+    verdicts = [l for l in out.splitlines() if "VERDICT:" in l]
+    assert len(verdicts) == 1, out
+    assert ("PREDICTION HELD" in out) or ("PREDICTION WRONG" in out) or ("MIXED" in out) \
+        or ("NOTHING IT CLICKED EVER MOVED" in out) or ("PERCEPTION OFFERED NOTHING" in out), out
+
+
+def test_the_click_region_gives_the_self_motion_control_a_row_where_it_had_none():
+    """The blind spot and its repair, in one report. Every click carries label `A6`, so the ACTION split has one
+    row on a click game and prints MUTE; the REGION split of the same steps must have more than one and must
+    carry a verdict. If this ever reads MUTE on both, the control is back to being unable to fail."""
+    res = _res(cl11=_region_game("cl11-cccc", _N))
+    act = _section(_render(res), "=== THE SELF-MOTION CONTROL")
+    reg = _section(_render(res), "=== THE CLICK REGION")
+    assert "MUTE: one action only" in act, act
+    assert "RESIDUE=0" in reg, reg
+    assert "DOES NOT SUM" not in reg, reg
+    assert "MUTE: one region only" not in reg, reg
+
+
+def test_a_board_that_answers_only_ONE_REGION_renders_as_REGION_CONDITIONAL():
+    """The good case: the board answers only when the click lands on the left half, so the rate tracks WHERE the
+    agent clicked and the change is the agent's. The classifier must say so in words."""
+    reg = _section(_render(_res(cl11=_region_game("cl11-cccc", _N, movers={(2, 2), (27, 2)}))),
+                   "=== THE CLICK REGION")
+    assert "REGION-CONDITIONAL" in reg, reg
+    assert "CONSISTENT WITH SELF-MOTION" not in reg, reg
+
+
+def test_a_board_that_answers_EVERY_REGION_renders_as_CONSISTENT_WITH_SELF_MOTION():
+    """The case the whole instrument exists for: on a click game the action split cannot tell a responsive board
+    from a board that moves on its own, because there is only one label. Keyed by region, the same steps read
+    uniform-and-high and the printer must refuse the competence reading in words."""
+    reg = _section(_render(_res(cl11=_region_game("cl11-cccc", _N, movers=None))), "=== THE CLICK REGION")
+    assert "CONSISTENT WITH SELF-MOTION" in reg, reg
+    assert "may not be cited as competence" in reg, reg
+    assert "REGION-CONDITIONAL" not in reg, reg
+
+
+def test_the_two_region_cases_are_told_APART_in_ONE_sweep():
+    """Both boards in one report. A classifier reading the pooled number, or the last game seen, would render the
+    two games the same -- and could never have separated them across a real sweep either."""
+    reg = _section(_render(_res(cl11=_region_game("cl11-cccc", _N, movers={(2, 2), (27, 2)}),
+                                cl22=_region_game("cl22-dddd", _N, movers=None))), "=== THE CLICK REGION")
+    assert "REGION-CONDITIONAL" in reg, reg
+    assert "CONSISTENT WITH SELF-MOTION" in reg, reg
+    assert "RESIDUE=0" in reg, reg
