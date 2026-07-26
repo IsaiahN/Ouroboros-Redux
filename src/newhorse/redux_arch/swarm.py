@@ -245,6 +245,16 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     # been silently dropped in pooling while the per-game summary carried it, and the sweep would have printed a
     # believable zero. A producer/consumer key-SET test pins this.
     dfun_sub: Dict[str, Dict[str, int]] = {}
+    # ★★★ THE MEMBERS QUESTION. A POOLED RATE OFFERED AS EVIDENCE ABOUT A SUBSET IS A MIS-LABELLED RECEIPT. ★★★
+    # `dfun_sub` answers "what did this exit do across the sweep"; it CANNOT answer "on WHICH games". 89.0% pooled
+    # over twelve games is arithmetically consistent with three good games carrying nine bad ones, and the two
+    # readings have completely different fixes -- so the pooled number alone cannot justify touching anything.
+    # The split is not a new measurement: every per-game funnel already exists in that game's `summary()` before
+    # this function merges it, and this loop is the only place it is thrown away. So it is CARRIED, in the SAME
+    # traversal that does the pooling, from the SAME dict -- never recomputed on a second pass over a key list
+    # that could drift from the pooled one. Sum this split over games and you get `dfun_sub` back, exactly; the
+    # printer publishes that residue rather than assuming it.
+    fgame: Dict[str, Dict[str, Dict[str, int]]] = {}
     streams: Dict[str, Dict[str, Any]] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
@@ -271,11 +281,16 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
         for k, n in (e.get("dead_diff_stages") or {}).items():
             dead_stages[k] = dead_stages.get(k, 0) + int(n)
         df = e.get("decide_funnel") or {}
+        gid = str(r.get("game") or ("game#%d" % len(fgame)))
         for k, v in df.items():
             if isinstance(v, dict):
                 acc = dfun_sub.setdefault(k, {})
+                per = fgame.setdefault(gid, {})
                 for xk, xn in v.items():
                     acc[xk] = acc.get(xk, 0) + int(xn)
+                    # the members, carried at the same line that pools them: exit -> sub-key -> this game's count
+                    row = per.setdefault(xk, {})
+                    row[k] = row.get(k, 0) + int(xn)
                 continue
             if isinstance(v, bool) or not isinstance(v, int):
                 continue
@@ -322,6 +337,12 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
                           dead_diff_stages=dict(sorted(dead_stages.items())),
                           decide_funnel=dict(dfun, **{k: dict(sorted(v.items()))
                                                       for k, v in sorted(dfun_sub.items())}),
+                          # ★ published as a SIBLING of `decide_funnel`, not inside it, so `decide_funnel` stays
+                          # flat-ints-and-flat-dicts and the union pooler above can never be handed a dict where
+                          # it expects an int. Shape: game -> exit -> sub-key -> count.
+                          decide_funnel_by_game={g: {x: dict(sorted(sv.items()))
+                                                     for x, sv in sorted(xs.items())}
+                                                 for g, xs in sorted(fgame.items())},
                           gamma_decision=dict(gdec, sign_report_by_game=dict(sorted(gsign.items())),
                                               sign_report_at_first_entry_by_game=dict(sorted(gentry.items())))),
                 games_reaching_L2=reach_l2,

@@ -565,3 +565,56 @@ def test_a_board_that_CHANGES_reads_as_answered_and_the_name_comes_from_the_EXIT
     assert sum(p._dec_moved_raw.values()) == sum(p._dec_attr.values()) == 7
     assert sum(p._dec_moved.values()) == 7              # four cells: at the MIN_CELLS floor, not under it
     assert set(p._dec_attr) <= set(p._dec_exits)        # every priced name is an exit name, not an invented one
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# ★★★ THE MEMBERS QUESTION: A POOLED RATE IS NOT A STATEMENT ABOUT ANY GAME. ★★★
+# The outcome column above prices each exit ACROSS the sweep. `dir_target_colour` answered 89.0% masked over
+# twelve games -- a number equally consistent with uniform competence and with three good games carrying nine bad
+# ones, and those two findings do not share a fix. Directive 5's corollary: a pooled number offered as evidence
+# about a SUBSET is the mis-labelled-receipt defect one level up. The split is not new evidence; each game's
+# funnel already exists before `echo_pool` merges it, so the only requirement is that the merge CARRIES it and
+# that the carry sums back to the pool exactly. These two tests pin both halves.
+# ---------------------------------------------------------------------------------------------------------------
+
+def _pool_two_games(na=4, nb=7):
+    from newhorse.redux_arch.receipt import summary
+    from newhorse.redux_arch.swarm import echo_pool
+    out = {}
+    for gid, n in (("aa11-aaaa", na), ("bb22-bbbb", nb)):
+        p = _drive(_policy(game_id=gid), n)
+        p._close_segment("death")
+        out[gid] = {"game": gid, "echo": summary(p.receipts), "tether_stage": {}, "levels": 1}
+    return echo_pool(out)["echo"]
+
+
+def test_every_pooled_funnel_rate_can_be_SPLIT_BY_GAME_and_the_split_sums_back_to_the_pool():
+    """The identity that makes the split citable: re-pooling the per-game rows reproduces the pooled dict for
+    EVERY dict-valued sub-key, discovered from the data rather than from a key list. A sub-key added to the funnel
+    and forgotten in the carry fails here rather than printing a believable per-game zero in a sweep six hours
+    later -- the same guard as the Γ and funnel key-SET tests, applied to the members."""
+    ech = _pool_two_games()
+    df, byg = ech["decide_funnel"], ech["decide_funnel_by_game"]
+    assert set(byg) == {"aa11-aaaa", "bb22-bbbb"}
+    subs = {k for k, v in df.items() if isinstance(v, dict)}
+    assert "exits" in subs and "attr" in subs and "moved" in subs
+    # nothing per-game may name a sub-key the pool does not have: the carry cannot invent a column
+    assert {k for xs in byg.values() for sv in xs.values() for k in sv} <= subs
+    for sub in sorted(subs):
+        re_pooled = {}
+        for xs in byg.values():
+            for x, sv in xs.items():
+                if sub in sv:
+                    re_pooled[x] = re_pooled.get(x, 0) + int(sv[sub])
+        assert re_pooled == df[sub], (sub, re_pooled, df[sub])
+
+
+def test_the_split_actually_DISTINGUISHES_the_games_rather_than_collapsing_them():
+    """The failure mode this whole beat exists to prevent is a split that is really the pool wearing a game's
+    name. The two games are driven a DIFFERENT number of steps, so a collapsed carry -- one that keyed everything
+    under the last game seen, or that summed before splitting -- reads 11 on both rows instead of 4 and 7."""
+    byg = _pool_two_games(na=4, nb=7)["decide_funnel_by_game"]
+    steps = {g: sum(int(sv.get("exits", 0)) for sv in xs.values()) for g, xs in byg.items()}
+    assert steps == {"aa11-aaaa": 4, "bb22-bbbb": 7}, steps
+    # and `exit_games` stays a count of GAMES: exactly 1 per exit on each row, never that row's step count
+    assert {v for xs in byg.values() for sv in xs.values() for k, v in sv.items() if k == "exit_games"} == {1}

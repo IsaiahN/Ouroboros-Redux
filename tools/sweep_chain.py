@@ -127,6 +127,52 @@ def main() -> None:
         print("  ★ TWO COUNTERS OF ONE EVENT DISAGREE by %d. One of them is wrong; neither may be cited until the"
               " difference is explained." % _dis)
 
+    # ★★★ THE MEMBERS QUESTION: WHICH GAMES ARE BEHIND EACH POOLED RATE. ★★★
+    # Every `answered` number in the block above is pooled across that exit's games. `dir_target_colour` answered
+    # 89.0% masked over TWELVE games last sweep, and that one number cannot distinguish uniform competence from
+    # three good games carrying nine bad ones -- which are not the same finding and do not have the same fix. A
+    # pooled number offered as evidence about a SUBSET is the mis-labelled-receipt defect one level up, so the
+    # rule is: ask WHICH MEMBERS before building anything on the rate. The SPREAD line is the actual finding here;
+    # the per-game rows are its receipts. Nothing below is recomputed -- it is the same per-game funnel the pooler
+    # summed, carried instead of discarded, and the RESIDUE line proves the two agree.
+    fbg = (res.get("tether_chain") or {}).get("echo", {}).get("decide_funnel_by_game") or {}
+    print("\n=== THE MEMBERS BEHIND EACH POOLED RATE (per-exit answer rate BY GAME) ===")
+    if not fbg:
+        print("  (no per-game funnel recorded -- every rate above is pooled and UNSPLIT; do not cite one about a"
+              " subset of games)")
+    for k, n in sorted(dfx.items(), key=lambda kv: (-kv[1], kv[0])):
+        rows = []
+        for g, xs in sorted(fbg.items()):
+            sv = xs.get(k) or {}
+            if not int(sv.get("exits", 0)):
+                continue
+            rows.append((int(sv["exits"]), g, int(sv.get("attr", 0)), int(sv.get("moved", 0)),
+                         int(sv.get("moved_raw", 0)), int(sv.get("veto", 0))))
+        if not rows:
+            continue
+        rows.sort(key=lambda t: (-t[0], t[1]))
+        print("  %-22s pooled %5.1f%% masked of %d priced across %d games"
+              % (k, (100.0 * int(dfm.get(k, 0)) / int(dfa[k])) if int(dfa.get(k, 0)) else float("nan"),
+                 int(dfa.get(k, 0)), len(rows)))
+        for st, g, a, mv, rw, vt in rows:
+            if a:
+                print("      %-18s steps %6d   priced %6d   masked %5.1f%%   raw %5.1f%%   veto %4d"
+                      % (g, st, a, 100.0 * mv / a, 100.0 * rw / a, vt))
+            else:
+                print("      %-18s steps %6d   priced      0   (NOTHING PRICED -- contributes no rate)   veto %4d"
+                      % (g, st, vt))
+        _pg = [(100.0 * mv / a, g) for st, g, a, mv, rw, vt in rows if a]
+        if _pg:
+            _lo, _hi = min(_pg), max(_pg)
+            print("      SPREAD: %d/%d games priced | masked min %5.1f%% (%s) max %5.1f%% (%s) | games ==0%%: %d |"
+                  " games >=50%%: %d"
+                  % (len(_pg), len(rows), _lo[0], _lo[1], _hi[0], _hi[1],
+                     sum(1 for v, _ in _pg if v == 0.0), sum(1 for v, _ in _pg if v >= 50.0)))
+        _rs, _ra = sum(t[0] for t in rows) - n, sum(t[2] for t in rows) - int(dfa.get(k, 0))
+        if _rs or _ra:
+            print("      ★ THE SPLIT DOES NOT SUM TO THE POOL: steps residue %d, priced residue %d. The per-game"
+                  " rows and the pooled row are measuring different things -- cite NEITHER." % (_rs, _ra))
+
     # DIRECTIVE 5: a firing is a RECEIPT, not a claim. Every transfer is rendered in full, with its echo KIND and
     # the caveat that a within-game echo is a weaker claim than a cross-game one. No receipt => it did not fire.
     print("\n=== FIRING RECEIPTS ===")
