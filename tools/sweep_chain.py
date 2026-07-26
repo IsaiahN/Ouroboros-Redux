@@ -147,12 +147,15 @@ def report(res: dict) -> None:
     #   new           a genuine modality switch -- the lever firing, once per switch
     #   hold_untried  serving the SAME label again while its fair trial completes: the designed cost of a switch,
     #                 bounded by the engagement window
-    #   hold_answered serving the same label again AFTER it has answered at least once. `failed_trial` is
-    #                 `observations >= window AND best < min_cells`, and `best` is a MAX -- so one answer makes it
-    #                 False for the rest of the episode and this branch returns forever. A6 is released by the
-    #                 click commit; a DIRECTIONAL label has no release. This row is the lock-in, and it is the
-    #                 hypothesis this section exists to test. Nothing is fixed this beat.
+    #   hold_answered serving the same label again AFTER it has answered at least once. Now reachable ONLY by A6
+    #                 on the step its click commit lands; every later A6 decision is caught by the natively-routed
+    #                 click exit. A DIRECTIONAL label that answers is RELEASED instead (below).
+    #   released_answered  the label answered, so it is not a null intervention and there is nothing left to
+    #                 refuse: `_escalated` is cleared and the game handed back to its family organ. This return
+    #                 produces NO escalate step, so it is OUTSIDE the identity, printed separately, and its size
+    #                 is the direct read on how much of the old lock-in has been converted into a hand-back.
     esb = (dfn.get("esc_branch") or {})
+    _NOSTEP = ("released_answered",)
     _esc_steps = int(dfx.get("escalate", 0)) + int(dfx.get("escalate_click", 0))
     print("\n=== THE ESCALATION BRANCH (which return of _modality_escalate produced the step) ===")
     if not esb:
@@ -161,11 +164,15 @@ def report(res: dict) -> None:
         _n = int(esb.get(k, 0))
         print("    %-14s steps %7d (%5.1f%% of escalate steps)"
               % (k, _n, 100.0 * _n / max(1, _esc_steps)))
+    for k in _NOSTEP:
+        print("    %-14s      %7d   (NO step: handed back to the family organ -- outside the identity below)"
+              % (k, int(esb.get(k, 0))))
     for k, n in sorted(esb.items()):
-        if k not in ("new", "hold_untried", "hold_answered"):
+        if k not in ("new", "hold_untried", "hold_answered") + _NOSTEP:
             print("    %-14s steps %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
     _res = int(dfn.get("esc_branch_residue", 0))
-    print("  escalate steps=%d | branch sum=%d | RESIDUE=%d" % (_esc_steps, sum(esb.values()), _res))
+    _step_sum = sum(v for k, v in esb.items() if k not in _NOSTEP)
+    print("  escalate steps=%d | step-branch sum=%d | RESIDUE=%d" % (_esc_steps, _step_sum, _res))
     if _res:
         print("  ★ THE BRANCH SPLIT DOES NOT SUM TO THE ESCALATE EXITS. Do not read any row above until the"
               " residue is named.")
@@ -184,6 +191,10 @@ def report(res: dict) -> None:
                 # lock-in produces. Muting on `new == 0` would suppress the reading exactly where it matters.
                 print("  no switch counted in these segments -- the held label was escalated to earlier; the"
                       " steps-per-switch ratio is unavailable, the split below is not")
+            _rel = int(esb.get("released_answered", 0))
+            print("  released=%d hand-backs vs %d escalate steps -- %.2f hand-backs per escalate step. This is the"
+                  " lock-in's replacement: every one of these was a `hold_answered` step before the release."
+                  % (_rel, _esc_steps, _rel / float(max(1, _esc_steps))))
             if _ha >= 0.5 * _esc_steps:
                 print("  VERDICT: LOCK-IN DOMINATES -- %.1f%% of escalate's steps re-serve a label that has"
                       " ALREADY answered, which `failed_trial` can never end. The organ built to refuse a null"

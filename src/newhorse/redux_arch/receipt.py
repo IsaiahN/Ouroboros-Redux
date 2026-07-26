@@ -28,6 +28,11 @@ UNCLEARED_NOTE = ("NO -- and the reason is WIRING, not the drive layer: `ChainLe
                   "worst place for a first end-to-end run. The honest ceiling this beat is USED_NOCLEAR, and its "
                   "`indicts` field must NOT be read as a verdict on drive. test_tether_brick keeps this checkable.")
 
+# ★ Escalation-branch names whose return produces NO decide step: `_modality_escalate` returns None on them and
+# `_decide` falls through to the family organ. They are published alongside the step-producing branches but are
+# excluded BY NAME from the `escalate + escalate_click` identity, which is what keeps that identity falsifiable.
+_ESC_NOSTEP = ("released_answered",)
+
 ECHO_KINDS = ("cross-game", "within-run-across-levels", "within-run-across-segments")
 _ECHO_RANK = {k: i for i, k in enumerate(ECHO_KINDS)}
 _ECHO_CAVEAT = {
@@ -464,15 +469,21 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                                    veto_attr=dict(sorted(dec_veto_attr.items())),
                                    veto_moved=dict(sorted(dec_veto_moved.items())),
                                    veto_moved_raw=dict(sorted(dec_veto_moved_raw.items())),
-                                   # ★ THE ESCALATION BRANCH. Which of `_modality_escalate`'s three returns
-                                   # produced the step, counted at those returns. Its sum must equal
-                                   # `escalate` + `escalate_click`; the difference is published as
+                                   # ★ THE ESCALATION BRANCH. Which return of `_modality_escalate` produced the
+                                   # step, counted at those returns. Only returns that HAND BACK A LABEL produce an
+                                   # escalate step, so only those enter the identity: their sum must equal
+                                   # `escalate` + `escalate_click`, and the difference is published as
                                    # `esc_branch_residue` rather than assumed to be zero, because every other
-                                   # identity in this receipt is.
+                                   # identity in this receipt is. `_ESC_NOSTEP` names the returns that produce NO
+                                   # step (the organ returns None and `_decide` falls through to the family organ);
+                                   # they are still published in `esc_branch` -- they are just excluded from the sum
+                                   # BY NAME, so the identity stays falsifiable instead of being closed by adding a
+                                   # term to both sides.
                                    esc_branch=dict(sorted(dec_esc_branch.items())),
                                    esc_branch_residue=(dec_exits.get("escalate", 0)
                                                        + dec_exits.get("escalate_click", 0)
-                                                       - sum(dec_esc_branch.values()))),
+                                                       - sum(v for k, v in dec_esc_branch.items()
+                                                             if k not in _ESC_NOSTEP))),
                 # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
                 # second stream arriving can never be read as the first one getting better -- the top-level totals
                 # below are a convenience, and this is the number that carries the claim.

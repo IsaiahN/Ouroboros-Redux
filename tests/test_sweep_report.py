@@ -163,10 +163,29 @@ def test_a_single_action_game_renders_MUTE_rather_than_a_verdict():
     assert "CONSISTENT WITH SELF-MOTION" not in out, out
 
 
+def _relabel_to_lockin(p):
+    """THE CLASSIFIER OUTLIVES THE STATE IT WAS BUILT FOR. The release shipped this beat means no live policy can
+    produce a `hold_answered`-dominated receipt any more -- the directional case is handed back on its first
+    answer and A6 is caught by the click exit. That is exactly why the LOCK-IN verdict must STAY in the printer:
+    it is the guard that would catch the state coming back by some other path, and a guard is worth nothing if
+    nothing ever tests it.
+
+    So the state is now built where it honestly belongs -- on the RECEIPT, by relabelling counted steps, not by
+    inventing them. The step totals and the escalate exits are untouched, so the identity still closes; only the
+    branch NAME moves. This is a synthetic receipt and is labelled as one; no number here may be cited about the
+    agent."""
+    for ev in p.receipts:
+        b = ev.decide_esc_branch
+        if b.get("hold_untried"):
+            b["hold_answered"] = b.get("hold_answered", 0) + b.pop("hold_untried")
+    return p
+
+
 def _escalating(gid, n_frozen, n_answer, avail=(1, 2, 3, 4, 6), lockin=False):
     """A real policy driven into the escalation organ, for the printer's branch block. `lockin` constructs the
-    directional held state (see tests/test_escalation_branch.py for why that state is constructed and not driven)
-    so the printer's LOCK-IN verdict has something to render."""
+    directional held state (see tests/test_escalation_branch.py for why that state is constructed and not driven);
+    since the release shipped it no longer HOLDS, so the printer's LOCK-IN verdict is fed by `_relabel_to_lockin`
+    instead and this flag now drives the RELEASE path."""
     from newhorse.redux_arch.policy import EFFECT
     p = _policy(gid)
     if lockin:
@@ -204,6 +223,20 @@ def test_a_fair_trial_wait_and_a_LOCK_IN_render_as_DIFFERENT_verdicts():
     wait = _section(_render(_res(aa11=_escalating("aa11-aaaa", 20, 0))), "=== THE ESCALATION BRANCH")
     assert "FAIR-TRIAL WAIT DOMINATES" in wait, wait
     assert "LOCK-IN DOMINATES" not in wait, wait
-    lock = _section(_render(_res(bb22=_escalating("bb22-bbbb", 0, 60, lockin=True))), "=== THE ESCALATION BRANCH")
+    lock = _section(_render(_res(bb22=_relabel_to_lockin(_escalating("bb22-bbbb", 20, 0)))),
+                    "=== THE ESCALATION BRANCH")
     assert "LOCK-IN DOMINATES" in lock, lock
     assert "FAIR-TRIAL WAIT DOMINATES" not in lock, lock
+    assert "RESIDUE=0" in lock, lock                   # the relabel moved a name, not a count
+
+
+def test_the_printer_renders_the_hand_back_the_release_produces():
+    """The release's own row. A branch that produces NO step would be invisible in a block whose every other row
+    is priced as a share of escalate steps, and an organ change you cannot see in the report is one you cannot
+    check next sweep. The row must appear, must be marked as producing no step, and must NOT be counted into the
+    identity -- the residue is what makes every other row in the block citable."""
+    out = _section(_render(_res(bb22=_escalating("bb22-bbbb", 0, 60, lockin=True))), "=== THE ESCALATION BRANCH")
+    assert "released_answered" in out, out
+    assert "NO step" in out, out
+    assert "RESIDUE=0" in out, out
+    assert "DOES NOT SUM" not in out, out

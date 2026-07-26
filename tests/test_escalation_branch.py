@@ -18,12 +18,22 @@ found by reading, not by measuring:
 
 So the organ built to refuse a null intervention can hold the agent on one action for the rest of the episode,
 and the step it holds them on is one that answered ONCE. These tests prove the branch counter can tell that state
-apart from the designed cost of a fair trial. NOTHING IS FIXED HERE -- this beat measures.
+apart from the designed cost of a fair trial.
+
+THE MEASUREMENT CAME BACK (sweep at fbd10df): `hold_answered` was 460 steps, 87.6% of every escalate step the
+agent took, with a published residue of 0. So the state is not a corner case -- it is what the organ mostly DOES.
+
+THE RELEASE (this beat) closes it at the same place the reading was taken. A label that has answered is not a
+null intervention, so there is nothing left to refuse: `_escalated` is cleared and the game is handed back to its
+family organ, which is the shape the A6 commit already had. A6 still holds for one step, because its commit has
+already made the game a click game and the click organ is where it belongs. The tests below are the same tests,
+with the DIRECTIONAL one inverted -- it now pins the release, and its A6 sibling is unchanged, which is how you
+can see the fix did not widen `escalate` on the way past.
 """
 import numpy as np
 
 from newhorse.redux_arch.policy import ReduxPolicy
-from newhorse.redux_arch.receipt import summary
+from newhorse.redux_arch.receipt import summary, _ESC_NOSTEP
 
 
 def _policy(gid="ee55-eeee"):
@@ -83,35 +93,51 @@ def test_an_escalation_to_click_that_answers_is_RELEASED_by_the_commit():
     assert p._dec_exits.get("click_native", 0) >= 20, p._dec_exits
 
 
-def test_a_DIRECTIONAL_escalation_that_answers_is_never_released():
-    """THE FINDING, stated as a mechanism and tested as one. The state is CONSTRUCTED -- `_escalated` is set
-    directly to a directional label -- because whether this state is reached often is a question for the live
-    sweep, not for a unit test, and pretending a synthetic frequency is a measured one is exactly the
-    mis-labelled receipt this instrument exists to prevent. What is under test is the CONSEQUENCE of the state:
+def test_a_DIRECTIONAL_escalation_that_answers_is_RELEASED_to_its_family_organ():
+    """THE RELEASE. This test was the finding, and it is the same construction inverted -- which is the point of
+    keeping it here rather than writing a fresh one: the state that used to hold the agent for the rest of the
+    episode is driven identically and must now end in a hand-back.
 
-        `failed_trial` = `observations >= window AND best < min_cells`, and `best` is a MAX. One answer makes it
-        False permanently. The hold branch is checked before the family dispatch and returns the escalated label.
-        There is no directional counterpart to the A6 commit above, so nothing ever clears `_escalated`.
-
-    So the organ holds the agent on ONE action for the rest of the episode -- an action chosen because it was the
-    least-observed one on a frozen board, not because anything about it was understood."""
+    The state is CONSTRUCTED -- `_escalated` is set directly to a directional label -- because whether this state
+    is reached often is a question for the live sweep, not for a unit test. What is under test is the CONSEQUENCE:
+    one answer, and the escalation is over. `hold_answered` must be ZERO, because that branch is now reachable
+    only by A6 on the step its click commit lands, and `released_answered` must be exactly ONE -- the release
+    fires once and then there is no escalation left to release. The board keeps answering, so `escalate()` (which
+    requires `frozen()`) cannot re-arm, and every remaining step belongs to the family organ."""
     from newhorse.redux_arch.policy import EFFECT
 
-    p = _policy("cc33-lockin")
+    p = _policy("cc33-release")
     p.family = EFFECT
     p._escalated = "A1"                                # the state, constructed; its FREQUENCY is the sweep's job
     g = _board()
-    labels, _t = _drive(p, g, 60, answer=True, avail=(1, 2, 3, 4))
-    assert p._esc_branch.get("hold_answered", 0) >= 40, p._esc_branch
-    assert p._escalated == "A1", p._escalated          # nothing ever released it
-    assert set(labels[10:]) == {"A1"}, sorted(set(labels[10:]))
+    _labels, _t = _drive(p, g, 60, answer=True, avail=(1, 2, 3, 4))
+    assert p._esc_branch.get("hold_answered", 0) == 0, p._esc_branch
+    assert p._esc_branch.get("released_answered", 0) == 1, p._esc_branch
+    assert p._escalated is None, p._escalated          # the hand-back actually happened
+    assert p._dec_exits.get("family_effect", 0) >= 40, p._dec_exits
+
+
+def test_the_release_does_not_widen_escalate_on_a_board_that_never_answers():
+    """The release is allowed to END escalations; it is not allowed to START any. A frozen board never satisfies
+    `answered`, so the released branch must never be charged, and the organ must behave exactly as it did before
+    the fix -- same escalate steps, same fair trials. This is the no-widening receipt."""
+    p = _policy("cc33-nowiden")
+    _drive(p, _board(), 60, answer=False)
+    assert p._esc_branch.get("released_answered", 0) == 0, p._esc_branch
+    assert p._esc_branch.get("hold_answered", 0) == 0, p._esc_branch
+    assert p._esc_branch.get("new", 0) >= 1, p._esc_branch
 
 
 def test_the_branch_split_sums_to_the_escalate_exits_on_the_receipt():
     """The identity, checked where every other identity in this instrument is checked: on the pooled receipt. The
-    branch counts are written at three returns inside the organ and the exit counts at two returns inside
+    branch counts are written at the returns inside the organ and the exit counts at two returns inside
     `_decide`; they are independent counters of the same steps, so a non-zero residue means one of them is wrong
-    and neither may be cited."""
+    and neither may be cited.
+
+    Only the returns that HAND BACK A LABEL produce a step, so only those are in the identity. `released_answered`
+    returns None and `_decide` falls through to the family organ, so it is excluded BY NAME (`_ESC_NOSTEP`) rather
+    than by being added to both sides -- closing an identity by adding a term to both sides is the defect this
+    instrument caught inside its own printer, and it would make the residue unable to fail."""
     p = _policy("cc33-sums")
     g = _board()
     _drive(p, g, 60, answer=False)
@@ -120,8 +146,21 @@ def test_the_branch_split_sums_to_the_escalate_exits_on_the_receipt():
     dfn = summary(p.receipts)["decide_funnel"]
     esc = int(dfn["exits"].get("escalate", 0)) + int(dfn["exits"].get("escalate_click", 0))
     assert esc > 0, dfn["exits"]
-    assert sum(dfn["esc_branch"].values()) == esc, dfn
+    assert sum(v for k, v in dfn["esc_branch"].items() if k not in _ESC_NOSTEP) == esc, dfn
     assert dfn["esc_branch_residue"] == 0, dfn
+
+
+def test_a_nostep_branch_is_excluded_from_the_identity_by_name_only():
+    """The exclusion must be a NAMED list, not a wildcard: anything added to the branch dict without a reading has
+    to break the residue, which is the only reason the residue is worth publishing. Injecting an unnamed branch
+    must move it; injecting a named no-step branch must not."""
+    p = _policy("cc33-guard")
+    g = _board()
+    _drive(p, g, 60, answer=False)
+    p._esc_branch["some_new_return"] = 7
+    p._close_segment("death")
+    dfn = summary(p.receipts)["decide_funnel"]
+    assert dfn["esc_branch_residue"] == -7, dfn
 
 
 def test_the_branch_counter_does_not_change_what_the_organ_returns():

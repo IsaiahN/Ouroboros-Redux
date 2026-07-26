@@ -776,16 +776,27 @@ class ReduxPolicy:
                         and self.engage.answered("A6"):
                     self._pre_esc_family = None          # the click modality has moved the board -> commit to it
                 if self.engage.answered(self._escalated):
-                    # ★ `failed_trial` is `observations >= window AND best < min_cells`. `best` is a MAX, so ONE
-                    # answer at any point makes it False for the rest of the episode -- and this branch then
-                    # returns the same label at every subsequent decision. For A6 that is fine: the commit above
-                    # clears `_pre_esc_family`, and the next `_decide` is caught by the natively-routed click exit
-                    # before it ever reaches this organ. For a DIRECTIONAL label there is no such release, so the
-                    # organ built to refuse a null intervention holds the agent on one action indefinitely. This
-                    # counter is that hypothesis's instrument; it is NOT a fix and nothing here changes what is
-                    # returned.
-                    self._esc_branch["hold_answered"] = self._esc_branch.get("hold_answered", 0) + 1
-                    return self._escalated
+                    # ★ THE RELEASE. `failed_trial` is `observations >= window AND best < min_cells`, and `best` is
+                    # a MAX -- so ONE answer makes it False for the rest of the episode. Before this release that
+                    # meant the escalation held the agent on one label at EVERY subsequent decision (measured at
+                    # fbd10df: 87.6% of all escalate steps). The organ's job is to REFUSE A NULL INTERVENTION, and
+                    # a label that has answered is no longer null: the reason to hold it is gone, so the escalation
+                    # is over and the game goes back to the organ that owns it.
+                    #
+                    # A6 is the ONE case that still holds, and it holds for a different reason: the commit above has
+                    # just set `_pre_esc_family = None` while `family` is CLICK, so the game IS a click game now and
+                    # the click organ is where it already belongs. It is served here once and every later `_decide`
+                    # is caught by the natively-routed click exit before reaching this organ.
+                    if self._escalated == "A6" and self.family == CLICK:
+                        self._esc_branch["hold_answered"] = self._esc_branch.get("hold_answered", 0) + 1
+                        return self._escalated
+                    self._escalated = None
+                    # ★ ITS OWN NAME AT ITS OWN RETURN. This return produces NO escalate step -- `_decide` falls
+                    # through to the family dispatch -- so it is deliberately OUTSIDE the
+                    # `escalate + escalate_click == new + hold_untried + hold_answered` identity, which stays
+                    # falsifiable. `receipt.summary` excludes it from that sum by name.
+                    self._esc_branch["released_answered"] = self._esc_branch.get("released_answered", 0) + 1
+                    return None
                 self._esc_branch["hold_untried"] = self._esc_branch.get("hold_untried", 0) + 1
                 return self._escalated                   # the new modality still has its fair trial -> stay in it
             if self._escalated == "A6" and self._pre_esc_family is not None:
