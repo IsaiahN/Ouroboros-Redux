@@ -161,3 +161,49 @@ def test_a_single_action_game_renders_MUTE_rather_than_a_verdict():
     out = _section(_render(_res(cc33=p)), "=== THE SELF-MOTION CONTROL")
     assert "MUTE: one action only" in out, out
     assert "CONSISTENT WITH SELF-MOTION" not in out, out
+
+
+def _escalating(gid, n_frozen, n_answer, avail=(1, 2, 3, 4, 6), lockin=False):
+    """A real policy driven into the escalation organ, for the printer's branch block. `lockin` constructs the
+    directional held state (see tests/test_escalation_branch.py for why that state is constructed and not driven)
+    so the printer's LOCK-IN verdict has something to render."""
+    from newhorse.redux_arch.policy import EFFECT
+    p = _policy(gid)
+    if lockin:
+        p.family, p._escalated = EFFECT, "A1"
+        avail = (1, 2, 3, 4)
+    g = np.zeros((20, 20), dtype=int)
+    g[3, 3], g[3, 4] = 4, 5
+    tick = 0
+    for i in range(n_frozen + n_answer):
+        p.observe(g.copy(), list(avail), 0)
+        p.choose()
+        if i >= n_frozen:
+            tick += 1
+            g[9:11, 9:11] = tick % 5 + 1
+    p._close_segment("death")
+    return p
+
+
+def test_the_escalation_branch_block_renders_and_CLOSES():
+    """The identity first: the branch counts are written at three returns inside `_modality_escalate` and the
+    exit counts at two returns inside `_decide`. If those two independent counters of the same steps disagree,
+    the printer must say so and every row above becomes uncitable. A block that renders a residue as silence is
+    the printer defect this file exists to catch."""
+    out = _section(_render(_res(aa11=_escalating("aa11-aaaa", 20, 0))), "=== THE ESCALATION BRANCH")
+    assert "RESIDUE=0" in out, out
+    assert "DOES NOT SUM" not in out, out
+    for row in ("new", "hold_untried", "hold_answered"):
+        assert row in out, out
+
+
+def test_a_fair_trial_wait_and_a_LOCK_IN_render_as_DIFFERENT_verdicts():
+    """The classifier's whole job. A frozen board pays the BOUNDED cost of confirming a negative -- that is the
+    organ working, and the printer must not call it a defect. A held label that has already answered can never
+    end its own trial (`best` is a max), and the printer must not let that read as the same thing."""
+    wait = _section(_render(_res(aa11=_escalating("aa11-aaaa", 20, 0))), "=== THE ESCALATION BRANCH")
+    assert "FAIR-TRIAL WAIT DOMINATES" in wait, wait
+    assert "LOCK-IN DOMINATES" not in wait, wait
+    lock = _section(_render(_res(bb22=_escalating("bb22-bbbb", 0, 60, lockin=True))), "=== THE ESCALATION BRANCH")
+    assert "LOCK-IN DOMINATES" in lock, lock
+    assert "FAIR-TRIAL WAIT DOMINATES" not in lock, lock

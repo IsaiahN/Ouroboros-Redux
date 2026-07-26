@@ -231,6 +231,7 @@ class ResidualEvent:
     decide_veto_attr: Dict[str, int] = field(default_factory=dict)
     decide_veto_moved: Dict[str, int] = field(default_factory=dict)
     decide_veto_moved_raw: Dict[str, int] = field(default_factory=dict)
+    decide_esc_branch: Dict[str, int] = field(default_factory=dict)
 
     @property
     def fired(self) -> bool:
@@ -411,6 +412,7 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     dec_veto_attr: Dict[str, int] = {}
     dec_veto_moved: Dict[str, int] = {}
     dec_veto_moved_raw: Dict[str, int] = {}
+    dec_esc_branch: Dict[str, int] = {}
     for e in evs:
         for dst, src in ((dec_attr, e.decide_attr), (dec_moved, e.decide_moved),
                          (dec_moved_raw, e.decide_moved_raw), (dec_veto, e.decide_veto),
@@ -418,7 +420,8 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                          (dec_act_moved_raw, e.decide_act_moved_raw),
                          (dec_act_cells, e.decide_act_cells), (dec_act_cells_n, e.decide_act_cells_n),
                          (dec_veto_attr, e.decide_veto_attr), (dec_veto_moved, e.decide_veto_moved),
-                         (dec_veto_moved_raw, e.decide_veto_moved_raw)):
+                         (dec_veto_moved_raw, e.decide_veto_moved_raw),
+                         (dec_esc_branch, e.decide_esc_branch)):
             for k, n in (src or {}).items():
                 dst[k] = dst.get(k, 0) + int(n)
     dec_unattr = sum(e.decide_unattr for e in evs)
@@ -460,7 +463,16 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                                    act_cells_n=dict(sorted(dec_act_cells_n.items())),
                                    veto_attr=dict(sorted(dec_veto_attr.items())),
                                    veto_moved=dict(sorted(dec_veto_moved.items())),
-                                   veto_moved_raw=dict(sorted(dec_veto_moved_raw.items()))),
+                                   veto_moved_raw=dict(sorted(dec_veto_moved_raw.items())),
+                                   # ★ THE ESCALATION BRANCH. Which of `_modality_escalate`'s three returns
+                                   # produced the step, counted at those returns. Its sum must equal
+                                   # `escalate` + `escalate_click`; the difference is published as
+                                   # `esc_branch_residue` rather than assumed to be zero, because every other
+                                   # identity in this receipt is.
+                                   esc_branch=dict(sorted(dec_esc_branch.items())),
+                                   esc_branch_residue=(dec_exits.get("escalate", 0)
+                                                       + dec_exits.get("escalate_click", 0)
+                                                       - sum(dec_esc_branch.values()))),
                 # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
                 # second stream arriving can never be read as the first one getting better -- the top-level totals
                 # below are a convenience, and this is the number that carries the claim.

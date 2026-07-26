@@ -412,6 +412,14 @@ class ReduxPolicy:
         self._pre_esc_family: Optional[str] = None       # family to restore if an escalation to CLICK proves null too
         self.n_modality_escalations = 0                  # telemetry: times a frozen board forced a modality switch
         self.n_modality_reverts = 0                      # telemetry: escalations undone because the new modality was null too
+        # ★ THE ESCALATION BRANCH. `escalate` holds ~1 decision in 7 and answers ~1 step in 20, uniform across all
+        # seven of its games -- a rate that low, that flat, is not a description of seven boards, it is a
+        # description of the organ. But the exit name cannot say WHICH of the organ's three returns produced the
+        # step, so the rate is unattributable. This dict is that attribution and nothing else: each key is a STRING
+        # LITERAL written at the return that produces it, inside `_modality_escalate`, which is the real call site.
+        # It is not derived from the exit counts, the engagement meter, or any other organ. SEGMENT-scoped, and its
+        # sum must equal `escalate` + `escalate_click` exactly -- published as a residue, never assumed.
+        self._esc_branch: Dict[str, int] = {}
 
     # ---- observation -------------------------------------------------------------------------------------------
     def observe(self, grid, available: List[int], levels_completed: int = 0, state: Optional[str] = None) -> None:
@@ -767,6 +775,18 @@ class ReduxPolicy:
                 if self._escalated == "A6" and self._pre_esc_family is not None \
                         and self.engage.answered("A6"):
                     self._pre_esc_family = None          # the click modality has moved the board -> commit to it
+                if self.engage.answered(self._escalated):
+                    # ★ `failed_trial` is `observations >= window AND best < min_cells`. `best` is a MAX, so ONE
+                    # answer at any point makes it False for the rest of the episode -- and this branch then
+                    # returns the same label at every subsequent decision. For A6 that is fine: the commit above
+                    # clears `_pre_esc_family`, and the next `_decide` is caught by the natively-routed click exit
+                    # before it ever reaches this organ. For a DIRECTIONAL label there is no such release, so the
+                    # organ built to refuse a null intervention holds the agent on one action indefinitely. This
+                    # counter is that hypothesis's instrument; it is NOT a fix and nothing here changes what is
+                    # returned.
+                    self._esc_branch["hold_answered"] = self._esc_branch.get("hold_answered", 0) + 1
+                    return self._escalated
+                self._esc_branch["hold_untried"] = self._esc_branch.get("hold_untried", 0) + 1
                 return self._escalated                   # the new modality still has its fair trial -> stay in it
             if self._escalated == "A6" and self._pre_esc_family is not None:
                 self.family = self._pre_esc_family       # the new modality is null too -> undo, hand the game back
@@ -778,6 +798,7 @@ class ReduxPolicy:
             return None
         self._escalated = esc
         self.n_modality_escalations += 1
+        self._esc_branch["new"] = self._esc_branch.get("new", 0) + 1
         if esc == "A6":
             self._pre_esc_family = self.family
             self.family = CLICK
@@ -1089,6 +1110,7 @@ class ReduxPolicy:
             ev.decide_act_cells, ev.decide_act_cells_n = dict(self._dec_act_cells), dict(self._dec_act_cells_n)
             ev.decide_veto_attr, ev.decide_veto_moved = dict(self._dec_veto_attr), dict(self._dec_veto_moved)
             ev.decide_veto_moved_raw = dict(self._dec_veto_moved_raw)
+            ev.decide_esc_branch = dict(self._esc_branch)
             src = ([] if not ev.transferred else ["explains"]) + ([] if not self._g_act else ["directive"])
             ev.reuse_source = "+".join(src) or None
             try:
@@ -1113,6 +1135,7 @@ class ReduxPolicy:
         self._dec_act_moved_raw = {}
         self._dec_act_cells = {}
         self._dec_act_cells_n = {}
+        self._esc_branch = {}
         self._dec_veto_attr = {}
         self._dec_veto_moved = {}
         self._dec_veto_moved_raw = {}

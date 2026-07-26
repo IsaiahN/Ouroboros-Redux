@@ -139,6 +139,62 @@ def report(res: dict) -> None:
         print("  ★ TWO COUNTERS OF ONE EVENT DISAGREE by %d. One of them is wrong; neither may be cited until the"
               " difference is explained." % _dis)
 
+    # ★★★ THE ESCALATION BRANCH -- WHERE `escalate`'s STEPS ACTUALLY COME FROM. ★★★
+    # `escalate` + `escalate_click` hold ~1 decision in 7 and answer ~1 step in 20, uniform across every game they
+    # touch. A rate that low and that flat is a statement about the ORGAN, not about seven boards -- but the exit
+    # name cannot say which of `_modality_escalate`'s three returns produced the step, so the rate has been
+    # unattributable. These counts come from those three returns, written there as string literals. Read them as:
+    #   new           a genuine modality switch -- the lever firing, once per switch
+    #   hold_untried  serving the SAME label again while its fair trial completes: the designed cost of a switch,
+    #                 bounded by the engagement window
+    #   hold_answered serving the same label again AFTER it has answered at least once. `failed_trial` is
+    #                 `observations >= window AND best < min_cells`, and `best` is a MAX -- so one answer makes it
+    #                 False for the rest of the episode and this branch returns forever. A6 is released by the
+    #                 click commit; a DIRECTIONAL label has no release. This row is the lock-in, and it is the
+    #                 hypothesis this section exists to test. Nothing is fixed this beat.
+    esb = (dfn.get("esc_branch") or {})
+    _esc_steps = int(dfx.get("escalate", 0)) + int(dfx.get("escalate_click", 0))
+    print("\n=== THE ESCALATION BRANCH (which return of _modality_escalate produced the step) ===")
+    if not esb:
+        print("  (no escalation branch recorded -- the organ never returned an action this sweep)")
+    for k in ("new", "hold_untried", "hold_answered"):
+        _n = int(esb.get(k, 0))
+        print("    %-14s steps %7d (%5.1f%% of escalate steps)"
+              % (k, _n, 100.0 * _n / max(1, _esc_steps)))
+    for k, n in sorted(esb.items()):
+        if k not in ("new", "hold_untried", "hold_answered"):
+            print("    %-14s steps %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
+    _res = int(dfn.get("esc_branch_residue", 0))
+    print("  escalate steps=%d | branch sum=%d | RESIDUE=%d" % (_esc_steps, sum(esb.values()), _res))
+    if _res:
+        print("  ★ THE BRANCH SPLIT DOES NOT SUM TO THE ESCALATE EXITS. Do not read any row above until the"
+              " residue is named.")
+    else:
+        _new, _hu, _ha = (int(esb.get("new", 0)), int(esb.get("hold_untried", 0)),
+                          int(esb.get("hold_answered", 0)))
+        if not _esc_steps:
+            print("  VERDICT: MUTE -- the escalation organ produced no steps this sweep.")
+        else:
+            if _new:
+                print("  mean steps per switch: %.1f held-untried + 1 new = %.1f (engagement window is the"
+                      " intended bound on the untried part)" % (_hu / float(_new), _hu / float(_new) + 1.0))
+            else:
+                # ★ NOT a reason to mute the verdict. These counters are SEGMENT-scoped, so a hold that began in
+                # an earlier segment arrives here with no switch beside it -- which is precisely the long tail a
+                # lock-in produces. Muting on `new == 0` would suppress the reading exactly where it matters.
+                print("  no switch counted in these segments -- the held label was escalated to earlier; the"
+                      " steps-per-switch ratio is unavailable, the split below is not")
+            if _ha >= 0.5 * _esc_steps:
+                print("  VERDICT: LOCK-IN DOMINATES -- %.1f%% of escalate's steps re-serve a label that has"
+                      " ALREADY answered, which `failed_trial` can never end. The organ built to refuse a null"
+                      " intervention is itself the null intervention on those steps." % (100.0 * _ha / _esc_steps))
+            elif _hu >= 0.5 * _esc_steps:
+                print("  VERDICT: FAIR-TRIAL WAIT DOMINATES -- %.1f%% of escalate's steps are the bounded cost of"
+                      " confirming a negative. The low answer rate is the PRICE OF THE TRIAL, not a lock-in."
+                      % (100.0 * _hu / _esc_steps))
+            else:
+                print("  VERDICT: MIXED -- neither branch holds half the steps; both readings stay open.")
+
     # ★★★ THE MEMBERS QUESTION: WHICH GAMES ARE BEHIND EACH POOLED RATE. ★★★
     # Every `answered` number in the block above is pooled across that exit's games. `dir_target_colour` answered
     # 89.0% masked over TWELVE games last sweep, and that one number cannot distinguish uniform competence from
