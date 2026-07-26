@@ -672,10 +672,27 @@ class ReduxPolicy:
         RESIDUAL_EMPTY rather than into MINT_UNFIRED, it is manufacturing reach and must be reverted."""
         lo = max(0, min(int(self._seg0), len(self.frames)))
         frames, acts = self.frames[lo:], self.acts[lo:]
+        why: Dict[str, Any] = {}
         exc = transition_residual(frames, acts, self.cursor, self.vecs,
-                                  passable=self.passable, stride=self.stride)
+                                  passable=self.passable, stride=self.stride, report=why)
+        tid = _task_id(self.game_id, self.level, self._seg_n)
         if exc is None:
-            return None                       # NO OBSERVABLE -> the diff could not run. DIED_PRE_DIFF, honestly.
+            # NO OBSERVABLE -> the diff could not run. DIED_PRE_DIFF, honestly -- AND NOW WITH A RECEIPT.
+            # This path used to return None before building anything, so the largest stage in the distribution was
+            # the only one with no evidence under it, and `break_events` (len(receipts)) quietly meant "break
+            # events where the diff ran". Emitting here is REPORTING ONLY: `note_diff` is still not called, the
+            # signals are untouched, and `classify` still returns DIED_PRE_DIFF. Nothing about what the chain DOES
+            # changes, so the next sweep stays attributable.
+            dead = ResidualEvent(game=self.game_id, level=self.level, segment=self._seg_n, reason=str(reason),
+                                 steps=int(self.chain.steps_in_segment), task_id=tid, diff_ran=False,
+                                 no_diff_reason=str(why.get("reason") or "unrecorded"),
+                                 scan_pairs=int(why.get("scan_pairs") or 0),
+                                 scan_no_vec=int(why.get("scan_no_vec") or 0),
+                                 scan_unlocatable=int(why.get("scan_unlocatable") or 0),
+                                 library_size_before=len(self.echo.library),
+                                 library_foreign_before=len(self.echo.foreign(self.game_id)))
+            self.receipts.append(dead)
+            return dead
         n = len(exc)
         k = sum(1 for _, o in exc if o)
         base = _entropy_bits(n, k)
@@ -684,9 +701,11 @@ class ReduxPolicy:
         # split. This is exactly the precondition two_part_mdl tests, so RESIDUAL_EMPTY cannot be a rubber stamp.
         nonempty = bool(n >= 2 and base > 0.0)
         self.chain.note_diff(residual_nonempty=nonempty)
-        tid = _task_id(self.game_id, self.level, self._seg_n)
         ev = ResidualEvent(game=self.game_id, level=self.level, segment=self._seg_n, reason=str(reason),
                            steps=int(self.chain.steps_in_segment), task_id=tid, diff_ran=True,
+                           scan_pairs=int(why.get("scan_pairs") or 0),
+                           scan_no_vec=int(why.get("scan_no_vec") or 0),
+                           scan_unlocatable=int(why.get("scan_unlocatable") or 0),
                            n_exceptions=n, n_positive=k, baseline_bits=float(base),
                            residual_nonempty=nonempty, library_size_before=len(self.echo.library),
                            library_foreign_before=len(self.echo.foreign(self.game_id)))
@@ -774,8 +793,23 @@ class ReduxPolicy:
         if self.chain.steps_in_segment > 0:
             try:
                 ev = self._residual_pass(reason)
-            except Exception:
-                ev = None                                       # a residual that raises must not sink the run
+            except Exception as exc:                            # a residual that raises must not sink the run
+                # ...but it must not vanish either. A raise here scores DIED_PRE_DIFF exactly like a residual that
+                # could not be computed, and the two have completely different fixes. Swallowing it left a crash
+                # indistinguishable from an honest "no observable" -- the same silence-as-a-measured-zero shape
+                # this instrument keeps finding. The exception TYPE is recorded, not the traceback: a classifier.
+                tid = _task_id(self.game_id, self.level, self._seg_n)
+                ev = ResidualEvent(game=self.game_id, level=self.level, segment=self._seg_n, reason=str(reason),
+                                   steps=int(self.chain.steps_in_segment), diff_ran=False, task_id=tid,
+                                   no_diff_reason="residual_raised:%s" % type(exc).__name__)
+                # ONE RECEIPT PER SEGMENT, always. If the pass already filed one for this task and then raised
+                # further down, a second receipt would inflate `break_events` -- fixing an undercount with an
+                # overcount is not a fix.
+                if self.receipts and self.receipts[-1].task_id == tid:
+                    self.receipts[-1].no_diff_reason = self.receipts[-1].no_diff_reason or ev.no_diff_reason
+                    ev = self.receipts[-1]
+                else:
+                    self.receipts.append(ev)
         else:
             ev = None
         st = self.chain.end_segment(reason)

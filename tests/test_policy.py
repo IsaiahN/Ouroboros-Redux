@@ -307,4 +307,8 @@ def test_diff_ran_is_never_inferred_from_another_organ():
     pol.cursor = None                               # remove the observable; the relation layer stays as busy as ever
     pol.end_run()
     assert pol.chain_report()["furthest_stage"] == "DIED_PRE_DIFF"
-    assert pol.receipts == [], "no residual computed => no receipt; the two must never come apart"
+    # The old assertion here was `pol.receipts == []`. It was the right property stated as the wrong invariant:
+    # what must never come apart is `diff_ran` and an actually-computed residual, NOT the existence of a record.
+    # A break event with no record at all is the silence this whole instrument was built to stop printing.
+    assert all(e.diff_ran is False for e in pol.receipts), "no residual computed => diff_ran stays False"
+    assert [e.no_diff_reason for e in pol.receipts] == ["no_focus_colour"] * len(pol.receipts)

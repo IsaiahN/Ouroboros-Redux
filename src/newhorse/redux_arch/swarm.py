@@ -219,6 +219,8 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
             "reuse_attempted_foreign", "fired", "cleared")
     tot = {k: 0 for k in keys}
     kinds: Dict[str, int] = {}
+    reasons: Dict[str, int] = {}
+    scan = {"segments": 0, "pairs": 0, "no_vec": 0, "unlocatable": 0}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
     reach_l2 = errored = 0
@@ -228,6 +230,14 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
             tot[k] += int(e.get(k) or 0)
         for k, n in (e.get("firing_kinds") or {}).items():
             kinds[k] = kinds.get(k, 0) + int(n)
+        # WHY THE DIFF DID NOT RUN, pooled across the sweep. DIED_PRE_DIFF is the largest stage on the board and
+        # until this beat it was the only one with no receipts under it, so there was nothing to pool. The
+        # medians are deliberately NOT pooled -- a median of medians is not a median -- only the raw sums are.
+        for k, n in (e.get("no_diff_reasons") or {}).items():
+            reasons[k] = reasons.get(k, 0) + int(n)
+        s = e.get("no_diff_scan") or {}
+        for k in scan:
+            scan[k] += int(s.get(k) or 0)
         for k, ts in (e.get("minted_keys") or {}).items():
             mkeys.setdefault(k, set()).update(ts)
         if not r.get("tether_stage"):                     # never played; it has no level to report
@@ -243,7 +253,9 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     # collapsing the two counts would be exactly the "wire a carrier with nothing to fire on" mistake.
     from .receipt import game_of
     key_games = {k: sorted({game_of(t) for t in ts}) for k, ts in sorted(mkeys.items())}
-    return dict(echo=dict(tot, firing_kinds=kinds), games_reaching_L2=reach_l2,
+    return dict(echo=dict(tot, firing_kinds=kinds,
+                          no_diff_reasons=dict(sorted(reasons.items())), no_diff_scan=dict(scan)),
+                games_reaching_L2=reach_l2,
                 max_level_histogram=dict(sorted(lvl_hist.items())),
                 games_errored=errored,
                 minted_key_games=key_games,

@@ -93,6 +93,16 @@ class ResidualEvent:
     task_id: str = ""
     # the residual
     diff_ran: bool = False
+    # WHY THE DIFF DID NOT RUN -- populated iff `diff_ran` is False, from `transition_residual`'s own report.
+    # Until this existed, a DIED_PRE_DIFF segment produced NO RECEIPT AT ALL: the residual pass returned None
+    # before it built one, so the single largest pile in the measured distribution was the one stage with zero
+    # evidence behind it. That also made `summary()["break_events"]` -- defined as len(receipts) -- silently mean
+    # "break events where the diff ran", which is why it printed identically equal to `diff_ran` on every sweep.
+    # A number that cannot disagree with another number is not measuring it.
+    no_diff_reason: Optional[str] = None   # no_focus_colour | no_learned_vecs | segment_too_short | no_testable_step
+    scan_pairs: int = 0                    # frame pairs the residual scan actually walked
+    scan_no_vec: int = 0                   # ...skipped because Γ has no displacement for the action taken
+    scan_unlocatable: int = 0              # ...skipped because the focus colour was not on the board
     n_exceptions: int = 0
     n_positive: int = 0
     baseline_bits: float = 0.0
@@ -255,8 +265,25 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
             ts = minted_keys.setdefault(e.key, [])
             if e.task_id not in ts:
                 ts.append(e.task_id)
+    # WHY THE DIFF DID NOT RUN, pooled. This histogram is the whole point of emitting a receipt on the dead path:
+    # DIED_PRE_DIFF is the biggest number on the board and it was the only stage with no evidence under it. The
+    # sub-counters are summed only over the segments that actually walked frames (`no_testable_step`), because a
+    # segment that died at `no_focus_colour` never scanned anything and averaging its zeros in would flatten the
+    # very distinction the reasons exist to draw.
+    reasons: Dict[str, int] = {}
+    for e in evs:
+        if not e.diff_ran:
+            r = e.no_diff_reason or "unrecorded"
+            reasons[r] = reasons.get(r, 0) + 1
+    scanned = [e for e in evs if not e.diff_ran and e.no_diff_reason == "no_testable_step"]
     return dict(minted_keys={k: sorted(v) for k, v in sorted(minted_keys.items())},
                 break_events=len(evs),
+                no_diff_reasons=dict(sorted(reasons.items())),
+                no_diff_scan=dict(segments=len(scanned),
+                                  pairs=sum(e.scan_pairs for e in scanned),
+                                  no_vec=sum(e.scan_no_vec for e in scanned),
+                                  unlocatable=sum(e.scan_unlocatable for e in scanned),
+                                  steps_median=_median([e.steps for e in scanned])),
                 diff_ran=sum(1 for e in evs if e.diff_ran),
                 residual_nonempty=sum(1 for e in evs if e.residual_nonempty),
                 minted=sum(1 for e in evs if e.minted),

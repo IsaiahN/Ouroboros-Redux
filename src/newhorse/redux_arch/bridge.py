@@ -265,7 +265,8 @@ class AffordanceMintBridge:
 
 
 def transition_residual(frames, acts, focus_colour: Optional[int], vecs: Optional[dict],
-                        passable=None, stride: int = 1, bg: Optional[int] = None):
+                        passable=None, stride: int = 1, bg: Optional[int] = None,
+                        report: Optional[dict] = None):
     """R_τ OVER A WHOLE SEGMENT: the transition residual the base grammar mispredicts, as an exception list.
 
     Γ's base rule is "the action displaces the focus by its learned vector". The exception list is every step where
@@ -282,19 +283,49 @@ def transition_residual(frames, acts, focus_colour: Optional[int], vecs: Optiona
     Returns None iff the residual COULD NOT BE COMPUTED (no learned focus colour, no learned vecs, no testable step)
     -- the honest DIED_PRE_DIFF. Returns a possibly-uniform list iff it RAN; a uniform list is RESIDUAL_EMPTY. The
     two must never be collapsed: "the organ never ran" and "the organ ran and found nothing" indict different layers.
+
+    WHY THERE IS A `report` OUT-PARAM. DIED_PRE_DIFF is the largest pile on the board and this function is the ONLY
+    place that knows which of four different things produced it. Returning a bare None collapses "the agent never
+    learned a focus colour", "it learned no action vectors", "the segment was one frame long" and "it played a
+    hundred steps and could not locate its own cursor on any of them" into a single silence -- four different
+    layers wearing one code. Those are not the same failure and they do not have the same fix, so the classifier
+    is recorded here, at the site that knows it, and the verdict is left to a later reader (§5.1).
+
+    `report` is the same out-param shape `two_part_mdl(..., report=rep)` already uses. It is filled on EVERY path,
+    including success, and it is REPORTING ONLY: nothing here reads it back, so this cannot change what the chain
+    does. The scan counters are cumulative over the segment, so `scan_pairs == scan_no_vec + scan_unlocatable +
+    len(exc)` is an identity a test can hold the instrument to.
     """
-    if focus_colour is None or not vecs or len(frames) < 2:
+    rep = report if report is not None else {}
+    rep.update(reason=None, scan_pairs=0, scan_no_vec=0, scan_unlocatable=0, n_frames=len(frames))
+    if focus_colour is None:
+        rep["reason"] = "no_focus_colour"                 # the agent never learned WHICH pixel is its cursor
+        return None
+    if not vecs:
+        rep["reason"] = "no_learned_vecs"                 # it learned no action -> displacement map to be wrong about
+        return None
+    if len(frames) < 2:
+        rep["reason"] = "segment_too_short"               # fewer than two frames: no transition exists to diff
         return None
     ps = frozenset(int(c) for c in passable) if passable else None
     exc = []
     n = min(len(frames), len(acts))
     for i in range(1, n):
+        rep["scan_pairs"] += 1
         vec = vecs.get(acts[i])
         if not vec or tuple(vec) == (0, 0):
+            rep["scan_no_vec"] += 1
             continue                                     # Γ predicts no displacement -> nothing to be wrong about
         step = affordance_step(frames[i - 1], frames[i], int(focus_colour), tuple(vec), stride,
                                passable=ps, bg=bg)
         if step is None:
+            rep["scan_unlocatable"] += 1
             continue                                     # focus not locatable on this pair
         exc.append(step)
-    return exc if exc else None
+    if not exc:
+        # It RAN and every pair was untestable. `scan_no_vec` vs `scan_unlocatable` separates "the agent kept
+        # pressing actions it has no model for" from "the agent has a model but lost sight of the thing it moves",
+        # which are a planner problem and a perception problem respectively.
+        rep["reason"] = "no_testable_step"
+        return None
+    return exc

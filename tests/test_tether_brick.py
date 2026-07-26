@@ -177,13 +177,27 @@ def test_reuse_attempt_is_never_noted_against_an_empty_library():
     assert pol.receipts[0].stage == Stage.REUSE_UNWIRED.name
 
 
-def test_no_observable_reports_died_pre_diff_and_writes_no_receipt():
+def test_no_observable_reports_died_pre_diff_and_says_WHY_in_a_receipt():
+    """THIS ASSERTION WAS DELIBERATELY INVERTED, and the old name (`..._and_writes_no_receipt`) is kept here in
+    prose so the change is visible rather than quiet. The old test pinned the behaviour that made DIED_PRE_DIFF --
+    the LARGEST stage in every measured distribution -- the one stage with no evidence underneath it. It was
+    written to protect a real property (`diff_ran` is set from one place and never inferred) but it protected it
+    by forbidding the receipt entirely, which is a different and much stronger thing.
+
+    The property that actually matters is preserved and asserted below: `diff_ran` is False. What is added is that
+    the segment now says WHICH of four causes produced the None -- and those four indict different layers."""
     pol = ReduxPolicy(game_id="synthetic")          # cursor/vecs never learned
     frames, acts = _room()
     _feed(pol, frames, acts)
     pol._close_segment("death")
-    assert pol.receipts == []
     assert pol.chain.report()["furthest_stage"] == Stage.DIED_PRE_DIFF.name
+    assert len(pol.receipts) == 1
+    ev = pol.receipts[0]
+    assert ev.diff_ran is False, "the receipt must NOT claim the diff ran; that is the proxy lie"
+    assert ev.no_diff_reason == "no_focus_colour"
+    assert ev.stage == Stage.DIED_PRE_DIFF.name, "receipt and ledger must never tell different stories"
+    assert ev.steps > 0, "and it must carry the segment length, which is the cheapest read on this pile"
+    assert ev.n_exceptions == 0 and ev.minted is False and ev.fired is False, "a dead receipt credits nothing"
 
 
 def test_empty_segment_is_a_no_op_not_a_stall():
