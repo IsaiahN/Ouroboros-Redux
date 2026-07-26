@@ -618,3 +618,116 @@ def test_the_split_actually_DISTINGUISHES_the_games_rather_than_collapsing_them(
     assert steps == {"aa11-aaaa": 4, "bb22-bbbb": 7}, steps
     # and `exit_games` stays a count of GAMES: exactly 1 per exit on each row, never that row's step count
     assert {v for xs in byg.values() for sv in xs.values() for k, v in sv.items() if k == "exit_games"} == {1}
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# ★★★ THE SELF-MOTION CONTROL: "THE BOARD CHANGED" IS NOT "I CHANGED THE BOARD". ★★★
+# The members split found three games where `dir_target_colour` reads masked 100.0% AND raw 100.0% over 105-115
+# consecutive priced steps. masked==raw kills the budget-bar explanation. It does not touch the other one: a board
+# that moves on its own -- an animation, a patrolling hazard, a cycling display -- answers every step no matter what
+# the agent sends, and reads exactly 100/100 too. The two findings have opposite fixes, so under RANKING 5 the
+# perfect scores are a MIS-LABELLED RECEIPT until re-measured, not a result.
+# The control conditions the SAME reading on the action actually emitted, and separately reads the steps where the
+# survival veto replaced the exit's action with an arbitrary safe pick. Neither adds a detector; both are read off
+# steps already taken (directive 4's freeze is not touched, and nothing here is visible to the policy).
+# ---------------------------------------------------------------------------------------------------------------
+
+def _drive_action_dependent(p, n, movers=("A1",)):
+    """Drive `n` real steps on a board that changes ONLY when the emitted action is one of `movers`. `observe`
+    prices the PREVIOUS action, so the mutation is applied after `choose` and lands on the next frame -- the same
+    ordering the live loop has. The changing cells sit in the INTERIOR: a block flush with two edges is what
+    `monotone_band_mask` exists to strike out, and the mask eating a synthetic answer is the mask working."""
+    p.frames = []
+    g = np.zeros((20, 20), dtype=int)
+    g[3, 3], g[3, 4] = 4, 5
+    tick = 0
+    for _ in range(n):
+        p.observe(g.copy(), [1, 2, 3, 4], 0)
+        lbl, _d = p.choose()
+        if lbl in movers:
+            tick += 1
+            g[9:11, 9:11] = tick % 5 + 1                # four interior cells: at the MIN_CELLS floor, not under it
+    return p
+
+
+def test_the_action_split_is_the_SAME_STEPS_conditioned_and_sums_back_to_the_priced_column():
+    """The control's whole warrant. If `act_attr` could hold steps `attr` never saw -- or miss steps it did -- the
+    per-action rates would be a second, drifting measurement of the same thing, and a disagreement between them
+    would be unresolvable. So they are taken at one call site off one change reading, and that has to show up as an
+    exact per-exit identity for the denominator AND both numerators."""
+    from newhorse.redux_arch.receipt import summary
+    p = _drive_action_dependent(_policy(), 12)
+    p._close_segment("death")
+    f = summary(p.receipts)["decide_funnel"]
+    assert f["act_attr"], f["act_attr"]
+    for sub, act_sub in (("attr", "act_attr"), ("moved", "act_moved"), ("moved_raw", "act_moved_raw")):
+        rolled = {}
+        for k, n in f[act_sub].items():
+            x, _sep, a = k.partition("|")
+            assert _sep == "|" and a, k                  # every control key names an exit AND an action
+            rolled[x] = rolled.get(x, 0) + int(n)
+        assert rolled == {k: v for k, v in f[sub].items() if v}, (sub, rolled, f[sub])
+    # the cell-count column carries its OWN denominator, and it may only ever be SMALLER than the step count --
+    # by exactly the reshape steps, which have no comparable footprint size and are excluded rather than invented
+    assert all(f["act_cells_n"].get(k, 0) <= n for k, n in f["act_attr"].items())
+
+
+def test_the_action_split_DISTINGUISHES_actions_so_a_UNIFORM_reading_is_evidence():
+    """The control is only worth reading if it CAN come out non-uniform. Here exactly one action moves the board,
+    so the split must separate that action from the rest. A control that reads alike on this board would read alike
+    on a self-moving one too, and could never have told the two apart -- it would be a column that always agrees
+    with its subject, which is the proxy defect wearing a control's name."""
+    from newhorse.redux_arch.receipt import summary
+    p = _drive_action_dependent(_policy(), 14, movers=("A1",))
+    p._close_segment("death")
+    f = summary(p.receipts)["decide_funnel"]
+    rates = {k: f["act_moved"].get(k, 0) / n for k, n in f["act_attr"].items() if n}
+    movers = {k: r for k, r in rates.items() if k.endswith("|A1")}
+    others = {k: r for k, r in rates.items() if not k.endswith("|A1")}
+    assert movers and others, rates
+    assert max(others.values()) < min(movers.values()), rates
+    assert max(others.values()) == 0.0 and min(movers.values()) == 1.0, rates
+    # and the footprint SIZE separates them too: the moving action's mean is the four cells it actually repainted
+    means = {k: f["act_cells"].get(k, 0) / n for k, n in f["act_cells_n"].items() if n}
+    assert all(means[k] >= 4.0 for k in movers), means
+    assert all(means[k] == 0.0 for k in others), means
+
+
+def test_the_VETOED_steps_are_now_PRICED_into_their_own_bucket_without_moving_any_identity(monkeypatch):
+    """The within-game control the agent gets for free: on a vetoed step the emitted action was the survival veto's
+    arbitrary safe pick, not the exit's reasoned choice. If the board answers those steps at the same rate it
+    answers the exit's own, the column is reading the BOARD. This test pins the shape -- the veto steps get read,
+    and they stay out of `attr`/`moved`, so `exits == attr + veto + unpriced` is untouched. It is deliberately the
+    strong case: every action is replaced, so the exit's own column is EMPTY while the control is full, which is
+    exactly the reading that would indict a 100% carrier."""
+    from newhorse.redux_arch.policy import ReduxPolicy
+    from newhorse.redux_arch.receipt import summary
+    monkeypatch.setattr(ReduxPolicy, "_survival_veto", lambda self, lbl, data: ("A9", None))
+    p = _drive_action_dependent(_policy(), 9, movers=("A9",))
+    p._close_segment("death")
+    f = summary(p.receipts)["decide_funnel"]
+    assert f["attr"] == {} and f["moved"] == {}          # nothing the exits chose was ever emitted
+    assert sum(f["veto"].values()) == 8, f["veto"]
+    assert sum(f["veto_attr"].values()) == 8, f["veto_attr"]
+    # all eight: the veto's replacement action is the mover here, so the board answers every replaced step while
+    # the exits that chose the steps are credited with nothing -- the control reading and its subject fully apart
+    assert sum(f["veto_moved"].values()) == 8, f["veto_moved"]
+    assert sum(f["veto_moved_raw"].values()) == 8, f["veto_moved_raw"]
+    # the identity the outcome column is read through does not move: the control was ADDED, nothing was rebucketed
+    assert sum(f["attr"].values()) + sum(f["veto"].values()) + f["unpriced"] == sum(f["exits"].values()) == 9
+    # no action key may be invented for a step that was never priced
+    assert f["act_attr"] == {}, f["act_attr"]
+
+
+def test_no_exit_name_can_collide_with_the_controls_composite_key():
+    """The control keys `"<exit>|<action>"` into the same flat-dict shape the pooler and the per-game carry already
+    merge -- which is why no second merge had to be written. That reuse is only safe while no exit name contains a
+    `|`, so the invariant is pinned structurally at the exit sites rather than trusted."""
+    import ast
+    from newhorse.redux_arch.policy import ReduxPolicy
+    names = set()
+    for fn in (ReduxPolicy._decide, ReduxPolicy._act_directional):
+        for r in _decision_returns(fn):
+            if r.startswith("self._exit("):
+                names.add(ast.parse(r).body[0].value.args[0].value)
+    assert names and all("|" not in n for n in names), names

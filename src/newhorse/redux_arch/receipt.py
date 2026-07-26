@@ -217,6 +217,20 @@ class ResidualEvent:
     decide_moved_raw: Dict[str, int] = field(default_factory=dict)
     decide_veto: Dict[str, int] = field(default_factory=dict)
     decide_unattr: int = 0
+    # ★ THE SELF-MOTION CONTROL. The outcome column asks "did the board change after my action?"; on a board with an
+    # animation or a patrolling hazard that is the same number as "did my action change the board?", and the two have
+    # opposite fixes. `decide_act_*` conditions the same reading on the action ACTUALLY EMITTED (key "<exit>|<action>"),
+    # so a rate that varies by action proves the motion is the agent's; `decide_veto_*` reads the change on the steps
+    # the survival veto REPLACED -- same board, same exit, an action the exit did not choose. Both are flat dicts on
+    # purpose: the pooler and the per-game carry are the union merge that already exists, never a second one.
+    decide_act_attr: Dict[str, int] = field(default_factory=dict)
+    decide_act_moved: Dict[str, int] = field(default_factory=dict)
+    decide_act_moved_raw: Dict[str, int] = field(default_factory=dict)
+    decide_act_cells: Dict[str, int] = field(default_factory=dict)
+    decide_act_cells_n: Dict[str, int] = field(default_factory=dict)
+    decide_veto_attr: Dict[str, int] = field(default_factory=dict)
+    decide_veto_moved: Dict[str, int] = field(default_factory=dict)
+    decide_veto_moved_raw: Dict[str, int] = field(default_factory=dict)
 
     @property
     def fired(self) -> bool:
@@ -387,9 +401,24 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     dec_moved: Dict[str, int] = {}
     dec_moved_raw: Dict[str, int] = {}
     dec_veto: Dict[str, int] = {}
+    # the control columns, pooled by the SAME loop as the columns they control -- a control merged on a second pass
+    # over its own key list is a control that can drift away from its subject without anything failing.
+    dec_act_attr: Dict[str, int] = {}
+    dec_act_moved: Dict[str, int] = {}
+    dec_act_moved_raw: Dict[str, int] = {}
+    dec_act_cells: Dict[str, int] = {}
+    dec_act_cells_n: Dict[str, int] = {}
+    dec_veto_attr: Dict[str, int] = {}
+    dec_veto_moved: Dict[str, int] = {}
+    dec_veto_moved_raw: Dict[str, int] = {}
     for e in evs:
         for dst, src in ((dec_attr, e.decide_attr), (dec_moved, e.decide_moved),
-                         (dec_moved_raw, e.decide_moved_raw), (dec_veto, e.decide_veto)):
+                         (dec_moved_raw, e.decide_moved_raw), (dec_veto, e.decide_veto),
+                         (dec_act_attr, e.decide_act_attr), (dec_act_moved, e.decide_act_moved),
+                         (dec_act_moved_raw, e.decide_act_moved_raw),
+                         (dec_act_cells, e.decide_act_cells), (dec_act_cells_n, e.decide_act_cells_n),
+                         (dec_veto_attr, e.decide_veto_attr), (dec_veto_moved, e.decide_veto_moved),
+                         (dec_veto_moved_raw, e.decide_veto_moved_raw)):
             for k, n in (src or {}).items():
                 dst[k] = dst.get(k, 0) + int(n)
     dec_unattr = sum(e.decide_unattr for e in evs)
@@ -416,7 +445,22 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                                    moved=dict(sorted(dec_moved.items())),
                                    moved_raw=dict(sorted(dec_moved_raw.items())),
                                    veto=dict(sorted(dec_veto.items())),
-                                   unpriced=dec_unattr),
+                                   unpriced=dec_unattr,
+                                   # ★ THE CONTROL. `act_*` is keyed "<exit>|<action>" and sums back to `attr` /
+                                   # `moved` / `moved_raw` exactly (pinned in the suite): it is the SAME steps,
+                                   # conditioned. `act_cells` is the summed masked footprint SIZE with its own
+                                   # denominator `act_cells_n`, which is smaller than `act_attr` exactly by the
+                                   # reshape steps -- those have no comparable cell count and are excluded rather
+                                   # than given an invented one. `veto_*` prices the steps the veto replaced; they
+                                   # remain outside `attr`, so no identity above moves.
+                                   act_attr=dict(sorted(dec_act_attr.items())),
+                                   act_moved=dict(sorted(dec_act_moved.items())),
+                                   act_moved_raw=dict(sorted(dec_act_moved_raw.items())),
+                                   act_cells=dict(sorted(dec_act_cells.items())),
+                                   act_cells_n=dict(sorted(dec_act_cells_n.items())),
+                                   veto_attr=dict(sorted(dec_veto_attr.items())),
+                                   veto_moved=dict(sorted(dec_veto_moved.items())),
+                                   veto_moved_raw=dict(sorted(dec_veto_moved_raw.items()))),
                 # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
                 # second stream arriving can never be read as the first one getting better -- the top-level totals
                 # below are a convenience, and this is the number that carries the claim.

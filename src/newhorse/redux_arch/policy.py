@@ -362,6 +362,36 @@ class ReduxPolicy:
         self._dec_unattr = 0                              # decisions whose result frame never arrived (the residue)
         self._pend_exit: Optional[str] = None             # exit that chose the action now in flight (carried 1 step)
         self._pend_vetoed = False                         # that action was replaced before it was emitted
+        # ★★★ THE SELF-MOTION CONTROL -- A PERFECT SCORE IS A SMELL, NOT A TROPHY. ★★★
+        # Last beat the outcome column read masked 100.0% AND raw 100.0% for `dir_target_colour` on three games,
+        # over 105-115 consecutive priced steps. masked==raw rules out the budget-bar artefact. It does NOT rule
+        # out the other way a column like this reads 100%: A BOARD THAT MOVES ANYWAY. "Did the board change after
+        # my action?" and "did MY ACTION change the board?" are the same number on a board with an animation, a
+        # patrolling hazard, or a cycling display -- and they have opposite fixes. Until they are separated, those
+        # three 100%s may not be cited as competence (RANKING 5: a mis-labelled receipt is re-measured, not cited).
+        # TWO CONTROLS, both read off steps the agent ALREADY TOOK -- no new detector, no extra action, nothing the
+        # policy can see. Both are computed at the SAME call site as the column they control, from the SAME change
+        # reading (`_change_reading`), so a drift between control and subject is not expressible.
+        #  (A) CONDITION ON THE ACTION. If the change is the agent's, the answer rate depends on WHICH action it
+        #      sent. If the board moves anyway, every action reads alike. Keyed "<exit>|<action>" -- a FLAT dict, so
+        #      the existing union pooler and the per-game carry both apply unchanged (a second merge written by
+        #      hand is where this printer last closed an identity by re-adding a term).
+        #  (B) PRICE THE VETOED STEPS. On a vetoed step the emitted action was the SURVIVAL VETO's arbitrary safe
+        #      pick, not the exit's reasoned choice. They stay excluded from `attr`/`moved` -- that identity is not
+        #      being touched -- but their change is now READ into their own bucket. Same game, same board, same
+        #      exit, an action the exit did not choose: the cheapest within-game control on the board itself.
+        # What this can prove: if the rate varies sharply across actions, the motion IS the agent's. What it cannot
+        # prove: uniform 100% is consistent with self-motion AND with every action being individually effective --
+        # it narrows the claim, it does not settle it, and the report must say so.
+        self._dec_act_attr: Dict[str, int] = {}           # "<exit>|<action>" -> priced steps under that action
+        self._dec_act_moved: Dict[str, int] = {}          # of those, the MASKED reading answered
+        self._dec_act_moved_raw: Dict[str, int] = {}      # of those, ANY cell differed
+        self._dec_act_cells: Dict[str, int] = {}          # SUM of masked changed-cell counts (footprint SIZE)
+        self._dec_act_cells_n: Dict[str, int] = {}        # its own denominator: reshape steps have no cell count and
+        #                                                   are excluded rather than given a fabricated one
+        self._dec_veto_attr: Dict[str, int] = {}          # exit -> vetoed steps whose result frame WAS seen
+        self._dec_veto_moved: Dict[str, int] = {}         # of those, masked answered (the control reading)
+        self._dec_veto_moved_raw: Dict[str, int] = {}     # of those, raw answered
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -624,27 +654,56 @@ class ReduxPolicy:
         if vetoed:
             # the emitted action was NOT this exit's; the resulting frame prices the veto, not the exit
             self._dec_veto[where] = self._dec_veto.get(where, 0) + 1
+            # ...but it is still a step of real play on this game's board, and the one control the agent gets for
+            # free: an action IT DID NOT CHOOSE, taken from the same board, in the same segment. Read it into the
+            # veto's own bucket. It stays out of `attr`/`moved` -- the exit is not being credited or debited here.
+            if len(self.frames) >= 2:
+                self._dec_veto_attr[where] = self._dec_veto_attr.get(where, 0) + 1
+                raw, masked, _cells = self._change_reading(self.frames[-2], self.frames[-1])
+                if raw:
+                    self._dec_veto_moved_raw[where] = self._dec_veto_moved_raw.get(where, 0) + 1
+                if masked:
+                    self._dec_veto_moved[where] = self._dec_veto_moved.get(where, 0) + 1
             return
         if len(self.frames) < 2:
             self._dec_unattr += 1                        # no `before` board to compare against
             return
         prev, cur = self.frames[-2], self.frames[-1]
         self._dec_attr[where] = self._dec_attr.get(where, 0) + 1
-        if prev.shape != cur.shape:                      # a reshape is an answer by any reading
+        raw, masked, cells = self._change_reading(prev, cur)
+        if raw:
             self._dec_moved_raw[where] = self._dec_moved_raw.get(where, 0) + 1
+        if masked:
             self._dec_moved[where] = self._dec_moved.get(where, 0) + 1
-            return
+        # THE ACTION SPLIT, taken at the same site from the same reading. The action name is read off `acts[-1]` --
+        # the label that was actually EMITTED and actually produced `cur` -- not re-derived from the exit or from
+        # what the exit intended, which would make the control a restatement of its subject.
+        ak = "%s|%s" % (where, self.acts[-1] if self.acts else "?")
+        self._dec_act_attr[ak] = self._dec_act_attr.get(ak, 0) + 1
+        if raw:
+            self._dec_act_moved_raw[ak] = self._dec_act_moved_raw.get(ak, 0) + 1
+        if masked:
+            self._dec_act_moved[ak] = self._dec_act_moved.get(ak, 0) + 1
+        if cells is not None:                            # None == a reshape, which has no comparable cell count
+            self._dec_act_cells[ak] = self._dec_act_cells.get(ak, 0) + int(cells)
+            self._dec_act_cells_n[ak] = self._dec_act_cells_n.get(ak, 0) + 1
+
+    def _change_reading(self, prev, cur) -> Tuple[bool, bool, Optional[int]]:
+        """The ONE implementation of 'did the board answer?', shared by the priced column and by its own control.
+        Returns (raw, masked, masked_changed_cells). `cells` is None for a reshape: a reshape is an answer by any
+        reading, but it has no cell count comparable with the others, and inventing one would put a fabricated
+        number into a column that is later averaged -- the field-never-computed-printed-as-a-number defect."""
+        if prev.shape != cur.shape:
+            return True, True, None
         diff = (prev != cur)
-        if bool(diff.any()):
-            self._dec_moved_raw[where] = self._dec_moved_raw.get(where, 0) + 1
         try:
             m = self.engage.mask()                       # the monotone budget/timer band, computed structurally
             if m.shape != cur.shape:
                 m = np.zeros(cur.shape, dtype=bool)
         except Exception:
             m = np.zeros(cur.shape, dtype=bool)
-        if int((diff & ~m).sum()) >= MIN_CELLS:
-            self._dec_moved[where] = self._dec_moved.get(where, 0) + 1
+        cells = int((diff & ~m).sum())
+        return bool(diff.any()), cells >= MIN_CELLS, cells
 
     def _decide(self) -> Tuple[str, Optional[dict]]:
         self._dec_calls += 1                             # the funnel's denominator, incremented before any guard
@@ -1025,6 +1084,11 @@ class ReduxPolicy:
             ev.decide_attr, ev.decide_moved = dict(self._dec_attr), dict(self._dec_moved)
             ev.decide_moved_raw, ev.decide_veto = dict(self._dec_moved_raw), dict(self._dec_veto)
             ev.decide_unattr = int(self._dec_unattr)
+            ev.decide_act_attr, ev.decide_act_moved = dict(self._dec_act_attr), dict(self._dec_act_moved)
+            ev.decide_act_moved_raw = dict(self._dec_act_moved_raw)
+            ev.decide_act_cells, ev.decide_act_cells_n = dict(self._dec_act_cells), dict(self._dec_act_cells_n)
+            ev.decide_veto_attr, ev.decide_veto_moved = dict(self._dec_veto_attr), dict(self._dec_veto_moved)
+            ev.decide_veto_moved_raw = dict(self._dec_veto_moved_raw)
             src = ([] if not ev.transferred else ["explains"]) + ([] if not self._g_act else ["directive"])
             ev.reuse_source = "+".join(src) or None
             try:
@@ -1044,6 +1108,14 @@ class ReduxPolicy:
         self._dec_moved_raw = {}
         self._dec_veto = {}
         self._dec_unattr = 0
+        self._dec_act_attr = {}
+        self._dec_act_moved = {}
+        self._dec_act_moved_raw = {}
+        self._dec_act_cells = {}
+        self._dec_act_cells_n = {}
+        self._dec_veto_attr = {}
+        self._dec_veto_moved = {}
+        self._dec_veto_moved_raw = {}
         self._seg_n += 1
         self._seg0 = max(0, len(self.frames) - 1) if reason == "advance" else len(self.frames)
 

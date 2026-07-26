@@ -44,7 +44,19 @@ def main() -> None:
 
     res = run_swarm(gids, max_actions=max_actions, wall_cap_s=wall_cap_s, rpm=540, max_workers=8,
                     tags=["redux-triality", "chain-sweep"])
+    report(res)
 
+
+# The per-action floor the self-motion classifier requires before a spread counts as a finding. Set here, printed
+# in the section header, so a reader never has to guess whether a 0%-100% split came from two steps or two hundred.
+_MIN_ACT_N = 5
+
+
+def report(res: dict) -> None:
+    """Render one sweep's result dict. SEPARATE FROM `main` on purpose: a printer bug in this file has twice been
+    discovered only after a live sweep had already been spent on it, and a printer that can only be exercised by
+    spending a sweep is a printer that gets debugged in production. Split out, it can be driven offline from real
+    `summary()`/`echo_pool()` output, which is what `tests/test_sweep_report.py` does."""
     print("\nscorecard: %s" % res.get("view_url"))
     print("total_levels: %s" % res.get("total_levels"))
     # `maxL` is the CARRIER-REACH column: a within-run-across-levels echo needs a run that crosses TWO boundaries
@@ -172,6 +184,100 @@ def main() -> None:
         if _rs or _ra:
             print("      ★ THE SPLIT DOES NOT SUM TO THE POOL: steps residue %d, priced residue %d. The per-game"
                   " rows and the pooled row are measuring different things -- cite NEITHER." % (_rs, _ra))
+
+    # ★★★ THE SELF-MOTION CONTROL: "THE BOARD CHANGED" IS NOT "I CHANGED THE BOARD". ★★★
+    # The members split found three games reading masked 100.0% AND raw 100.0% over 105-115 consecutive priced
+    # steps on `dir_target_colour`. masked==raw kills the budget-bar explanation and nothing else: a board with an
+    # animation, a patrolling hazard or a cycling display answers every step whatever the agent sends, and reads
+    # 100/100 too. Those two findings have opposite fixes, so the perfect scores are a mis-labelled receipt until
+    # re-measured (RANKING 5). This block conditions the SAME reading on the action ACTUALLY EMITTED, and reads the
+    # steps the survival veto replaced -- an action the exit did not choose, same board, same segment.
+    # ★ THE CLASSIFIER IS PRINTED, NOT THE VERDICT:
+    #   * rates that DIFFER across actions => the motion is action-conditional => it IS the agent's.
+    #   * rates ALIKE and high across every action, and the veto steps read high too => CONSISTENT WITH SELF-MOTION.
+    #     That does not prove self-motion -- it is equally consistent with every action being effective -- but it
+    #     does mean the rate may not be cited as competence on that game.
+    #   * one action only, or no vetoed steps => the control is MUTE on that game. Muteness is printed, never
+    #     rounded into either answer.
+    print("\n=== THE SELF-MOTION CONTROL (did the AGENT move the board, or does the board move anyway?) ===")
+    print("  (per-action floor for a verdict: %d priced steps; thinner actions are printed but carry no finding)"
+          % _MIN_ACT_N)
+    daa, dam, dar = ((dfn.get("act_attr") or {}), (dfn.get("act_moved") or {}), (dfn.get("act_moved_raw") or {}))
+    dac, dacn = ((dfn.get("act_cells") or {}), (dfn.get("act_cells_n") or {}))
+    dva, dvm = ((dfn.get("veto_attr") or {}), (dfn.get("veto_moved") or {}))
+    if not daa:
+        print("  (no action split recorded -- every `answered` rate above is UNCONTROLLED; do not cite one as"
+              " competence)")
+
+    def _acts_of(src, exit_name, bag):
+        """The per-action rows for one exit, read off the flat "<exit>|<action>" keys of `bag`."""
+        out = {}
+        for kk, nn in bag.items():
+            x, _sep, a = kk.partition("|")
+            if _sep == "|" and x == exit_name:
+                out[a] = int(nn)
+        return out
+
+    for k, n in sorted(dfx.items(), key=lambda kv: (-kv[1], kv[0])):
+        pooled_a = _acts_of(None, k, daa)
+        if not pooled_a:
+            continue
+        _a = int(dfa.get(k, 0))
+        print("  %-22s pooled %5.1f%% masked of %d priced, over %d distinct actions"
+              % (k, (100.0 * int(dfm.get(k, 0)) / _a) if _a else float("nan"), _a, len(pooled_a)))
+        for g, xs in sorted(fbg.items()):
+            ga = _acts_of(None, k, {kk: vv.get("act_attr", 0) for kk, vv in xs.items()})
+            if not ga:
+                continue
+            gm = _acts_of(None, k, {kk: vv.get("act_moved", 0) for kk, vv in xs.items()})
+            gc = _acts_of(None, k, {kk: vv.get("act_cells", 0) for kk, vv in xs.items()})
+            gcn = _acts_of(None, k, {kk: vv.get("act_cells_n", 0) for kk, vv in xs.items()})
+            rates = {a: 100.0 * gm.get(a, 0) / c for a, c in ga.items() if c}
+            cells = {a: gc.get(a, 0) / gcn[a] for a in ga if gcn.get(a)}
+            row = "  ".join("%s %5.1f%%(n=%d,cells%5.1f)" % (a, rates.get(a, float("nan")), ga[a],
+                                                            cells.get(a, float("nan")))
+                            for a in sorted(ga))
+            print("      %-18s %s" % (g, row))
+            sv = (xs.get(k) or {})
+            _va, _vm = int(sv.get("veto_attr", 0)), int(sv.get("veto_moved", 0))
+            _ea, _em = int(sv.get("attr", 0)), int(sv.get("moved", 0))
+            _exit_rate = (100.0 * _em / _ea) if _ea else float("nan")
+            # ★ A SPREAD OVER ONE-STEP SAMPLES IS NOT A SPREAD. The warmup exit sends each action exactly once, so
+            # an ungated classifier reads "0.0%-100.0%, ACTION-CONDITIONAL" off four single steps and calls it a
+            # finding. Actions below the floor are still PRINTED -- they are the evidence -- but they do not carry
+            # a verdict, and a game with fewer than two actions above it is MUTE, published as mute.
+            solid = {a: r for a, r in rates.items() if ga[a] >= _MIN_ACT_N}
+            if len(rates) < 2:
+                verdict = "MUTE: one action only -- the split cannot vary, so it rules nothing out"
+            elif len(solid) < 2:
+                verdict = ("MUTE: fewer than two actions reached %d priced steps (%s) -- too thin to support"
+                           % (_MIN_ACT_N, ", ".join("%s n=%d" % (a, ga[a]) for a in sorted(ga))))
+            else:
+                rates = solid
+                _lo, _hi = min(rates.values()), max(rates.values())
+                if _hi - _lo >= 10.0:
+                    verdict = ("ACTION-CONDITIONAL by %.1f pts (%.1f%%-%.1f%%) -- the change tracks WHICH action,"
+                               " so it is the agent's" % (_hi - _lo, _lo, _hi))
+                elif _hi >= 90.0:
+                    verdict = ("UNIFORM and HIGH (%.1f%%-%.1f%%) -- CONSISTENT WITH SELF-MOTION; this game's rate"
+                               " may not be cited as competence" % (_lo, _hi))
+                else:
+                    verdict = "UNIFORM (%.1f%%-%.1f%%) but not high -- no self-motion signature" % (_lo, _hi)
+            if _va:
+                verdict += " | VETO CONTROL: %5.1f%% masked over %d replaced steps vs %5.1f%% for the exit's own" \
+                           % (100.0 * _vm / _va, _va, _exit_rate)
+            else:
+                verdict += " | VETO CONTROL MUTE (no replaced steps on this game)"
+            print("          -> %s" % verdict)
+        # the control is the SAME steps conditioned, so it must sum back to the column it controls, exactly
+        _res = sum(pooled_a.values()) - _a
+        if _res:
+            print("      ★ THE ACTION SPLIT DOES NOT SUM TO THE PRICED COLUMN (residue %d): the control and its"
+                  " subject are measuring different steps -- cite NEITHER." % _res)
+    _vres = sum(dva.values())
+    print("  veto steps READ by the control=%d of %d replaced (%d had no result frame) | pooled veto masked=%s"
+          % (_vres, sum(dfv.values()), sum(dfv.values()) - _vres,
+             ("%5.1f%%" % (100.0 * sum(dvm.values()) / _vres)) if _vres else "-- (no veto steps priced)"))
 
     # DIRECTIVE 5: a firing is a RECEIPT, not a claim. Every transfer is rendered in full, with its echo KIND and
     # the caveat that a within-game echo is a weaker claim than a cross-game one. No receipt => it did not fire.
