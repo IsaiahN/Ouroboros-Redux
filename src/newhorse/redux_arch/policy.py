@@ -39,7 +39,7 @@ from .referent import find_referents, Referent
 from .relation import RelationBank, RelationCtx
 from .novelty_ledger import guarded_promote
 from .abort_code import ChainLedger
-from .bridge import _px_centroid, transition_residual
+from .bridge import _px_centroid, transition_residual, click_residual
 from .consolidate import Consolidator
 from .minting import two_part_mdl, _entropy_bits
 from .receipt import ResidualEvent, task_id as _task_id, echo_kind as _echo_kind, summary as _receipt_summary
@@ -227,6 +227,12 @@ class ReduxPolicy:
         self.warmup_cap = int(warmup_cap)
         self.frames: List[np.ndarray] = []
         self.acts: List[str] = []
+        # THE COORDINATE THE ACTION CARRIED, parallel to `self.acts` (None for every non-coordinate action). A click
+        # game's action is a cell, and until this list existed the cell was thrown away the instant it was emitted --
+        # so R_κ had no carrier and "just read the coordinate" would have been a plan asserting a field that is not
+        # populated. Recording it is instrumentation at the real call site, not a detector.
+        self.click_rc: List[Optional[Tuple[int, int]]] = []
+        self._pending_rc: Optional[Tuple[int, int]] = None
         self._pending = "RESET"                 # the action that will have produced the NEXT observed frame
         self.n_emitted = 0
         self.family = PENDING
@@ -311,6 +317,7 @@ class ReduxPolicy:
         prev_ids = set(self.tracker.ids())              # object identities as of the PREVIOUS frame (pre-redraw)
         self.frames.append(np.asarray(grid))
         self.acts.append(self._pending if len(self.frames) > 1 else "RESET")
+        self.click_rc.append(self._pending_rc if len(self.frames) > 1 else None)
         self.chain.note_step()                          # this frame belongs to the currently open chain segment
         if state is not None:
             self._state = str(state)
@@ -410,6 +417,10 @@ class ReduxPolicy:
         lbl, data = self._decide()
         lbl, data = self._survival_veto(lbl, data)
         self._pending = lbl
+        # read AFTER the veto, which is allowed to change both the label and the coordinate
+        self._pending_rc = None
+        if isinstance(data, dict) and "x" in data and "y" in data:
+            self._pending_rc = (int(data["y"]), int(data["x"]))   # stored (row, col); the wire carries (x, y)
         self.n_emitted += 1
         return lbl, data
 
@@ -673,9 +684,26 @@ class ReduxPolicy:
         lo = max(0, min(int(self._seg0), len(self.frames)))
         frames, acts = self.frames[lo:], self.acts[lo:]
         why: Dict[str, Any] = {}
+        stream = "R_tau"
         exc = transition_residual(frames, acts, self.cursor, self.vecs,
                                   passable=self.passable, stride=self.stride, report=why)
-        tid = _task_id(self.game_id, self.level, self._seg_n)
+        if exc is None:
+            # THE SECOND STREAM (§5.3), tried ONLY where the first could not run. That ordering is what keeps the
+            # next sweep attributable: R_κ cannot inflate any stage R_τ already reached, so ALL movement out of
+            # DIED_PRE_DIFF belongs to R_κ and to nothing else. The two are never summed -- the receipt carries the
+            # stream that produced it and `summary()` reports the distribution per stream.
+            why2: Dict[str, Any] = {}
+            exc2 = click_residual(frames, acts, self.click_rc[lo:], report=why2)
+            if exc2 is not None:
+                stream, exc, why = "R_click", exc2, why2
+            else:
+                why["click_reason"] = why2.get("reason")     # both streams silent: record BOTH classifiers
+        # THE TASK ID CARRIES THE STREAM. `task_id` has had a `stream` field since R_ρ was described, precisely so a
+        # φ that echoed ACROSS streams is READABLE as having echoed on genuinely different evidence. Filing an R_κ
+        # residual under `.tau` would not just mislabel the receipt -- it would let the echo clock count a click
+        # segment and a transition segment as two sightings of the same thing with nothing in the record to say so.
+        tid = _task_id(self.game_id, self.level, self._seg_n,
+                       stream="click" if stream == "R_click" else "tau")
         if exc is None:
             # NO OBSERVABLE -> the diff could not run. DIED_PRE_DIFF, honestly -- AND NOW WITH A RECEIPT.
             # This path used to return None before building anything, so the largest stage in the distribution was
@@ -685,10 +713,15 @@ class ReduxPolicy:
             # changes, so the next sweep stays attributable.
             dead = ResidualEvent(game=self.game_id, level=self.level, segment=self._seg_n, reason=str(reason),
                                  steps=int(self.chain.steps_in_segment), task_id=tid, diff_ran=False,
+                                 stream=stream,
+                                 click_no_diff_reason=(str(why.get("click_reason"))
+                                                       if why.get("click_reason") else None),
                                  no_diff_reason=str(why.get("reason") or "unrecorded"),
                                  scan_pairs=int(why.get("scan_pairs") or 0),
                                  scan_no_vec=int(why.get("scan_no_vec") or 0),
                                  scan_unlocatable=int(why.get("scan_unlocatable") or 0),
+                                 scan_no_coord=int(why2.get("scan_no_coord") or 0),
+                                 scan_off_board=int(why2.get("scan_off_board") or 0),
                                  library_size_before=len(self.echo.library),
                                  library_foreign_before=len(self.echo.foreign(self.game_id)))
             self.receipts.append(dead)
@@ -703,9 +736,12 @@ class ReduxPolicy:
         self.chain.note_diff(residual_nonempty=nonempty)
         ev = ResidualEvent(game=self.game_id, level=self.level, segment=self._seg_n, reason=str(reason),
                            steps=int(self.chain.steps_in_segment), task_id=tid, diff_ran=True,
+                           stream=stream,
                            scan_pairs=int(why.get("scan_pairs") or 0),
                            scan_no_vec=int(why.get("scan_no_vec") or 0),
                            scan_unlocatable=int(why.get("scan_unlocatable") or 0),
+                           scan_no_coord=int(why.get("scan_no_coord") or 0),
+                           scan_off_board=int(why.get("scan_off_board") or 0),
                            n_exceptions=n, n_positive=k, baseline_bits=float(base),
                            residual_nonempty=nonempty, library_size_before=len(self.echo.library),
                            library_foreign_before=len(self.echo.foreign(self.game_id)))
@@ -744,8 +780,12 @@ class ReduxPolicy:
         # (d) BANK THE FRESH RESIDUAL -- unconditionally, and AFTER it has been scored on its own. §3.5
         # ACCUMULATE: "deferred residual accumulates across boundaries". This is the line that removes the
         # discard: until now `exc` died here with the segment. Evidence only; no verdict is written.
+        # KEYED BY STREAM, not by game. Pooling an R_κ residual with an R_τ one would be summing two grounds inside
+        # the mint itself -- the exact thing §5.3 forbids -- and it would do so invisibly, since the pool is only
+        # ever seen as a count. R_τ keeps the bare game id so the banks already on disk stay valid.
+        bank_key = self.game_id if stream == "R_tau" else "%s:%s" % (self.game_id, stream)
         try:
-            self.bank.deposit(self.game_id, tid, exc)
+            self.bank.deposit(bank_key, tid, exc)
         except Exception:
             pass                                                 # the bank must never sink a run
         if mint is None:
@@ -755,7 +795,7 @@ class ReduxPolicy:
             # a ~6-bit selection cost no matter how real the rule is -- that is an arithmetic fact about the
             # sample size, not a verdict on the architecture, and pooling is the only thing that changes it.
             try:
-                pool, ptasks = self.bank.pool(self.game_id)
+                pool, ptasks = self.bank.pool(bank_key)
             except Exception:
                 pool, ptasks = [], []
             ev.pool_size, ev.pool_tasks = len(pool), list(ptasks)

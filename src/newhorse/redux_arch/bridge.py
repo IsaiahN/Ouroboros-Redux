@@ -329,3 +329,67 @@ def transition_residual(frames, acts, focus_colour: Optional[int], vecs: Optiona
         rep["reason"] = "no_testable_step"
         return None
     return exc
+
+
+def click_residual(frames, acts, click_rc, bg: Optional[int] = None, report: Optional[dict] = None):
+    """R_κ OVER A WHOLE SEGMENT: the CLICK residual. THE SECOND EVIDENCE STREAM (§5.3).
+
+    WHY A SECOND STREAM AND NOT A WIDER R_τ. R_τ is DIRECTIONAL-ONLY by identity, not by accident: the only site in
+    `policy._route` that learns a focus colour and a displacement map is the same site that commits `family =
+    DIRECTIONAL`, and it is reached only AFTER both basis learners have already failed. "Widening the precondition"
+    therefore means one of two things, and both are refused: lowering the bar inside `learn_basis` so a game with no
+    drivable cursor reports one anyway (that is calibrating the instrument to make it read higher), or writing a new
+    detector (directive 4's freeze). On a click-only game there are no directional actions AT ALL, so there is no
+    action -> displacement map to be wrong about; the residual R_τ wants does not exist there in principle. §5.3 is
+    explicit that a stream is a ground and grounds are assessed PER STREAM, so the honest move is a second stream.
+
+    WHAT THE BASE RULE IS. Γ's rule for a click game is "clicking a cell does something to the board". The exception
+    list is every step where that was TESTABLE -- the agent recorded WHICH cell it clicked and that cell is on the
+    board -- paired with whether the board actually changed. Mixed outcomes (some clicks act, some are inert) are
+    exactly what `two_part_mdl` needs to split, and the splitting predicate a click game wants -- "clicking colour c
+    does something" -- is ALREADY in the DSL as HAS_COLOUR / INTENDED_COLOUR / INTENDED_FREE. That is the check that
+    made this the cheap option rather than the ambitious one: NO new atom, NO new referent kind, NO new detector,
+    no change to `Context`. The vocabulary already contained the right predicate.
+
+    WHAT IS DEGENERATE AND SAID OUT LOUD. There is no displacement, so `action_vec` is (0,0) and ACTS_TOWARD is
+    False on every context; there is no landmark, so `target_rc` is the clicked cell itself and NEAR / SAME_ROW /
+    SAME_COL are constant. A constant atom cannot split a residual, so the MDL gate will simply never select one --
+    they are inert, not forged. `intended_free` uses the MODAL colour of the before-frame as the background
+    estimate; it is an estimate, it names no game, and it is only ever the input to a predicate the MDL gate still
+    has to pay for.
+
+    Returns None iff the residual COULD NOT BE COMPUTED -- the honest DIED_PRE_DIFF, with a reason in `report`,
+    exactly as `transition_residual` does. `scan_pairs == scan_no_coord + scan_off_board + len(exc)` is an identity
+    a test can hold the instrument to.
+    """
+    rep = report if report is not None else {}
+    rep.update(reason=None, scan_pairs=0, scan_no_coord=0, scan_off_board=0, n_frames=len(frames))
+    if not click_rc or not any(rc is not None for rc in click_rc):
+        rep["reason"] = "no_click_coords"                 # nothing in this segment was a coordinate action
+        return None
+    if len(frames) < 2:
+        rep["reason"] = "segment_too_short"
+        return None
+    exc = []
+    n = min(len(frames), len(acts), len(click_rc))
+    for i in range(1, n):
+        rep["scan_pairs"] += 1
+        rc = click_rc[i]
+        if rc is None:
+            rep["scan_no_coord"] += 1
+            continue                                     # not a coordinate action -> no cell to be right about
+        b = np.asarray(frames[i - 1])
+        h, w = b.shape
+        r, c = int(rc[0]), int(rc[1])
+        if not (0 <= r < h and 0 <= c < w):
+            rep["scan_off_board"] += 1
+            continue
+        col = int(b[r, c])
+        bgc = int(bg) if bg is not None else int(np.bincount(b.ravel().astype(int)).argmax())
+        ctx = Context(focus_rc=(r, c), focus_colour=col, target_rc=(r, c), action_vec=(0, 0),
+                      intended_free=bool(col == bgc), intended_colour=col)
+        exc.append((ctx, not np.array_equal(b, np.asarray(frames[i]))))
+    if not exc:
+        rep["reason"] = "no_testable_step"
+        return None
+    return exc

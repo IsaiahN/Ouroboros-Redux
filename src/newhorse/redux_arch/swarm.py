@@ -220,7 +220,10 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     tot = {k: 0 for k in keys}
     kinds: Dict[str, int] = {}
     reasons: Dict[str, int] = {}
+    click_reasons: Dict[str, int] = {}
     scan = {"segments": 0, "pairs": 0, "no_vec": 0, "unlocatable": 0}
+    cscan = {"pairs": 0, "no_coord": 0, "off_board": 0}
+    streams: Dict[str, Dict[str, Any]] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
     reach_l2 = errored = 0
@@ -238,6 +241,20 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
         s = e.get("no_diff_scan") or {}
         for k in scan:
             scan[k] += int(s.get(k) or 0)
+        for k, n in (e.get("click_no_diff_reasons") or {}).items():
+            click_reasons[k] = click_reasons.get(k, 0) + int(n)
+        cs = e.get("click_scan") or {}
+        for k in cscan:
+            cscan[k] += int(cs.get(k) or 0)
+        # PER-STREAM POOLING, SUMS ONLY, and the streams stay in separate buckets end to end (§5.3). Pooling them
+        # into one total here would undo the whole point of tagging the receipt at the source.
+        for sname, sv in (e.get("by_stream") or {}).items():
+            acc = streams.setdefault(sname, {k: 0 for k in keys})
+            for k in keys:
+                acc[k] = acc.get(k, 0) + int(sv.get(k) or 0)
+            st = acc.setdefault("stages", {})
+            for k, n in (sv.get("stages") or {}).items():
+                st[k] = st.get(k, 0) + int(n)
         for k, ts in (e.get("minted_keys") or {}).items():
             mkeys.setdefault(k, set()).update(ts)
         if not r.get("tether_stage"):                     # never played; it has no level to report
@@ -254,7 +271,11 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     from .receipt import game_of
     key_games = {k: sorted({game_of(t) for t in ts}) for k, ts in sorted(mkeys.items())}
     return dict(echo=dict(tot, firing_kinds=kinds,
-                          no_diff_reasons=dict(sorted(reasons.items())), no_diff_scan=dict(scan)),
+                          by_stream={k: dict(v, stages=dict(sorted((v.get("stages") or {}).items())))
+                                     for k, v in sorted(streams.items())},
+                          no_diff_reasons=dict(sorted(reasons.items())), no_diff_scan=dict(scan),
+                          click_no_diff_reasons=dict(sorted(click_reasons.items())),
+                          click_scan=dict(cscan)),
                 games_reaching_L2=reach_l2,
                 max_level_histogram=dict(sorted(lvl_hist.items())),
                 games_errored=errored,

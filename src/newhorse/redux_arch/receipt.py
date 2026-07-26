@@ -91,6 +91,11 @@ class ResidualEvent:
     reason: str = ""                      # death / run_end / advance -- how the task closed
     steps: int = 0                        # frames of play in the segment
     task_id: str = ""
+    # WHICH EVIDENCE STREAM produced this receipt. §5.3: "a stream is a ground, and grounds are assessed PER
+    # STREAM." R_tau is the transition residual (DIRECTIONAL games only, by identity); R_click is the click
+    # residual. They are NEVER summed: `summary()` reports a per-stream breakdown precisely so that a second
+    # stream coming online cannot be read as the first stream improving.
+    stream: str = "R_tau"
     # the residual
     diff_ran: bool = False
     # WHY THE DIFF DID NOT RUN -- populated iff `diff_ran` is False, from `transition_residual`'s own report.
@@ -103,6 +108,12 @@ class ResidualEvent:
     scan_pairs: int = 0                    # frame pairs the residual scan actually walked
     scan_no_vec: int = 0                   # ...skipped because Γ has no displacement for the action taken
     scan_unlocatable: int = 0              # ...skipped because the focus colour was not on the board
+    # R_click's own scan counters, kept in their OWN fields rather than reusing R_tau's. Reusing them would make
+    # `no_diff_scan` a sum over two streams the moment the second one came online.
+    scan_no_coord: int = 0                 # ...skipped because the action carried no coordinate
+    scan_off_board: int = 0                # ...skipped because the clicked cell was off the board
+    # when BOTH streams were silent, the second stream's classifier (the first's is `no_diff_reason`)
+    click_no_diff_reason: Optional[str] = None
     n_exceptions: int = 0
     n_positive: int = 0
     baseline_bits: float = 0.0
@@ -196,8 +207,8 @@ def render_one(ev: ResidualEvent) -> str:
         "--- TETHER FIRING RECEIPT --------------------------------------------------",
         "  BASE FAILED HERE   game=%s level=%d segment=%d closed_by=%s after %d steps"
         % (ev.game, ev.level, ev.segment, ev.reason, ev.steps),
-        "  RESIDUAL WAS       R_tau: %d testable steps, %d predicted-correctly, baseline %.2f bits"
-        % (ev.n_exceptions, ev.n_positive, ev.baseline_bits),
+        "  RESIDUAL WAS       %s: %d testable steps, %d predicted-correctly, baseline %.2f bits"
+        % (ev.stream or "R_tau", ev.n_exceptions, ev.n_positive, ev.baseline_bits),
         "  PHI THAT FIRED     %s" % ev.transferred,
         "    ...WAS MINTED ON tasks %s" % (", ".join(ev.minted_on) or "(unknown)"),
         "    ...I.E. ON GAMES %s%s" % (", ".join(games) or "(unknown)",
@@ -276,9 +287,23 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
             r = e.no_diff_reason or "unrecorded"
             reasons[r] = reasons.get(r, 0) + 1
     scanned = [e for e in evs if not e.diff_ran and e.no_diff_reason == "no_testable_step"]
+    # THE SECOND STREAM'S OWN CLASSIFIER, on the segments where BOTH streams were silent. Without this column a
+    # DIED_PRE_DIFF that R_κ also could not address is indistinguishable from one it was never offered.
+    click_reasons: Dict[str, int] = {}
+    for e in evs:
+        if not e.diff_ran and e.click_no_diff_reason:
+            click_reasons[e.click_no_diff_reason] = click_reasons.get(e.click_no_diff_reason, 0) + 1
     return dict(minted_keys={k: sorted(v) for k, v in sorted(minted_keys.items())},
                 break_events=len(evs),
+                # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
+                # second stream arriving can never be read as the first one getting better -- the top-level totals
+                # below are a convenience, and this is the number that carries the claim.
+                by_stream=_by_stream(evs),
                 no_diff_reasons=dict(sorted(reasons.items())),
+                click_no_diff_reasons=dict(sorted(click_reasons.items())),
+                click_scan=dict(pairs=sum(e.scan_no_coord + e.scan_off_board for e in evs if not e.diff_ran),
+                                no_coord=sum(e.scan_no_coord for e in evs if not e.diff_ran),
+                                off_board=sum(e.scan_off_board for e in evs if not e.diff_ran)),
                 no_diff_scan=dict(segments=len(scanned),
                                   pairs=sum(e.scan_pairs for e in scanned),
                                   no_vec=sum(e.scan_no_vec for e in scanned),
@@ -309,6 +334,29 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                     pool_size_median=_median([e.pool_size for e in evs if e.pool_attempted]),
                     minted_from_pool=sum(1 for e in evs if e.minted_from_pool),
                 ))
+
+
+def _by_stream(evs: List[ResidualEvent]) -> Dict[str, Any]:
+    """Per-stream counts AND per-stream stage distribution (§5.3). A receipt whose diff did not run is attributed to
+    the stream that was tried LAST and still failed, which is how it is filed; a receipt whose diff ran is attributed
+    to the stream that produced the exceptions. Nothing here adds two streams together."""
+    out: Dict[str, Any] = {}
+    names = sorted({(e.stream or "R_tau") for e in evs})
+    for s in names:
+        sub = [e for e in evs if (e.stream or "R_tau") == s]
+        stages: Dict[str, int] = {}
+        for e in sub:
+            if e.stage:
+                stages[e.stage] = stages.get(e.stage, 0) + 1
+        out[s] = dict(break_events=len(sub),
+                      diff_ran=sum(1 for e in sub if e.diff_ran),
+                      residual_nonempty=sum(1 for e in sub if e.residual_nonempty),
+                      minted=sum(1 for e in sub if e.minted),
+                      promoted=sum(1 for e in sub if e.promoted),
+                      fired=len(firings(sub)),
+                      cleared=sum(1 for e in sub if e.cleared),
+                      stages=dict(sorted(stages.items())))
+    return out
 
 
 def _median(xs) -> float:
