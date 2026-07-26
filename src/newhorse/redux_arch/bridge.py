@@ -166,13 +166,22 @@ class PassabilityCalibrator:
         return int(colour) in ps
 
 
-def affordance_step(before: np.ndarray, after: np.ndarray, cursor_colour: int, vec: Tuple[int, int],
-                    stride: int = 1, passable: Optional[FrozenSet[int]] = None,
-                    bg: Optional[int] = None) -> Optional[Tuple[Context, bool]]:
-    """PURE: build one affordance exception (Context, moved) from a before/after pair. `intended_colour` is the
-    before-state colour of the cell the cursor would ENTER (a before-state fact). `intended_free` is that cell
-    being FLOOR: keyed off the calibrated `passable` set when given (leak-free), else legacy `bg`-equality. No
-    dependence on the loop -- so the labeling logic is unit-testable in isolation."""
+def decision_context(before: np.ndarray, cursor_colour: int, vec: Tuple[int, int],
+                     stride: int = 1, passable: Optional[FrozenSet[int]] = None,
+                     bg: Optional[int] = None) -> Optional[Context]:
+    """THE BEFORE-STATE CONTEXT FOR ONE CANDIDATE ACTION -- the whole of `affordance_step` except the outcome.
+
+    ★ THIS EXISTS SO THERE IS EXACTLY ONE CONSTRUCTION. A promoted φ was fitted to contexts built by THIS rule:
+    `target_rc` is the focus itself (so NEAR / TOUCH / SAME_ROW / SAME_COL are constant and inert), `intended_*`
+    describe the cell the cursor would ENTER under `vec`, and `intended_free` is keyed off the CALIBRATED passable
+    set rather than a background guess. If a decision site built its own context with different conventions --
+    a real landmark in `target_rc`, `intended_free` defaulted True -- then φ would still evaluate and would be
+    answering a DIFFERENT QUESTION than the one it was minted on, silently. A predicate asked the wrong question
+    still returns a bool; that is precisely why this must not be duplicated. Both the residual site
+    (`affordance_step`) and the action-selection site (`policy._gamma_directive`) call this one function.
+
+    Returns None when the focus is not locatable or the action has no learned displacement -- the same refusals
+    `affordance_step` makes, for the same reasons."""
     cur = _px_centroid(before, cursor_colour)
     if cur is None or not vec or tuple(vec) == (0, 0):
         return None
@@ -188,13 +197,27 @@ def affordance_step(before: np.ndarray, after: np.ndarray, cursor_colour: int, v
         icol, intended_free = -1, False                  # off-board edge -> blocked
     s = max(1, stride)
     fb = (int(round(cur[0] / s)), int(round(cur[1] / s)))
-    ca = _px_centroid(after, cursor_colour)
-    if ca is None:
-        return None
-    fa = (int(round(ca[0] / s)), int(round(ca[1] / s)))
     avec = (int(round(vec[0] / s)), int(round(vec[1] / s)))
-    ctx = Context(focus_rc=fb, focus_colour=int(cursor_colour), target_rc=fb, action_vec=avec,
-                  intended_free=bool(intended_free), intended_colour=(icol if icol >= 0 else None))
+    return Context(focus_rc=fb, focus_colour=int(cursor_colour), target_rc=fb, action_vec=avec,
+                   intended_free=bool(intended_free), intended_colour=(icol if icol >= 0 else None))
+
+
+def affordance_step(before: np.ndarray, after: np.ndarray, cursor_colour: int, vec: Tuple[int, int],
+                    stride: int = 1, passable: Optional[FrozenSet[int]] = None,
+                    bg: Optional[int] = None) -> Optional[Tuple[Context, bool]]:
+    """PURE: build one affordance exception (Context, moved) from a before/after pair. The Context is built by
+    `decision_context` -- the SAME function the action-selection site uses -- and this adds only the outcome.
+    No dependence on the loop -- so the labeling logic is unit-testable in isolation."""
+    ctx = decision_context(before, cursor_colour, vec, stride=stride, passable=passable, bg=bg)
+    if ctx is None:
+        return None
+    cur = _px_centroid(before, cursor_colour)
+    ca = _px_centroid(after, cursor_colour)
+    if cur is None or ca is None:
+        return None
+    s = max(1, stride)
+    fb = (int(round(cur[0] / s)), int(round(cur[1] / s)))
+    fa = (int(round(ca[0] / s)), int(round(ca[1] / s)))
     return ctx, (fa != fb)                               # moved iff the cursor cell actually changed
 
 

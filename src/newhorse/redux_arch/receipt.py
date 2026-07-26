@@ -133,6 +133,31 @@ class ResidualEvent:
     transfer_gain_bits: float = 0.0
     echo_kind: Optional[str] = None
     minted_on: List[str] = field(default_factory=list)
+    # ---- THE DECISION SITE: Γ -> ACTION -----------------------------------------------------------------------
+    # The second, and until now missing, way a promoted φ can be REUSED: not to explain a residual after the fact
+    # but to CHOOSE the next action. Counted per segment from the real call site (`policy._gamma_directive`),
+    # never derived from another organ. `reuse_source` exists because both routes call `chain.note_reuse()` and a
+    # ledger signal with two possible authors is unattributable -- REUSE_UNWIRED lifting is only readable if the
+    # receipt says WHICH organ lifted it.
+    reuse_source: Optional[str] = None    # "explains" | "directive" | "explains+directive"
+    gamma_consulted: int = 0              # steps at which Γ had >=1 signed directive to offer this segment
+    gamma_directives: int = 0             # signed directives on offer at the last such step
+    gamma_actions: int = 0                # steps where a directive actually SELECTED the action taken
+    # WHY a zero is a zero. A sweep with `gamma_actions=0` and nothing else on the record reads identically to an
+    # unwired organ; this says whether Γ was empty, whether everything in it was this game's own, whether it had
+    # evidence but no agreed sign, or whether it had advice the seam could not evaluate.
+    gamma_sign_report: Dict[str, int] = field(default_factory=dict)
+    gamma_unevaluable: int = 0            # directives skipped because the live seam could not build a context
+    # ★ THE THREE WAYS `gamma_consulted == 0` CAN HAPPEN, SEPARATED. The first sweep of this organ printed
+    # `segments where Γ had advice=0` beside a Γ snapshot showing six games ending with a signed directive
+    # available, and no number on the record could say which of these it was. They have three different fixes:
+    # never REACHED means the game never took a directional action through this branch (look at the caller);
+    # NOSEAM means it was reached without a calibrated cursor or learned vectors (look at calibration); EMPTY
+    # means it was reached with a live seam and Γ offered nothing (look at the sign bar). A single zero is a
+    # silence; three zeros are a measurement.
+    gamma_reached: int = 0                # steps at which `_gamma_directive` was entered at all
+    gamma_noseam: int = 0                 # ...and returned early: no calibrated cursor / vectors / frames
+    gamma_empty: int = 0                  # ...and Γ (for THIS game) had no signed directive to offer
     # the mint
     minted: bool = False
     minted_phi: Optional[str] = None
@@ -321,6 +346,21 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                 fired=len(firings(evs)),
                 cleared=sum(1 for e in evs if e.cleared),
                 firing_kinds=kinds,
+                # THE DECISION SITE, pooled. Kept OUT of `fired` on purpose: `fired` is defined as "a promoted φ
+                # explained a residual it was not minted for", and a φ that steered an action explained nothing.
+                # Folding the two would make the one number the whole instrument is judged on go up for a reason
+                # it was never defined to count.
+                gamma_decision=dict(
+                    segments_consulted=sum(1 for e in evs if e.gamma_consulted),
+                    steps_reached=sum(e.gamma_reached for e in evs),
+                    steps_noseam=sum(e.gamma_noseam for e in evs),
+                    steps_empty=sum(e.gamma_empty for e in evs),
+                    steps_consulted=sum(e.gamma_consulted for e in evs),
+                    steps_directed=sum(e.gamma_actions for e in evs),
+                    unevaluable=sum(e.gamma_unevaluable for e in evs),
+                    reuse_by_explains=sum(1 for e in evs if (e.reuse_source or "").startswith("explains")),
+                    reuse_by_directive=sum(1 for e in evs if "directive" in (e.reuse_source or "")),
+                    sign_report=_last_sign_report(evs)),
                 # the mint gate, pooled: what the MDL code was actually charged, and what the persistent bank
                 # added. `minted_from_pool` is reported SEPARATELY from `minted` -- a pooled mint is a weaker
                 # claim (it used evidence from segments other than the one it is recorded on) and adding the two
@@ -353,10 +393,28 @@ def _by_stream(evs: List[ResidualEvent]) -> Dict[str, Any]:
                       residual_nonempty=sum(1 for e in sub if e.residual_nonempty),
                       minted=sum(1 for e in sub if e.minted),
                       promoted=sum(1 for e in sub if e.promoted),
+                      # ★ ADDED AFTER A MIS-LABELLED RECEIPT. These two were absent from this dict while the
+                      # swarm's pooling loop iterated a fixed key list and defaulted anything missing to 0 -- so
+                      # the sweep printed `reuse_attempted: 0` inside BOTH streams beside a pooled total of 17.
+                      # A field that was never computed was rendered as a measured zero, which is the same
+                      # failure the Γ funnel counters were just added to close, in a different organ.
+                      reuse_attempted=sum(1 for e in sub if e.reuse_attempted),
+                      reuse_attempted_foreign=sum(1 for e in sub if e.reuse_attempted_foreign),
                       fired=len(firings(sub)),
                       cleared=sum(1 for e in sub if e.cleared),
                       stages=dict(sorted(stages.items())))
     return out
+
+
+def _last_sign_report(evs: List[ResidualEvent]) -> Dict[str, int]:
+    """Γ's state as of the LAST segment that recorded one -- a snapshot, deliberately not a sum. Γ grows over a
+    run, so `library` and `foreign` are the SAME library counted repeatedly; adding them across segments would
+    manufacture a large number out of one small library observed many times. The last snapshot is the only one
+    that answers "what did Γ have to offer by the end", which is the question a zero needs answered."""
+    for e in reversed(list(evs or [])):
+        if e.gamma_sign_report:
+            return dict(e.gamma_sign_report)
+    return {}
 
 
 def _median(xs) -> float:

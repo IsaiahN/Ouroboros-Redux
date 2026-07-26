@@ -223,6 +223,13 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     click_reasons: Dict[str, int] = {}
     scan = {"segments": 0, "pairs": 0, "no_vec": 0, "unlocatable": 0}
     cscan = {"pairs": 0, "no_coord": 0, "off_board": 0}
+    # THE DECISION SITE, pooled. Sums only, and `sign_report` is deliberately NOT summed -- it is a SNAPSHOT of one
+    # shared library, so adding one game's view of Γ to another's would report a library of size 8 that never
+    # existed. Kept per game instead, so a zero can be traced to the game whose Γ was empty.
+    gdec = {"segments_consulted": 0, "steps_reached": 0, "steps_noseam": 0, "steps_empty": 0,
+            "steps_consulted": 0, "steps_directed": 0, "unevaluable": 0,
+            "reuse_by_explains": 0, "reuse_by_directive": 0}
+    gsign: Dict[str, Dict[str, int]] = {}
     streams: Dict[str, Dict[str, Any]] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
@@ -246,6 +253,11 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
         cs = e.get("click_scan") or {}
         for k in cscan:
             cscan[k] += int(cs.get(k) or 0)
+        gd = e.get("gamma_decision") or {}
+        for k in gdec:
+            gdec[k] += int(gd.get(k) or 0)
+        if gd.get("sign_report"):
+            gsign[str(r.get("game") or len(gsign))] = dict(gd["sign_report"])
         # PER-STREAM POOLING, SUMS ONLY, and the streams stay in separate buckets end to end (§5.3). Pooling them
         # into one total here would undo the whole point of tagging the receipt at the source.
         for sname, sv in (e.get("by_stream") or {}).items():
@@ -275,7 +287,8 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
                                      for k, v in sorted(streams.items())},
                           no_diff_reasons=dict(sorted(reasons.items())), no_diff_scan=dict(scan),
                           click_no_diff_reasons=dict(sorted(click_reasons.items())),
-                          click_scan=dict(cscan)),
+                          click_scan=dict(cscan),
+                          gamma_decision=dict(gdec, sign_report_by_game=dict(sorted(gsign.items())))),
                 games_reaching_L2=reach_l2,
                 max_level_histogram=dict(sorted(lvl_hist.items())),
                 games_errored=errored,

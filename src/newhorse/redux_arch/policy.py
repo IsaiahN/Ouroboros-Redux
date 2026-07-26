@@ -39,7 +39,7 @@ from .referent import find_referents, Referent
 from .relation import RelationBank, RelationCtx
 from .novelty_ledger import guarded_promote
 from .abort_code import ChainLedger
-from .bridge import _px_centroid, transition_residual, click_residual
+from .bridge import _px_centroid, transition_residual, click_residual, decision_context
 from .consolidate import Consolidator
 from .minting import two_part_mdl, _entropy_bits
 from .receipt import ResidualEvent, task_id as _task_id, echo_kind as _echo_kind, summary as _receipt_summary
@@ -287,6 +287,23 @@ class ReduxPolicy:
         self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
         self.n_rel_reinforce = 0                          # times an effect pick was biased toward closing the relation
         self.n_multi_avatar_drive = 0                     # G5: times two independent avatars were routed to their goals
+        # THE Γ DECISION SITE's per-SEGMENT counters. Segment-scoped for the same reason the chain signals are: a
+        # directive taken in segment 3 must not decorate the receipt of segment 7. `_close_segment` copies them
+        # onto that segment's receipt and zeroes them; nothing else may touch them.
+        # ★ FOUR COUNTERS, NOT ONE, BECAUSE A SINGLE ZERO WOULD BE AMBIGUOUS. `_g_consult == 0` alone cannot say
+        # whether the decision site was never REACHED (this game never took a directional action), reached with no
+        # calibrated seam (no cursor / no learned vectors), or reached with a seam and offered nothing by Γ. Those
+        # are three different findings with three different fixes, and collapsing them is the silence-printed-as-a-
+        # measured-zero shape this instrument keeps finding elsewhere. The first sweep of this organ made the point
+        # itself: it reported `segments_consulted=0` beside a Γ snapshot that showed six games ending with a signed
+        # directive available, and there was no number on the record that could say which of the three it was.
+        self._g_reached = 0                               # times `_gamma_directive` was entered at all
+        self._g_noseam = 0                                # ...and returned early: no calibrated cursor / vectors
+        self._g_empty = 0                                 # ...and Γ had no signed directive to offer
+        self._g_consult = 0                               # steps where Γ had >=1 signed directive to offer
+        self._g_dirs = 0                                  # how many it had, at the last such step
+        self._g_act = 0                                   # steps where a directive actually chose the action
+        self._g_uneval = 0                                # candidate actions the live seam could not build a ctx for
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -788,6 +805,7 @@ class ReduxPolicy:
             self.bank.deposit(bank_key, tid, exc)
         except Exception:
             pass                                                 # the bank must never sink a run
+        pool: List[Any] = []
         if mint is None:
             # (e) THE POOLED RETRY, and ONLY when the fresh residual failed to mint. The fresh attempt above is
             # left exactly as it was so the old measurement stays comparable; this is a strictly additional
@@ -819,7 +837,12 @@ class ReduxPolicy:
             # Crediting the pool's tasks would clear echo_threshold=2 on a single mint, auto-fill Γ, and make
             # MINTED_UNUSED (the one code that indicts the architecture) reachable by bookkeeping rather than by
             # play. Two pooled mints of the same φ on two different pools still echo, legitimately and slower.
-            ev.promoted = self.echo.observe_mint(tid, mint)      # the Predicate OBJECT, not its name (directive 2a)
+            # THE EVIDENCE φ WAS ACTUALLY FITTED TO GOES WITH IT -- `pool` when the mint came from the pooled
+            # retry, `exc` when it came fresh. Passing the wrong one would bank an outcome split computed on
+            # steps the predicate was never scored against, which is a fabricated sign rather than a weak one.
+            # Both are keyed to THIS task id, which is correct in both cases: the bank pools within a game.
+            src = pool if ev.minted_from_pool else exc
+            ev.promoted = self.echo.observe_mint(tid, mint, exceptions=src)  # the Predicate OBJECT (directive 2a)
             ev.echo_count = len(self.echo.echo_tasks(mint.predicate))
         return ev
 
@@ -855,6 +878,25 @@ class ReduxPolicy:
         st = self.chain.end_segment(reason)
         if ev is not None:
             ev.stage = None if st is None else st.name
+            # THE DECISION SITE's segment tally lands on the SAME receipt that carries the segment's stage, so a
+            # lifted stage and the organ that lifted it are always read off one row. `reuse_source` is composed
+            # here rather than at either call site because BOTH organs write the same ledger signal, and a signal
+            # with two possible authors is unattributable -- which is the failure mode the whole instrument
+            # exists to prevent.
+            ev.gamma_consulted, ev.gamma_directives = int(self._g_consult), int(self._g_dirs)
+            ev.gamma_actions, ev.gamma_unevaluable = int(self._g_act), int(self._g_uneval)
+            ev.gamma_reached, ev.gamma_noseam = int(self._g_reached), int(self._g_noseam)
+            ev.gamma_empty = int(self._g_empty)
+            src = ([] if not ev.transferred else ["explains"]) + ([] if not self._g_act else ["directive"])
+            ev.reuse_source = "+".join(src) or None
+            try:
+                ev.gamma_sign_report = dict(self.echo.sign_report(self.game_id))
+            except Exception:
+                ev.gamma_sign_report = {}
+        # zeroed whether or not a receipt was filed: an EMPTY segment files none, and carrying its tally into the
+        # next segment would attribute a directive to a segment that did not take it.
+        self._g_consult = self._g_dirs = self._g_act = self._g_uneval = 0
+        self._g_reached = self._g_noseam = self._g_empty = 0
         self._seg_n += 1
         self._seg0 = max(0, len(self.frames) - 1) if reason == "advance" else len(self.frames)
 
@@ -915,6 +957,13 @@ class ReduxPolicy:
                 # HERE, where this site used to reduce it to `name`, a string the echo clock cannot score and
                 # `explains()` cannot evaluate. The gate still receives the name (it gates on identity); the OBJECT
                 # goes to Γ's echo clock, keyed by its atom set, so a later residual can be scored against it.
+                # NO `exceptions` HERE, ON PURPOSE. The sign is a per-family outcome split over the residual φ was
+                # fitted to, and `coupled_goal_mint` does not return one -- it abduces an objective from the
+                # REWARD stream, not from a scored (context, outcome) list. Synthesising one here would be
+                # inventing evidence to fill an argument. A φ promoted by this route therefore reaches Γ as an
+                # unsigned partition and can never become a directive, which is the correct and readable state:
+                # `sign_report`'s `foreign_with_split` will show it as foreign-without-evidence rather than as a
+                # sign that failed to agree. R_ρ owes its own outcome bit before it can steer anything.
                 promoted = self.echo.observe_mint(
                     _task_id(self.game_id, self.level, self._seg_n, stream="rho"), mint)
                 self.abduced.append(dict(from_level=self.level, verdict=verdict, name=name, acted=acted,
@@ -1134,7 +1183,94 @@ class ReduxPolicy:
                        or plan_action(avatar, target, self.vecs, ACTS_TOWARD, passable_px))
                 if lbl:
                     return lbl, None
+        gl = self._gamma_directive(labels)
+        if gl is not None:
+            return gl, None
         return self._explore(avatar, passable_px, labels), None     # no target / boxed -> curiosity
+
+    def _gamma_directive(self, labels: List[str]) -> Optional[str]:
+        """★ THE ONLY PLACE THE SHARED LIBRARY IS ALLOWED TO CHANGE WHAT THE AGENT DOES.
+
+        Until this existed, Γ was a museum: φ minted on one game, promoted when it echoed on another, and then
+        consulted only to EXPLAIN a residual after the fact. Explaining is a claim about the past. This is the
+        first site where a rule learned on one game can pick the next action on a different one.
+
+        FOUR REFUSALS, each of which is the whole point:
+
+        (1) IT ASKS `directives`, NOT `library`. Γ's promoted list is a set of PARTITIONS -- "these steps differ
+            from those" -- and a partition is not advice. `directives` returns only the φ this game did not mint
+            AND on which every family that could vote agreed which side carries the outcome. An offline audit of
+            the real library found four promoted φ and ZERO that pass that, so the expected return here is [] for
+            a long time yet. That is the honest state of Γ, not a bug in this function.
+
+        (2) AN EMPTY OFFER IS NOT AN ATTEMPT. `note_reuse_attempt` fires only when Γ actually had something to
+            say -- identical to the rule at the residual site, and for the identical reason: counting a consult
+            of an empty library as a reuse attempt would manufacture MINTED_UNUSED, the one code that indicts the
+            architecture, out of bookkeeping.
+
+        (3) THE CONTEXT IS BUILT BY `bridge.decision_context`, THE SAME FUNCTION THE RESIDUAL SITE USES. Every
+            promoted φ was fitted to contexts where `target_rc` IS the focus and `intended_free` is keyed off the
+            CALIBRATED passable set. `planner.plan_action` builds a Context too, but with `focus_colour=0` and
+            default `intended_*` -- so a φ evaluated there would silently be answering about a board that does
+            not exist. A predicate asked the wrong question still returns a bool; that is exactly why there must
+            be one construction and why this site does not roll its own.
+
+        (4) A TIE IS NOT A PREFERENCE. If two candidate actions score equally, Γ is refused the pick and control
+            falls through to curiosity. Otherwise label ordering would break the tie and the receipt would credit
+            Γ for a choice an alphabet made.
+
+        ★ WHAT THIS DOES TO THE STAGE DISTRIBUTION, SAID BEFORE IT HAPPENS. `note_reuse` here sets the same
+        segment signal the `explains` route sets, and `classify` coerces "reused implies minted" -- so a segment
+        whose diff ran on a non-empty residual and did not mint would be lifted from MINT_UNFIRED to
+        USED_NOCLEAR by a directive. That is a defensible reading (a transferred rule really was used, and really
+        did not clear anything) but it is also precisely the shape of a chain built to make its own instrument
+        read higher. Two guards: the receipt records `reuse_source` so the two organs are never one number, and
+        the pre-registration for the first sweep is ZERO directives and therefore ZERO movement in the
+        distribution. If the distribution moves, that is a finding to investigate, not a result to report.
+
+        Placed LAST in `_act_directional`, after every earned drive: Γ advises only where the agent had no reason
+        of its own. A first wiring that could override a confirmed relation target would make any change in
+        outcome unattributable between the two."""
+        self._g_reached += 1
+        if self.cursor is None or not self.vecs or not self.frames:
+            self._g_noseam += 1
+            return None
+        try:
+            dirs = self.echo.directives(self.game_id)
+        except Exception:
+            self._g_empty += 1
+            return None                                     # Γ must never sink a run
+        if not dirs:
+            self._g_empty += 1
+            return None                                     # NOT an attempt -- see refusal (2)
+        self.chain.note_reuse_attempt()
+        self._g_consult += 1
+        self._g_dirs = len(dirs)
+        grid = self.frames[-1]
+        best: Optional[str] = None
+        best_score = 0.0
+        ties = 0
+        for lbl in labels:
+            vec = (self.vecs or {}).get(lbl)
+            if not vec or tuple(vec) == (0, 0):
+                continue
+            ctx = decision_context(grid, self.cursor, vec, stride=self.stride, passable=self.passable)
+            if ctx is None:
+                self._g_uneval += 1
+                continue
+            # +s when φ holds, -s when it does not: a NEGATIVE sign means the outcome lives on the ¬φ side, so
+            # ¬φ is the endorsement. Reading a negative sign as "no opinion" would throw away half of what was
+            # measured and would quietly make every directive a one-sided rule.
+            score = float(sum(s if p.holds(ctx) else -s for p, s in dirs))
+            if best is None or score > best_score:
+                best, best_score, ties = lbl, score, 1
+            elif score == best_score:
+                ties += 1
+        if best is None or best_score <= 0.0 or ties > 1:
+            return None                                     # no endorsement, or no preference between equals
+        self.chain.note_reuse()
+        self._g_act += 1
+        return best
 
     def _explore(self, avatar, passable_px, labels: List[str]) -> str:
         if self.explorer is None:

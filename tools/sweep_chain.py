@@ -100,6 +100,50 @@ def main() -> None:
     print("  This says nothing about whether φ EXPLAINED anything (fired=%d) -- an offer is an opportunity, not a"
           " transfer." % int(ec.get("fired", 0)))
 
+    # THE DECISION SITE, AND ITS PREDICTION -- EVALUATED BY THE SCRIPT, BEFORE ANY HUMAN READS THE NUMBER.
+    # Written down before this sweep ran (claude/FINDINGS_can_gamma_decide.md): an offline audit of the real Γ
+    # found FOUR promoted φ, ZERO of them carrying a sign the live seam could act on, so a correctly-wired
+    # decision site MUST take zero actions. A zero here is the wiring behaving as measured. A NON-zero is not a
+    # success -- it means Γ signed something the audit says it cannot, and it must be explained before it is
+    # celebrated. This is printed as a PASS/INVESTIGATE, never as a score.
+    gd = ec.get("gamma_decision") or {}
+    print("\n=== Γ -> ACTION (the decision site) ===")
+    # ★ THE FUNNEL, NOT THE SINGLE ZERO. The previous sweep printed only `segments where Γ had advice=0` beside a
+    # Γ snapshot showing six games ending with a signed directive available, and nothing on the record could say
+    # whether the site was never reached, reached without a seam, or reached and offered nothing. Three different
+    # findings, three different fixes. Each line below is counted at its own guard inside `_gamma_directive`.
+    print("  FUNNEL: site reached=%d -> of those, no calibrated seam=%d | Γ had nothing for this game=%d |"
+          " Γ had advice=%d"
+          % (int(gd.get("steps_reached", 0)), int(gd.get("steps_noseam", 0)), int(gd.get("steps_empty", 0)),
+             int(gd.get("steps_consulted", 0))))
+    print("  segments where Γ had advice=%d | steps DIRECTED BY Γ=%d | candidates the seam could not evaluate=%d"
+          % (int(gd.get("segments_consulted", 0)), int(gd.get("steps_directed", 0)),
+             int(gd.get("unevaluable", 0))))
+    _r, _n, _e, _c = (int(gd.get(k, 0)) for k in ("steps_reached", "steps_noseam", "steps_empty", "steps_consulted"))
+    if _r == 0:
+        print("  READS AS: the decision site was NEVER ENTERED. Nothing here is a statement about Γ -- look at the"
+              " caller (`_act_directional`), not at the library.")
+    elif _n == _r:
+        print("  READS AS: entered %d times, and EVERY TIME without a calibrated cursor/vectors. This is a"
+              " CALIBRATION finding, not a Γ finding." % _r)
+    elif _c == 0:
+        print("  READS AS: entered %d times with a live seam on %d of them, and Γ offered a signed directive on"
+              " NONE. This is the sign bar, working as measured." % (_r, _r - _n))
+    if _r != _n + _e + _c:
+        print("  ARITHMETIC WARNING: reached(%d) != noseam(%d)+empty(%d)+advice(%d). A guard is uncounted."
+              % (_r, _n, _e, _c))
+    print("  reuse signal authored by: explains=%d | directive=%d   (never one number: both write the same ledger"
+          " bit)" % (int(gd.get("reuse_by_explains", 0)), int(gd.get("reuse_by_directive", 0))))
+    for g, sr in sorted((gd.get("sign_report_by_game") or {}).items()):
+        print("    %-18s %s" % (g, json.dumps(sr, sort_keys=True)))
+    directed = int(gd.get("steps_directed", 0))
+    print("  PRE-REGISTERED PREDICTION: 0 steps directed by Γ (no promoted φ carries an agreed cross-family sign)")
+    print("  RESULT: %s" % ("PASS -- the prediction held. Γ still cannot decide anything, and now says so with a"
+                            " receipt instead of a silence." if directed == 0 else
+                            "INVESTIGATE -- %d steps were directed. The offline audit says that should be"
+                            " impossible; find out which φ signed and why BEFORE reporting this as progress."
+                            % directed))
+
 
 if __name__ == "__main__":
     main()

@@ -16,9 +16,10 @@ from __future__ import annotations
 import math
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, FrozenSet
+from typing import Dict, List, Optional, Set, FrozenSet, Tuple
 from .dsl import Predicate, Context
 from .minting import Mint, two_part_mdl, Exception_, _entropy_bits
+from .residual_bank import family_key as _family
 from .receipt import game_of
 
 
@@ -39,18 +40,35 @@ class Consolidator:
     Readers snapshot `library` under the same lock: `explains_scored` iterating the list while another thread
     appends is undefined, and a transfer verdict must never depend on scheduling."""
     echo_threshold: int = 2
+    sign_min_families: int = 2                                  # corroboration bar for a TRANSFERABLE sign (see `sign`)
     library: List[Predicate] = field(default_factory=list)      # Γ's promoted predicates (the grown vocabulary)
     _tasks_by_key: Dict[FrozenSet[str], Set[str]] = field(default_factory=dict)
     _pred_by_key: Dict[FrozenSet[str], Predicate] = field(default_factory=dict)
+    # key -> family -> [n_true_side, k_true_side, n_false_side, k_false_side]. THE SIGN LIVES HERE, NOT IN Γ's list.
+    _split_by_key: Dict[FrozenSet[str], Dict[str, List[int]]] = field(default_factory=dict)
     log: List[str] = field(default_factory=list)
     _lock: threading.RLock = field(default_factory=threading.RLock, repr=False, compare=False)
 
-    def observe_mint(self, task_id: str, mint: Mint) -> bool:
+    def observe_mint(self, task_id: str, mint: Mint,
+                     exceptions: Optional[List[Exception_]] = None) -> bool:
         """Register that `task_id` minted this predicate. Promote it into Γ once it has echoed on
-        `echo_threshold` distinct tasks. Returns True iff this call caused a promotion."""
+        `echo_threshold` distinct tasks. Returns True iff this call caused a promotion.
+
+        `exceptions` is the residual φ was minted from. It is OPTIONAL and it is the only way a SIGN ever gets into
+        Γ. Without it a promotion carries a partition and no preference: "these two groups of steps differ" is not
+        "prefer this group", and an audit of the promoted library (`tools/audit_gamma.py`) measured that a shared Γ
+        built without it cannot yield a single decision no matter what else is wired. Passing it banks the outcome
+        SPLIT per FAMILY -- evidence, not a conclusion; the sign is derived on read, under a corroboration bar."""
         key = _key(mint.predicate)
         with self._lock:
             self._pred_by_key[key] = mint.predicate
+            if exceptions:
+                fam = _family(str(task_id))
+                slot = self._split_by_key.setdefault(key, {}).setdefault(fam, [0, 0, 0, 0])
+                for ctx, o in exceptions:
+                    i = 0 if mint.predicate.holds(ctx) else 2
+                    slot[i] += 1
+                    slot[i + 1] += 1 if o else 0
             seen = self._tasks_by_key.setdefault(key, set())
             seen.add(str(task_id))
             already = any(_key(p) == key for p in self.library)
@@ -90,8 +108,69 @@ class Consolidator:
             lib = list(self.library)
         return [p for p in lib if gid not in self.echo_games(p)]
 
+    # ---- THE SIGN: which side of a promoted split is the side to ACT ON ---------------------------------------
+    def _delta(self, key: FrozenSet[str], family: str) -> Optional[float]:
+        """P(outcome | φ) - P(outcome | ¬φ) on ONE family's banked split, or None if either side is empty."""
+        s = self._split_by_key.get(key, {}).get(family)
+        if not s or s[0] == 0 or s[2] == 0:
+            return None
+        return (s[1] / s[0]) - (s[3] / s[2])
+
+    def sign(self, pred: Predicate, exclude_game: Optional[str] = None,
+             min_families: Optional[int] = None) -> Optional[int]:
+        """+1 / -1 if the families that minted φ AGREE on which side of its split carries the outcome; None if they
+        do not agree, or if too few of them can vote.
+
+        ★ WHY THIS IS NOT JUST "TAKE THE POOLED AVERAGE", AND WHY THE BAR IS TWO FAMILIES.
+        The offline audit found exactly one promoted φ that both ranks actions and echoed across two families --
+        INTENDED_FREE -- and its sign REVERSES between them: on wa30 a free cell ahead means the focus moves
+        (+0.70), on re86 it means the focus does NOT move (-0.98). Pooled, those average to a confident-looking
+        number that is right on one game and maximally wrong on the other. So the echo gate certifies that a
+        DISTINCTION recurs; it does not certify that the distinction MEANS the same thing, and the sign is where
+        that difference becomes a wrong action instead of a wrong sentence. In the one case we could check, a
+        single-family sign was demonstrably unreliable -- hence corroboration, not majority vote: every voting
+        family must agree, and one dissent kills it. A killed sign is the honest output, not a failure.
+
+        `exclude_game` drops the family of the game being ADVISED, so a rule can never be transferred to itself:
+        φ signed only by the game it is about is not transfer, it is memory."""
+        need = self.sign_min_families if min_families is None else int(min_families)
+        key = _key(pred)
+        with self._lock:
+            fams = sorted(self._split_by_key.get(key, {}))
+            drop = _family(str(exclude_game)) if exclude_game else None
+            deltas = [d for f in fams if f != drop
+                      for d in (self._delta(key, f),) if d is not None and d != 0.0]
+        if len(deltas) < need:
+            return None                                  # not corroborated -- too few families can speak
+        signs = {1 if d > 0 else -1 for d in deltas}
+        return signs.pop() if len(signs) == 1 else None  # any dissent -> no transferable sign
+
+    def directives(self, game_id: str, min_families: Optional[int] = None) -> List[Tuple[Predicate, int]]:
+        """The promoted φ this game did NOT mint, that carry a corroborated sign: (φ, +1/-1). THIS IS THE ONLY
+        THING IN Γ THAT AN ACTION-SELECTION SITE MAY READ. `foreign` guarantees the transfer is across games;
+        `sign` guarantees the advice has a direction and that the direction survived every family that could
+        check it. Returns [] when Γ has nothing to say, which is the expected answer for a long time yet."""
+        out: List[Tuple[Predicate, int]] = []
+        for p in self.foreign(game_id):
+            s = self.sign(p, exclude_game=game_id, min_families=min_families)
+            if s is not None:
+                out.append((p, s))
+        return out
+
+    def sign_report(self, game_id: str) -> Dict[str, int]:
+        """What Γ would offer this game at each corroboration bar -- for the receipt, so a sweep that produces ZERO
+        directives still says WHY it was zero (nothing foreign / nothing signed / signs reversed) instead of being
+        a silence that reads the same as an unwired organ."""
+        foreign = self.foreign(game_id)
+        at1 = self.directives(game_id, min_families=1)
+        at2 = self.directives(game_id, min_families=2)
+        with self._lock:
+            have_split = sum(1 for p in foreign if self._split_by_key.get(_key(p)))
+        return dict(library=len(self.library), foreign=len(foreign), foreign_with_split=have_split,
+                    signed_at_1_family=len(at1), signed_at_2_families=len(at2))
+
     def reset(self) -> None:
-        """Empty Γ and the echo clock. FOR TEST ISOLATION ONLY (see tests/conftest.py). Γ is a process-wide
+        """Empty Γ, the echo clock, and the banked splits. FOR TEST ISOLATION ONLY (see tests/conftest.py). Γ is a process-wide
         singleton now, so without a per-test reset one test's synthetic promotion becomes another test's library
         and `explains` starts answering from a φ that test never minted -- the residual bank's contamination
         failure, one layer up. There is no call site for this in the build, and there must never be one: a Γ that
@@ -100,6 +179,7 @@ class Consolidator:
             self.library.clear()
             self._tasks_by_key.clear()
             self._pred_by_key.clear()
+            self._split_by_key.clear()
             self.log.clear()
 
     def explains_scored(self, exceptions: List[Exception_], report: Optional[Dict[str, float]] = None):
