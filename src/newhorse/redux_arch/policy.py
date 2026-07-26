@@ -29,7 +29,7 @@ from .coupled import coupled_goal_mint
 from .coupled import (learn_two_body, two_body_search_action, two_body_drive_action, two_body_goal_action,
                       two_body_deliver_action, independent_multi, multi_avatar_action)
 from .click import click_targets, grid_sweep, ClickProber
-from .engagement import EngagementMeter
+from .engagement import EngagementMeter, MIN_CELLS
 from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
 from .affordance import EffectAffordance
@@ -338,6 +338,30 @@ class ReduxPolicy:
         # decorate segment 7's receipt.
         self._dec_calls = 0                               # entries to `_decide` (the denominator of the funnel)
         self._dec_exits: Dict[str, int] = {}              # exit-site name -> times that `return` was the one taken
+        # ★★★ REACH IS NOT COMPETENCE -- THE OUTCOME COLUMN. ★★★
+        # The funnel says WHICH exit answered. It says nothing about whether the answer was any GOOD, and the last
+        # beat's finding turns on that gap: `dir_target_colour` answered 461 steps across 12 games and pre-empts the
+        # Γ site on all of them, so "should Γ be reached more?" is unanswerable until the incumbent is priced.
+        # The cheapest true price of a step is whether the board ANSWERED it. Rules this obeys:
+        #  (a) The exit NAME comes from the exit's own site (`_exit` records it); nothing is re-derived from
+        #      `family` or from the emitted label at attribution time.
+        #  (b) The outcome is only knowable at the NEXT `observe()`, so the name is carried forward one step and
+        #      CONSUMED there. A frame that arrives with nothing pending (a restart frame) is attributed to nobody.
+        #  (c) ★ THE SURVIVAL VETO IS ALLOWED TO REPLACE THE ACTION AFTER THE EXIT IS COUNTED. A board change that
+        #      followed a REPLACED action is not this exit's outcome. Those steps go in their own `_dec_veto`
+        #      bucket and are excluded from the numerator AND the denominator -- crediting them either way would
+        #      be attributing one organ's result to another, which is the proxy defect this instrument exists for.
+        #  (d) TWO change readings are published, never one: RAW (any cell differs) and MASKED (>= MIN_CELLS cells
+        #      differ outside the monotone budget/timer band). A raw-only column would read ~100% everywhere on
+        #      any game with a ticking bar -- the proxy that talks while the ground is mute. Publishing both makes
+        #      the mask's effect visible instead of trusting it.
+        self._dec_attr: Dict[str, int] = {}               # exit -> steps whose RESULT FRAME was seen (the denominator)
+        self._dec_moved: Dict[str, int] = {}              # exit -> of those, board answered on the MASKED reading
+        self._dec_moved_raw: Dict[str, int] = {}          # exit -> of those, ANY cell differed (mask off)
+        self._dec_veto: Dict[str, int] = {}               # exit -> steps whose action the survival veto REPLACED
+        self._dec_unattr = 0                              # decisions whose result frame never arrived (the residue)
+        self._pend_exit: Optional[str] = None             # exit that chose the action now in flight (carried 1 step)
+        self._pend_vetoed = False                         # that action was replaced before it was emitted
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -408,6 +432,7 @@ class ReduxPolicy:
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
         # board-response: how much did the board ANSWER the action that produced this frame (budget bands masked)?
         self.engage.observe(self.frames[-1], self.acts[-1] if self.acts else None)
+        self._price_pending_exit()                      # did the board ANSWER the exit that chose the last action?
         if len(self.frames) >= 2:                       # Tier-1 affordance: accumulate per-action effect from R_τ
             two_ago = self.frames[-3] if len(self.frames) >= 3 else None
             prev_action = self.acts[-2] if len(self.acts) >= 2 else None
@@ -466,7 +491,11 @@ class ReduxPolicy:
     # ---- the per-step decision (control-inversion core) --------------------------------------------------------
     def choose(self) -> Tuple[str, Optional[dict]]:
         lbl, data = self._decide()
+        chosen = lbl
         lbl, data = self._survival_veto(lbl, data)
+        # the veto is allowed to change the label AFTER the exit has been counted; record that so the next frame's
+        # change is not credited to an exit whose action was never emitted.
+        self._pend_vetoed = (lbl != chosen)
         self._pending = lbl
         # read AFTER the veto, which is allowed to change both the label and the coordinate
         self._pending_rc = None
@@ -566,7 +595,56 @@ class ReduxPolicy:
         is measuring. `where` is a LITERAL at each call site on purpose: a name computed from state would make the
         funnel a derivation of the thing it is supposed to audit."""
         self._dec_exits[where] = self._dec_exits.get(where, 0) + 1
+        if self._pend_exit is not None:
+            # a previous decision's result frame never arrived (segment closed under it, or two decisions ran back
+            # to back). It is the RESIDUE, published, never silently folded into either outcome bucket.
+            self._dec_unattr += 1
+        self._pend_exit = where                          # carried exactly one step, to the `observe` that answers it
+        self._pend_vetoed = False
         return out
+
+    def _price_pending_exit(self) -> None:
+        """PRICE the exit that chose the action which produced the frame just observed. Called once per observed
+        frame, from `observe`, AFTER the frame has been appended -- so `frames[-2]` is the board the decision was
+        made from and `frames[-1]` is the board it produced.
+
+        It answers ONE question and no more: did the board ANSWER that step? That is the cheapest honest price of a
+        decision, and it is deliberately not a claim about whether the answer was USEFUL. Reach is not competence,
+        and neither is motion -- an exit that moves the board every step may still be moving it pointlessly. What
+        this rules out is the opposite and much cheaper failure: an exit that holds most of the agent's turns while
+        the board never answers it at all, which is the null intervention of `engagement.py` read per-exit.
+
+        The pending name is CONSUMED here whatever happens, so a frame that arrives with no decision behind it (the
+        restart frame that opens a segment) is attributed to nobody rather than to the last exit of the previous
+        segment."""
+        where, vetoed = self._pend_exit, self._pend_vetoed
+        self._pend_exit, self._pend_vetoed = None, False
+        if where is None:
+            return
+        if vetoed:
+            # the emitted action was NOT this exit's; the resulting frame prices the veto, not the exit
+            self._dec_veto[where] = self._dec_veto.get(where, 0) + 1
+            return
+        if len(self.frames) < 2:
+            self._dec_unattr += 1                        # no `before` board to compare against
+            return
+        prev, cur = self.frames[-2], self.frames[-1]
+        self._dec_attr[where] = self._dec_attr.get(where, 0) + 1
+        if prev.shape != cur.shape:                      # a reshape is an answer by any reading
+            self._dec_moved_raw[where] = self._dec_moved_raw.get(where, 0) + 1
+            self._dec_moved[where] = self._dec_moved.get(where, 0) + 1
+            return
+        diff = (prev != cur)
+        if bool(diff.any()):
+            self._dec_moved_raw[where] = self._dec_moved_raw.get(where, 0) + 1
+        try:
+            m = self.engage.mask()                       # the monotone budget/timer band, computed structurally
+            if m.shape != cur.shape:
+                m = np.zeros(cur.shape, dtype=bool)
+        except Exception:
+            m = np.zeros(cur.shape, dtype=bool)
+        if int((diff & ~m).sum()) >= MIN_CELLS:
+            self._dec_moved[where] = self._dec_moved.get(where, 0) + 1
 
     def _decide(self) -> Tuple[str, Optional[dict]]:
         self._dec_calls += 1                             # the funnel's denominator, incremented before any guard
@@ -900,6 +978,13 @@ class ReduxPolicy:
         `_seg0` after a DEATH is len(frames): the next frame is the post-death restart board, and the
         death-board -> restart-board discontinuity is not play. After an ADVANCE it is len(frames)-1: the redraw
         frame legitimately opens the new level's stream (this matches `_lvl0`)."""
+        # A decision still IN FLIGHT at the boundary belongs to NEITHER segment's outcome tally: its result frame
+        # arrives in the next segment, where `frames[-2]` is a pre-restart board and the diff would price the
+        # restart rather than the step. Charge it to THIS segment's residue -- the decision was taken here -- and
+        # drop the carry, rather than pricing a step across a boundary.
+        if self._pend_exit is not None:
+            self._dec_unattr += 1
+            self._pend_exit, self._pend_vetoed = None, False
         if self.chain.steps_in_segment > 0:
             try:
                 ev = self._residual_pass(reason)
@@ -937,6 +1022,9 @@ class ReduxPolicy:
             ev.gamma_empty, ev.gamma_error = int(self._g_empty), int(self._g_error)
             ev.gamma_sign_report_at_entry = dict(self._g_entry_report)
             ev.decide_calls, ev.decide_exits = int(self._dec_calls), dict(self._dec_exits)
+            ev.decide_attr, ev.decide_moved = dict(self._dec_attr), dict(self._dec_moved)
+            ev.decide_moved_raw, ev.decide_veto = dict(self._dec_moved_raw), dict(self._dec_veto)
+            ev.decide_unattr = int(self._dec_unattr)
             src = ([] if not ev.transferred else ["explains"]) + ([] if not self._g_act else ["directive"])
             ev.reuse_source = "+".join(src) or None
             try:
@@ -951,6 +1039,11 @@ class ReduxPolicy:
         self._seg_boundary_diff = False
         self._dec_calls = 0
         self._dec_exits = {}
+        self._dec_attr = {}
+        self._dec_moved = {}
+        self._dec_moved_raw = {}
+        self._dec_veto = {}
+        self._dec_unattr = 0
         self._seg_n += 1
         self._seg0 = max(0, len(self.frames) - 1) if reason == "advance" else len(self.frames)
 

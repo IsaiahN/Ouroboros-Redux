@@ -206,6 +206,17 @@ class ResidualEvent:
     # rather than assuming it away.
     decide_calls: int = 0
     decide_exits: Dict[str, int] = field(default_factory=dict)
+    # ★ THE OUTCOME COLUMN -- REACH IS NOT COMPETENCE. `decide_exits` says which exit answered; these say whether
+    # the board ANSWERED it. `decide_attr` is the outcome denominator (steps whose RESULT FRAME was actually seen),
+    # `decide_moved` the masked reading and `decide_moved_raw` the unmasked one -- both published, because a
+    # raw-only column reads ~100% on any game with a ticking budget bar. `decide_veto` holds the steps whose action
+    # the survival veto REPLACED after the exit was counted: those are excluded from both, since crediting another
+    # organ's action to this exit is the proxy defect the funnel exists to prevent. `decide_unattr` is the residue.
+    decide_attr: Dict[str, int] = field(default_factory=dict)
+    decide_moved: Dict[str, int] = field(default_factory=dict)
+    decide_moved_raw: Dict[str, int] = field(default_factory=dict)
+    decide_veto: Dict[str, int] = field(default_factory=dict)
+    decide_unattr: int = 0
 
     @property
     def fired(self) -> bool:
@@ -369,6 +380,19 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
         for k, n in (e.decide_exits or {}).items():
             dec_exits[k] = dec_exits.get(k, 0) + int(n)
     dec_calls = sum(e.decide_calls for e in evs)
+    # the outcome column, pooled the same way. Kept as SEPARATE flat dicts rather than one nested dict per exit so
+    # that `echo_pool` unions them by the same rule as `exits` -- a nested value would need its own merge and a
+    # merge written twice is where the printer last re-merged two terms to close an identity.
+    dec_attr: Dict[str, int] = {}
+    dec_moved: Dict[str, int] = {}
+    dec_moved_raw: Dict[str, int] = {}
+    dec_veto: Dict[str, int] = {}
+    for e in evs:
+        for dst, src in ((dec_attr, e.decide_attr), (dec_moved, e.decide_moved),
+                         (dec_moved_raw, e.decide_moved_raw), (dec_veto, e.decide_veto)):
+            for k, n in (src or {}).items():
+                dst[k] = dst.get(k, 0) + int(n)
+    dec_unattr = sum(e.decide_unattr for e in evs)
     # `dir_gamma` + `dir_explore` are the two exits BELOW the Γ site, so their sum is the site's reach measured
     # from OUTSIDE it, while `gamma_reached` measures it from INSIDE. Independent counters of one event; the
     # DIFFERENCE is published so a disagreement is visible instead of arbitrated.
@@ -384,7 +408,15 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                                    uncounted=dec_calls - sum(dec_exits.values()),
                                    gamma_site_reach_from_below=site_from_below,
                                    gamma_site_reach_disagreement=(
-                                       site_from_below - sum(e.gamma_reached for e in evs))),
+                                       site_from_below - sum(e.gamma_reached for e in evs)),
+                                   # ★ THE OUTCOME COLUMN. `attr` is the denominator for `moved`/`moved_raw`;
+                                   # `veto` is excluded from both on purpose; `unpriced` is the residue that
+                                   # closes exits = attr + veto + unpriced, published rather than assumed away.
+                                   attr=dict(sorted(dec_attr.items())),
+                                   moved=dict(sorted(dec_moved.items())),
+                                   moved_raw=dict(sorted(dec_moved_raw.items())),
+                                   veto=dict(sorted(dec_veto.items())),
+                                   unpriced=dec_unattr),
                 # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
                 # second stream arriving can never be read as the first one getting better -- the top-level totals
                 # below are a convenience, and this is the number that carries the claim.

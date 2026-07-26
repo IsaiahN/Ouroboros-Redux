@@ -502,3 +502,66 @@ def test_producer_and_consumer_agree_on_the_decide_funnel_key_SET():
     # one game in, so every present exit is behind exactly one game -- and the counts are of GAMES, not steps
     assert set(pooled["exit_games"]) == set(pooled["exits"])
     assert set(pooled["exit_games"].values()) == {1}
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# ★★★ THE OUTCOME COLUMN: REACH IS NOT COMPETENCE. ★★★
+# The funnel above says WHICH exit answered. Last beat it said `dir_target_colour` answered 461 steps across twelve
+# games and pre-empts the Γ site on every one of them -- and nothing measured whether those answers were any good.
+# "Should Γ be reached more?" is unanswerable while the incumbent is unpriced, and the temptation to move the Γ
+# site earlier is exactly the calibration this project keeps refusing. So the incumbent gets priced first, by the
+# cheapest honest question available: did the board ANSWER the step that exit chose?
+# These tests pin the three ways that measurement could quietly lie: crediting an exit with a step whose action the
+# survival veto replaced, pricing a step across a segment boundary, and reading a ticking budget bar as an answer.
+# ---------------------------------------------------------------------------------------------------------------
+
+def test_the_outcome_column_CLOSES_against_the_exit_counts_and_a_frozen_board_reads_null():
+    """`exits == priced + veto-replaced + unpriced`, exactly, with the residue published rather than absorbed.
+    The synthetic board is IDENTICAL every step, so the honest reading is that nothing the agent did answered --
+    a column that reported motion here would be reporting the mask, or the frame counter, or nothing at all."""
+    from newhorse.redux_arch.receipt import summary
+    p = _drive(_policy(), 6)
+    assert sum(p._dec_attr.values()) + sum(p._dec_veto.values()) + p._dec_unattr == 5
+    assert p._pend_exit is not None                     # the sixth decision is still in flight, priced by nobody yet
+    p._close_segment("death")
+    f = summary(p.receipts)["decide_funnel"]
+    priced, vetoed, unpriced = sum(f["attr"].values()), sum(f["veto"].values()), f["unpriced"]
+    assert priced + vetoed + unpriced == sum(f["exits"].values()) == 6
+    assert unpriced == 1                                # exactly the in-flight decision, charged to its own segment
+    assert sum(f["moved"].values()) == 0 and sum(f["moved_raw"].values()) == 0
+    assert p._dec_attr == {} and p._dec_unattr == 0     # per-segment, like every other counter on the receipt
+
+
+def test_a_step_the_SURVIVAL_VETO_REPLACED_is_not_credited_to_the_exit_that_chose_it(monkeypatch):
+    """The veto runs in `choose`, AFTER the exit has already counted itself, and it is allowed to change the label.
+    The board change that follows is then the VETO's outcome, not the exit's. Crediting it either way -- as an
+    answer or as a null -- attributes one organ's result to another, which is the whole defect the funnel exists
+    to prevent, so those steps get their own bucket and leave the denominator."""
+    from newhorse.redux_arch.policy import ReduxPolicy
+    monkeypatch.setattr(ReduxPolicy, "_survival_veto", lambda self, lbl, data: ("A9", None))
+    p = _drive(_policy(), 5)
+    assert p._dec_attr == {}, p._dec_attr             # nothing priced: every emitted action was the veto's
+    assert sum(p._dec_veto.values()) == 4, p._dec_veto
+    assert sum(p._dec_exits.values()) == 5
+
+
+def test_a_board_that_CHANGES_reads_as_answered_and_the_name_comes_from_the_EXIT_not_the_label():
+    """The complement of the frozen case: when the board really does answer, the column says so, and it says so
+    under the exit's own literal name. `_pend_exit` is written by `_exit` at the return that takes it -- never
+    recomputed at attribution time from `self.family` or from the action that happened to be emitted."""
+    p = _policy()
+    p.frames = []
+    for i in range(8):
+        # ★ THE CHANGE MUST BE IN THE INTERIOR. A first version of this test flickered a 2x2 block in the top-left
+        # CORNER and read 6 of 7 -- because a ratcheting block flush with two edges is exactly what
+        # `monotone_band_mask` is built to strike out, so on the prefixes where the fill happened to be monotone
+        # the mask ate the change. That is the mask working, not the column failing; a synthetic answer has to sit
+        # where a budget bar cannot.
+        g = np.zeros((20, 20), dtype=int)
+        g[3, 3], g[3, 4] = 4, 5
+        g[9:11, 9:11] = i % 5 + 1                       # four interior cells, a new colour every step
+        p.observe(g, [1, 2, 3, 4], 0)
+        p.choose()
+    assert sum(p._dec_moved_raw.values()) == sum(p._dec_attr.values()) == 7
+    assert sum(p._dec_moved.values()) == 7              # four cells: at the MIN_CELLS floor, not under it
+    assert set(p._dec_attr) <= set(p._dec_exits)        # every priced name is an exit name, not an invented one

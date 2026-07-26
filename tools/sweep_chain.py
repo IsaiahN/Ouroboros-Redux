@@ -94,8 +94,26 @@ def main() -> None:
     _calls = int(dfn.get("calls", 0))
     if not dfx:
         print("  (no decisions recorded)")
+    # ★ REACH IS NOT COMPETENCE. `answered` prices each exit's steps: of the ones whose RESULT FRAME was seen and
+    # whose action the survival veto did not replace, on how many did the board actually change? MASKED is the
+    # reading that matters (the monotone budget/timer band is removed first); RAW is printed beside it because a
+    # raw-only column reads ~100% on any game with a ticking bar, and seeing the two apart is how you tell a
+    # responsive board from a ticking one. `unpriced` steps are excluded from the denominator, not scored as null.
+    dfa, dfm, dfr, dfv = ((dfn.get("attr") or {}), (dfn.get("moved") or {}),
+                          (dfn.get("moved_raw") or {}), (dfn.get("veto") or {}))
     for k, n in sorted(dfx.items(), key=lambda kv: (-kv[1], kv[0])):
-        print("    %-22s steps %7d (%5.1f%%)   games %3d" % (k, n, 100.0 * n / max(1, _calls), int(dfg.get(k, 0))))
+        _a = int(dfa.get(k, 0))
+        _pr = ("answered %5.1f%% masked / %5.1f%% raw  of %5d priced"
+               % (100.0 * int(dfm.get(k, 0)) / _a, 100.0 * int(dfr.get(k, 0)) / _a, _a)) if _a else \
+              "answered      --  (NOTHING PRICED)          "
+        print("    %-22s steps %7d (%5.1f%%)   games %3d   %s   veto %4d"
+              % (k, n, 100.0 * n / max(1, _calls), int(dfg.get(k, 0)), _pr, int(dfv.get(k, 0))))
+    _pa, _pv, _pu = sum(dfa.values()), sum(dfv.values()), int(dfn.get("unpriced", 0))
+    print("  priced=%d | veto-replaced=%d | unpriced=%d | exits=%d | RESIDUE=%d"
+          % (_pa, _pv, _pu, sum(dfx.values()), sum(dfx.values()) - _pa - _pv - _pu))
+    if sum(dfx.values()) - _pa - _pv - _pu:
+        print("  ★ THE OUTCOME COLUMN DOES NOT CLOSE against the exit counts. Do not read any `answered` number"
+              " until the residue is named.")
     print("  decide() calls=%d | exits counted=%d | UNCOUNTED=%d" % (_calls, sum(dfx.values()),
                                                                      int(dfn.get("uncounted", 0))))
     if int(dfn.get("uncounted", 0)):

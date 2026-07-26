@@ -240,8 +240,11 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     # `exit_games` sub-dict sums the per-game 1s, so the pooled report can say "this exit answered N steps across
     # M games" in one line. Pooling only the steps would rebuild the very artefact this beat is closing.
     dfun: Dict[str, int] = {}
-    dfun_exits: Dict[str, int] = {}
-    dfun_games: Dict[str, int] = {}
+    # ★ EVERY dict-valued sub-key of the funnel is pooled BY UNION, discovered from the data. The previous version
+    # named `exits` and `exit_games` explicitly, which is the fixed-key-list defect: the outcome column would have
+    # been silently dropped in pooling while the per-game summary carried it, and the sweep would have printed a
+    # believable zero. A producer/consumer key-SET test pins this.
+    dfun_sub: Dict[str, Dict[str, int]] = {}
     streams: Dict[str, Dict[str, Any]] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
@@ -270,10 +273,9 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
         df = e.get("decide_funnel") or {}
         for k, v in df.items():
             if isinstance(v, dict):
-                acc = dfun_exits if k == "exits" else (dfun_games if k == "exit_games" else None)
-                if acc is not None:
-                    for xk, xn in v.items():
-                        acc[xk] = acc.get(xk, 0) + int(xn)
+                acc = dfun_sub.setdefault(k, {})
+                for xk, xn in v.items():
+                    acc[xk] = acc.get(xk, 0) + int(xn)
                 continue
             if isinstance(v, bool) or not isinstance(v, int):
                 continue
@@ -318,8 +320,8 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
                           click_no_diff_reasons=dict(sorted(click_reasons.items())),
                           click_scan=dict(cscan),
                           dead_diff_stages=dict(sorted(dead_stages.items())),
-                          decide_funnel=dict(dfun, exits=dict(sorted(dfun_exits.items())),
-                                             exit_games=dict(sorted(dfun_games.items()))),
+                          decide_funnel=dict(dfun, **{k: dict(sorted(v.items()))
+                                                      for k, v in sorted(dfun_sub.items())}),
                           gamma_decision=dict(gdec, sign_report_by_game=dict(sorted(gsign.items())),
                                               sign_report_at_first_entry_by_game=dict(sorted(gentry.items())))),
                 games_reaching_L2=reach_l2,
