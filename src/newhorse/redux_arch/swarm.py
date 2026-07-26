@@ -226,10 +226,16 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     # THE DECISION SITE, pooled. Sums only, and `sign_report` is deliberately NOT summed -- it is a SNAPSHOT of one
     # shared library, so adding one game's view of Γ to another's would report a library of size 8 that never
     # existed. Kept per game instead, so a zero can be traced to the game whose Γ was empty.
-    gdec = {"segments_consulted": 0, "steps_reached": 0, "steps_noseam": 0, "steps_empty": 0,
-            "steps_consulted": 0, "steps_directed": 0, "unevaluable": 0,
-            "reuse_by_explains": 0, "reuse_by_directive": 0}
+    # ★ POOLED BY UNION, NOT BY A FIXED KEY LIST -- THE DEFECT CLASS, CLOSED AT THE PATTERN RATHER THAN AT ONE
+    # INSTANCE. This dict used to be seeded with a hardcoded key list and summed with `gd.get(k) or 0`, so any key
+    # the producer (`receipt.summary`) had not computed was silently rendered as a measured zero; that is exactly
+    # how `reuse_attempted: 0` got printed inside both streams beside a pooled total of 17. Taking the union means
+    # a key the producer stops emitting DISAPPEARS from the report -- visibly absent -- instead of appearing as a
+    # confident zero. `tests/test_gamma_directive.py` pins producer and consumer to the same key set.
+    gdec: Dict[str, int] = {}
     gsign: Dict[str, Dict[str, int]] = {}
+    gentry: Dict[str, Dict[str, int]] = {}
+    dead_stages: Dict[str, int] = {}
     streams: Dict[str, Dict[str, Any]] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
@@ -253,11 +259,17 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
         cs = e.get("click_scan") or {}
         for k in cscan:
             cscan[k] += int(cs.get(k) or 0)
+        for k, n in (e.get("dead_diff_stages") or {}).items():
+            dead_stages[k] = dead_stages.get(k, 0) + int(n)
         gd = e.get("gamma_decision") or {}
-        for k in gdec:
-            gdec[k] += int(gd.get(k) or 0)
+        for k, v in gd.items():
+            if isinstance(v, bool) or not isinstance(v, int):
+                continue                                  # `sign_report*` are SNAPSHOTS -- kept per game, never summed
+            gdec[k] = gdec.get(k, 0) + int(v)
         if gd.get("sign_report"):
             gsign[str(r.get("game") or len(gsign))] = dict(gd["sign_report"])
+        if gd.get("sign_report_at_first_entry"):
+            gentry[str(r.get("game") or len(gentry))] = dict(gd["sign_report_at_first_entry"])
         # PER-STREAM POOLING, SUMS ONLY, and the streams stay in separate buckets end to end (§5.3). Pooling them
         # into one total here would undo the whole point of tagging the receipt at the source.
         for sname, sv in (e.get("by_stream") or {}).items():
@@ -288,7 +300,9 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
                           no_diff_reasons=dict(sorted(reasons.items())), no_diff_scan=dict(scan),
                           click_no_diff_reasons=dict(sorted(click_reasons.items())),
                           click_scan=dict(cscan),
-                          gamma_decision=dict(gdec, sign_report_by_game=dict(sorted(gsign.items())))),
+                          dead_diff_stages=dict(sorted(dead_stages.items())),
+                          gamma_decision=dict(gdec, sign_report_by_game=dict(sorted(gsign.items())),
+                                              sign_report_at_first_entry_by_game=dict(sorted(gentry.items())))),
                 games_reaching_L2=reach_l2,
                 max_level_histogram=dict(sorted(lvl_hist.items())),
                 games_errored=errored,

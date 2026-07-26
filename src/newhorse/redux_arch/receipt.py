@@ -158,6 +158,15 @@ class ResidualEvent:
     gamma_reached: int = 0                # steps at which `_gamma_directive` was entered at all
     gamma_noseam: int = 0                 # ...and returned early: no calibrated cursor / vectors / frames
     gamma_empty: int = 0                  # ...and Γ (for THIS game) had no signed directive to offer
+    # ★ A FOURTH WAY, FOUND INSIDE THE FIX FOR THE OTHER THREE. `echo.directives` is wrapped in a bare `except`
+    # so Γ can never sink a run, and that path used to increment `gamma_empty` -- so a library RAISING on every
+    # call was indistinguishable from a library with nothing to say. Same shape, one layer in.
+    gamma_error: int = 0                  # ...and `echo.directives` raised (swallowed; a BROKEN Γ, not an empty one)
+    # ★ Γ AS SEEN AT THE MOMENT OF CONSULT, beside `gamma_sign_report` (segment CLOSE). The pair is the only thing
+    # that can say whether a signed directive existed WHILE the site was being entered or only arrived afterwards.
+    # Entry-empty + close-signed = Γ warmed up too late to be used. Entry-signed + `gamma_empty > 0` = the guard
+    # and `sign_report` disagree, which would be a defect and must be chased, not reported as a capability.
+    gamma_sign_report_at_entry: Dict[str, int] = field(default_factory=dict)
     # the mint
     minted: bool = False
     minted_phi: Optional[str] = None
@@ -183,6 +192,12 @@ class ResidualEvent:
     # the close
     cleared: bool = False
     stage: Optional[str] = None
+    # ★ THE SEGMENT'S OTHER EVIDENCE. `stage` comes from the LEDGER's `diff_ran`; this receipt's `diff_ran` comes
+    # from whether the transition/click residual ran on THIS break event. They are two different diffs, and the
+    # §3.5 boundary diff at a level advance sets the ledger's bit inside the NEW segment while filing no receipt
+    # of its own -- so a receipt can honestly read `diff_ran=False` on a segment the ledger scored past
+    # DIED_PRE_DIFF. Set from the boundary's own call site so the reconciliation is a reading, not an inference.
+    boundary_diff_ran: bool = False
 
     @property
     def fired(self) -> bool:
@@ -318,8 +333,23 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     for e in evs:
         if not e.diff_ran and e.click_no_diff_reason:
             click_reasons[e.click_no_diff_reason] = click_reasons.get(e.click_no_diff_reason, 0) + 1
+    # ★ THE OPEN DENOMINATOR CANDIDATE, TURNED INTO A COUNT. R_τ reported 25 break events and 19 with `diff_ran`,
+    # so 6 receipts had a dead diff -- while `DIED_PRE_DIFF` was 4. The exact check, written before the number was
+    # known: for every receipt with `diff_ran == False`, what stage did the LEDGER score? Anything other than
+    # DIED_PRE_DIFF or unscored means the ledger saw a diff this receipt did not, and `boundary_diff_ran` says
+    # whether the §3.5 boundary diff is the one that supplied it. Recording the split is DIAGNOSIS: if the
+    # boundary column does not account for the whole remainder, the leftover is a different, unexplained finding
+    # and must be published as one rather than absorbed into this explanation.
+    dead = [e for e in evs if not e.diff_ran]
+    dead_stages: Dict[str, int] = {}
+    for e in dead:
+        k = e.stage or "(unscored)"
+        if k not in ("DIED_PRE_DIFF", "(unscored)"):
+            k = "%s|boundary_diff=%s" % (k, "yes" if e.boundary_diff_ran else "NO")
+        dead_stages[k] = dead_stages.get(k, 0) + 1
     return dict(minted_keys={k: sorted(v) for k, v in sorted(minted_keys.items())},
                 break_events=len(evs),
+                dead_diff_stages=dict(sorted(dead_stages.items())),
                 # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
                 # second stream arriving can never be read as the first one getting better -- the top-level totals
                 # below are a convenience, and this is the number that carries the claim.
@@ -355,9 +385,24 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                     steps_reached=sum(e.gamma_reached for e in evs),
                     steps_noseam=sum(e.gamma_noseam for e in evs),
                     steps_empty=sum(e.gamma_empty for e in evs),
+                    steps_error=sum(e.gamma_error for e in evs),
                     steps_consulted=sum(e.gamma_consulted for e in evs),
                     steps_directed=sum(e.gamma_actions for e in evs),
                     unevaluable=sum(e.gamma_unevaluable for e in evs),
+                    # ★ ENTRY vs CLOSE. `sign_report` below is the LAST segment's view of Γ; these three read the
+                    # view captured AT THE MOMENT THE SITE WAS ENTERED. A run whose end-of-run snapshot shows a
+                    # signed directive while `entered_gamma_signed` is 0 means Γ warmed up AFTER the site stopped
+                    # being entered -- a capability finding about timing, not a broken guard. A non-zero
+                    # `entry_close_contradiction` means the opposite: Γ was signed at entry and the guard still
+                    # took the empty branch, which is a DEFECT and must be chased before anything else here is read.
+                    segments_entered=sum(1 for e in evs if e.gamma_reached),
+                    segments_entered_gamma_signed=sum(
+                        1 for e in evs if e.gamma_reached
+                        and int((e.gamma_sign_report_at_entry or {}).get("signed_at_2_families", 0)) > 0),
+                    entry_close_contradiction=sum(
+                        1 for e in evs if e.gamma_empty
+                        and int((e.gamma_sign_report_at_entry or {}).get("signed_at_2_families", 0)) > 0),
+                    sign_report_at_first_entry=_first_entry_report(evs),
                     reuse_by_explains=sum(1 for e in evs if (e.reuse_source or "").startswith("explains")),
                     reuse_by_directive=sum(1 for e in evs if "directive" in (e.reuse_source or "")),
                     sign_report=_last_sign_report(evs)),
@@ -404,6 +449,16 @@ def _by_stream(evs: List[ResidualEvent]) -> Dict[str, Any]:
                       cleared=sum(1 for e in sub if e.cleared),
                       stages=dict(sorted(stages.items())))
     return out
+
+
+def _first_entry_report(evs: List[ResidualEvent]) -> Dict[str, int]:
+    """Γ as seen the FIRST time the decision site was entered in this run -- the earliest snapshot, deliberately not
+    a sum, for the same reason `_last_sign_report` is not one. Read as a PAIR with that function: earliest vs
+    latest is what turns "Γ had nothing" from a silence into a statement about WHEN it had nothing."""
+    for e in list(evs or []):
+        if e.gamma_sign_report_at_entry:
+            return dict(e.gamma_sign_report_at_entry)
+    return {}
 
 
 def _last_sign_report(evs: List[ResidualEvent]) -> Dict[str, int]:

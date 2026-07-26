@@ -300,10 +300,25 @@ class ReduxPolicy:
         self._g_reached = 0                               # times `_gamma_directive` was entered at all
         self._g_noseam = 0                                # ...and returned early: no calibrated cursor / vectors
         self._g_empty = 0                                 # ...and Γ had no signed directive to offer
+        # ★ A FIFTH, ADDED THE BEAT AFTER THE FOUR -- BECAUSE `_g_empty` WAS ITSELF AMBIGUOUS. The `except
+        # Exception` guard around `echo.directives` (Γ must never sink a run) incremented the SAME counter as the
+        # honest `if not dirs` path, so a library raising on every call and a library with nothing to say printed
+        # the identical number. That is the exact defect these counters were added to close, sitting inside the
+        # close. A swallowed exception is a BROKEN Γ; an empty offer is a WORKING Γ with no evidence yet.
+        self._g_error = 0                                 # ...and `echo.directives` RAISED (swallowed, never silent)
         self._g_consult = 0                               # steps where Γ had >=1 signed directive to offer
         self._g_dirs = 0                                  # how many it had, at the last such step
         self._g_act = 0                                   # steps where a directive actually chose the action
         self._g_uneval = 0                                # candidate actions the live seam could not build a ctx for
+        # ★ Γ'S STATE AT THE MOMENT OF CONSULT, NOT ONLY AT SEGMENT CLOSE. The first sweep of the funnel reported
+        # `Γ had nothing for this game=18` beside an END-OF-RUN snapshot showing eight games with one signed
+        # directive available -- and the close-time snapshot cannot tell whether the sign ARRIVED AFTER the site
+        # was entered (Γ warms up too late to be used, a capability finding) or was already there and the guard
+        # disagreed with `sign_report` (a defect). Both readings fit the same pair of numbers, so the pair is not
+        # a measurement. Captured at the FIRST entry of each segment only: it is a snapshot of a shared library,
+        # and one per step would be the same library counted many times.
+        self._g_entry_report: Dict[str, int] = {}
+        self._seg_boundary_diff = False                   # the §3.5 boundary diff ran INSIDE this segment (see below)
         self._levels: List[int] = []                    # per-frame levels_completed (reward stream for goal abduction)
         self.abduced: List[Dict[str, Any]] = []         # goal mints attempted at reward boundaries (gated)
         # learned organ params
@@ -878,6 +893,7 @@ class ReduxPolicy:
         st = self.chain.end_segment(reason)
         if ev is not None:
             ev.stage = None if st is None else st.name
+            ev.boundary_diff_ran = bool(self._seg_boundary_diff)
             # THE DECISION SITE's segment tally lands on the SAME receipt that carries the segment's stage, so a
             # lifted stage and the organ that lifted it are always read off one row. `reuse_source` is composed
             # here rather than at either call site because BOTH organs write the same ledger signal, and a signal
@@ -886,7 +902,8 @@ class ReduxPolicy:
             ev.gamma_consulted, ev.gamma_directives = int(self._g_consult), int(self._g_dirs)
             ev.gamma_actions, ev.gamma_unevaluable = int(self._g_act), int(self._g_uneval)
             ev.gamma_reached, ev.gamma_noseam = int(self._g_reached), int(self._g_noseam)
-            ev.gamma_empty = int(self._g_empty)
+            ev.gamma_empty, ev.gamma_error = int(self._g_empty), int(self._g_error)
+            ev.gamma_sign_report_at_entry = dict(self._g_entry_report)
             src = ([] if not ev.transferred else ["explains"]) + ([] if not self._g_act else ["directive"])
             ev.reuse_source = "+".join(src) or None
             try:
@@ -896,7 +913,9 @@ class ReduxPolicy:
         # zeroed whether or not a receipt was filed: an EMPTY segment files none, and carrying its tally into the
         # next segment would attribute a directive to a segment that did not take it.
         self._g_consult = self._g_dirs = self._g_act = self._g_uneval = 0
-        self._g_reached = self._g_noseam = self._g_empty = 0
+        self._g_reached = self._g_noseam = self._g_empty = self._g_error = 0
+        self._g_entry_report = {}
+        self._seg_boundary_diff = False
         self._seg_n += 1
         self._seg0 = max(0, len(self.frames) - 1) if reason == "advance" else len(self.frames)
 
@@ -981,6 +1000,14 @@ class ReduxPolicy:
         # the §3.5 boundary diff RAN for the new segment. The residual is non-empty exactly when the transferred model
         # fails to account for the graduated environment: identities appeared/vanished, or the control set rebound.
         self.chain.note_diff(residual_nonempty=bool(novel or gone or self.boundary.rebinding))
+        # ★ THE SEGMENT'S OTHER EVIDENCE, NAMED. `_close_segment("advance")` ran ABOVE, so this `note_diff` lands
+        # in the NEW segment's ledger -- and that segment's own break-event receipt will still say
+        # `diff_ran=False` if the transition/click residual never ran on it. Two DIFFERENT diffs, one ledger bit:
+        # the open denominator candidate (R_τ had 6 receipts with a dead diff but only 4 DIED_PRE_DIFF) is exactly
+        # that shape. This flag is set at the REAL call site so the receipt can SAY the boundary diff supplied the
+        # segment's `diff_ran`, instead of the reader inferring it. Recording it is not endorsing it: if the two
+        # numbers still do not reconcile with this on the record, the remainder is a different finding.
+        self._seg_boundary_diff = True
         self.novel_loci = list(novel)                           # the new actors -> exploration/empowerment targets
         self.quarantine.tick()                                  # PARK decay: unresolved residuals age out
 
@@ -1232,13 +1259,18 @@ class ReduxPolicy:
         of its own. A first wiring that could override a confirmed relation target would make any change in
         outcome unattributable between the two."""
         self._g_reached += 1
+        if not self._g_entry_report:
+            try:                                            # Γ's state AS SEEN HERE, once per segment (see __init__)
+                self._g_entry_report = dict(self.echo.sign_report(self.game_id))
+            except Exception:
+                self._g_entry_report = {}
         if self.cursor is None or not self.vecs or not self.frames:
             self._g_noseam += 1
             return None
         try:
             dirs = self.echo.directives(self.game_id)
         except Exception:
-            self._g_empty += 1
+            self._g_error += 1                              # BROKEN, not empty -- counted apart (see __init__)
             return None                                     # Γ must never sink a run
         if not dirs:
             self._g_empty += 1

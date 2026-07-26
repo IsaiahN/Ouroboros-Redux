@@ -62,6 +62,26 @@ def main() -> None:
     print("\n=== POOLED TETHER-STAGE DISTRIBUTION ===")
     print(json.dumps(res.get("tether_chain"), indent=2, sort_keys=True))
 
+    # ★ THE OPEN DENOMINATOR, GIVEN A COLUMN. Last sweep R_τ filed 25 break events of which 19 had `diff_ran`, so
+    # SIX receipts had a dead diff -- but only FOUR segments scored `DIED_PRE_DIFF`. Two counts of the same thing
+    # that do not agree is not a mystery to narrate, it is a missing column. There are two different diffs: the
+    # receipt's bit is whether the transition/click residual ran on THIS break event, the ledger's bit can also be
+    # set by the §3.5 boundary diff at a level advance, which files NO receipt of its own and lands in the NEXT
+    # segment. `boundary_diff=yes` is that case, on the record from the boundary's own call site. A row keyed
+    # `...|boundary_diff=NO` is a dead-diff receipt on a segment the ledger scored past DIED_PRE_DIFF with NOTHING
+    # accounting for it -- that remainder is a DIFFERENT, unexplained finding and must be published as one, not
+    # absorbed into this explanation.
+    dds = (res.get("tether_chain") or {}).get("echo", {}).get("dead_diff_stages") or {}
+    print("\n=== DEAD-DIFF RECEIPTS BY LEDGER STAGE ===")
+    if not dds:
+        print("  (none: every break-event receipt had its own diff)")
+    for k, n in sorted(dds.items()):
+        print("    %-40s %d" % (k, n))
+    _unex = sum(n for k, n in dds.items() if k.endswith("boundary_diff=NO"))
+    if _unex:
+        print("  ★ %d dead-diff receipt(s) on segments the ledger scored past DIED_PRE_DIFF with NO boundary diff"
+              " to account for them. UNEXPLAINED -- do not fold this into the boundary story." % _unex)
+
     # DIRECTIVE 5: a firing is a RECEIPT, not a claim. Every transfer is rendered in full, with its echo KIND and
     # the caveat that a within-game echo is a weaker claim than a cross-game one. No receipt => it did not fire.
     print("\n=== FIRING RECEIPTS ===")
@@ -113,13 +133,56 @@ def main() -> None:
     # whether the site was never reached, reached without a seam, or reached and offered nothing. Three different
     # findings, three different fixes. Each line below is counted at its own guard inside `_gamma_directive`.
     print("  FUNNEL: site reached=%d -> of those, no calibrated seam=%d | Γ had nothing for this game=%d |"
-          " Γ had advice=%d"
+          " Γ RAISED=%d | Γ had advice=%d"
           % (int(gd.get("steps_reached", 0)), int(gd.get("steps_noseam", 0)), int(gd.get("steps_empty", 0)),
-             int(gd.get("steps_consulted", 0))))
+             int(gd.get("steps_error", 0)), int(gd.get("steps_consulted", 0))))
     print("  segments where Γ had advice=%d | steps DIRECTED BY Γ=%d | candidates the seam could not evaluate=%d"
           % (int(gd.get("segments_consulted", 0)), int(gd.get("steps_directed", 0)),
              int(gd.get("unevaluable", 0))))
     _r, _n, _e, _c = (int(gd.get(k, 0)) for k in ("steps_reached", "steps_noseam", "steps_empty", "steps_consulted"))
+    _err = int(gd.get("steps_error", 0))
+    # ★ NOT FOLDED INTO `_e`. The first draft of this block wrote `_e += _err` so the identity below would still
+    # close -- and that made the warning line print a number labelled `empty` that silently contained the raised
+    # count. A field that was never that thing, printed under that thing's name, IS a mis-labelled receipt: the
+    # exact defect this whole beat exists to close, reappearing inside the printer for the fix. The identity is
+    # widened to carry `raised` as its own term instead.
+
+    # ★ THE POOLED FUNNEL IS ITSELF AN AMBIGUOUS NUMBER, AND THIS IS THE ROW THAT CLOSES IT. Last sweep printed
+    # `Γ had nothing for this game=18` beside an end-of-run snapshot showing EIGHT games with one signed directive
+    # available -- but the 18 was pooled over 25 games, so it could not say whether the entered games were the
+    # signed ones at all. Three states, three fixes: the signed games never entered the site (pooling artefact);
+    # they entered BEFORE the sign existed (Γ warms up too late -- a timing finding); or they entered with the
+    # sign already there and the guard still refused (a DEFECT). One row per game, entry snapshot beside close
+    # snapshot, says which. `signed@entry`/`signed@close` are `signed_at_2_families` -- the same bar the guard uses.
+    print("\n  PER GAME -- who entered the site, and what Γ had for them WHEN (blank rows omitted):")
+    print("    %-18s %7s %7s %6s %6s %7s   %11s %11s" % ("game", "reached", "noseam", "empty", "raised",
+                                                         "advice", "signed@entry", "signed@close"))
+    _rows = 0
+    for gid in sorted(res["results"]):
+        g = ((res["results"][gid].get("echo") or {}).get("gamma_decision") or {})
+        ent = int((g.get("sign_report_at_first_entry") or {}).get("signed_at_2_families", 0))
+        clo = int((g.get("sign_report") or {}).get("signed_at_2_families", 0))
+        if not (int(g.get("steps_reached", 0)) or ent or clo):
+            continue
+        _rows += 1
+        print("    %-18s %7d %7d %6d %6d %7d   %11d %11d"
+              % (gid, int(g.get("steps_reached", 0)), int(g.get("steps_noseam", 0)), int(g.get("steps_empty", 0)),
+                 int(g.get("steps_error", 0)), int(g.get("steps_consulted", 0)), ent, clo))
+    if not _rows:
+        print("    (no game entered the decision site and none ended with a signed directive)")
+    _ents, _entered = int(gd.get("segments_entered_gamma_signed", 0)), int(gd.get("segments_entered", 0))
+    _contra = int(gd.get("entry_close_contradiction", 0))
+    print("  segments that entered the site=%d | of those, Γ ALREADY SIGNED at entry=%d" % (_entered, _ents))
+    if _contra:
+        print("  ★ DEFECT: %d segments had a signed directive AT ENTRY and still took the empty branch. The guard"
+              " and `sign_report` disagree. CHASE THIS BEFORE READING ANYTHING ELSE HERE." % _contra)
+    elif _entered and not _ents:
+        print("  READS AS: every entry happened while Γ was UNSIGNED for that game. Any signed directive visible in"
+              " the end-of-run snapshot arrived AFTER the site stopped being entered -- a TIMING finding about how"
+              " late Γ warms up, NOT a broken guard and NOT a wrong sign bar.")
+    if _err:
+        print("  ★ Γ RAISED on %d steps -- a BROKEN library, not an empty one. This is swallowed by design so a"
+              " run never dies; it must never be read as 'Γ had nothing'." % _err)
     if _r == 0:
         print("  READS AS: the decision site was NEVER ENTERED. Nothing here is a statement about Γ -- look at the"
               " caller (`_act_directional`), not at the library.")
@@ -129,9 +192,9 @@ def main() -> None:
     elif _c == 0:
         print("  READS AS: entered %d times with a live seam on %d of them, and Γ offered a signed directive on"
               " NONE. This is the sign bar, working as measured." % (_r, _r - _n))
-    if _r != _n + _e + _c:
-        print("  ARITHMETIC WARNING: reached(%d) != noseam(%d)+empty(%d)+advice(%d). A guard is uncounted."
-              % (_r, _n, _e, _c))
+    if _r != _n + _e + _err + _c:
+        print("  ARITHMETIC WARNING: reached(%d) != noseam(%d)+empty(%d)+raised(%d)+advice(%d). A guard is"
+              " uncounted." % (_r, _n, _e, _err, _c))
     print("  reuse signal authored by: explains=%d | directive=%d   (never one number: both write the same ledger"
           " bit)" % (int(gd.get("reuse_by_explains", 0)), int(gd.get("reuse_by_directive", 0))))
     for g, sr in sorted((gd.get("sign_report_by_game") or {}).items()):

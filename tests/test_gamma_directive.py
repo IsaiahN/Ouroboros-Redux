@@ -215,8 +215,9 @@ def test_the_three_ways_a_zero_can_happen_are_distinguishable():
         p.chain.note_step()
         p._close_segment("death")
         ev = p.receipts[-1]
-        assert ev.gamma_reached == ev.gamma_noseam + ev.gamma_empty + ev.gamma_consulted == 1
-        assert (p._g_reached, p._g_noseam, p._g_empty) == (0, 0, 0)         # zeroed with the segment
+        assert (ev.gamma_reached
+                == ev.gamma_noseam + ev.gamma_empty + ev.gamma_error + ev.gamma_consulted == 1)
+        assert (p._g_reached, p._g_noseam, p._g_empty, p._g_error) == (0, 0, 0, 0)   # zeroed with the segment
 
     s = summary([p.receipts[-1] for p in (noseam, empty, advised)])["gamma_decision"]
     assert (s["steps_reached"], s["steps_noseam"], s["steps_empty"], s["steps_consulted"]) == (3, 1, 1, 1)
@@ -232,3 +233,129 @@ def test_directives_are_last_resort_and_never_override_an_earned_drive():
     assert src.index("_gamma_directive") > src.index("_relation_selected")
     assert src.index("_gamma_directive") > src.index("target_colour")
     assert src.index("_gamma_directive") < src.index("self._explore(")
+
+
+def test_a_raising_gamma_is_counted_apart_from_an_empty_one(monkeypatch):
+    """★ THE FOURTH WAY, FOUND INSIDE THE FIX FOR THE OTHER THREE.
+
+    `echo.directives` is wrapped in a bare `except` so a broken library can never sink a run. That guard used to
+    increment the SAME counter as the honest `if not dirs` path -- so a Γ RAISING on every call and a Γ with
+    nothing to say printed the identical number. A library that is broken and a library that is working but has
+    no evidence yet need opposite fixes, and the counters that exist to separate exactly that were themselves
+    conflating it. The swallow must stay (a run must not die on Γ) and the COUNT must split."""
+    p = _policy()
+    _sign_gamma(p, +1)
+
+    def _boom(_gid):
+        raise RuntimeError("Γ is broken")
+
+    # `monkeypatch`, NOT a bare attribute set. Γ is a PROCESS-WIDE singleton (`policy.SHARED_ECHO`) and
+    # conftest's autouse fixture calls `reset()`, which clears the library's DATA and not a patched METHOD -- so
+    # the first draft of this test left every later test in the file running against a Γ that raised, and two of
+    # them failed for a reason that had nothing to do with what they were pinning. The singleton bites the tests
+    # the same way it bites the runs.
+    monkeypatch.setattr(p.echo, "directives", _boom)
+    assert p._gamma_directive(["A4", "A1"]) is None             # swallowed: the run survives
+    assert (p._g_reached, p._g_error, p._g_empty, p._g_consult) == (1, 1, 0, 0)
+    p.chain.note_step()
+    p._close_segment("death")
+    ev = p.receipts[-1]
+    assert ev.gamma_error == 1 and ev.gamma_empty == 0
+    assert ev.gamma_reached == ev.gamma_noseam + ev.gamma_empty + ev.gamma_error + ev.gamma_consulted == 1
+    from newhorse.redux_arch.receipt import summary
+    s = summary(p.receipts)["gamma_decision"]
+    assert s["steps_error"] == 1 and s["steps_empty"] == 0
+
+
+def test_gamma_is_snapshotted_at_ENTRY_as_well_as_at_CLOSE():
+    """★ WHEN Γ HAD NOTHING, not just THAT it had nothing.
+
+    The sweep printed `Γ had nothing for this game=18` beside an END-OF-RUN snapshot showing eight games with a
+    signed directive available. Two readings fit that pair and need opposite work: the sign ARRIVED AFTER the
+    site stopped being entered (Γ warms up too late -- a timing finding about capability), or it was already
+    there and the guard refused it anyway (a defect). A close-time snapshot alone cannot tell them apart, so it
+    is not a measurement. This pins the entry snapshot as the earlier of the pair."""
+    from newhorse.redux_arch.receipt import summary
+    p = _policy()
+    assert p._gamma_directive(["A4", "A1"]) is None             # entered while Γ was empty
+    _sign_gamma(p, +1)                                          # ...Γ warms up only AFTERWARDS
+    p.chain.note_step()
+    p._close_segment("death")
+    ev = p.receipts[-1]
+    assert ev.gamma_sign_report_at_entry["signed_at_2_families"] == 0
+    assert ev.gamma_sign_report["signed_at_2_families"] == 1     # the close-time view, contradicting nothing
+    s = summary(p.receipts)["gamma_decision"]
+    assert s["segments_entered"] == 1
+    assert s["segments_entered_gamma_signed"] == 0               # READS AS: a TIMING finding, not a broken guard
+    assert s["entry_close_contradiction"] == 0
+    assert s["sign_report_at_first_entry"]["signed_at_2_families"] == 0
+
+
+def test_the_entry_close_contradiction_detector_can_actually_fire():
+    """A detector that has never been seen to fire is a detector that might be dead. The live path above cannot
+    produce this state (that is the point), so it is constructed directly: a segment that took the EMPTY branch
+    while its own entry snapshot said Γ was signed. If that is ever real it is a DEFECT in the guard, and the
+    sweep must say so loudly rather than reporting it as a capability."""
+    from newhorse.redux_arch.receipt import ResidualEvent, summary
+    ev = ResidualEvent(game="cc33-cccc", gamma_reached=1, gamma_empty=1,
+                       gamma_sign_report_at_entry={"signed_at_2_families": 1})
+    s = summary([ev])["gamma_decision"]
+    assert s["entry_close_contradiction"] == 1
+    assert s["segments_entered_gamma_signed"] == 1
+
+
+def test_a_dead_diff_receipt_is_keyed_by_whether_a_BOUNDARY_diff_explains_it():
+    """★ THE OPEN DENOMINATOR, AS A COLUMN RATHER THAN A STORY.
+
+    R_tau filed 25 break events with 19 `diff_ran` -- six dead -- beside only four DIED_PRE_DIFF segments. There
+    are two different diffs: this receipt's bit is whether the transition/click residual ran on THIS break event,
+    while the LEDGER's bit can also be set by the §3.5 boundary diff at a level advance, which files no receipt
+    of its own and lands in the NEXT segment. `boundary_diff_ran` is set from that boundary's own call site, so
+    the reconciliation is a reading. A `boundary_diff=NO` row is the part that is still UNEXPLAINED and must be
+    published as its own finding rather than absorbed."""
+    from newhorse.redux_arch.receipt import ResidualEvent, summary
+    evs = [ResidualEvent(game="g", diff_ran=False, stage="DIED_PRE_DIFF"),
+           ResidualEvent(game="g", diff_ran=False, stage="MINT_UNFIRED", boundary_diff_ran=True),
+           ResidualEvent(game="g", diff_ran=False, stage="MINT_UNFIRED", boundary_diff_ran=False),
+           ResidualEvent(game="g", diff_ran=True, stage="MINT_UNFIRED")]
+    dds = summary(evs)["dead_diff_stages"]
+    assert dds == {"DIED_PRE_DIFF": 1, "MINT_UNFIRED|boundary_diff=yes": 1, "MINT_UNFIRED|boundary_diff=NO": 1}
+    assert sum(dds.values()) == 3                                # the live-diff receipt is not in this histogram
+
+
+def test_the_boundary_diff_flag_is_set_at_the_boundarys_own_call_site():
+    """DIRECTIVE 1, applied to the flag itself: it must be written where the boundary diff actually runs, not
+    inferred by the reader from `reason == "advance"`. Pinning the call site is what stops the next beat from
+    'simplifying' it into a derivation -- which is how the old proxy lied."""
+    import inspect
+    from newhorse.redux_arch import policy as _p
+    src = inspect.getsource(_p.ReduxPolicy._on_level_change)
+    assert "self._seg_boundary_diff = True" in src
+    assert src.index("note_diff") < src.index("self._seg_boundary_diff = True")
+
+
+def test_producer_and_consumer_agree_on_the_gamma_key_SET():
+    """★ THE DEFECT CLASS, PINNED STRUCTURALLY -- not one instance of it.
+
+    `swarm.echo_pool` used to seed its pooled gamma dict from a HARDCODED key list and sum with `gd.get(k) or 0`,
+    so any key the producer (`receipt.summary`) had not computed was rendered as a confident measured zero. That
+    is how `reuse_attempted: 0` got printed inside both streams beside a pooled total of 17. Union pooling means a
+    dropped key goes VISIBLY ABSENT instead. This test is the guard that keeps the two sides in step: a new
+    counter added to the producer and forgotten in the consumer, or vice versa, fails here rather than in a sweep
+    printout six hours later."""
+    from newhorse.redux_arch.receipt import summary
+    from newhorse.redux_arch.swarm import echo_pool
+    p = _policy()
+    _sign_gamma(p, +1)
+    p.chain.note_step()
+    p._gamma_directive(["A4", "A1"])
+    p._close_segment("death")
+    prod = summary(p.receipts)["gamma_decision"]
+    pooled = echo_pool({"cc33-cccc": {"game": "cc33-cccc", "echo": summary(p.receipts),
+                                      "tether_stage": {}, "levels": 1}})["echo"]["gamma_decision"]
+    snap = {"sign_report", "sign_report_at_first_entry",
+            "sign_report_by_game", "sign_report_at_first_entry_by_game"}
+    assert set(prod) - snap == set(pooled) - snap
+    assert set(prod) & snap                                      # the snapshots exist on the producer side...
+    assert "sign_report_by_game" in pooled                       # ...and cross as PER-GAME views, never summed
+    assert pooled["steps_directed"] == prod["steps_directed"] == 1
