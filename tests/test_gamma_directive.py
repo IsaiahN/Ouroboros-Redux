@@ -609,6 +609,28 @@ def test_every_pooled_funnel_rate_can_be_SPLIT_BY_GAME_and_the_split_sums_back_t
         assert re_pooled == df[sub], (sub, re_pooled, df[sub])
 
 
+def test_the_per_game_split_sums_to_CALLS_and_not_merely_to_the_pooled_exits():
+    """THE IDENTITY THE 2026-07-30 `calls` DISCHARGE RESTS ON, and the one the test above does NOT cover.
+
+    The test above proves the members re-pool to `decide_funnel["exits"]`. That is a weaker statement than the
+    one the discharge used. The attribution that closed the `calls` question read the per-game step column out of
+    the members block, summed it, and compared it to the pooled `decide() calls` line -- and got equality on all
+    nine saved sweeps. If `calls` could ever exceed the per-game sum (an entry to `_decide` on a game that never
+    reaches the carry, say), then the members block would be a SUBSET wearing the pool's name, the summed column
+    would be a floor rather than the total, and every per-game step count cited in
+    FINDINGS_closing_the_calls_question would be an under-count of unknown size.
+
+    So the identity is asserted at the per-game level directly: sum over games of sum over exits == calls, with
+    NO residue. This is the receipt-protection guard for the discharge, not a new claim about the agent -- if a
+    future refactor introduces a `_decide` entry that the per-game carry drops, this fails here rather than
+    silently turning a published attribution into a floor."""
+    ech = _pool_two_games(na=4, nb=7)
+    byg, df = ech["decide_funnel_by_game"], ech["decide_funnel"]
+    per_game_steps = sum(int(sv.get("exits", 0)) for xs in byg.values() for sv in xs.values())
+    assert per_game_steps == df["calls"] == 11, (per_game_steps, df["calls"])
+    assert df["uncounted"] == 0
+
+
 def test_the_split_actually_DISTINGUISHES_the_games_rather_than_collapsing_them():
     """The failure mode this whole beat exists to prevent is a split that is really the pool wearing a game's
     name. The two games are driven a DIFFERENT number of steps, so a collapsed carry -- one that keyed everything
