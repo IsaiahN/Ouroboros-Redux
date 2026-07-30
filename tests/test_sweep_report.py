@@ -351,3 +351,75 @@ def test_the_two_region_cases_are_told_APART_in_ONE_sweep():
     assert "REGION-CONDITIONAL" in reg, reg
     assert "CONSISTENT WITH SELF-MOTION" in reg, reg
     assert "RESIDUE=0" in reg, reg
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# THE OFFER GATE. The block that turns "REUSE_UNWIRED" from a name into a bounded statement about ORDER.
+# ----------------------------------------------------------------------------------------------------------------
+def _gated(gid, n, rows, promoted=0):
+    """A real run whose receipts are then stamped with the gate rows the ledger would have written. The RUN is
+    real (so `summary()` sees genuine receipts and the opportunity denominator is real); only the gate tally is
+    placed by hand, because reaching the live guard needs a promoted library and a non-empty residual on a
+    synthetic board, and a printer test that has to arrange a promotion is testing the promoter."""
+    import dataclasses
+    p = _run(gid, n, ("A1",))
+    # A real run closes ONE segment, and a gate block with a single row cannot show two offers seeing different
+    # libraries -- which is the whole question. The extra rows are COPIES of the real receipt with their own
+    # segment/task ids, never hand-built dicts: the shape stays whatever the receipt actually is.
+    while len(p.receipts) < len(rows):
+        k = len(p.receipts)
+        p.receipts.append(dataclasses.replace(p.receipts[-1], segment=k, task_id="%s:%d" % (gid, k)))
+    for ev, (lit, size, stage) in zip(p.receipts, rows):
+        ev.diff_ran, ev.residual_nonempty, ev.stage = True, True, stage
+        ev.offer_gate, ev.gamma_at_offer = {lit: 1}, {str(size): 1}
+    for ev in p.receipts[:promoted]:
+        ev.promoted = True
+    return p
+
+
+def test_the_offer_gate_block_renders_and_CLOSES():
+    out = _section(_render(_res(aa11=_gated("aa11-aaaa", _N,
+                                            [("skipped_gamma_empty", 0, "REUSE_UNWIRED"),
+                                             ("offered", 2, "MINTED_UNUSED")], promoted=1))),
+                   "=== THE OFFER GATE")
+    assert "RESIDUE=0" in out, out
+    assert "UPPER BOUND ON ORDER-DEPENDENT SEGMENTS" in out, out
+    assert "REUSE_UNWIRED|skipped_gamma_empty" in out, out
+
+
+def test_the_offer_gate_block_EVALUATES_the_pre_registered_prediction():
+    """The prediction is evaluated by the printer from the counts, not by prose afterwards. A run that promoted
+    something and whose offers saw Γ both empty and non-empty is the case the prediction names."""
+    out = _section(_render(_res(aa11=_gated("aa11-aaaa", _N,
+                                            [("skipped_gamma_empty", 0, "REUSE_UNWIRED"),
+                                             ("offered", 2, "MINTED_UNUSED")], promoted=1))),
+                   "=== THE OFFER GATE")
+    assert "PREDICTION HELD" in out, out
+
+
+def test_a_sweep_that_promoted_NOTHING_is_refused_the_bound_rather_than_given_a_race_reading():
+    """With an empty library there is no order for an outcome to depend on, so an all-zero size column is
+    arithmetic, not evidence of a race. The printer has to say which of the two it is looking at."""
+    out = _section(_render(_res(aa11=_gated("aa11-aaaa", _N,
+                                            [("skipped_gamma_empty", 0, "REUSE_UNWIRED"),
+                                             ("skipped_gamma_empty", 0, "REUSE_UNWIRED")]))),
+                   "=== THE OFFER GATE")
+    assert "NOTHING WAS PROMOTED" in out and "Do not cite the bound" in out, out
+    assert "PREDICTION HELD" not in out, out
+
+
+def test_a_warm_library_is_rendered_as_NO_order_effect_rather_than_as_a_bound():
+    """The other way the prediction can lose: every offer saw a non-empty Γ, so none of that sweep's
+    REUSE_UNWIRED can be blamed on when a thread asked. Published, not suppressed."""
+    out = _section(_render(_res(aa11=_gated("aa11-aaaa", _N,
+                                            [("offered", 3, "MINTED_UNUSED"),
+                                             ("offered", 3, "MINTED_UNUSED")], promoted=1))),
+                   "=== THE OFFER GATE")
+    assert "NONE of this sweep's REUSE_UNWIRED can be blamed on order" in out, out
+
+
+def test_a_sweep_with_no_gate_rows_at_all_refuses_the_stage_reading_in_words():
+    """The silence case. A stage histogram alone cannot tell "no residual was ever non-empty" from "the guard
+    stopped writing", and the printer must not let REUSE_UNWIRED be read while it cannot."""
+    out = _section(_render(_res(aa11=_run("aa11-aaaa", _N, ("A1",)))), "=== THE OFFER GATE")
+    assert "no gate recorded" in out, out

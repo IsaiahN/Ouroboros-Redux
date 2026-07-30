@@ -274,6 +274,25 @@ class ChainLedger:
     # wrong reason. Two dicts, two totals, and a cross-dict identity the printer can actually check.
     _seg_phi_kind: Counter = field(default_factory=Counter)
     phi_kind: Counter = field(default_factory=Counter)
+    # ★ THE OFFER GATE, one level ABOVE the attempt. `reuse_attempts` counts offers that were MADE; nothing counted
+    # the offers that were never made because Γ happened to be empty at that instant. That silence is load-bearing:
+    # a swarm plays many games as concurrent threads against ONE shared library, that library is append-only and so
+    # monotone, and therefore a non-empty residual that finds an empty Γ is not a fact about the agent's reasoning
+    # -- it is a fact about which side of the process's FIRST promotion this segment's diff landed on. Its stage is
+    # then REUSE_UNWIRED where a later-scheduled identical segment would score MINTED_UNUSED. Charging both
+    # branches of the guard to a literal turns that from an inference into a receipt, and the `skipped_gamma_empty`
+    # count is the exact UPPER BOUND on how many segments can move between two behaviourally identical runs.
+    # DENOMINATOR: one row per NON-EMPTY-RESIDUAL diff, i.e. per offer OPPORTUNITY -- never per attempt, because
+    # the whole point is the opportunities that never became attempts.
+    _seg_offer: Counter = field(default_factory=Counter)
+    offer_gate: Counter = field(default_factory=Counter)
+    # ...and the SIZE Γ actually had at each of those opportunities, in its OWN dict on the SAME denominator, for
+    # the reason `phi_kind` is kept out of `no_eligible_phi`: it refines the gate rather than partitioning it
+    # differently, and merging them would close the coarse total on the right number for the wrong reason. This one
+    # answers the question the gate literal cannot: did offers WITHIN ONE PROCESS see DIFFERENT libraries? A run
+    # that promoted anything and shows only the `0` key made every offer before its first promotion.
+    _seg_gamma: Counter = field(default_factory=Counter)
+    gamma_at_offer: Counter = field(default_factory=Counter)
 
     @property
     def steps_in_segment(self) -> int:
@@ -356,6 +375,29 @@ class ChainLedger:
         self._seg_phi_kind[str(kind)] += 1
         self.phi_kind[str(kind)] += 1
 
+    @property
+    def offer_gate_in_segment(self) -> Dict[str, int]:
+        return {k: int(n) for k, n in sorted(self._seg_offer.items())}
+
+    @property
+    def gamma_at_offer_in_segment(self) -> Dict[str, int]:
+        return {k: int(n) for k, n in sorted(self._seg_gamma.items())}
+
+    def note_offer_gate(self, where: str, gamma_size: int) -> None:
+        """ONE opportunity to offer a fresh non-empty residual to Γ, and which way the guard went: `offered` (Γ had
+        members, an attempt follows) or `skipped_gamma_empty` (Γ was empty AT ASK TIME, so no attempt is made and
+        the segment's ceiling stays REUSE_UNWIRED). The two literals are exhaustive and exclusive by construction
+        at the single guard, and both are written HERE, from the one read of the library that also decides the
+        branch -- passing the size in from a second read would let the recorded size disagree with the recorded
+        branch under exactly the concurrency this counter exists to measure. The size lands in its own dict on the
+        same denominator. NOTE the literal says what was OBSERVED (`Γ was empty`), not what it implies; the
+        printer, not the pen, is where `upper bound on order-dependent segments` may be said."""
+        self._seg_offer[str(where)] += 1
+        self.offer_gate[str(where)] += 1
+        key = str(int(gamma_size))
+        self._seg_gamma[key] += 1
+        self.gamma_at_offer[key] += 1
+
     def note_reuse(self) -> None:
         """The promoted library EXPLAINED a fresh task without re-minting -- transfer."""
         self._sig.reused = True
@@ -383,6 +425,8 @@ class ChainLedger:
         self._seg_reuse = Counter()
         self._seg_phi = Counter()
         self._seg_phi_kind = Counter()
+        self._seg_offer = Counter()
+        self._seg_gamma = Counter()
         return st
 
     def report(self) -> Dict[str, object]:
@@ -393,5 +437,7 @@ class ChainLedger:
                  reuse_branch={k: int(n) for k, n in sorted(self.reuse_branch.items())},
                  reuse_residue=int(self.reuse_attempts) - int(sum(self.reuse_branch.values())),
                  no_eligible_phi={k: int(n) for k, n in sorted(self.no_eligible_phi.items())},
-                 phi_kind={k: int(n) for k, n in sorted(self.phi_kind.items())})
+                 phi_kind={k: int(n) for k, n in sorted(self.phi_kind.items())},
+                 offer_gate={k: int(n) for k, n in sorted(self.offer_gate.items())},
+                 gamma_at_offer={k: int(n) for k, n in sorted(self.gamma_at_offer.items())})
         return r

@@ -325,6 +325,82 @@ def report(res: dict) -> None:
     _RB_NAMED = _RB_NE + ("explains_no_compress", "explains_already_pure", "explains_no_exceptions",
                           "explains_transfer", "dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted")
     _att = int(rfn.get("attempts", 0))
+    # ★★★ THE OFFER GATE -- ONE LEVEL ABOVE THE FUNNEL, AND THE BOUND ON RUN-TO-RUN MOVEMENT. ★★★
+    # Two cold-bank sweeps at the same commit, byte-identical in every per-game row and in every upstream counter,
+    # disagreed by ONE segment: REUSE_UNWIRED 5/MINTED_UNUSED 3 against 4/4. Nothing the agent DID differed. The
+    # swarm plays 8 games as concurrent threads in ONE process against ONE shared, APPEND-ONLY Γ, and the offer
+    # site's guard was `if self.echo.library:` with no else -- so a non-empty residual that arrives before the
+    # process's FIRST promotion makes no attempt and scores REUSE_UNWIRED, while the same residual arriving after
+    # it scores MINTED_UNUSED. Which side of that line a segment lands on is decided by thread scheduling. The
+    # counter below is the receipt for that: `skipped_gamma_empty` is the number of offer OPPORTUNITIES that found
+    # an empty library, and therefore the UPPER BOUND ON ORDER-DEPENDENT SEGMENTS -- no more than this many stage
+    # assignments can move between two runs whose agents behaved identically.
+    _gate = (rfn.get("offer_gate") or {})
+    _opp = int(rfn.get("offer_opportunities", 0))
+    _gsum = sum(int(n) for n in _gate.values())
+    _skip = int(_gate.get("skipped_gamma_empty", 0))
+    _echo_tot = (res.get("tether_chain") or {}).get("echo") or {}
+    _rne = int(_echo_tot.get("residual_nonempty", 0))
+    _prom = int(_echo_tot.get("promoted", 0))
+    print("\n=== THE OFFER GATE (was there anything in Γ to ask, at the moment we asked?) ===")
+    if not _gate:
+        print("  (no gate recorded -- either no residual was ever non-empty, or the guard is not writing a"
+              " literal. A stage histogram alone CANNOT tell those two apart; do not read REUSE_UNWIRED below.)")
+    for k in ("offered", "skipped_gamma_empty"):
+        print("    %-24s %7d (%5.1f%% of opportunities)" % (k, int(_gate.get(k, 0)), 100.0 * int(_gate.get(k, 0)) / max(1, _gsum)))
+    for k, n in sorted(_gate.items()):
+        if k not in ("offered", "skipped_gamma_empty"):
+            print("    %-24s %7d   ★ UNNAMED GATE BRANCH -- a third path was added without a reading" % (k, int(n)))
+    print("  opportunities(from the diffs)=%d | gate sum=%d | RESIDUE=%d" % (_opp, _gsum, int(rfn.get("offer_residue", 0))))
+    if int(rfn.get("offer_residue", 0)):
+        print("  ★ THE GATE DOES NOT SUM TO THE OPPORTUNITIES. A non-empty residual reached the guard without"
+              " being charged to a literal (or a literal was written where no residual was). Cite no row above.")
+    # THE POOLING-BOUNDARY CHECK, taken here rather than in the producer for the same reason the branch cross-tab
+    # residue is: inside `receipt._reuse_funnel` the opportunity count and the gate sum come from different fields,
+    # but only AFTER `swarm._pool_block` has carried both across the process boundary can a dropped dict show.
+    if _rne and _gsum != _rne:
+        print("  ★ GATE SUM %d ≠ POOLED residual_nonempty %d -- the count and its denominator did not cross the"
+              " pooling boundary together. The percentages above are unattributable." % (_gsum, _rne))
+    print("  ⇒ UPPER BOUND ON ORDER-DEPENDENT SEGMENTS THIS SWEEP: %d of %d opportunities (%.1f%%) were offers made"
+          " to an EMPTY Γ. Every one of those is a segment whose stage was decided by WHEN its thread asked, not by"
+          " what the agent did. Two identical runs may differ by up to this many stage assignments."
+          % (_skip, _gsum, 100.0 * _skip / max(1, _gsum)))
+    # ★ PRE-REGISTERED PREDICTION (written into tests/test_offer_gate.py BEFORE this sweep ran): on any sweep with
+    #   promoted>0, `gamma_at_offer` must contain BOTH a `0` key and a NON-ZERO key -- the direct receipt that
+    #   offers inside ONE process saw DIFFERENT libraries, i.e. that ORDER, not behaviour, chose the outcome. If
+    #   only `0` appears while promoted>0, the first promotion landed after every offer and the race window is the
+    #   WHOLE RUN, which is a stronger version of the same finding, not a refutation of it.
+    _gat = (rfn.get("gamma_at_offer") or {})
+    print("  --- the SIZE Γ actually had at each offer (same denominator, own dict) ---")
+    if not _gat:
+        print("    (no sizes recorded)")
+    for k, n in sorted(_gat.items(), key=lambda kv: int(kv[0])):
+        print("    Γ had %-6s members at %7d offers" % (k, int(n)))
+    _nz = sorted(int(k) for k in _gat if int(k) != 0)
+    if _prom > 0 and _gat:
+        if "0" in _gat and _nz:
+            print("    ⇒ PREDICTION HELD: offers in ONE process saw Γ at 0 AND at %s. The stage a segment received"
+                  " depended on which side of a promotion its thread ran." % (",".join(str(x) for x in _nz)))
+        elif "0" in _gat and not _nz:
+            print("    ⇒ EVERY offer saw an EMPTY Γ although %d φ were promoted -- the first promotion landed after"
+                  " the last offer, so the race window is the WHOLE RUN, not a moment in it." % _prom)
+        else:
+            print("    ⇒ NO offer saw an empty Γ despite %d promotions: the library was already warm before the"
+                  " first opportunity, and NONE of this sweep's REUSE_UNWIRED can be blamed on order." % _prom)
+    elif not _prom:
+        print("    ⇒ NOTHING WAS PROMOTED THIS SWEEP, so an all-zero column above is arithmetic, not a race: with"
+              " an empty library there is no order for the outcome to depend on. Do not cite the bound.")
+    _gbs = (rfn.get("offer_gate_by_stage") or {})
+    if _gbs:
+        print("  --- by the stage the SEGMENT was scored ---")
+        for k, n in sorted(_gbs.items(), key=lambda kv: (-kv[1], kv[0])):
+            print("    %-46s %7d%s" % (k, int(n),
+                  "   ← THE ORDER-DEPENDENT ONES" if k == "REUSE_UNWIRED|skipped_gamma_empty" else ""))
+        _gbres = _gsum - sum(int(n) for n in _gbs.values())
+        if _gbres:
+            print("    ★ GATE CROSS-TAB RESIDUE=%d -- one of the two dicts did not survive the pooling boundary."
+                  % _gbres)
+
     print("\n=== THE REUSE FUNNEL (which branch resolved each offer of a fresh residual to Γ) ===")
     if not rbr:
         print("  (no reuse branch recorded -- Γ was never offered anything this sweep)")

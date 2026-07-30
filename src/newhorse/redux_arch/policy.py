@@ -1019,7 +1019,13 @@ class ReduxPolicy:
         # fresh mint would let the mint answer its own question. Only counted as an ATTEMPT when Γ is NON-EMPTY --
         # offering a residual to an empty library is not an attempt at reuse, and calling it one would manufacture
         # MINTED_UNUSED, the single code that indicts the architecture.
-        if self.echo.library:
+        # ONE READ of the shared library serves BOTH the branch and the size recorded for it. Γ is a process-wide
+        # singleton written by every other game's thread, so a second read here could return a different number
+        # than the one that chose the branch -- and the disagreement would appear exactly in the runs this counter
+        # is here to explain. Read once, charge once.
+        gamma_n = len(self.echo.library)
+        if gamma_n:
+            self.chain.note_offer_gate("offered", gamma_n)
             self.chain.note_reuse_attempt()
             ev.reuse_attempted = True
             # The offer is made to the WHOLE library -- a within-game echo is still a real transfer across tasks and
@@ -1040,6 +1046,13 @@ class ReduxPolicy:
                 ev.transfer_gain_bits = float(gain)
                 ev.minted_on = self.echo.echo_tasks(pred)
                 ev.echo_kind = _echo_kind(tid, ev.minted_on)
+        else:
+            # THE BRANCH THAT USED TO BE SILENT. A real residual arrived, wanted an answer, and found nothing to
+            # ask -- and for fourteen beats the only trace was a stage name, `REUSE_UNWIRED`, which says "the reuse
+            # path is not wired" when what actually happened is "the shared library was still empty when we asked".
+            # An exit name covering a state nobody wrote down is the same defect as an exit name covering two
+            # returns. Nothing is minted, transferred or suppressed here; the ONLY effect is the receipt.
+            self.chain.note_offer_gate("skipped_gamma_empty", 0)
         # NOTE-transfer-CLEAR stays deliberately UNWIRED this beat: `cleared` requires the transferred φ to STEER
         # ACTION, which is the operator layer -- the last link, and the worst place for a first end-to-end run. The
         # honest ceiling here is USED_NOCLEAR, and a receipt says so in words.
@@ -1143,6 +1156,8 @@ class ReduxPolicy:
         seg_reuse = dict(self.chain.reuse_branch_in_segment)
         seg_phi = dict(self.chain.no_eligible_phi_in_segment)
         seg_phi_kind = dict(self.chain.phi_kind_in_segment)
+        seg_offer = dict(self.chain.offer_gate_in_segment)
+        seg_gamma = dict(self.chain.gamma_at_offer_in_segment)
         st = self.chain.end_segment(reason)
         if ev is not None:
             ev.stage = None if st is None else st.name
@@ -1150,6 +1165,8 @@ class ReduxPolicy:
             ev.reuse_branch = seg_reuse
             ev.no_eligible_phi = seg_phi
             ev.phi_kind = seg_phi_kind
+            ev.offer_gate = seg_offer
+            ev.gamma_at_offer = seg_gamma
             ev.boundary_diff_ran = bool(self._seg_boundary_diff)
             # THE DECISION SITE's segment tally lands on the SAME receipt that carries the segment's stage, so a
             # lifted stage and the organ that lifted it are always read off one row. `reuse_source` is composed

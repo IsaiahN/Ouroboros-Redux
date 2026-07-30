@@ -155,6 +155,14 @@ class ResidualEvent:
     # because the sweep closes `no_eligible_phi` by summing every key in it -- a refinement dropped into that bag
     # would inflate the coarse total invisibly. Two dicts, two totals, and a cross-dict identity that can fail.
     phi_kind: Dict[str, int] = field(default_factory=dict)
+    # ★ ONE LEVEL ABOVE `reuse_attempts`, on the denominator of OPPORTUNITIES rather than attempts: every non-empty
+    # residual reaches the offer guard, and this says which way the guard went -- `offered`, or `skipped_gamma_empty`
+    # when the shared library happened to hold nothing at that instant. The skipped rows are the ones no counter
+    # could see before: they leave the segment at REUSE_UNWIRED, a name that reads as an implementation gap when it
+    # is really a statement about WHEN this thread asked. `gamma_at_offer` carries the library SIZE seen at the same
+    # guard, in its own dict on the same denominator, so a run can be asked whether its offers saw one Γ or several.
+    offer_gate: Dict[str, int] = field(default_factory=dict)
+    gamma_at_offer: Dict[str, int] = field(default_factory=dict)
 
     transferred: Optional[str] = None     # str(φ) that explained this residual without re-minting
     transfer_gain_bits: float = 0.0
@@ -404,6 +412,10 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
     phi_by_stage: Dict[str, int] = {}
     phi_kind: Dict[str, int] = {}
     phi_kind_by_stage: Dict[str, int] = {}
+    gate: Dict[str, int] = {}
+    gate_by_stage: Dict[str, int] = {}
+    gamma_at: Dict[str, int] = {}
+    opportunities = sum(1 for e in evs if e.diff_ran and e.residual_nonempty)
     for e in evs:
         st = e.stage or "UNSCORED"
         for k, n in (e.reuse_branch or {}).items():
@@ -424,6 +436,18 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
             phi_kind[k] = phi_kind.get(k, 0) + int(n)
             kk = stage_key(st, k)
             phi_kind_by_stage[kk] = phi_kind_by_stage.get(kk, 0) + int(n)
+        # ★ THE OFFER GATE, pooled on the OPPORTUNITY denominator and cross-tabbed on the same row as the stage --
+        # which is the whole point of it. `REUSE_UNWIRED|skipped_gamma_empty` is a different sentence from
+        # `REUSE_UNWIRED` alone: the first says Γ was empty when this segment asked, the second says nothing about
+        # when. `gamma_at_offer` is pooled WITHOUT a stage cross-tab on purpose -- a library size is a property of
+        # the process at an instant, not of the segment that observed it, and keying it by stage would invite
+        # reading it as "this stage sees small libraries" when the causation runs the other way.
+        for k, n in (e.offer_gate or {}).items():
+            gate[k] = gate.get(k, 0) + int(n)
+            gk = stage_key(st, k)
+            gate_by_stage[gk] = gate_by_stage.get(gk, 0) + int(n)
+        for k, n in (e.gamma_at_offer or {}).items():
+            gamma_at[k] = gamma_at.get(k, 0) + int(n)
     # NO `by_stage_residue` IS PUBLISHED HERE, AND THAT IS DELIBERATE. Within this function every branch write also
     # writes a `by_stage` row, so the two sums are equal BY CONSTRUCTION and a residue over them could never fail --
     # an identity that cannot fail is decoration, not a check. The residue worth printing is across the POOLING
@@ -436,7 +460,16 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
                 phi=dict(sorted(phi.items())),
                 phi_by_stage=dict(sorted(phi_by_stage.items())),
                 phi_kind=dict(sorted(phi_kind.items())),
-                phi_kind_by_stage=dict(sorted(phi_kind_by_stage.items())))
+                phi_kind_by_stage=dict(sorted(phi_kind_by_stage.items())),
+                offer_gate=dict(sorted(gate.items())),
+                offer_gate_by_stage=dict(sorted(gate_by_stage.items())),
+                gamma_at_offer=dict(sorted(gamma_at.items(), key=lambda kv: int(kv[0]))),
+                # UNLIKE `by_stage_residue`, THIS ONE CAN FAIL. The opportunities are counted from a DIFFERENT field
+                # written at a DIFFERENT moment (the diff, per receipt) than the gate literals (the guard, mirrored
+                # per segment and landed at the close), so a segment that closes without a receipt, or a guard that
+                # someday grows a third path, shows up here as a non-zero number instead of a silence.
+                offer_opportunities=int(opportunities),
+                offer_residue=int(opportunities) - sum(gate.values()))
 
 
 def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
