@@ -233,17 +233,30 @@ def report(res: dict) -> None:
     # `return`s inside `ClickProber.choose`. An exit name covering more than one return is not an attribution
     # (RANKING 5) -- the same defect the escalation branch had, one organ over, at three times the size. These
     # counts are string literals written at those four returns. Read them as:
-    #   untried_first             the blind enumeration -- a candidate nobody has clicked yet
+    #   untried_perceptual        blind enumeration of a point PERCEPTION proposed (a `click_targets` centroid)
+    #   untried_sweep             blind enumeration of a `grid_sweep` LATTICE point -- nobody proposed it
+    #   untried_refresh           blind enumeration of a point `refresh()` folded in after the board changed
     #   exploit_scored            the learned choice -- a target whose `novel`/`changed` history out-ranks the rest
     #   nothing_moved_least_tried the fallback: NOTHING the prober ever clicked moved the board, so it round-robins
     #   no_targets                the degenerate corner click: perception offered no candidate at all
-    # ★ PRE-REGISTERED PREDICTION (written before the sweep that reads it, evaluated below by the script itself):
-    #   `untried_first` DOMINATES. `refresh()` folds freshly-perceived candidates in at every step, so on a board
-    #   that changes the untried queue can be replenished faster than it drains -- the agent would enumerate
-    #   forever and its learned scores would never be consulted. If `exploit_scored` dominates, the prediction is
-    #   simply wrong and that is the finding; it is published either way.
+    # ★ MIGRATION, NAMED: the first six sweeps published `untried_first` as ONE row holding 96.3% of every click.
+    # It was itself an exit name over more than one cause and it is GONE; the three `untried_*` rows replace it and
+    # their sum is printed below so the old series stays comparable. Do not silently re-add the old name.
+    # ★ PRE-REGISTERED PREDICTION (written 2026-07-30, BEFORE any sweep at this commit; evaluated below by the
+    # script itself, never by the prose afterwards). The claim this REPLACES was "`refresh()` replenishes the
+    # untried queue faster than it drains" -- an untested mechanism that no receipt ever supported. The offline
+    # bound in docs/tether/EVIDENCE_the_click_pool_floor.md says the CONSTRUCTION POOL alone forces 61.4%-83.8%
+    # of sweep G's 1393 click steps, before `refresh` can contribute anything, because `choose` drains
+    # `self.targets` in admission order and refresh arrivals sit at the END of that list. So:
+    #   A. `untried_perceptual` + `untried_sweep` >= 50% of click steps, and `untried_sweep` > `untried_perceptual`
+    #      (perception offers <=24 points, the lattice adds 64).
+    #   B. `untried_refresh` <= 40% of click steps.
+    # OVERTURNED IF `untried_refresh` exceeds the construction pair -- that would reinstate the replenishment
+    # reading and the offline bound would be wrong. Published either way.
     cbr = (dfn.get("click_branch") or {})
-    _CB_NAMED = ("untried_first", "exploit_scored", "nothing_moved_least_tried", "no_targets")
+    cpl = (dfn.get("click_pool") or {})
+    _CB_NAMED = ("untried_perceptual", "untried_sweep", "untried_refresh", "exploit_scored",
+                 "nothing_moved_least_tried", "no_targets")
     _clk_steps = int(dfx.get("click_native", 0)) + int(dfx.get("escalate_click", 0))
     print("\n=== THE CLICK BRANCH (which return of ClickProber.choose produced the click) ===")
     if not cbr:
@@ -255,8 +268,47 @@ def report(res: dict) -> None:
     for k, n in sorted(cbr.items()):
         if k not in _CB_NAMED:
             print("    %-26s steps %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
+    _u_perc, _u_swp = int(cbr.get("untried_perceptual", 0)), int(cbr.get("untried_sweep", 0))
+    _u_ref = int(cbr.get("untried_refresh", 0))
+    _u_all = _u_perc + _u_swp + _u_ref
+    print("    %-26s steps %7d (%5.1f%% of click steps)   [was one row: `untried_first`]"
+          % ("untried_* TOTAL", _u_all, 100.0 * _u_all / max(1, _clk_steps)))
     _cres = int(dfn.get("click_branch_residue", 0))
     print("  click steps=%d | branch sum=%d | RESIDUE=%d" % (_clk_steps, sum(cbr.values()), _cres))
+    # THE POOL, on its own denominator. These are ADMISSIONS, never steps, and they are printed under the branch
+    # split only because they are what BOUNDS it -- a prober cannot leave the untried branch until every admitted
+    # target has been tried once, so `ctor_targets` per prober is a hard floor on forced enumeration.
+    if cpl:
+        _ctp, _cts = int(cpl.get("ctor_perceptual", 0)), int(cpl.get("ctor_sweep", 0))
+        _ctt, _cpr = int(cpl.get("ctor_targets", 0)), int(cpl.get("ctor_probers", 0))
+        _rfa, _rfc = int(cpl.get("refresh_admitted", 0)), int(cpl.get("refresh_calls", 0))
+        _pres = int(dfn.get("click_pool_ctor_residue", 0))
+        print("  POOL (admissions, NOT steps): probers built=%d | at construction: perceptual=%d + sweep=%d ="
+              " targets=%d (%.1f per prober) | de-dup RESIDUE=%d"
+              % (_cpr, _ctp, _cts, _ctt, _ctt / float(max(1, _cpr)), _pres))
+        print("       refresh: %d calls admitted %d further targets (%.2f per call). The construction pool is"
+              " drained FIRST -- refresh arrivals sit at the end of `targets`." % (_rfc, _rfa, _rfa / float(max(1, _rfc))))
+        if _pres:
+            print("  ★ THE POOL DOES NOT CLOSE: the two origins do not sum to the targets admitted. Do not read"
+                  " the untried rows -- a target was admitted without an origin.")
+    else:
+        print("  POOL: (not recorded -- no prober was constructed this sweep)")
+    # ★ WHICH MEMBERS. The branch split above is POOLED, and a pooled number offered as evidence about a subset is
+    # the mis-labelled-receipt defect one level up (RANKING 5). The per-game carry already exists as a sibling of
+    # `decide_funnel`; this reads it rather than adding a second traversal that could drift from the pooler.
+    _fbg = (res.get("tether_chain") or {}).get("echo", {}).get("decide_funnel_by_game") or {}
+    _rows = []
+    for _g, _xs in sorted(_fbg.items()):
+        _r = {k: int((_xs.get(k) or {}).get("click_branch", 0)) for k in _CB_NAMED}
+        if sum(_r.values()):
+            _rows.append((_g, _r))
+    if _rows:
+        print("  PER GAME (%d of %d games took a click step):" % (len(_rows), len(_fbg)))
+        for _g, _r in _rows:
+            _tot = sum(_r.values())
+            print("    %-18s steps %5d | perc %4d  sweep %4d  refresh %4d  exploit %4d  nomove %4d  notgt %4d"
+                  % (_g, _tot, _r["untried_perceptual"], _r["untried_sweep"], _r["untried_refresh"],
+                     _r["exploit_scored"], _r["nothing_moved_least_tried"], _r["no_targets"]))
     if _cres:
         print("  ★ THE CLICK BRANCH DOES NOT SUM TO THE CLICK EXITS. Do not read any row above until the residue"
               " is named. Every return of `choose` produces a click, so a non-zero residue means a return was"
@@ -264,15 +316,22 @@ def report(res: dict) -> None:
     elif not _clk_steps:
         print("  VERDICT: MUTE -- no click steps this sweep, so the branch split rules nothing out.")
     else:
-        _uf, _ex = int(cbr.get("untried_first", 0)), int(cbr.get("exploit_scored", 0))
+        _ex = int(cbr.get("exploit_scored", 0))
         _nm, _nt = int(cbr.get("nothing_moved_least_tried", 0)), int(cbr.get("no_targets", 0))
-        _top = max((_uf, "untried_first"), (_ex, "exploit_scored"), (_nm, "nothing_moved_least_tried"),
-                   (_nt, "no_targets"))
-        if _top[1] == "untried_first" and _uf >= 0.5 * _clk_steps:
-            print("  VERDICT: ENUMERATION NEVER FINISHES -- %.1f%% of clicks go to a candidate nobody has tried."
-                  " PREDICTION HELD. The learned `novel`/`changed` scores are chosen on only %.1f%% of clicks, so"
-                  " whatever the prober learns about a target it almost never gets to act on."
-                  % (100.0 * _uf / _clk_steps, 100.0 * _ex / _clk_steps))
+        _ctor = _u_perc + _u_swp
+        _top = max((_ctor, "construction"), (_u_ref, "untried_refresh"), (_ex, "exploit_scored"),
+                   (_nm, "nothing_moved_least_tried"), (_nt, "no_targets"))
+        if _top[1] == "construction" and _ctor >= 0.5 * _clk_steps:
+            print("  VERDICT: THE CONSTRUCTION POOL IS THE TAX -- %.1f%% of clicks (%.1f%% lattice, %.1f%%"
+                  " perceptual) drain targets admitted at construction, BEFORE `refresh` can contribute anything."
+                  " PREDICTION A HELD. `refresh` accounts for %.1f%% and the learned scores for %.1f%%, so the"
+                  " thing to bound is the unconditional `grid_sweep`, not `refresh`."
+                  % (100.0 * _ctor / _clk_steps, 100.0 * _u_swp / _clk_steps, 100.0 * _u_perc / _clk_steps,
+                     100.0 * _u_ref / _clk_steps, 100.0 * _ex / _clk_steps))
+        elif _top[1] == "untried_refresh" and _u_ref >= 0.5 * _clk_steps:
+            print("  VERDICT: REFRESH REPLENISHMENT DOMINATES -- %.1f%% of clicks drain targets folded in AFTER"
+                  " construction. PREDICTION OVERTURNED: the offline pool-floor bound was wrong and the"
+                  " replenishment reading is reinstated." % (100.0 * _u_ref / _clk_steps))
         elif _top[1] == "exploit_scored" and _ex >= 0.5 * _clk_steps:
             print("  VERDICT: THE LEARNED SCORES ARE BEING USED -- %.1f%% of clicks are the exploit branch."
                   " PREDICTION WRONG: enumeration does finish, and the click policy's memory is live."

@@ -272,6 +272,11 @@ class ResidualEvent:
     # the coordinate actually emitted, which is the only thing the agent varies on a click game -- the action
     # split cannot see it, because every click is labelled `A6`.
     decide_click_branch: Dict[str, int] = field(default_factory=dict)
+    # ★ THE CLICK POOL: target ADMISSIONS by origin, counted in `ClickProber.__init__` and `.refresh`. A separate
+    # denominator from the branch split (admissions, not steps) and therefore a separate dict -- it is the direct
+    # receipt for how much of the untried branch the CONSTRUCTION pool can force before `refresh` contributes at
+    # all. See docs/tether/EVIDENCE_the_click_pool_floor.md.
+    decide_click_pool: Dict[str, int] = field(default_factory=dict)
     decide_click_reg_attr: Dict[str, int] = field(default_factory=dict)
     decide_click_reg_moved: Dict[str, int] = field(default_factory=dict)
     decide_click_reg_moved_raw: Dict[str, int] = field(default_factory=dict)
@@ -554,6 +559,7 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     dec_veto_moved_raw: Dict[str, int] = {}
     dec_esc_branch: Dict[str, int] = {}
     dec_click_branch: Dict[str, int] = {}
+    dec_click_pool: Dict[str, int] = {}
     dec_click_reg_attr: Dict[str, int] = {}
     dec_click_reg_moved: Dict[str, int] = {}
     dec_click_reg_moved_raw: Dict[str, int] = {}
@@ -567,6 +573,7 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                          (dec_veto_moved_raw, e.decide_veto_moved_raw),
                          (dec_esc_branch, e.decide_esc_branch),
                          (dec_click_branch, e.decide_click_branch),
+                         (dec_click_pool, e.decide_click_pool),
                          (dec_click_reg_attr, e.decide_click_reg_attr),
                          (dec_click_reg_moved, e.decide_click_reg_moved),
                          (dec_click_reg_moved_raw, e.decide_click_reg_moved_raw)):
@@ -636,6 +643,17 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                                    click_branch_residue=(dec_exits.get("click_native", 0)
                                                          + dec_exits.get("escalate_click", 0)
                                                          - sum(dec_click_branch.values())),
+                                   # ★ THE CLICK POOL. Deliberately NOT part of the identity above: these are
+                                   # ADMISSIONS (targets entering the pool), the branch counts are STEPS, and a
+                                   # count offered against the wrong denominator is the defect this whole block
+                                   # exists to refuse. `ctor_residue` is the pool's own identity -- the two
+                                   # origins must sum to the targets actually admitted after de-dup, so a lattice
+                                   # point that collided with a perceptual centroid is visible instead of double
+                                   # counted.
+                                   click_pool=dict(sorted(dec_click_pool.items())),
+                                   click_pool_ctor_residue=(dec_click_pool.get("ctor_targets", 0)
+                                                            - dec_click_pool.get("ctor_perceptual", 0)
+                                                            - dec_click_pool.get("ctor_sweep", 0)),
                                    # ★ THE CLICK REGION. The same priced steps as the `|A6` rows of the action
                                    # split, re-keyed by WHERE the click landed. The residue is against those rows
                                    # and not against the exits, because a click decided at the boundary of a

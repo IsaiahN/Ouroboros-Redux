@@ -14,11 +14,15 @@ NOTHING about those steps could be attributed. Two separate reasons, and they ne
                      But the agent does vary its click: it varies WHERE. Keying the same reading by the coarse
                      REGION of the coordinate actually emitted gives the control something to vary over.
 
-PRE-REGISTERED PREDICTION (written before the sweep that reads it): `untried_first` DOMINATES. `refresh()` folds
-freshly-perceived candidates into the pool at every step, so on a board that changes, the untried queue can be
-replenished faster than it drains and the exploit branch is never reached -- the agent would be enumerating
-forever and its learned `changed`/`novel` scores would never be consulted. The printer evaluates this itself; if
-`exploit_scored` dominates instead, the prediction is simply wrong and that is the finding.
+★ SUPERSEDED 2026-07-30. The first prediction here was: "`untried_first` DOMINATES, because `refresh()` folds
+freshly-perceived candidates in at every step and the untried queue is replenished faster than it drains." The
+sweeps confirmed the RATE (96.3%) and the printer banked that as PREDICTION HELD -- but the RATE was never
+evidence for the MECHANISM, and no receipt ever measured the mechanism at all. `untried_first` was itself one
+name over more than one cause. It is now THREE returns keyed by the ADMISSION ORIGIN of the target being drained
+(`untried_perceptual` / `untried_sweep` / `untried_refresh`), with a separate `click_pool` dict counting
+admissions at `__init__` and `refresh`. The rival reading, and the new pre-registration, are in
+docs/tether/EVIDENCE_the_click_pool_floor.md: the unconditional 64-point `grid_sweep` lattice forces most of that
+96.3% at construction, before `refresh` can contribute anything.
 
 Nothing here changes what the agent does. Both instruments are counted at the sites that already exist, and the
 last test in this file is the one that proves it.
@@ -62,7 +66,8 @@ def test_every_click_is_charged_to_the_return_that_produced_it():
     p = _drive(_policy("cl11-first"), _board(), 30)
     assert p.family == CLICK, p.family
     assert sum(p._click_branch.values()) == 30, p._click_branch
-    assert p._click_branch.get("untried_first", 0) >= 1, p._click_branch
+    assert p._click_branch.get("untried_perceptual", 0) >= 1, p._click_branch
+    assert "untried_first" not in p._click_branch, p._click_branch      # the migrated name must not come back
 
 
 def test_the_click_branch_sums_to_the_click_exits_on_the_receipt():
@@ -175,6 +180,7 @@ def test_neither_instrument_changes_what_the_agent_CLICKS():
     a = _drive(_policy("cl11-sink"), _board(), 60, answer=True)
     b = _policy("cl11-sink")
     b._click_branch = _Sink()
+    b._click_pool = _Sink()
     b._dec_click_reg_attr = _Sink()
     b._dec_click_reg_moved = _Sink()
     b._dec_click_reg_moved_raw = _Sink()
@@ -192,9 +198,13 @@ def test_every_prober_ever_built_writes_into_the_POLICY_dict():
     import inspect
     from newhorse.redux_arch import policy as _pol
     src = inspect.getsource(_pol)
-    sites = [l for l in src.splitlines() if "ClickProber(" in l and "class ClickProber" not in l]
-    assert len(sites) == 1, sites                          # one constructor, so there is nothing to forget
-    assert "branch=self._click_branch" in sites[0], sites
+    lines = src.splitlines()
+    idx = [i for i, l in enumerate(lines) if "ClickProber(" in l and "class ClickProber" not in l]
+    assert len(idx) == 1, idx                              # one constructor, so there is nothing to forget
+    # the call may wrap; read it to its closing paren so a continuation line cannot hide a dropped carrier
+    call = "\n".join(lines[idx[0]:idx[0] + 3])
+    assert "branch=self._click_branch" in call, call
+    assert "pool=self._click_pool" in call, call
 
 
 def test_a_reparameterized_prober_keeps_writing_into_the_LIVE_dict():
@@ -205,3 +215,77 @@ def test_a_reparameterized_prober_keeps_writing_into_the_LIVE_dict():
     before = sum(p._click_branch.values())
     _drive(p, _board(), 12)
     assert sum(p._click_branch.values()) == before + 12, (before, p._click_branch)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# ★★★ THE POOL FLOOR: WHICH POOL IS THE UNTRIED BRANCH DRAINING? ★★★
+# `untried_first` carried 96.3% of every click the agent made and was ITSELF one name over more than one cause.
+# The pre-registered reading attributed that dominance to `refresh()` replenishing the queue -- an untested
+# mechanism. The rival is a CODE FACT: `_new_prober` passes `grid_sweep(grid, n=8)` -- 64 blind lattice points --
+# UNCONDITIONALLY, so every prober starts with a 64-88 target pool that `choose` must enumerate in full before any
+# learned score is consulted. These tests pin the instrument that tells the two apart on a live sweep.
+# See docs/tether/EVIDENCE_the_click_pool_floor.md.
+# ---------------------------------------------------------------------------------------------------------------
+
+def test_the_untried_branch_names_WHICH_POOL_it_is_draining():
+    """The decomposition, at the floor. A board with four coloured cells gives perception a handful of centroids
+    and the lattice gives 64 more; the first clicks must be charged to `untried_perceptual` (perception's points
+    are admitted FIRST) and the branch must then move to `untried_sweep` -- never to one undifferentiated row."""
+    p = _drive(_policy("cl11-prov"), _board(), 40)
+    b = p._click_branch
+    assert sum(b.values()) == 40, b
+    assert b.get("untried_perceptual", 0) >= 1, b
+    assert b.get("untried_sweep", 0) >= 1, b               # 40 steps out-runs the handful of centroids
+    assert b.get("untried_perceptual", 0) < 40, b          # ... and does not out-run the lattice
+
+
+def test_the_pool_counts_ADMISSIONS_and_closes_on_its_own_denominator():
+    """The pool is a different denominator from the branch split -- targets admitted, not steps taken -- so it is
+    a separate dict and it has its own identity: the two construction origins must sum to the targets actually
+    admitted after de-dup. A lattice point that collided with a perceptual centroid must show as a de-dup, never
+    as a double count."""
+    p = _drive(_policy("cl11-pool"), _board(), 30)
+    p._close_segment("death")
+    dfn = summary(p.receipts)["decide_funnel"]
+    cpl = dfn["click_pool"]
+    assert cpl["ctor_probers"] == 1, cpl
+    assert cpl["ctor_sweep"] > 0 and cpl["ctor_perceptual"] > 0, cpl
+    assert cpl["ctor_targets"] == cpl["ctor_perceptual"] + cpl["ctor_sweep"], cpl
+    assert dfn["click_pool_ctor_residue"] == 0, dfn
+    assert cpl["refresh_calls"] >= 1, cpl                  # `_act_click` refreshes on every step after the first
+    # THE FLOOR ITSELF: the construction pool is >= 64 lattice points, so a 30-step run cannot possibly have
+    # drained it -- which is exactly why `exploit_scored` is unreachable on short click games.
+    assert cpl["ctor_targets"] >= 64, cpl
+    assert p._click_branch.get("exploit_scored", 0) == 0, p._click_branch
+
+
+def test_refresh_admissions_are_drained_LAST_which_is_what_makes_the_split_a_decomposition():
+    """The code fact the whole reading rests on. `choose` picks `untried[0]` and `self.targets` is in ADMISSION
+    order, so a refresh-admitted target cannot be reached until every construction target has been tried once.
+    Built directly on the prober -- one perceptual point, one lattice point, then a refresh arrival."""
+    from newhorse.redux_arch.click import ClickProber
+    b = {}
+    pr = ClickProber([(1, 1)], sweep=[(5, 5)], branch=b, pool={})
+    pr.refresh([(9, 9)])
+    g0, g1 = np.zeros((10, 10), dtype=int), np.ones((10, 10), dtype=int)
+    picks = []
+    for i in range(3):
+        picks.append(pr.choose())
+        pr.observe(g0 if i % 2 else g1, g1 if i % 2 else g0)
+    assert picks == [(1, 1), (5, 5), (9, 9)], picks
+    assert b == {"untried_perceptual": 1, "untried_sweep": 1, "untried_refresh": 1}, b
+
+
+def test_the_pool_dict_survives_a_segment_boundary_like_the_branch_dict_does():
+    """Same reference discipline, same failure mode. The prober outlives the segment and holds a reference to the
+    pool dict; if `_close_segment` REBOUND it the refresh admissions of every segment after the first would be
+    written into an orphan and printed as a zero."""
+    p = _drive(_policy("cl11-poolseg"), _board(), 15)
+    p._close_segment("death")
+    assert p._click_pool == {}, p._click_pool
+    _drive(p, _board(), 15)
+    p._close_segment("death")
+    assert p.receipts[-1].decide_click_pool.get("refresh_calls", 0) > 0, p.receipts[-1].decide_click_pool
+    # no prober was REBUILT for the second segment, so the second receipt records refresh admissions and no
+    # construction -- which is the point: `ctor_probers` counts constructions, not segments.
+    assert p.receipts[-2].decide_click_pool.get("ctor_probers", 0) == 1, p.receipts[-2].decide_click_pool

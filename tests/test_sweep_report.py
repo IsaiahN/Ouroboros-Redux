@@ -296,19 +296,24 @@ def test_the_click_branch_block_renders_and_CLOSES():
     assert "RESIDUE=0" in out, out
     assert "DOES NOT SUM" not in out, out
     assert "UNNAMED BRANCH" not in out, out
-    for row in ("untried_first", "exploit_scored", "nothing_moved_least_tried", "no_targets"):
+    for row in ("untried_perceptual", "untried_sweep", "untried_refresh", "exploit_scored",
+                "nothing_moved_least_tried", "no_targets"):
         assert row in out, out
+    assert "untried_* TOTAL" in out, out                    # the migrated series stays comparable
+    assert "POOL (admissions, NOT steps)" in out, out
+    assert "PER GAME" in out, out                           # pooled evidence must name its members
 
 
 def test_the_click_branch_block_EVALUATES_the_pre_registered_prediction():
-    """The prediction is `untried_first` dominates, and the SCRIPT must decide that -- not the prose written
-    afterwards. Whichever way a sweep falls, exactly one verdict line must be printed and it must name the branch
-    the numbers actually support."""
+    """The prediction is that the CONSTRUCTION POOL -- the unconditional 64-point `grid_sweep` lattice plus
+    perception's centroids -- holds most of the click steps, and that `refresh` is the tail rather than the
+    driver. The SCRIPT must decide that, not the prose written afterwards. Whichever way a sweep falls, exactly
+    one verdict line must be printed and it must name the branch the numbers actually support."""
     out = _section(_render(_res(cl11=_click_game("cl11-cccc", _N))), "=== THE CLICK BRANCH")
     verdicts = [l for l in out.splitlines() if "VERDICT:" in l]
     assert len(verdicts) == 1, out
-    assert ("PREDICTION HELD" in out) or ("PREDICTION WRONG" in out) or ("MIXED" in out) \
-        or ("NOTHING IT CLICKED EVER MOVED" in out) or ("PERCEPTION OFFERED NOTHING" in out), out
+    assert ("PREDICTION A HELD" in out) or ("PREDICTION OVERTURNED" in out) or ("PREDICTION WRONG" in out) \
+        or ("MIXED" in out) or ("NOTHING IT CLICKED EVER MOVED" in out) or ("PERCEPTION OFFERED NOTHING" in out), out
 
 
 def test_the_click_region_gives_the_self_motion_control_a_row_where_it_had_none():

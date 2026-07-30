@@ -13,6 +13,16 @@ Two pure pieces (unit-tested without the wire):
                             fallback when the frame has too few components. It manufactures its own gradient on games
                             with no reward and no gameplay recordings to imitate.
 
+★ THE DOCSTRING ABOVE AND THE CALL SITE DISAGREE, AND THE CALL SITE WINS. "a coarse grid sweep as a FALLBACK when
+the frame has too few components" is the DESIGN; `ReduxPolicy._new_prober` passes `grid_sweep(grid, n=8)` -- 64
+blind lattice points -- UNCONDITIONALLY, on every prober ever built, alongside up to 24 perceptual centroids. So
+the documented fallback is in fact a mandatory 64-point enumeration tax paid before any learned score can be
+consulted (`choose` cannot leave the untried branch until EVERY target has been tried once). The disagreement is
+left standing on purpose: it is the finding, banked in docs/tether/EVIDENCE_the_click_pool_floor.md, and the
+branch/pool counters below are the instrument that converts the offline bound into a direct receipt. DO NOT
+"repair" the docstring or the call site without reading that document first -- the fix is a separate beat from
+the measurement that motivated it, and it must predict both the branch split AND the region answer rate.
+
 We reclaim the MECHANISM (choose-a-click-that-informs), never a per-game answer. LAW 0: the prober SEES the frame
 change before it "says" a target is productive.
 """
@@ -92,14 +102,27 @@ class ClickProber:
     """
 
     def __init__(self, candidates: List[Tuple[int, int]], sweep: Optional[List[Tuple[int, int]]] = None,
-                 branch: Optional[Dict[str, int]] = None):
+                 branch: Optional[Dict[str, int]] = None, pool: Optional[Dict[str, int]] = None):
         # de-dup while preserving perceptual order, then append any sweep points not already present
+        # ★ PROVENANCE IS RECORDED AT ADMISSION, which is the only place it is knowable. `origin` says WHERE a
+        # target came from -- perception, the blind lattice, or a later `refresh` -- and it is what lets the
+        # untried branch name WHICH POOL it is draining instead of reporting one undifferentiated `untried_first`.
         self.targets: List[Tuple[int, int]] = []
+        self.origin: Dict[Tuple[int, int], str] = {}
         seen = set()
-        for rc in list(candidates) + list(sweep or []):
+        _cand = list(candidates)
+        _n_cand = len(_cand)
+        _n_perc = _n_sweep = 0
+        for _i, rc in enumerate(_cand + list(sweep or [])):
             if rc not in seen:
                 seen.add(rc)
                 self.targets.append(rc)
+                if _i < _n_cand:
+                    self.origin[rc] = "perceptual"
+                    _n_perc += 1
+                else:
+                    self.origin[rc] = "sweep"
+                    _n_sweep += 1
         self.tries: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}
         self.changed: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}
         self.novel: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}   # clicks that reached an UNSEEN board
@@ -112,9 +135,23 @@ class ClickProber:
         # OWNED BY THE POLICY and passed in, so it is segment-scoped there and cleared IN PLACE -- a prober that
         # outlives a segment must keep writing into the live dict, not a rebound one it can no longer see.
         self.branch: Dict[str, int] = {} if branch is None else branch
+        # ★ THE POOL, MEASURED AT ITS OWN CALL SITES. Separate dict, separate denominator: these are ADMISSIONS,
+        # not steps, so they must never join `branch` (whose sum is an identity against the click exits). It is
+        # written here in `__init__` and in `refresh` -- the two places a target can enter the pool -- and never
+        # derived from anything else. Keys: `ctor_probers` (constructions), `ctor_perceptual` / `ctor_sweep`
+        # (targets admitted at construction, by origin), `ctor_targets` (their sum, published so the de-dup
+        # between the two sources is visible rather than assumed), `refresh_calls`, `refresh_admitted`.
+        self.pool: Dict[str, int] = {} if pool is None else pool
+        self._p("ctor_probers", 1)
+        self._p("ctor_perceptual", _n_perc)
+        self._p("ctor_sweep", _n_sweep)
+        self._p("ctor_targets", len(self.targets))
 
     def _b(self, name: str) -> None:
         self.branch[name] = self.branch.get(name, 0) + 1
+
+    def _p(self, name: str, n: int) -> None:
+        self.pool[name] = self.pool.get(name, 0) + int(n)
 
     def choose(self) -> Optional[Tuple[int, int]]:
         """Pick the next (row, col) to click. None only if there are no candidates at all."""
@@ -124,8 +161,25 @@ class ClickProber:
         untried = [t for t in self.targets if self.tries[t] == 0]
         if untried:
             pick = untried[0]                                   # sweep every candidate at least once first
-            self._b("untried_first")
             self._last = pick
+            # ★ `untried_first` WAS ITSELF AN EXIT NAME OVER MORE THAN ONE CAUSE, and it carried 96.3% of every
+            # click the agent made. It resolves here into THREE returns by the ADMISSION ORIGIN of the target
+            # being drained, because the two mechanisms that can produce a blind click are different organs:
+            #   untried_perceptual  perception proposed this point (`click_targets` centroids)
+            #   untried_sweep       nobody proposed it -- it is a `grid_sweep` lattice point, the documented
+            #                       FALLBACK, admitted unconditionally at construction
+            #   untried_refresh     the board changed and `refresh()` folded a newly-perceived point in
+            # `self.targets` is drained IN ADMISSION ORDER (perceptual, then sweep, then refresh arrivals), so a
+            # prober cannot reach a refresh-admitted target until the whole construction pool is spent. That is
+            # a CODE FACT and it is what makes these three counts a decomposition rather than three labels.
+            _o = self.origin.get(pick)
+            if _o == "sweep":
+                self._b("untried_sweep")
+                return pick
+            if _o == "refresh":
+                self._b("untried_refresh")
+                return pick
+            self._b("untried_perceptual")
             return pick
         # exploit: prefer targets that reach NOVEL board states -- a cell that merely TOGGLES (reverts to an
         # already-seen state) scores changed>0 forever but adds no new territory, so it must not out-rank a
@@ -163,10 +217,13 @@ class ClickProber:
         for rc in new_candidates:
             if rc not in self.tries:
                 self.targets.append(rc)
+                self.origin[rc] = "refresh"
                 self.tries[rc] = 0
                 self.changed[rc] = 0
                 self.novel[rc] = 0
                 added += 1
+        self._p("refresh_calls", 1)
+        self._p("refresh_admitted", added)
         return added
 
     def productive(self) -> List[Tuple[int, int]]:

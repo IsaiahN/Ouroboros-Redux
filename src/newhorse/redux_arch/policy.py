@@ -405,6 +405,11 @@ class ReduxPolicy:
         # ★ THE CLICK BRANCH: which `return` of `ClickProber.choose` produced the click. Owned here (segment-scoped,
         # cleared IN PLACE) and passed INTO the prober, which writes the literal at its own return.
         self._click_branch: Dict[str, int] = {}
+        # ★ THE CLICK POOL: how many targets were ADMITTED and from where. Its denominator is admissions, not
+        # steps, so it is a SEPARATE dict from the branch split -- folding them would put a non-step count inside
+        # a sum that is an identity against the click exits. Owned here and cleared IN PLACE for the same reason
+        # the branch dict is: the prober holds a reference and outlives the segment.
+        self._click_pool: Dict[str, int] = {}
         self._dec_veto_attr: Dict[str, int] = {}          # exit -> vetoed steps whose result frame WAS seen
         self._dec_veto_moved: Dict[str, int] = {}         # of those, masked answered (the control reading)
         self._dec_veto_moved_raw: Dict[str, int] = {}     # of those, raw answered
@@ -1189,6 +1194,7 @@ class ReduxPolicy:
             ev.decide_veto_moved_raw = dict(self._dec_veto_moved_raw)
             ev.decide_esc_branch = dict(self._esc_branch)
             ev.decide_click_branch = dict(self._click_branch)
+            ev.decide_click_pool = dict(self._click_pool)
             ev.decide_click_reg_attr = dict(self._dec_click_reg_attr)
             ev.decide_click_reg_moved = dict(self._dec_click_reg_moved)
             ev.decide_click_reg_moved_raw = dict(self._dec_click_reg_moved_raw)
@@ -1222,6 +1228,7 @@ class ReduxPolicy:
         # nobody reads and every segment after the first would report zero clicks -- a field never COMPUTED,
         # printed as a zero, which is a mis-labelled receipt. Pinned by a two-segment test.
         self._click_branch.clear()
+        self._click_pool.clear()                          # same reference discipline as the branch dict above
         self._dec_click_reg_attr = {}
         self._dec_click_reg_moved = {}
         self._dec_click_reg_moved_raw = {}
@@ -1388,7 +1395,8 @@ class ReduxPolicy:
         reads: 126 clicks of a 1393-click sweep, counted at the exit and MISSING from the branch split. The
         published residue is what caught it -- but a second call site is how it happened, so there is now one.
         A carrier must be verified to have a LIVE INSTANCE before anything is wired to it."""
-        return ClickProber(click_targets(grid), grid_sweep(grid, n=8), branch=self._click_branch)
+        return ClickProber(click_targets(grid), grid_sweep(grid, n=8),
+                           branch=self._click_branch, pool=self._click_pool)
 
     def _act_click(self) -> Tuple[str, Optional[dict]]:
         grid = self.frames[-1]
