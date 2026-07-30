@@ -183,6 +183,13 @@ class ChainLedger:
     _seg_reuse: Counter = field(default_factory=Counter)   # ...and which branch resolved each of them
     reuse_attempts: int = 0                            # run-level total (never reset by a segment close)
     reuse_branch: Counter = field(default_factory=Counter)
+    # ...and ONE LEVEL FINER, because `explains_no_eligible` turned out to be the branch that resolves almost every
+    # MINTED_UNUSED and it is itself two states with opposite fixes. This tally is PER φ, not per attempt, so it is
+    # deliberately NOT part of the `sum(reuse_branch) == reuse_attempts` identity -- an attempt scans the whole
+    # library and contributes as many rows here as the library has ineligible members. Its own denominator is the
+    # library scan, which is why it is published as a bare split and never as a rate against attempts.
+    _seg_phi: Counter = field(default_factory=Counter)
+    no_eligible_phi: Counter = field(default_factory=Counter)
 
     @property
     def steps_in_segment(self) -> int:
@@ -235,6 +242,20 @@ class ChainLedger:
         self._seg_reuse[str(where)] += 1
         self.reuse_branch[str(where)] += 1
 
+    @property
+    def no_eligible_phi_in_segment(self) -> Dict[str, int]:
+        return {k: int(n) for k, n in sorted(self._seg_phi.items())}
+
+    def note_no_eligible_phi(self, kind: str) -> None:
+        """ONE library φ was rejected by the eligibility test, and WHY. `phi_absent` = it held on no fresh context
+        at all (the vocabulary does not describe this board -- link 1, grain). `phi_universal` = it held on every
+        fresh context (true but vacuous -- the contexts are degenerate, which is upstream in the residual). The two
+        are exhaustive and exclusive for a rejected φ, so a kind outside them is a new branch added without a
+        reading and the printer names it. Passed as a bound method for the same reason `note_reuse_exit` is: a
+        second carrier is a second construction site, and one of them gets orphaned."""
+        self._seg_phi[str(kind)] += 1
+        self.no_eligible_phi[str(kind)] += 1
+
     def note_reuse(self) -> None:
         """The promoted library EXPLAINED a fresh task without re-minting -- transfer."""
         self._sig.reused = True
@@ -260,6 +281,7 @@ class ChainLedger:
         self._steps = 0
         self._att = 0                                  # ...and so does the reuse tally that explains the signals
         self._seg_reuse = Counter()
+        self._seg_phi = Counter()
         return st
 
     def report(self) -> Dict[str, object]:
@@ -268,5 +290,6 @@ class ChainLedger:
                  segment_ends={k: n for k, n in sorted(self._reasons.items())},
                  reuse_attempts=int(self.reuse_attempts),
                  reuse_branch={k: int(n) for k, n in sorted(self.reuse_branch.items())},
-                 reuse_residue=int(self.reuse_attempts) - int(sum(self.reuse_branch.values())))
+                 reuse_residue=int(self.reuse_attempts) - int(sum(self.reuse_branch.values())),
+                 no_eligible_phi={k: int(n) for k, n in sorted(self.no_eligible_phi.items())})
         return r

@@ -273,8 +273,15 @@ def report(res: dict) -> None:
     # bare count under a sentence -- "reuse was attempted and the library did not explain" -- that names no branch.
     # An attempt can end four different ways at the offer site and four more at the directive site, and they
     # implicate four different layers. These counts are string literals written at those branches:
-    #   explains_no_eligible   Γ held nothing that even SPLITS these contexts. The library never competed. This is a
-    #                          GRAIN/applicability verdict and it is NOT a verdict on the architecture.
+    #   explains_no_eligible_* Γ held nothing that even SPLITS these contexts. The library never competed. This is a
+    #                          GRAIN/applicability verdict and it is NOT a verdict on the architecture. ★ AND IT IS
+    #                          ITSELF AN EXIT NAME SPANNING MORE THAN ONE STATE, so it now resolves at four returns:
+    #                          _empty (library empty; unreachable from the live site, named so nobody hides there),
+    #                          _absent (every rejected φ held on NO fresh context -- the vocabulary does not describe
+    #                          this board, so the repair is GRAIN at link 1), _universal (every rejected φ held on
+    #                          EVERY fresh context -- true and vacuous, so the repair is UPSTREAM in the residual
+    #                          builder), _mixed (both kinds present; no threshold picks between them, because a
+    #                          threshold is a name somebody chose and that is the defect this funnel exists to undo).
     #   explains_no_compress   eligible φ existed and none paid its own cost + log2(eligible). Γ was tested and lost
     #                          -- the only reading MINTED_UNUSED has ever claimed to be.
     #   explains_already_pure  the residual had one outcome; nothing to explain (unreachable from the live site,
@@ -291,19 +298,21 @@ def report(res: dict) -> None:
     #   about the MDL bar, not about grain. Published either way; NOTHING is widened this beat.
     rfn = (res.get("tether_chain") or {}).get("echo", {}).get("reuse_funnel") or {}
     rbr = (rfn.get("branch") or {})
-    _RB_NAMED = ("explains_no_eligible", "explains_no_compress", "explains_already_pure", "explains_no_exceptions",
-                 "explains_transfer", "dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted")
+    _RB_NE = ("explains_no_eligible_empty", "explains_no_eligible_absent", "explains_no_eligible_universal",
+              "explains_no_eligible_mixed")
+    _RB_NAMED = _RB_NE + ("explains_no_compress", "explains_already_pure", "explains_no_exceptions",
+                          "explains_transfer", "dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted")
     _att = int(rfn.get("attempts", 0))
     print("\n=== THE REUSE FUNNEL (which branch resolved each offer of a fresh residual to Γ) ===")
     if not rbr:
         print("  (no reuse branch recorded -- Γ was never offered anything this sweep)")
     for k in _RB_NAMED:
         _n = int(rbr.get(k, 0))
-        if _n or k in ("explains_no_eligible", "explains_no_compress", "explains_transfer"):
-            print("    %-24s attempts %7d (%5.1f%% of attempts)" % (k, _n, 100.0 * _n / max(1, _att)))
+        if _n or k in _RB_NE or k in ("explains_no_compress", "explains_transfer"):
+            print("    %-32s attempts %7d (%5.1f%% of attempts)" % (k, _n, 100.0 * _n / max(1, _att)))
     for k, n in sorted(rbr.items()):
         if k not in _RB_NAMED:
-            print("    %-24s attempts %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
+            print("    %-32s attempts %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
     _rres = int(rfn.get("residue", 0))
     print("  attempts=%d | branch sum=%d | RESIDUE=%d" % (_att, sum(rbr.values()), _rres))
     if _rres:
@@ -314,7 +323,10 @@ def report(res: dict) -> None:
         print("  VERDICT: MUTE -- Γ was never non-empty at an offer, so no attempt was made and MINTED_UNUSED"
               " cannot have been reached by this route. Nothing here is a verdict on the architecture.")
     else:
-        _ne, _nc = int(rbr.get("explains_no_eligible", 0)), int(rbr.get("explains_no_compress", 0))
+        # `_ne` is the SUM of the four no-eligible returns, so the dominance question below is asked of exactly
+        # the quantity the first prediction was written about -- splitting a name must not silently change the
+        # denominator of the prediction that motivated the split.
+        _ne, _nc = sum(int(rbr.get(k, 0)) for k in _RB_NE), int(rbr.get("explains_no_compress", 0))
         _dir = sum(int(rbr.get(k, 0)) for k in ("dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted"))
         if _ne >= 0.5 * _att:
             print("  VERDICT: Γ WAS NEVER APPLICABLE -- %.1f%% of offers found NO promoted φ that even splits the"
@@ -330,6 +342,80 @@ def report(res: dict) -> None:
                   " (no_eligible %.1f%%, no_compress %.1f%%); both readings stay open."
                   % (100.0 * _ne / _att, 100.0 * _nc / _att))
         print("  directive-site attempts=%d (predicted 0)%s" % (_dir, "" if not _dir else "  ★ PREDICTION WRONG"))
+        # ★ SECOND PRE-REGISTERED PREDICTION (written in tests/test_reuse_funnel.py BEFORE this sweep ran, and
+        # evaluated here by the script rather than by prose afterwards): `_absent` DOMINATES the four, and
+        # `phi_absent` dominates `phi_universal` in the per-φ tally. ABSENT means the promoted φ are simply not
+        # PRESENT off their home board and the repair is grain, at link 1. UNIVERSAL means the fresh contexts do
+        # not vary and the repair is UPSTREAM in the residual builder. They are different repairs, which is the
+        # whole reason the count had to be split before either one was attempted.
+        print("  --- WHICH KIND OF INAPPLICABILITY (the split of the %d no-eligible attempts) ---" % _ne)
+        if not _ne:
+            print("    (no attempt ended no-eligible this sweep -- the split says nothing and neither repair is"
+                  " indicated by it)")
+        else:
+            for k in _RB_NE:
+                print("    %-32s %7d (%5.1f%% of no-eligible)" % (k, int(rbr.get(k, 0)),
+                                                                  100.0 * int(rbr.get(k, 0)) / _ne))
+            _abs_n, _uni_n = int(rbr.get("explains_no_eligible_absent", 0)), \
+                int(rbr.get("explains_no_eligible_universal", 0))
+            _mix_n, _emp_n = int(rbr.get("explains_no_eligible_mixed", 0)), \
+                int(rbr.get("explains_no_eligible_empty", 0))
+            if _emp_n:
+                print("    ★ %d attempts found Γ'S LIBRARY EMPTY. That branch is supposed to be unreachable from"
+                      " the live site, which guards on Γ being non-empty. A reachable 'unreachable' branch is a"
+                      " wiring finding and it outranks the rest of this section." % _emp_n)
+            if _abs_n >= 0.5 * _ne:
+                print("    VERDICT: ABSENT -- %.1f%% of no-eligible attempts rejected EVERY φ for holding on no"
+                      " fresh context at all. PREDICTION HELD. The promoted vocabulary does not describe the board"
+                      " it was carried to; the repair is GRAIN, at link 1, and nothing about the MDL bar or the"
+                      " residual builder is implicated." % (100.0 * _abs_n / _ne))
+            elif _uni_n >= 0.5 * _ne:
+                print("    VERDICT: UNIVERSAL -- %.1f%% of no-eligible attempts rejected EVERY φ for holding on"
+                      " EVERY fresh context. PREDICTION WRONG, and the finding points UPSTREAM: the contexts the"
+                      " residual builder hands to Γ do not vary, so no predicate could split them and grain is not"
+                      " the thing to repair." % (100.0 * _uni_n / _ne))
+            elif _mix_n >= 0.5 * _ne:
+                print("    VERDICT: MIXED -- %.1f%% of no-eligible attempts saw BOTH kinds in one library scan."
+                      " Neither repair can be attempted first on the strength of this row; the per-φ tally below"
+                      " carries the proportions, on its own denominator." % (100.0 * _mix_n / _ne))
+            else:
+                print("    VERDICT: NO KIND HOLDS HALF (absent %.1f%%, universal %.1f%%, mixed %.1f%%) -- both"
+                      " repairs stay open and neither is indicated."
+                      % (100.0 * _abs_n / _ne, 100.0 * _uni_n / _ne, 100.0 * _mix_n / _ne))
+    # ★★★ THE PER-φ TALLY: A DIFFERENT DENOMINATOR, KEPT APART ON PURPOSE. ★★★
+    # Every row above counts ATTEMPTS. These rows count LIBRARY φ SCANNED -- one write per rejected predicate, at
+    # the eligibility loop. One attempt against a twelve-φ library writes one branch name and up to twelve φ names,
+    # so the two must never be added or divided into one another. That is exactly why the producer publishes this
+    # as a bare split and never as a rate against attempts: a per-φ count folded into a per-attempt sum would land
+    # on a plausible total for the wrong reason, and would do it invisibly.
+    _phi = (rfn.get("phi") or {})
+    _phi_bys = (rfn.get("phi_by_stage") or {})
+    _phi_tot = sum(int(n) for n in _phi.values())
+    print("\n=== WHY EACH LIBRARY φ WAS REJECTED (per φ SCANNED -- NOT per attempt; do not divide by attempts) ===")
+    if not _phi_tot:
+        print("  (no φ rejection recorded -- either no attempt reached the eligibility loop, or every scanned φ"
+              " was eligible. Those are different states and this row does not distinguish them.)")
+    else:
+        for k, n in sorted(_phi.items(), key=lambda kv: (-kv[1], kv[0])):
+            print("    %-24s %7d (%5.1f%% of φ scanned-and-rejected)" % (k, int(n), 100.0 * int(n) / _phi_tot))
+        _pa, _pu = int(_phi.get("phi_absent", 0)), int(_phi.get("phi_universal", 0))
+        if _pa > _pu:
+            print("  VERDICT: φ ARE ABSENT more often than vacuous (%d vs %d). PREDICTION HELD at the φ level:"
+                  " the promoted literals do not fire on the boards they were carried to." % (_pa, _pu))
+        elif _pu > _pa:
+            print("  VERDICT: φ ARE VACUOUS more often than absent (%d vs %d). PREDICTION WRONG at the φ level:"
+                  " the φ do fire, and it is the CONTEXTS that fail to vary -- an upstream finding." % (_pu, _pa))
+        else:
+            print("  VERDICT: TIED at %d each -- the φ-level split indicates neither repair." % _pa)
+        print("  --- by the stage the SEGMENT was scored (same subset caveat as the branch cross-tab) ---")
+        for k, n in sorted(_phi_bys.items(), key=lambda kv: (-kv[1], kv[0])):
+            print("    %-46s %7d%s" % (k, int(n),
+                                       "   ← THE ARCHITECTURE CLAIM" if k.startswith("MINTED_UNUSED|") else ""))
+        _pres = _phi_tot - sum(int(n) for n in _phi_bys.values())
+        if _pres:
+            print("    ★ PER-φ CROSS-TAB RESIDUE=%d -- the pooled by-stage φ rows do not sum back to the pooled φ"
+                  " totals, so one of the two dicts did not survive the pooling boundary intact. Cite neither."
+                  % _pres)
     # THE CROSS-TAB. The branch counts above are pooled over EVERY segment; the question owed is about the segments
     # scored MINTED_UNUSED specifically, and a pooled rate offered as evidence about a subset is a mis-labelled
     # receipt. These rows are read off each receipt's own stage and own branch tally -- one row, never a join.

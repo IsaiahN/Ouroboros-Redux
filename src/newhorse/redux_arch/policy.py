@@ -1030,7 +1030,8 @@ class ReduxPolicy:
             ev.reuse_attempted_foreign = ev.library_foreign_before > 0
             # THE PEN IS THE LEDGER'S OWN METHOD: whichever way `explains_scored` comes out, the name is written
             # from inside it, into the same object that scores the segment. Nothing here reads the branch back.
-            hit = self.echo.explains_scored(exc, branch=self.chain.note_reuse_exit)
+            hit = self.echo.explains_scored(exc, branch=self.chain.note_reuse_exit,
+                                            phi_branch=self.chain.note_no_eligible_phi)
             if hit is not None:
                 pred, gain = hit
                 self.chain.note_reuse()
@@ -1139,11 +1140,13 @@ class ReduxPolicy:
         # the close would print a measured zero on every segment -- a field never computed, rendered as evidence.
         seg_att = self.chain.reuse_attempts_in_segment
         seg_reuse = dict(self.chain.reuse_branch_in_segment)
+        seg_phi = dict(self.chain.no_eligible_phi_in_segment)
         st = self.chain.end_segment(reason)
         if ev is not None:
             ev.stage = None if st is None else st.name
             ev.reuse_attempts = int(seg_att)
             ev.reuse_branch = seg_reuse
+            ev.no_eligible_phi = seg_phi
             ev.boundary_diff_ran = bool(self._seg_boundary_diff)
             # THE DECISION SITE's segment tally lands on the SAME receipt that carries the segment's stage, so a
             # lifted stage and the organ that lifted it are always read off one row. `reuse_source` is composed

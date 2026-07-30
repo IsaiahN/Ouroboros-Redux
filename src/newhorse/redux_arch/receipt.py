@@ -142,6 +142,12 @@ class ResidualEvent:
     # join between two organs. `sum(reuse_branch.values()) == reuse_attempts` and `summary()` publishes the residue.
     reuse_attempts: int = 0
     reuse_branch: Dict[str, int] = field(default_factory=dict)
+    # ONE LEVEL FINER THAN `reuse_branch`, and on a DIFFERENT denominator on purpose. `explains_no_eligible_*` says
+    # the library did not apply; this says why each individual φ failed to apply -- `phi_absent` (holds nowhere on
+    # this board: a vocabulary/grain fault) or `phi_universal` (holds everywhere: the contexts are degenerate).
+    # It counts per φ scanned, not per attempt, so it must NEVER be closed against `reuse_attempts`; the sweep
+    # prints it as a bare split for exactly that reason.
+    no_eligible_phi: Dict[str, int] = field(default_factory=dict)
 
     transferred: Optional[str] = None     # str(φ) that explained this residual without re-minting
     transfer_gain_bits: float = 0.0
@@ -367,12 +373,21 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
     attempts = sum(int(e.reuse_attempts) for e in evs)
     branch: Dict[str, int] = {}
     by_stage: Dict[str, int] = {}
+    phi: Dict[str, int] = {}
+    phi_by_stage: Dict[str, int] = {}
     for e in evs:
         st = e.stage or "UNSCORED"
         for k, n in (e.reuse_branch or {}).items():
             branch[k] = branch.get(k, 0) + int(n)
             sk = "%s|%s" % (st, k)
             by_stage[sk] = by_stage.get(sk, 0) + int(n)
+        # THE PER-φ SPLIT IS POOLED ON ITS OWN AXIS AND CROSS-TABBED ON THE SAME ONE ROW. It is kept out of
+        # `branch` deliberately: adding a per-φ count to a per-attempt count would break the residue identity and
+        # would do it invisibly, by making the sum land on the right total for the wrong reason.
+        for k, n in (e.no_eligible_phi or {}).items():
+            phi[k] = phi.get(k, 0) + int(n)
+            pk = "%s|%s" % (st, k)
+            phi_by_stage[pk] = phi_by_stage.get(pk, 0) + int(n)
     # NO `by_stage_residue` IS PUBLISHED HERE, AND THAT IS DELIBERATE. Within this function every branch write also
     # writes a `by_stage` row, so the two sums are equal BY CONSTRUCTION and a residue over them could never fail --
     # an identity that cannot fail is decoration, not a check. The residue worth printing is across the POOLING
@@ -381,7 +396,9 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
     return dict(attempts=attempts,
                 branch=dict(sorted(branch.items())),
                 residue=attempts - sum(branch.values()),
-                by_stage=dict(sorted(by_stage.items())))
+                by_stage=dict(sorted(by_stage.items())),
+                phi=dict(sorted(phi.items())),
+                phi_by_stage=dict(sorted(phi_by_stage.items())))
 
 
 def summary(events: List[ResidualEvent]) -> Dict[str, Any]:

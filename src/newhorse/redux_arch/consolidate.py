@@ -183,7 +183,8 @@ class Consolidator:
             self.log.clear()
 
     def explains_scored(self, exceptions: List[Exception_], report: Optional[Dict[str, float]] = None,
-                        branch: Optional[Callable[[str], None]] = None):
+                        branch: Optional[Callable[[str], None]] = None,
+                        phi_branch: Optional[Callable[[str], None]] = None):
         """`explains`, but returning (φ, bits saved) so the firing receipt can record the MDL delta the transfer
         actually bought instead of merely asserting that one happened.
 
@@ -206,8 +207,22 @@ class Consolidator:
         out therefore writes its OWN string literal at its OWN branch. It is passed the ledger's bound method rather
         than a dict so there is no second carrier that could be built somewhere the wiring does not reach -- the
         defect that made the click branch read a residue of 126 for a beat. Scoring is untouched: this writes a
-        name and returns exactly what it returned before."""
+        name and returns exactly what it returned before.
+
+        ★ `explains_no_eligible` IS ITSELF AN EXIT NAME SPANNING MORE THAN ONE STATE, AND THIS BEAT SPLITS IT.
+        Ten of ten MINTED_UNUSED segments across three sweeps resolved here, so "no promoted φ splits these
+        contexts" is now the load-bearing sentence in the whole chain -- and it covers two states with OPPOSITE
+        fixes. A φ is ineligible either because it holds on NO fresh context (it is ABSENT here: the predicate
+        describes something this board does not contain, which is a GRAIN fault at link 1, in perception's
+        vocabulary) or because it holds on EVERY fresh context (it is UNIVERSAL here: the predicate is true but
+        vacuous, which says the CONTEXTS are degenerate and points UPSTREAM into the residual builder). Those are
+        mutually exclusive and jointly exhaustive for an ineligible φ, because `any(h) and not all(h)` is false
+        exactly when `not any(h)` or `all(h)`. So the attempt is charged to one of four literals -- empty library,
+        all-absent, all-universal, mixed -- at four separate returns, and `phi_branch` additionally tallies the
+        PER-φ classification so a `mixed` attempt is not a dead end. Deciding dominance by a threshold was
+        rejected: a threshold is a name somebody chose, which is the defect this whole funnel exists to undo."""
         _b = branch if branch is not None else (lambda _name: None)
+        _p = phi_branch if phi_branch is not None else (lambda _name: None)
         n = len(exceptions)
         if n == 0:
             _b("explains_no_exceptions")
@@ -220,13 +235,21 @@ class Consolidator:
         with self._lock:
             lib = list(self.library)                         # snapshot: Γ is shared and another game may be appending
         eligible = []
+        n_absent = n_universal = 0                           # WHY each rejected φ was rejected, charged at the loop
         for pred in lib:
             holds = [pred.holds(ctx) for ctx, _ in exceptions]
             if any(holds) and not all(holds):                # a non-trivial split of the CONTEXTS -- outcome-blind
                 eligible.append((pred, holds))
+            elif not any(holds):                             # φ is ABSENT on this board -- a grain fault at link 1
+                n_absent += 1
+                _p("phi_absent")
+            else:                                            # φ holds EVERYWHERE -- true but vacuous; look upstream
+                n_universal += 1
+                _p("phi_universal")
         selection_cost = math.log2(len(eligible)) if eligible else 0.0
         if report is not None:
-            report.update(library_size=len(lib), n_eligible=len(eligible), selection_cost_bits=selection_cost)
+            report.update(library_size=len(lib), n_eligible=len(eligible), selection_cost_bits=selection_cost,
+                          n_phi_absent=n_absent, n_phi_universal=n_universal)
         best, best_gain = None, 1e-9                         # must STRICTLY compress
         for pred, holds in eligible:
             pos = [o for (_, o), h in zip(exceptions, holds) if h]
@@ -242,12 +265,21 @@ class Consolidator:
         # nothing that non-trivially splits THESE contexts -- the library never got to compete, so the stall is
         # about grain/applicability and NOT about the architecture. `explains_no_compress` means eligible φ existed
         # and none strictly compressed after paying its own cost plus log2(eligible) -- that one is the reading
-        # MINTED_UNUSED has always claimed to be.
+        # MINTED_UNUSED has always claimed to be. The no-eligible side is split FOUR ways, each at its own return,
+        # because "nothing applied" covers an empty library, a library that is absent here, a library that is
+        # vacuously true here, and a library that is some of each -- and those have different fixes in different
+        # links. No threshold and no dominance rule: the four are exhaustive and exclusive by construction.
         if best is None:
-            if not eligible:
-                _b("explains_no_eligible")
-            else:
+            if eligible:
                 _b("explains_no_compress")
+            elif not lib:
+                _b("explains_no_eligible_empty")             # not reachable from the live site, which guards on Γ
+            elif n_absent and n_universal:
+                _b("explains_no_eligible_mixed")
+            elif n_absent:
+                _b("explains_no_eligible_absent")            # GRAIN: the vocabulary does not describe this board
+            else:
+                _b("explains_no_eligible_universal")         # UPSTREAM: the fresh contexts do not vary
             return None
         _b("explains_transfer")
         return (best, float(best_gain))
