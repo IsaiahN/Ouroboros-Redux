@@ -190,6 +190,13 @@ class ChainLedger:
     # library scan, which is why it is published as a bare split and never as a rate against attempts.
     _seg_phi: Counter = field(default_factory=Counter)
     no_eligible_phi: Counter = field(default_factory=Counter)
+    # ...and one level finer AGAIN, on the SAME denominator as `no_eligible_phi` but answering a different
+    # question: not WHETHER a φ was absent, but WHICH VOCABULARY was absent. Kept in its OWN dict rather than
+    # appended to `no_eligible_phi`, because the printer closes that dict by summing every key in it -- a
+    # refinement dropped into the same bag would inflate the coarse total and read as a plausible number for the
+    # wrong reason. Two dicts, two totals, and a cross-dict identity the printer can actually check.
+    _seg_phi_kind: Counter = field(default_factory=Counter)
+    phi_kind: Counter = field(default_factory=Counter)
 
     @property
     def steps_in_segment(self) -> int:
@@ -256,6 +263,22 @@ class ChainLedger:
         self._seg_phi[str(kind)] += 1
         self.no_eligible_phi[str(kind)] += 1
 
+    @property
+    def phi_kind_in_segment(self) -> Dict[str, int]:
+        return {k: int(n) for k, n in sorted(self._seg_phi_kind.items())}
+
+    def note_phi_kind(self, kind: str) -> None:
+        """WHICH VOCABULARY a rejected φ was made of, and -- for an ABSENT φ -- which of its atoms was itself dead
+        on these contexts. Three families of literal, each closing on its own subset of the same denominator:
+        `absent_kind_*` and `absent_cause_*` each sum to `no_eligible_phi['phi_absent']`, `universal_kind_*` sums
+        to `no_eligible_phi['phi_universal']`. COMPOSITION and CAUSE are different claims and are not
+        interchangeable: a φ built out of colour literals that is absent may be absent because a RELATION in the
+        same conjunction never held, so `absent_kind_colour` alone would name the wrong repair. The cause literal
+        is charged from each atom's own evaluation over the same contexts, which is the only place that fact
+        exists."""
+        self._seg_phi_kind[str(kind)] += 1
+        self.phi_kind[str(kind)] += 1
+
     def note_reuse(self) -> None:
         """The promoted library EXPLAINED a fresh task without re-minting -- transfer."""
         self._sig.reused = True
@@ -282,6 +305,7 @@ class ChainLedger:
         self._att = 0                                  # ...and so does the reuse tally that explains the signals
         self._seg_reuse = Counter()
         self._seg_phi = Counter()
+        self._seg_phi_kind = Counter()
         return st
 
     def report(self) -> Dict[str, object]:
@@ -291,5 +315,6 @@ class ChainLedger:
                  reuse_attempts=int(self.reuse_attempts),
                  reuse_branch={k: int(n) for k, n in sorted(self.reuse_branch.items())},
                  reuse_residue=int(self.reuse_attempts) - int(sum(self.reuse_branch.values())),
-                 no_eligible_phi={k: int(n) for k, n in sorted(self.no_eligible_phi.items())})
+                 no_eligible_phi={k: int(n) for k, n in sorted(self.no_eligible_phi.items())},
+                 phi_kind={k: int(n) for k, n in sorted(self.phi_kind.items())})
         return r

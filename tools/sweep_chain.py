@@ -416,6 +416,92 @@ def report(res: dict) -> None:
             print("    ★ PER-φ CROSS-TAB RESIDUE=%d -- the pooled by-stage φ rows do not sum back to the pooled φ"
                   " totals, so one of the two dicts did not survive the pooling boundary intact. Cite neither."
                   % _pres)
+    # ★★★ WHICH VOCABULARY WAS ABSENT -- THE SAME DENOMINATOR AS ABOVE, A DIFFERENT QUESTION. ★★★
+    # `phi_absent` says the promoted φ did not fire on the board it was carried to. It does not say WHICH PART of
+    # the vocabulary failed to travel, and those have different repairs: a dead COLOUR literal says the palette is
+    # local to the board it was learned on, a dead RELATIONAL atom says the geometry is, and a φ whose every atom
+    # is alive but which still holds nowhere says NEITHER vocabulary is missing -- the conjunction simply never
+    # co-occurs, which is an arity question, not a grain one. These rows are charged at the same loop as
+    # `phi_absent`, from each atom's OWN evaluation over the SAME contexts, into a SEPARATE dict; the identity
+    # below is across the two dicts, which is where it can genuinely fail.
+    _pk = (rfn.get("phi_kind") or {})
+    _pk_bys = (rfn.get("phi_kind_by_stage") or {})
+    print("\n=== WHICH VOCABULARY WAS ABSENT (per ABSENT φ -- a refinement of the row above, not an addition) ===")
+    if not _pk:
+        print("  (no vocabulary split recorded -- no φ was rejected, or the finer pen did not reach this run.)")
+    else:
+        _pa2 = int(_phi.get("phi_absent", 0))
+        _pu2 = int(_phi.get("phi_universal", 0))
+        _sum = lambda pre: sum(int(n) for k, n in _pk.items() if k.startswith(pre))
+        _ak, _ac, _uk = _sum("absent_kind_"), _sum("absent_cause_"), _sum("universal_kind_")
+        print("  --- COMPOSITION of the dead φ (what it was MADE OF) ---")
+        for k, n in sorted(_pk.items(), key=lambda kv: (-kv[1], kv[0])):
+            if k.startswith("absent_kind_"):
+                print("    %-32s %7d (%5.1f%% of absent φ)" % (k, int(n), 100.0 * int(n) / max(1, _ak)))
+        print("  --- CAUSE of its death (which family's ATOM was itself dead on these contexts) ---")
+        for k, n in sorted(_pk.items(), key=lambda kv: (-kv[1], kv[0])):
+            if k.startswith("absent_cause_"):
+                print("    %-32s %7d (%5.1f%% of absent φ)" % (k, int(n), 100.0 * int(n) / max(1, _ac)))
+        print("  --- BASE RATE: composition of the UNIVERSAL φ (the same vocabulary, rejected the other way) ---")
+        for k, n in sorted(_pk.items(), key=lambda kv: (-kv[1], kv[0])):
+            if k.startswith("universal_kind_"):
+                print("    %-32s %7d (%5.1f%% of universal φ)" % (k, int(n), 100.0 * int(n) / max(1, _uk)))
+        _stray = sorted(k for k in _pk
+                        if not k.startswith(("absent_kind_", "absent_cause_", "universal_kind_")))
+        if _stray:
+            print("    ★ UNNAMED VOCABULARY ROWS %s -- a literal outside the three families is a branch added"
+                  " without a reading; it is printed, not folded." % (_stray,))
+        # ★ THE THREE IDENTITIES, ACROSS TWO DICTS AND ACROSS THE POOLING BOUNDARY -- each able to fail.
+        _bad = []
+        if _ak != _pa2:
+            _bad.append("absent_kind_* sums to %d but phi_absent is %d" % (_ak, _pa2))
+        if _ac != _pa2:
+            _bad.append("absent_cause_* sums to %d but phi_absent is %d" % (_ac, _pa2))
+        if _uk != _pu2:
+            _bad.append("universal_kind_* sums to %d but phi_universal is %d" % (_uk, _pu2))
+        if _bad:
+            print("  ★ VOCABULARY IDENTITY BROKEN: %s. One of the two dicts did not cross the pooling boundary"
+                  " intact, or a φ took a rejection branch without writing its family. CITE NOTHING FROM THIS"
+                  " SECTION until it closes." % "; ".join(_bad))
+        else:
+            print("  identities CLOSE: absent_kind=%d absent_cause=%d both == phi_absent=%d;"
+                  " universal_kind=%d == phi_universal=%d" % (_ak, _ac, _pa2, _uk, _pu2))
+        # ★ THIRD PRE-REGISTERED PREDICTION (written into tests/test_reuse_funnel.py BEFORE this sweep ran):
+        # ABSENCE CONCENTRATES IN THE COLOUR VOCABULARY. If it holds, the grain repair is about WHICH ATOMS GET
+        # PROMOTED and not about widening any gate. The two ways to be wrong point elsewhere and are named here
+        # so neither can be re-described afterwards as a partial success.
+        _col = int(_pk.get("absent_cause_colour", 0)) + int(_pk.get("absent_cause_both", 0))
+        _rel = int(_pk.get("absent_cause_relational", 0))
+        _non = int(_pk.get("absent_cause_none", 0))
+        if not _ac:
+            print("  (no absent φ this sweep -- the third prediction is UNEVALUATED, which is not a pass.)")
+        elif _col > _rel + _non:
+            print("  VERDICT: COLOUR -- %d of %d absent φ died on a ground-colour literal (relational %d,"
+                  " interaction-only %d). PREDICTION HELD. The promoted palette is local to the board it was"
+                  " learned on; the grain repair is about WHICH ATOMS GET PROMOTED, and no gate is implicated."
+                  % (_col, _ac, _rel, _non))
+        elif _rel > _col + _non:
+            print("  VERDICT: RELATIONAL -- %d of %d absent φ died on a relational atom (colour %d,"
+                  " interaction-only %d). PREDICTION WRONG. The palette travels and the GEOMETRY does not, so the"
+                  " repair is in the relational vocabulary, not in colour promotion." % (_rel, _ac, _col, _non))
+        elif _non > _col + _rel:
+            print("  VERDICT: INTERACTION -- %d of %d absent φ had EVERY atom alive and still held nowhere"
+                  " (colour %d, relational %d). PREDICTION WRONG in a third way that was named in advance:"
+                  " NEITHER vocabulary is missing. The conjunction never co-occurs, so the repair is the ARITY of"
+                  " the predicate, not the atom registry." % (_non, _ac, _col, _rel))
+        else:
+            print("  VERDICT: NO CAUSE HOLDS A MAJORITY (colour %d, relational %d, interaction-only %d of %d) --"
+                  " the third prediction is UNRESOLVED and no repair is indicated by this section."
+                  % (_col, _rel, _non, _ac))
+        if _pk_bys:
+            print("  --- by the stage the SEGMENT was scored (same subset caveat as every cross-tab here) ---")
+            for k, n in sorted(_pk_bys.items(), key=lambda kv: (-kv[1], kv[0])):
+                print("    %-52s %7d%s" % (k, int(n),
+                                           "   ← THE ARCHITECTURE CLAIM" if k.startswith("MINTED_UNUSED|") else ""))
+            _kres = sum(int(n) for n in _pk.values()) - sum(int(n) for n in _pk_bys.values())
+            if _kres:
+                print("    ★ VOCABULARY CROSS-TAB RESIDUE=%d -- the by-stage rows do not sum back to the pooled"
+                      " rows; one dict did not survive the pooling boundary. Cite neither." % _kres)
     # THE CROSS-TAB. The branch counts above are pooled over EVERY segment; the question owed is about the segments
     # scored MINTED_UNUSED specifically, and a pooled rate offered as evidence about a subset is a mis-labelled
     # receipt. These rows are read off each receipt's own stage and own branch tally -- one row, never a join.

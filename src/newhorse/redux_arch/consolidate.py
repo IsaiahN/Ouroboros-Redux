@@ -17,7 +17,7 @@ import math
 import threading
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Set, FrozenSet, Tuple
-from .dsl import Predicate, Context
+from .dsl import Predicate, Context, atom_family, predicate_family
 from .minting import Mint, two_part_mdl, Exception_, _entropy_bits
 from .residual_bank import family_key as _family
 from .receipt import game_of
@@ -184,7 +184,8 @@ class Consolidator:
 
     def explains_scored(self, exceptions: List[Exception_], report: Optional[Dict[str, float]] = None,
                         branch: Optional[Callable[[str], None]] = None,
-                        phi_branch: Optional[Callable[[str], None]] = None):
+                        phi_branch: Optional[Callable[[str], None]] = None,
+                        kind_branch: Optional[Callable[[str], None]] = None):
         """`explains`, but returning (φ, bits saved) so the firing receipt can record the MDL delta the transfer
         actually bought instead of merely asserting that one happened.
 
@@ -220,9 +221,19 @@ class Consolidator:
         exactly when `not any(h)` or `all(h)`. So the attempt is charged to one of four literals -- empty library,
         all-absent, all-universal, mixed -- at four separate returns, and `phi_branch` additionally tallies the
         PER-φ classification so a `mixed` attempt is not a dead end. Deciding dominance by a threshold was
-        rejected: a threshold is a name somebody chose, which is the defect this whole funnel exists to undo."""
+        rejected: a threshold is a name somebody chose, which is the defect this whole funnel exists to undo.
+
+        `kind_branch` goes one level finer still, on the SAME denominator as `phi_branch` (a φ scanned and
+        rejected) but answering WHICH VOCABULARY was absent rather than WHETHER it was. It writes two orthogonal
+        splits over the absent φ -- the COMPOSITION of the dead predicate (`absent_kind_*`: colour literals only,
+        relational atoms only, or a conjunction spanning both) and the CAUSE of its death (`absent_cause_*`:
+        which family's atom was ITSELF dead on these contexts, or `none` when every atom lives and only the
+        conjunction fails) -- plus the composition of the UNIVERSAL φ as the base rate the absent split has to be
+        read against. It is a bookkeeping split of the existing atom registry; no atom, gate, threshold or
+        detector is added, and nothing in the search or the MDL score reads any of it."""
         _b = branch if branch is not None else (lambda _name: None)
         _p = phi_branch if phi_branch is not None else (lambda _name: None)
+        _k = kind_branch if kind_branch is not None else (lambda _name: None)
         n = len(exceptions)
         if n == 0:
             _b("explains_no_exceptions")
@@ -243,9 +254,28 @@ class Consolidator:
             elif not any(holds):                             # φ is ABSENT on this board -- a grain fault at link 1
                 n_absent += 1
                 _p("phi_absent")
+                _k("absent_kind_" + predicate_family(pred))  # COMPOSITION: what the dead φ was MADE OF
+                # ...and CAUSE, which is a different claim. A conjunction can hold nowhere even though every one
+                # of its atoms holds somewhere -- the atoms simply never co-occur. That state ('none') is an
+                # INTERACTION absence and its repair is the conjunction arity, not the vocabulary. Charging the
+                # composition alone would silently rename it as a vocabulary fault. Each atom is evaluated over
+                # the SAME contexts, which is the only place the fact exists; nothing else is consulted.
+                dead = {atom_family(a) for a in pred.atoms
+                        if not any(a.holds(ctx) for ctx, _ in exceptions)}
+                if not dead:
+                    _k("absent_cause_none")                  # every atom lives; the CONJUNCTION never co-occurs
+                elif dead == {"colour"}:
+                    _k("absent_cause_colour")
+                elif dead == {"relational"}:
+                    _k("absent_cause_relational")
+                elif "unregistered" in dead:
+                    _k("absent_cause_unregistered")          # a wiring fault, named rather than folded in
+                else:
+                    _k("absent_cause_both")
             else:                                            # φ holds EVERYWHERE -- true but vacuous; look upstream
                 n_universal += 1
                 _p("phi_universal")
+                _k("universal_kind_" + predicate_family(pred))   # the BASE RATE the absent split is read against
         selection_cost = math.log2(len(eligible)) if eligible else 0.0
         if report is not None:
             report.update(library_size=len(lib), n_eligible=len(eligible), selection_cost_bits=selection_cost,

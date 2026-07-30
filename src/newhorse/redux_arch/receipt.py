@@ -148,6 +148,13 @@ class ResidualEvent:
     # It counts per φ scanned, not per attempt, so it must NEVER be closed against `reuse_attempts`; the sweep
     # prints it as a bare split for exactly that reason.
     no_eligible_phi: Dict[str, int] = field(default_factory=dict)
+    # FINER STILL, on the SAME denominator as `no_eligible_phi` but answering a different question: not WHETHER a
+    # φ was absent but WHICH VOCABULARY was. Two orthogonal splits over the absent φ (`absent_kind_*` = what the
+    # dead predicate was made of; `absent_cause_*` = which family's atom was itself dead, or `none` when every
+    # atom lives and only the conjunction fails), plus `universal_kind_*` as the base rate. Kept in its OWN dict
+    # because the sweep closes `no_eligible_phi` by summing every key in it -- a refinement dropped into that bag
+    # would inflate the coarse total invisibly. Two dicts, two totals, and a cross-dict identity that can fail.
+    phi_kind: Dict[str, int] = field(default_factory=dict)
 
     transferred: Optional[str] = None     # str(φ) that explained this residual without re-minting
     transfer_gain_bits: float = 0.0
@@ -375,6 +382,8 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
     by_stage: Dict[str, int] = {}
     phi: Dict[str, int] = {}
     phi_by_stage: Dict[str, int] = {}
+    phi_kind: Dict[str, int] = {}
+    phi_kind_by_stage: Dict[str, int] = {}
     for e in evs:
         st = e.stage or "UNSCORED"
         for k, n in (e.reuse_branch or {}).items():
@@ -388,6 +397,13 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
             phi[k] = phi.get(k, 0) + int(n)
             pk = "%s|%s" % (st, k)
             phi_by_stage[pk] = phi_by_stage.get(pk, 0) + int(n)
+        # ...and the vocabulary refinement, pooled on its OWN axis into its OWN dict for the same reason: it
+        # shares a denominator with `phi` but not a total, and merging the two would close `phi` on the right
+        # number for the wrong reason. The printer checks them AGAINST each other instead of adding them.
+        for k, n in (e.phi_kind or {}).items():
+            phi_kind[k] = phi_kind.get(k, 0) + int(n)
+            kk = "%s|%s" % (st, k)
+            phi_kind_by_stage[kk] = phi_kind_by_stage.get(kk, 0) + int(n)
     # NO `by_stage_residue` IS PUBLISHED HERE, AND THAT IS DELIBERATE. Within this function every branch write also
     # writes a `by_stage` row, so the two sums are equal BY CONSTRUCTION and a residue over them could never fail --
     # an identity that cannot fail is decoration, not a check. The residue worth printing is across the POOLING
@@ -398,7 +414,9 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
                 residue=attempts - sum(branch.values()),
                 by_stage=dict(sorted(by_stage.items())),
                 phi=dict(sorted(phi.items())),
-                phi_by_stage=dict(sorted(phi_by_stage.items())))
+                phi_by_stage=dict(sorted(phi_by_stage.items())),
+                phi_kind=dict(sorted(phi_kind.items())),
+                phi_kind_by_stage=dict(sorted(phi_kind_by_stage.items())))
 
 
 def summary(events: List[ResidualEvent]) -> Dict[str, Any]:

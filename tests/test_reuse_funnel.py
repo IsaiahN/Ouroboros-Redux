@@ -45,6 +45,25 @@ vary, which points UPSTREAM into the residual builder and is a different repair 
 says both are happening and neither repair can be attempted first without splitting further. Published whichever
 way it lands, and nothing is widened on the strength of it.
 
+★ THIRD PRE-REGISTERED PREDICTION (written before the sweep that reads it, evaluated by the sweep printer):
+ABSENCE CONCENTRATES IN THE COLOUR VOCABULARY. `phi_absent` says a promoted φ did not fire on the board it was
+carried to; it does not say WHICH PART of the vocabulary failed to travel, and the parts have different repairs.
+A THIRD counter, `note_phi_kind`, rides on the SAME denominator as `note_no_eligible_phi` (one write per φ
+rejected) in its OWN dict, and writes two orthogonal splits over the absent φ -- the COMPOSITION of the dead
+predicate (`absent_kind_colour|relational|both|empty`) and the CAUSE of its death (`absent_cause_colour|
+relational|both|none`, charged from each ATOM's own evaluation over the same contexts) -- plus `universal_kind_*`
+as the base rate the absent split must be read against. Composition and cause are NOT the same claim: a
+conjunction made of a colour literal and a relational atom can be absent because the RELATION never held, so the
+composition row alone would name the wrong repair. The prediction is that
+`absent_cause_colour + absent_cause_both` exceeds `absent_cause_relational + absent_cause_none`. If it holds, the
+promoted palette is local to the board it was learned on and the grain repair is about WHICH ATOMS GET PROMOTED,
+not about widening any gate. If `absent_cause_relational` dominates, the palette travels and the GEOMETRY does
+not, and the repair is elsewhere. If `absent_cause_none` dominates, NEITHER vocabulary is missing: every atom is
+alive and only the conjunction fails, so the repair is the ARITY of the predicate and not the atom registry at
+all. All three are named in advance so none can be re-described afterwards as a partial success. Nothing is
+widened on the strength of any of them: no atom, gate, threshold or detector is added, and nothing in the search
+or the MDL score reads any of these rows.
+
 WHAT THESE TESTS DELIBERATELY DO NOT ASSERT: any live count, rate or dominance. That is a measurement and it
 belongs to the sweep. A unit test that pinned which branch wins would be an answer key, and it would make the
 prediction unfalsifiable by construction.
@@ -85,6 +104,27 @@ NO_ELIGIBLE = tuple(n for n in NAMED if n.startswith("explains_no_eligible"))
 # The per-φ literals. Different denominator (one write per library φ scanned, not per attempt) -- never summed
 # into the branch tally, and every test below that touches both keeps them apart on purpose.
 PHI_NAMED = ("phi_absent", "phi_universal")
+# The vocabulary literals. SAME denominator as PHI_NAMED (one write per φ rejected), OWN dict -- because the sweep
+# closes the φ dict by summing every key in it, and a refinement dropped into that bag would inflate the coarse
+# total invisibly. Three families, each closing on its own subset: `absent_kind_*` and `absent_cause_*` each sum
+# to the `phi_absent` count, `universal_kind_*` sums to the `phi_universal` count.
+KIND_NAMED = ("absent_kind_colour", "absent_kind_relational", "absent_kind_both", "absent_kind_empty",
+              "absent_kind_unregistered",
+              "absent_cause_colour", "absent_cause_relational", "absent_cause_both", "absent_cause_none",
+              "absent_cause_unregistered",
+              "universal_kind_colour", "universal_kind_relational", "universal_kind_both",
+              "universal_kind_empty", "universal_kind_unregistered")
+# A colour the evidence never shows (every `_ctx` is colour 4), so this literal holds NOWHERE: the ABSENT half,
+# and unlike NEAR it is absent because a GROUND-COLOUR atom is dead rather than a relational one.
+COL7 = Predicate(frozenset({make_atom("HAS_COLOUR", 7)}))
+# Composition `both`, cause RELATIONAL: colour 4 holds in every context, NEAR in none, so the conjunction is
+# absent and the atom that killed it is the relational one. This pair is the whole reason cause is counted
+# separately from composition -- reading the composition row alone would name the colour vocabulary here.
+COL4_NEAR = Predicate(frozenset({make_atom("HAS_COLOUR", 4), make_atom("NEAR")}))
+# Composition `both`, cause BOTH: neither atom holds anywhere.
+COL7_NEAR = Predicate(frozenset({make_atom("HAS_COLOUR", 7), make_atom("NEAR")}))
+# Composition `relational`, cause NONE: each atom is alive somewhere and they never co-occur (see `_split_ev`).
+FREE_ROW = Predicate(frozenset({make_atom("INTENDED_FREE"), make_atom("SAME_ROW")}))
 
 
 def _ctx(free: bool, colour: int = 4, same_row: bool = False, near: bool = False) -> Context:
@@ -101,6 +141,20 @@ def _evidence(n: int = 8):
     """n exceptions whose OUTCOME is exactly INTENDED_FREE, so FREE explains them perfectly. `same_row` cycles on
     a different period, so ROW is ELIGIBLE (it splits the contexts) without being any good at the outcome."""
     return [(_ctx(free=(i % 2 == 0), same_row=(i % 3 == 0)), i % 2 == 0) for i in range(n)]
+
+
+def _split_ev(n: int = 6):
+    """Evidence in which INTENDED_FREE and SAME_ROW are alive but NEVER TOGETHER: the odd rows are free and not
+    row-aligned, the even rows are row-aligned and not free. So `FREE ∧ ROW` holds on no context even though every
+    one of its atoms holds on some context -- the INTERACTION absence, which is an arity fault, not a grain one.
+    The outcome tracks `free`, so the residual is never pure."""
+    return [(_ctx(free=(i % 2 == 1), same_row=(i % 2 == 0)), i % 2 == 1) for i in range(n)]
+
+
+def _row_ev(n: int = 6):
+    """Every context is row-aligned, so SAME_ROW holds EVERYWHERE: a relational atom on the UNIVERSAL side. The
+    base rate has to be measurable on both families or 'absence concentrates in colour' is unreadable."""
+    return [(_ctx(free=(i % 2 == 0), same_row=True), i % 2 == 0) for i in range(n)]
 
 
 class _Pen:
@@ -554,3 +608,221 @@ def test_every_literal_written_anywhere_in_the_source_is_on_the_named_list():
         for name in re.findall(r'_b\("([a-z_]+)"\)|note_reuse_exit\("([a-z_]+)"\)', src):
             got = name[0] or name[1]
             assert got in NAMED, "%s writes an unnamed branch %r" % (fn, got)
+
+
+# --------------------------------------------------------------------------------------------------------------
+# 6. WHICH VOCABULARY WAS ABSENT -- THE SAME DENOMINATOR, A DIFFERENT QUESTION, ITS OWN DICT.
+# --------------------------------------------------------------------------------------------------------------
+def test_every_registry_kind_stamps_itself_onto_the_atom_it_builds():
+    """The family split is read off `Atom.kind`, which the BUILDER writes. The alternative was to recover the kind
+    by parsing `name` afterwards, and a name parsed after the fact is a guess about what a branch did rather than
+    a record of it -- the same defect as an exit name spanning two returns, one layer down."""
+    from newhorse.redux_arch.dsl import _ATOM_TYPES, make_atom
+    for kind, (argt, _) in _ATOM_TYPES.items():
+        atom = make_atom(kind, *(4 for _ in argt))
+        assert atom.kind == kind, "%s built an atom stamped %r" % (kind, atom.kind)
+
+
+def test_the_two_families_partition_the_registry_exhaustively_and_exclusively():
+    """No third family and no atom in both. If a new atom kind is ever registered without being placed, the module
+    assert fires at import -- an unplaced atom silently counted as 'relational' would be a mis-labelled receipt
+    manufactured at the point the vocabulary grew."""
+    from newhorse.redux_arch.dsl import COLOUR_ATOM_KINDS, RELATIONAL_ATOM_KINDS, _ATOM_TYPES, atom_family, make_atom
+    assert COLOUR_ATOM_KINDS | RELATIONAL_ATOM_KINDS == frozenset(_ATOM_TYPES)
+    assert not (COLOUR_ATOM_KINDS & RELATIONAL_ATOM_KINDS)
+    for kind, (argt, _) in _ATOM_TYPES.items():
+        assert atom_family(make_atom(kind, *(4 for _ in argt))) in ("colour", "relational")
+
+
+def test_predicate_composition_is_exhaustive_over_conjunctions_and_names_the_empty_case():
+    from newhorse.redux_arch.dsl import predicate_family
+    assert predicate_family(COL7) == "colour"
+    assert predicate_family(NEAR) == "relational"
+    assert predicate_family(COL4_NEAR) == "both"
+    assert predicate_family(Predicate(frozenset())) == "empty"     # named, not folded into either side
+
+
+def test_composition_and_cause_are_different_claims_and_the_test_case_proves_it():
+    """★ THE REASON THERE ARE TWO SPLITS. `colour==4 ∧ NEAR` is absent on this evidence because NEAR never holds;
+    colour 4 holds in every single context. Reading the COMPOSITION row alone would charge this to the colour
+    vocabulary and send the repair to atom promotion, which would fix nothing. The CAUSE row is charged from each
+    atom's OWN evaluation over the same contexts -- the only place that fact exists."""
+    kind = _Pen()
+    assert _lib(COL4_NEAR).explains_scored(_evidence(8), phi_branch=_Pen(), kind_branch=kind) is None
+    assert sorted(kind.names) == ["absent_cause_relational", "absent_kind_both"]
+
+
+def test_the_cause_split_names_an_interaction_absence_rather_than_blaming_a_vocabulary():
+    """`FREE ∧ ROW` holds nowhere on `_split_ev` and yet BOTH of its atoms are alive there. Charging that to
+    either vocabulary would be an invented finding; `absent_cause_none` says the conjunction never co-occurs, and
+    its repair is the ARITY of the predicate, not the atom registry."""
+    kind = _Pen()
+    assert _lib(FREE_ROW).explains_scored(_split_ev(6), phi_branch=_Pen(), kind_branch=kind) is None
+    assert sorted(kind.names) == ["absent_cause_none", "absent_kind_relational"]
+
+
+def test_the_cause_split_names_both_when_both_families_are_dead():
+    kind = _Pen()
+    assert _lib(COL7_NEAR).explains_scored(_evidence(8), phi_branch=_Pen(), kind_branch=kind) is None
+    assert sorted(kind.names) == ["absent_cause_both", "absent_kind_both"]
+
+
+def test_a_dead_colour_literal_is_charged_to_the_colour_vocabulary_at_both_splits():
+    kind = _Pen()
+    assert _lib(COL7).explains_scored(_evidence(8), phi_branch=_Pen(), kind_branch=kind) is None
+    assert sorted(kind.names) == ["absent_cause_colour", "absent_kind_colour"]
+
+
+def test_the_base_rate_is_measurable_on_both_families_or_the_absent_split_is_unreadable():
+    """`universal_kind_*` exists so 'absence concentrates in colour' can be read against what the library is MADE
+    of rather than asserted. A library that is 90% colour would produce a colour-heavy absent split by base rate
+    alone, and that is not a finding about travel."""
+    k1, k2 = _Pen(), _Pen()
+    assert _lib(COL4).explains_scored(_evidence(8), phi_branch=_Pen(), kind_branch=k1) is None
+    assert k1.names == ["universal_kind_colour"]
+    assert _lib(ROW).explains_scored(_row_ev(6), phi_branch=_Pen(), kind_branch=k2) is None
+    assert k2.names == ["universal_kind_relational"]
+
+
+def test_an_eligible_predicate_writes_no_vocabulary_literal_either():
+    """The vocabulary pen is charged at the REJECTION, exactly like the φ pen. If it wrote on eligible φ too it
+    would become a library census wearing the name of a rejection reason."""
+    kind = _Pen()
+    assert _lib(ROW).explains_scored(_evidence(8), phi_branch=_Pen(), kind_branch=kind) is None
+    assert kind.names == []                              # ROW is ELIGIBLE here; it lost at compression, not here
+
+
+def test_the_three_vocabulary_identities_close_against_the_coarse_phi_counts():
+    """★ THE IDENTITY THAT CAN FAIL. `absent_kind_*` and `absent_cause_*` each sum to `phi_absent`;
+    `universal_kind_*` sums to `phi_universal`. They live in a DIFFERENT dict from `phi_absent`/`phi_universal`
+    precisely so this is a cross-dict check rather than a tautology -- a refinement pooled into the same bag would
+    close on the right total for the wrong reason."""
+    phi, kind = _Pen(), _Pen()
+    lib = (COL7, NEAR, COL4_NEAR, COL7_NEAR, COL4)       # four absent, one universal
+    assert _lib(*lib).explains_scored(_evidence(8), phi_branch=phi, kind_branch=kind) is None
+    n_abs = phi.names.count("phi_absent")
+    n_uni = phi.names.count("phi_universal")
+    assert (n_abs, n_uni) == (4, 1)
+    assert sum(1 for n in kind.names if n.startswith("absent_kind_")) == n_abs
+    assert sum(1 for n in kind.names if n.startswith("absent_cause_")) == n_abs
+    assert sum(1 for n in kind.names if n.startswith("universal_kind_")) == n_uni
+    for n in kind.names:
+        assert n in KIND_NAMED, "an unnamed vocabulary literal %r" % n
+
+
+def test_the_vocabulary_tally_is_never_added_to_the_phi_tally_or_the_branch_tally():
+    """THREE denominators now, and only two of them are the same. The branch pen writes once per ATTEMPT; the φ
+    pen and the vocabulary pen both write once per φ REJECTED but answer different questions and close on
+    different subsets. None of the three may be summed into another."""
+    led = ChainLedger()
+    led.note_reuse_attempt()
+    _lib(COL7, NEAR, COL4).explains_scored(_evidence(8), branch=led.note_reuse_exit,
+                                           phi_branch=led.note_no_eligible_phi,
+                                           kind_branch=led.note_phi_kind)
+    rep = led.report()
+    assert rep["reuse_attempts"] == 1 and rep["reuse_residue"] == 0
+    assert rep["reuse_branch"] == {"explains_no_eligible_mixed": 1}
+    assert rep["no_eligible_phi"] == {"phi_absent": 2, "phi_universal": 1}
+    assert set(rep["phi_kind"]) <= set(KIND_NAMED)
+    assert sum(rep["phi_kind"].values()) == 2 * 2 + 1    # two splits over 2 absent φ, one over 1 universal φ
+    assert sum(rep["phi_kind"].values()) != sum(rep["no_eligible_phi"].values())
+
+
+def test_the_vocabulary_count_lands_in_the_ledger_because_the_ledger_wrote_it_itself():
+    """RANKING 1, for the third pen. Bound method, one construction site, nothing to orphan."""
+    led = ChainLedger()
+    led.note_reuse_attempt()
+    _lib(COL7).explains_scored(_evidence(8), branch=led.note_reuse_exit,
+                               phi_branch=led.note_no_eligible_phi, kind_branch=led.note_phi_kind)
+    assert dict(led.phi_kind) == {"absent_kind_colour": 1, "absent_cause_colour": 1}
+    assert led.phi_kind_in_segment == {"absent_cause_colour": 1, "absent_kind_colour": 1}
+    assert led.report()["phi_kind"] == {"absent_cause_colour": 1, "absent_kind_colour": 1}
+
+
+def test_the_segment_vocabulary_tally_resets_but_the_run_total_does_not():
+    led = ChainLedger()
+    led.note_step()
+    led.note_phi_kind("absent_kind_colour")
+    led.end_segment("death")
+    assert led.phi_kind_in_segment == {}                 # the next segment is not charged this one's vocabulary
+    assert dict(led.phi_kind) == {"absent_kind_colour": 1}
+
+
+def test_every_explains_scored_call_site_in_policy_passes_the_vocabulary_pen_too():
+    """The orphan hazard, once per pen. A site wired for `phi_branch=` but not `kind_branch=` would print a
+    confident zero for the vocabulary split -- a field never COMPUTED, rendered as evidence."""
+    src = open(os.path.join(SRC, "policy.py")).read()
+    sites = re.findall(r"explains_scored\((?:[^()]|\([^()]*\))*\)", src, re.S)
+    assert sites, "the offer site vanished -- the funnel is measuring nothing"
+    for s in sites:
+        assert "kind_branch=" in s, "an offer site with no vocabulary pen: %s" % s
+
+
+def test_the_receipt_carries_the_vocabulary_tally_and_it_is_read_before_the_close():
+    """A THIRD field that `end_segment` zeroes, so a third read-before-close. Wiring two of the three and
+    forgetting this one would stamp a measured zero on every receipt in the run."""
+    p = ReduxPolicy(game_id="rf06-aaaa")
+    p.frames = [_board()]
+    p.chain.note_step()
+    p.chain.note_reuse_attempt()
+    p.chain.note_reuse_exit("explains_no_eligible_absent")
+    p.chain.note_no_eligible_phi("phi_absent")
+    p.chain.note_phi_kind("absent_kind_colour")
+    p.chain.note_phi_kind("absent_cause_relational")
+    p._close_segment("death")
+    ev = p.receipts[-1]
+    assert ev.phi_kind == {"absent_cause_relational": 1, "absent_kind_colour": 1}
+    assert p.chain.phi_kind_in_segment == {}
+    p.chain.note_step()
+    p._close_segment("death")
+    assert p.receipts[-1].phi_kind == {}
+
+
+def test_the_vocabulary_split_pools_on_its_own_axis_and_cross_tabs_off_the_same_row():
+    """Pooled into its OWN dict and cross-tabbed against the stage on the receipt that carries both, exactly like
+    the φ split. The cross-tab is a reading of one row, never a join between two organs."""
+    a = ResidualEvent(game="g1", level=0, segment=0, reason="death")
+    a.stage, a.reuse_branch, a.reuse_attempts = "MINTED_UNUSED", {"explains_no_eligible_absent": 1}, 1
+    a.no_eligible_phi = {"phi_absent": 2}
+    a.phi_kind = {"absent_kind_colour": 2, "absent_cause_colour": 1, "absent_cause_relational": 1}
+    b = ResidualEvent(game="g1", level=0, segment=1, reason="death")
+    b.stage, b.reuse_branch, b.reuse_attempts = "USED_NOCLEAR", {"explains_transfer": 1}, 1
+    out = _reuse_funnel([a, b])
+    assert out["phi_kind"] == {"absent_cause_colour": 1, "absent_cause_relational": 1, "absent_kind_colour": 2}
+    assert out["phi_kind_by_stage"] == {"MINTED_UNUSED|absent_cause_colour": 1,
+                                        "MINTED_UNUSED|absent_cause_relational": 1,
+                                        "MINTED_UNUSED|absent_kind_colour": 2}
+    assert out["residue"] == 0                           # ...and none of it touched the per-ATTEMPT identity
+    assert sum(out["phi_kind"].values()) != out["attempts"]
+
+
+def test_a_receipt_with_no_vocabulary_rows_contributes_nothing_rather_than_a_zero():
+    e = ResidualEvent(game="g1", level=0, segment=0, reason="death")
+    e.stage, e.reuse_branch, e.reuse_attempts = "MINT_UNFIRED", {}, 0
+    assert _reuse_funnel([e])["phi_kind"] == {}          # absent, not a manufactured zero
+
+
+def test_the_vocabulary_pen_does_not_change_what_the_scorer_returns():
+    """INSTRUMENT ONLY. Same library, same evidence, with and without the third pen -- identical verdict and
+    identical bits. If passing a pen could move the answer the instrument would be part of the mechanism."""
+    for lib, ev in ((( COL7, NEAR), _evidence(8)), ((FREE,), _evidence(8)), ((ROW,), _evidence(8))):
+        bare = _lib(*lib).explains_scored(ev)
+        penned = _lib(*lib).explains_scored(ev, branch=_Pen(), phi_branch=_Pen(), kind_branch=_Pen())
+        assert (bare is None) == (penned is None)
+        if bare is not None:
+            assert str(bare[0]) == str(penned[0]) and abs(bare[1] - penned[1]) < 1e-9
+
+
+def test_no_decision_path_reads_the_vocabulary_split():
+    """THE FREEZE HOLDS. `phi_kind` is written by the scorer and read by the receipt carry and the sweep printer.
+    Any other reader would be an organ steering on its own instrument, which is how the old proxy lied."""
+    for fn in ("policy.py", "consolidate.py", "swarm.py", "receipt.py", "abort_code.py"):
+        for i, line in enumerate(open(os.path.join(SRC, fn)), 1):
+            code = line.split("#")[0]
+            if "phi_kind" not in code:
+                continue
+            ok = (fn in ("abort_code.py", "receipt.py")
+                  or (fn == "consolidate.py" and "phi_kind" not in code.split("=")[0])
+                  or (fn == "policy.py" and ("ev.phi_kind" in code or "seg_phi_kind" in code
+                                             or "kind_branch=" in code)))
+            assert ok, "%s:%d reads the vocabulary split outside the carry: %s" % (fn, i, line.strip())

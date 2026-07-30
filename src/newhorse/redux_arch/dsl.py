@@ -43,25 +43,29 @@ class Atom:
     name: str
     cost: int                                            # description-length weight (bits), used by the MDL score
     _eval: Callable[[Context], bool]
+    kind: str = ""                                       # the REGISTRY KIND, written by the builder that made it
     def holds(self, ctx: Context) -> bool:
         return self._eval(ctx)
 
 
 # each entry: kind -> (arg types, builder). The builder is only ever called with type-checked args.
+# Each builder stamps its OWN registry kind onto the atom it returns. That is deliberate: the alternative is to
+# recover the kind later by parsing `name`, and a name parsed after the fact is a guess about what a branch did
+# rather than a record of it. The builder is the branch; it writes its own literal.
 def _has_colour(c: int) -> Atom:
-    return Atom("colour==%d" % c, 3, lambda ctx: ctx.focus_colour == c)
+    return Atom("colour==%d" % c, 3, lambda ctx: ctx.focus_colour == c, kind="HAS_COLOUR")
 
 def _near() -> Atom:
-    return Atom("NEAR(focus,target)", 2, lambda ctx: ctx._dist() <= 1)
+    return Atom("NEAR(focus,target)", 2, lambda ctx: ctx._dist() <= 1, kind="NEAR")
 
 def _touch() -> Atom:
-    return Atom("TOUCH(focus,target)", 2, lambda ctx: ctx._dist() == 1)
+    return Atom("TOUCH(focus,target)", 2, lambda ctx: ctx._dist() == 1, kind="TOUCH")
 
 def _align_row() -> Atom:
-    return Atom("SAME_ROW(focus,target)", 2, lambda ctx: ctx.focus_rc[0] == ctx.target_rc[0])
+    return Atom("SAME_ROW(focus,target)", 2, lambda ctx: ctx.focus_rc[0] == ctx.target_rc[0], kind="SAME_ROW")
 
 def _align_col() -> Atom:
-    return Atom("SAME_COL(focus,target)", 2, lambda ctx: ctx.focus_rc[1] == ctx.target_rc[1])
+    return Atom("SAME_COL(focus,target)", 2, lambda ctx: ctx.focus_rc[1] == ctx.target_rc[1], kind="SAME_COL")
 
 def _acts_toward() -> Atom:
     def f(ctx: Context) -> bool:
@@ -69,13 +73,13 @@ def _acts_toward() -> Atom:
         d_before = abs(r0 - ctx.target_rc[0]) + abs(c0 - ctx.target_rc[1])
         d_after = abs(r0 + dr - ctx.target_rc[0]) + abs(c0 + dc - ctx.target_rc[1])
         return d_after < d_before
-    return Atom("ACTS_TOWARD(focus,target)", 2, f)
+    return Atom("ACTS_TOWARD(focus,target)", 2, f, kind="ACTS_TOWARD")
 
 def _intended_free() -> Atom:                            # affordance: is the cell I'd enter free? (CAN move)
-    return Atom("INTENDED_FREE", 2, lambda ctx: bool(ctx.intended_free))
+    return Atom("INTENDED_FREE", 2, lambda ctx: bool(ctx.intended_free), kind="INTENDED_FREE")
 
 def _intended_colour(c: int) -> Atom:                    # colour-gated affordance: what's in the way is colour c
-    return Atom("INTENDED_COLOUR==%d" % c, 3, lambda ctx: ctx.intended_colour == c)
+    return Atom("INTENDED_COLOUR==%d" % c, 3, lambda ctx: ctx.intended_colour == c, kind="INTENDED_COLOUR")
 
 
 # the typed atom registry: kind -> (arg_types, builder)
@@ -89,6 +93,46 @@ _ATOM_TYPES: Dict[str, Tuple[Tuple[str, ...], Callable[..., Atom]]] = {
     "INTENDED_FREE":   ((), _intended_free),             # the occupancy vocabulary (not the answer) for affordances
     "INTENDED_COLOUR": ((COLOUR,), _intended_colour),
 }
+
+
+# ---- the vocabulary partition: GROUND-COLOUR literals vs RELATIONAL atoms -----------------------------------
+# Two families, defined over the REGISTRY KINDS and nothing else. A ground-colour literal names a colour and is
+# therefore tied to the palette of the board it was learned on; a relational atom names a geometric or affordance
+# relation between focus and target and carries no palette with it. The partition exists so a rejected predicate
+# can be charged to a family AT THE POINT OF REJECTION -- it is a bookkeeping split of the existing vocabulary,
+# not a new detector, not a new atom, and not a gate: nothing in the search or the MDL score reads it.
+COLOUR_ATOM_KINDS = frozenset({"HAS_COLOUR", "INTENDED_COLOUR"})
+RELATIONAL_ATOM_KINDS = frozenset({"NEAR", "TOUCH", "SAME_ROW", "SAME_COL", "ACTS_TOWARD", "INTENDED_FREE"})
+assert COLOUR_ATOM_KINDS | RELATIONAL_ATOM_KINDS == frozenset(_ATOM_TYPES)   # exhaustive over the registry
+assert not (COLOUR_ATOM_KINDS & RELATIONAL_ATOM_KINDS)                       # and exclusive
+
+
+def atom_family(atom: Atom) -> str:
+    """Which vocabulary family an atom belongs to: 'colour', 'relational', or 'unregistered'. The last is named
+    rather than folded into either side: an atom whose kind is not in the registry is a wiring fault, and a
+    wiring fault silently counted as 'relational' is exactly the mis-labelled receipt this file exists to avoid."""
+    if atom.kind in COLOUR_ATOM_KINDS:
+        return "colour"
+    if atom.kind in RELATIONAL_ATOM_KINDS:
+        return "relational"
+    return "unregistered"
+
+
+def predicate_family(pred: "Predicate") -> str:
+    """The COMPOSITION of a predicate over the two families: 'colour' (every atom is a ground-colour literal),
+    'relational' (every atom is relational), 'both' (a conjunction spanning the two), 'empty' (no atoms at all --
+    the vacuously-true predicate, which cannot arise from `enumerate_predicates` but is representable), or
+    'unregistered' if any atom is unregistered. Exhaustive and exclusive by construction; no threshold."""
+    fams = {atom_family(a) for a in pred.atoms}
+    if not fams:
+        return "empty"
+    if "unregistered" in fams:
+        return "unregistered"
+    if fams == {"colour"}:
+        return "colour"
+    if fams == {"relational"}:
+        return "relational"
+    return "both"
 
 
 def make_atom(kind: str, *args) -> Atom:
