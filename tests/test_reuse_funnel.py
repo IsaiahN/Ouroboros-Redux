@@ -826,3 +826,155 @@ def test_no_decision_path_reads_the_vocabulary_split():
                   or (fn == "policy.py" and ("ev.phi_kind" in code or "seg_phi_kind" in code
                                              or "kind_branch=" in code)))
             assert ok, "%s:%d reads the vocabulary split outside the carry: %s" % (fn, i, line.strip())
+
+
+# --------------------------------------------------------------------------------------------------------------
+# 7. THE HEADLINE READS THE BRANCH, NOT THE DEEPEST STALL.
+#
+# `tether_distribution` published `indicts = indicts(Stage[worst])` -- computed from the WORST STAGE ALONE. It
+# printed "architecture" on sweeps A/B and "drive" on C, flipping on nothing but how warm the residual bank was,
+# while the reuse funnel three lines below it said all nineteen MINTED_UNUSED segments across five sweeps resolved
+# at a `no_eligible` branch and ZERO at `explains_no_compress`. MINTED_UNUSED is an EXIT NAME COVERING MORE THAN
+# ONE `return`, and an exit name is not an attribution. These tests pin the branch reading, the scope it was taken
+# on, the survival of the old reading under its own name, and the refusal to guess a layer for an unread literal.
+# --------------------------------------------------------------------------------------------------------------
+
+def _dist(games):
+    from newhorse.redux_arch.swarm import tether_distribution
+    return tether_distribution(games)
+
+
+def _game(stage, rank, branch_by_stage=None, branch=None, gid="g"):
+    """One game's contribution, shaped exactly as `_play_policy` returns it."""
+    r = dict(game=gid, tether_stage=dict(counts={stage: 1}, stalls=1, advances=0,
+                                         furthest_stage=stage, furthest_rank=rank))
+    if branch_by_stage is not None or branch is not None:
+        r["echo"] = dict(reuse_funnel=dict(attempts=sum((branch or {}).values()),
+                                           branch=dict(branch or {}),
+                                           by_stage=dict(branch_by_stage or {})))
+    return r
+
+
+def test_the_branch_map_covers_exactly_the_literals_the_source_actually_writes():
+    """The map is checked against the SOURCE, not against a hand-copied tuple. A `return` added with a literal but
+    no layer would otherwise reach the headline and be folded into a neighbouring layer silently."""
+    from newhorse.redux_arch.abort_code import REUSE_BRANCHES, _BRANCH_INDICTS
+    written = set()
+    for fn in ("policy.py", "consolidate.py"):
+        src = open(os.path.join(SRC, fn)).read()
+        for a, b in re.findall(r'_b\("([a-z_]+)"\)|note_reuse_exit\("([a-z_]+)"\)', src):
+            written.add(a or b)
+    assert written <= set(REUSE_BRANCHES), "a literal is written with no entry in REUSE_BRANCHES: %s" % (
+        written - set(REUSE_BRANCHES))
+    assert set(REUSE_BRANCHES) == set(NAMED) == set(_BRANCH_INDICTS)
+
+
+def test_absent_and_universal_get_opposite_layers_even_though_they_share_a_prefix():
+    """THE MAP IS A LOOKUP ON THE WHOLE LITERAL, NEVER A PREFIX PARSE. `explains_no_eligible_absent` and
+    `..._universal` share a stem and implicate OPPOSITE links; a `startswith` reading would merge them and the
+    merge would be invisible."""
+    from newhorse.redux_arch.abort_code import branch_indicts
+    assert branch_indicts("explains_no_eligible_absent") == "grain"
+    assert branch_indicts("explains_no_eligible_universal") == "upstream"
+    assert branch_indicts("explains_no_eligible_mixed") == "grain+upstream"
+    assert branch_indicts("explains_no_compress") == "architecture"     # the ONLY architecture branch
+    arch = [k for k in NAMED if branch_indicts(k) == "architecture"]
+    assert arch == ["explains_no_compress"]
+
+
+def test_an_unread_literal_is_published_as_unmapped_rather_than_given_a_layer():
+    """Guessing a layer for a name nobody has read is the defect this map exists to close, so an unmapped branch
+    suppresses the verdict entirely instead of losing to a majority computed without it."""
+    from newhorse.redux_arch.abort_code import branch_indicts, indicts_from_branches
+    assert branch_indicts("explains_brand_new_thing") is None
+    got = indicts_from_branches({"explains_no_eligible_absent": 9, "explains_brand_new_thing": 1})
+    assert got["verdict"] == "unattributed"
+    assert got["unmapped"] == {"explains_brand_new_thing": 1} and got["attempts"] == 10
+
+
+def test_a_layer_is_claimed_only_on_a_strict_majority_and_the_split_is_always_published():
+    """No threshold was chosen and no tie is broken: below a majority the answer is `mixed`, with the per-layer
+    split beside it so the reader sees what was charged rather than a word."""
+    from newhorse.redux_arch.abort_code import indicts_from_branches
+    tie = indicts_from_branches({"explains_no_eligible_absent": 5, "explains_no_compress": 5})
+    assert tie["verdict"] == "mixed" and tie["layers"] == {"architecture": 5, "grain": 5}
+    win = indicts_from_branches({"explains_no_eligible_absent": 6, "explains_no_compress": 5})
+    assert win["verdict"] == "grain" and win["attempts"] == 11
+    assert indicts_from_branches({})["verdict"] == "none"
+
+
+def test_the_headline_reads_the_minted_unused_rows_not_the_pooled_branch_tally():
+    """★ WHICH MEMBERS. A pooled branch tally answers "how did the sweep's offers come out", not "how did the
+    MINTED_UNUSED segments come out". Here the pooled tally is dominated by TRANSFERS and the MINTED_UNUSED rows
+    are all `no_eligible`: the pooled reading would say the chain is fine, the subset reading says grain."""
+    d = _dist({"g": _game("MINTED_UNUSED", 4,
+                          branch_by_stage={"MINTED_UNUSED|explains_no_eligible_absent": 4,
+                                           "CLEARED|explains_transfer": 20},
+                          branch={"explains_no_eligible_absent": 4, "explains_transfer": 20})})
+    assert d["indicts"] == "grain" and d["indicts_scope"] == "MINTED_UNUSED"
+    assert d["indicts_attempts"] == 4                        # the SUBSET's denominator, not the sweep's 24
+    assert d["indicts_layers"] == {"grain": 4}
+
+
+def test_the_old_stage_reading_survives_under_its_own_name_and_is_not_silently_redefined():
+    """The stage reading is the honest depth and a mis-labelled attribution. It is kept so the two can be compared;
+    replacing it in place would have changed what an old number meant without renaming it."""
+    d = _dist({"g": _game("MINTED_UNUSED", 4,
+                          branch_by_stage={"MINTED_UNUSED|explains_no_eligible_absent": 4},
+                          branch={"explains_no_eligible_absent": 4})})
+    assert d["indicts_worst_stage"] == "architecture"        # what the sweep printed for thirteen beats
+    assert d["indicts"] == "grain" and d["indicts_source"] == "reuse_funnel"
+    assert d["worst_stage"] == "MINTED_UNUSED"               # the DEPTH is unchanged and still published
+
+
+def test_the_headline_falls_back_to_the_stage_and_says_so_when_the_funnel_has_nothing():
+    """A funnel with no rows is not evidence of anything. Below the reuse stage there is no branch to read, so the
+    stage reading stands -- and `indicts_source` states which of the two produced the word."""
+    d = _dist({"g": _game("MINT_UNFIRED", 2)})
+    assert d["indicts"] == "gate/implementation" and d["indicts_source"] == "worst_stage"
+    assert d["indicts_scope"] is None and d["indicts_attempts"] == 0
+
+
+def test_all_attempts_scope_is_used_only_when_the_cross_tab_is_missing_and_it_names_itself():
+    """An older producer emits `branch` but no `by_stage`. Reading the pooled tally is still better than the stage
+    word, but it is a different denominator, so the scope travels with the verdict."""
+    d = _dist({"g": _game("MINTED_UNUSED", 4, branch={"explains_no_compress": 3})})
+    assert d["indicts"] == "architecture" and d["indicts_scope"] == "all_attempts"
+    d2 = _dist({"g": _game("USED_NOCLEAR", 5, branch={"explains_transfer": 3})})
+    assert d2["indicts_source"] == "worst_stage" and d2["indicts"] == "drive"
+
+
+def test_the_headline_stops_flipping_on_bank_warmth_when_the_branches_do_not_change():
+    """THE DEFECT ITSELF. Sweeps A/B/C differed only in how warm the residual bank was: the deepest stall moved
+    MINTED_UNUSED -> USED_NOCLEAR and the headline flipped architecture -> drive, though every MINTED_UNUSED
+    segment resolved at the same grain branch in both. The branch reading holds; the stage reading still flips."""
+    cold = _dist({"g": _game("MINTED_UNUSED", 4,
+                             branch_by_stage={"MINTED_UNUSED|explains_no_eligible_absent": 4},
+                             branch={"explains_no_eligible_absent": 4})})
+    warm = _dist({"g": _game("USED_NOCLEAR", 5,
+                             branch_by_stage={"MINTED_UNUSED|explains_no_eligible_absent": 4,
+                                              "USED_NOCLEAR|explains_transfer": 7},
+                             branch={"explains_no_eligible_absent": 4, "explains_transfer": 7})})
+    assert cold["indicts"] == warm["indicts"] == "grain"
+    assert cold["indicts_worst_stage"] != warm["indicts_worst_stage"]   # the old headline, still flipping
+
+
+def test_the_cross_tab_key_is_split_by_the_same_convention_that_built_it():
+    """A composite key is a classification carried on a receipt, and a class recovered by parsing a name rots when
+    the convention drifts. It cannot be stamped at construction (the stage and the branch are joined at pooling
+    time), so join and split live in ONE place and this pins the round trip -- including a branch name that
+    someday contains the separator."""
+    from newhorse.redux_arch.receipt import stage_key, split_stage_key
+    for st, nm in (("MINTED_UNUSED", "explains_no_compress"), ("UNSCORED", "dir_tie"), ("CLEARED", "a|b")):
+        assert split_stage_key(stage_key(st, nm)) == (st, nm)
+    assert split_stage_key("bare_name_with_no_stage") == ("UNSCORED", "bare_name_with_no_stage")
+
+
+def test_no_decision_path_reads_the_headline_attribution():
+    """THE FREEZE HOLDS ONE LEVEL UP TOO. The branch->layer map is written by the sweep reporter and read by the
+    printer. An organ steering on it would be steering on its own instrument."""
+    for fn in ("policy.py", "consolidate.py", "receipt.py"):
+        for i, line in enumerate(open(os.path.join(SRC, fn)), 1):
+            code = line.split("#")[0]
+            assert "branch_indicts" not in code and "indicts_from_branches" not in code, \
+                "%s:%d reads the headline attribution: %s" % (fn, i, line.strip())

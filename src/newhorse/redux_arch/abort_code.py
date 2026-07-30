@@ -76,6 +76,83 @@ def note(stage: Stage) -> str:
     return _NOTE[Stage(stage)]
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# ★★★ WHAT A *BRANCH* INDICTS -- THE SAME QUESTION ONE LEVEL DOWN, AND THE ONE THE STAGE CANNOT ANSWER. ★★★
+#
+# `indicts(stage)` maps the DEEPEST STALL to a layer. That is a legitimate reading of a stage and an illegitimate
+# headline for a sweep, because MINTED_UNUSED is an EXIT NAME COVERING MORE THAN ONE BRANCH: it fires whether Γ
+# was tested and lost (`explains_no_compress` -- the architecture) or was never applicable at all
+# (`explains_no_eligible_*` -- grain, upstream, or wiring, three different repairs in three different links).
+# Nineteen of nineteen MINTED_UNUSED segments across five sweeps resolved at a `no_eligible` branch and ZERO at
+# `explains_no_compress`, while the pooled headline three lines above them printed "architecture".
+#
+# So the branch gets its OWN map. It is a lookup on the WHOLE literal, never a prefix parse: `absent` and
+# `universal` share the `explains_no_eligible_` stem and implicate OPPOSITE links, so a `startswith` reading would
+# be a re-derivation that silently merges them. A branch with no entry here is NOT defaulted to a layer -- it is
+# published as UNMAPPED and the verdict becomes "unattributed", because guessing a layer for a name nobody has
+# read is the exact defect this map exists to close.
+REUSE_BRANCHES: tuple = (
+    "explains_no_exceptions", "explains_already_pure", "explains_no_eligible_empty", "explains_no_eligible_absent",
+    "explains_no_eligible_universal", "explains_no_eligible_mixed", "explains_no_compress", "explains_transfer",
+    "dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted",
+)
+
+_BRANCH_INDICTS: Dict[str, str] = {
+    # the offer site
+    "explains_no_exceptions":         "bookkeeping",     # the residual was empty; no offer was really made
+    "explains_already_pure":          "bookkeeping",     # one outcome; nothing to explain
+    "explains_no_eligible_empty":     "wiring",          # Γ empty at a site that guards on Γ -- a reachable
+    #                                                      "unreachable" branch outranks every other row
+    "explains_no_eligible_absent":    "grain",           # φ holds on NO fresh context: link-1 vocabulary
+    "explains_no_eligible_universal": "upstream",        # φ holds on EVERY fresh context: the residual builder
+    "explains_no_eligible_mixed":     "grain+upstream",  # both present; NO threshold picks between them
+    "explains_no_compress":           "architecture",    # eligible φ existed and none paid -- the ONLY branch that
+    #                                                      means what MINTED_UNUSED has always claimed to mean
+    "explains_transfer":              "none",            # Γ explained it: this is the chain working
+    # the directive site
+    "dir_no_evaluable":               "seam",            # no label had an evaluable context
+    "dir_no_endorsement":             "drive",           # evaluated, nothing scored positive
+    "dir_tie":                        "drive",           # refusal 4 -- a deliberate no, not a failure
+    "dir_acted":                      "none",            # a directive chose the action
+}
+assert set(_BRANCH_INDICTS) == set(REUSE_BRANCHES), "the branch->layer map and the branch list disagree"
+
+
+def branch_indicts(name: str) -> Optional[str]:
+    """The layer a reuse branch implicates, or None if the branch has no reading yet. None is a RESULT, not an
+    error: an unmapped branch must reach the report as UNMAPPED rather than be folded into a neighbouring layer."""
+    return _BRANCH_INDICTS.get(str(name))
+
+
+def indicts_from_branches(branch: Dict[str, int]) -> Dict[str, object]:
+    """Attribute a layer from the reuse funnel's OWN branch tally rather than from the deepest stall.
+
+    A LAYER IS ONLY CLAIMED WHEN ONE HOLDS A STRICT MAJORITY of the attempts charged here. There is no threshold
+    to choose and no tie-break: below a majority the answer is "mixed", published with the full per-layer split so
+    the reader can see what the sweep actually charged. `attributed` and `unmapped` are both published so the
+    denominator travels with the verdict -- a majority of a subset is not a majority.
+    """
+    layers: Dict[str, int] = {}
+    unmapped: Dict[str, int] = {}
+    for k, n in (branch or {}).items():
+        n = int(n)
+        lay = branch_indicts(k)
+        if lay is None:
+            unmapped[str(k)] = unmapped.get(str(k), 0) + n
+            continue
+        layers[lay] = layers.get(lay, 0) + n
+    total = sum(layers.values()) + sum(unmapped.values())
+    if unmapped:
+        verdict = "unattributed"                          # an unread branch outranks any majority below it
+    elif not total:
+        verdict = "none"
+    else:
+        top, tn = max(sorted(layers.items()), key=lambda kv: kv[1])
+        verdict = top if tn * 2 > total else "mixed"
+    return dict(verdict=verdict, layers=dict(sorted(layers.items())), unmapped=dict(sorted(unmapped.items())),
+                attempts=total)
+
+
 @dataclass
 class ChainSignals:
     """Booleans about how far one stall walked the tether chain. Later signals imply earlier ones; `classify`

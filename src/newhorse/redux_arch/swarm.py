@@ -193,12 +193,53 @@ def tether_distribution(results: Dict[str, Any]) -> Dict[str, Any]:
     out: Dict[str, Any] = dict(counts=dict(sorted(counts.items())), stalls=stalls, advances=advances,
                                games_reporting=sum(1 for r in results.values() if r.get("tether_stage")),
                                worst_stage=worst, worst_rank=(None if worst_rank < 0 else worst_rank))
+    out.update(echo_pool(results))
     if worst is not None:
         from .abort_code import Stage, indicts, note
-        out["indicts"] = indicts(Stage[worst])
+        # ★ THE OLD HEADLINE, KEPT UNDER ITS OWN NAME. It is not deleted and it is not silently redefined: it is
+        # the honest reading of the deepest stall and a MIS-LABELLED reading of the sweep, and renaming it is what
+        # lets the two live side by side without either one changing denominator.
+        out["indicts_worst_stage"] = indicts(Stage[worst])
         out["note"] = note(Stage[worst])
-    out.update(echo_pool(results))
+    out.update(_indicts_from_funnel(out, worst))
     return out
+
+
+def _indicts_from_funnel(out: Dict[str, Any], worst: Optional[str]) -> Dict[str, Any]:
+    """THE HEADLINE, READ OFF THE FUNNEL'S BRANCHES INSTEAD OF THE DEEPEST STALL. Three beats owed.
+
+    `indicts(Stage[worst])` printed "architecture" on sweeps A/B and "drive" on C -- flipping on nothing but how
+    warm the residual bank was -- while the reuse funnel three lines below it said every one of those MINTED_UNUSED
+    segments resolved at a `no_eligible` branch, which is a GRAIN verdict and not an architecture one. An EXIT NAME
+    COVERING MORE THAN ONE `return` IS NOT AN ATTRIBUTION; the branch literals are, so the headline reads them.
+
+    ★ WHICH MEMBERS. A pooled branch tally answers "how did the sweep's offers to Γ come out", NOT "how did the
+    MINTED_UNUSED segments come out" -- and a pooled number offered as evidence about a subset is the mis-labelled
+    receipt one level up. So the MINTED_UNUSED rows of the funnel's OWN cross-tab are preferred, and the scope that
+    was actually used is published beside the verdict. `all_attempts` is used only when the deepest stall IS
+    MINTED_UNUSED and the cross-tab carries no rows for it (an older producer); anything else falls back to the
+    stage reading, with `indicts_source` saying so. No prose bridges the gap in either direction."""
+    rfn = ((out.get("echo") or {}).get("reuse_funnel") or {})
+    from .abort_code import indicts_from_branches
+    from .receipt import split_stage_key
+    # the cross-tab is keyed by the producer's OWN join; it is split by the producer's OWN inverse, never by a
+    # separator spelled out a second time here.
+    sub: Dict[str, int] = {}
+    for k, n in (rfn.get("by_stage") or {}).items():
+        st, name = split_stage_key(k)
+        if st == "MINTED_UNUSED":
+            sub[name] = sub.get(name, 0) + int(n)
+    if sub:
+        scope, branch = "MINTED_UNUSED", sub
+    elif worst == "MINTED_UNUSED" and (rfn.get("branch") or {}):
+        scope, branch = "all_attempts", dict(rfn.get("branch") or {})
+    else:
+        return dict(indicts=out.get("indicts_worst_stage", "none"), indicts_source="worst_stage",
+                    indicts_scope=None, indicts_layers={}, indicts_unmapped={}, indicts_attempts=0)
+    att = indicts_from_branches(branch)
+    return dict(indicts=att["verdict"], indicts_source="reuse_funnel", indicts_scope=scope,
+                indicts_layers=att["layers"], indicts_unmapped=att["unmapped"],
+                indicts_attempts=att["attempts"])
 
 
 def _pool_block(src: Dict[str, Any], flat: Dict[str, int], sub: Dict[str, Dict[str, int]],

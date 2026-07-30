@@ -21,7 +21,7 @@ caveat goes IN the receipt so no downstream summary can quietly promote it.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 UNCLEARED_NOTE = ("NO -- and the reason is WIRING, not the drive layer: `ChainLedger.note_transfer_clear` has no "
                   "call site, because acting on a transferred phi is the OPERATOR layer -- the last link, and the "
@@ -367,6 +367,26 @@ def summary_line(events: List[ResidualEvent]) -> str:
             "offered to Γ=%d | FIRED=%d | cleared=%d" % (len(evs), ran, ne, mi, pr, at, fi, cl))
 
 
+STAGE_SEP = "|"
+
+
+def stage_key(stage: str, name: str) -> str:
+    """The ONE construction site for a cross-tab key. A composite key is a CLASSIFICATION carried on a receipt, and
+    a class recovered later by parsing a name is a re-derivation that rots silently when the convention drifts. It
+    cannot be stamped at construction here -- the stage and the branch are two independent facts joined at pooling
+    time -- so the next best thing is done instead: the join and the split live in ONE place, so a consumer can
+    never be reading a convention the producer stopped writing. `split_stage_key` is its exact inverse and a test
+    pins the round trip."""
+    return "%s%s%s" % (stage, STAGE_SEP, name)
+
+
+def split_stage_key(key: str) -> Tuple[str, str]:
+    """Inverse of `stage_key`. Splits on the FIRST separator only: a stage name never contains one, so a branch
+    name that someday does still round-trips."""
+    stage, sep, name = str(key).partition(STAGE_SEP)
+    return (stage, name) if sep else ("UNSCORED", stage)
+
+
 def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
     """Pool the per-segment reuse funnel, and cross-tab it against the stage the segment was scored.
 
@@ -388,21 +408,21 @@ def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
         st = e.stage or "UNSCORED"
         for k, n in (e.reuse_branch or {}).items():
             branch[k] = branch.get(k, 0) + int(n)
-            sk = "%s|%s" % (st, k)
+            sk = stage_key(st, k)
             by_stage[sk] = by_stage.get(sk, 0) + int(n)
         # THE PER-φ SPLIT IS POOLED ON ITS OWN AXIS AND CROSS-TABBED ON THE SAME ONE ROW. It is kept out of
         # `branch` deliberately: adding a per-φ count to a per-attempt count would break the residue identity and
         # would do it invisibly, by making the sum land on the right total for the wrong reason.
         for k, n in (e.no_eligible_phi or {}).items():
             phi[k] = phi.get(k, 0) + int(n)
-            pk = "%s|%s" % (st, k)
+            pk = stage_key(st, k)
             phi_by_stage[pk] = phi_by_stage.get(pk, 0) + int(n)
         # ...and the vocabulary refinement, pooled on its OWN axis into its OWN dict for the same reason: it
         # shares a denominator with `phi` but not a total, and merging the two would close `phi` on the right
         # number for the wrong reason. The printer checks them AGAINST each other instead of adding them.
         for k, n in (e.phi_kind or {}).items():
             phi_kind[k] = phi_kind.get(k, 0) + int(n)
-            kk = "%s|%s" % (st, k)
+            kk = stage_key(st, k)
             phi_kind_by_stage[kk] = phi_kind_by_stage.get(kk, 0) + int(n)
     # NO `by_stage_residue` IS PUBLISHED HERE, AND THAT IS DELIBERATE. Within this function every branch write also
     # writes a `by_stage` row, so the two sums are equal BY CONSTRUCTION and a residue over them could never fail --

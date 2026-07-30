@@ -74,6 +74,28 @@ def report(res: dict) -> None:
     print("\n=== POOLED TETHER-STAGE DISTRIBUTION ===")
     print(json.dumps(res.get("tether_chain"), indent=2, sort_keys=True))
 
+    # ★★★ THE HEADLINE, AND WHICH OF THE TWO READINGS IT CAME FROM. THREE BEATS OWED. ★★★
+    # `indicts` used to be `indicts(Stage[worst])` -- the deepest stall, alone. It printed "architecture" on sweeps
+    # A/B and "drive" on C, flipping on nothing but residual-bank warmth, while the funnel below said those very
+    # segments resolved at a `no_eligible` branch. The stage reading is KEPT, under `indicts_worst_stage`, so the
+    # two can be compared instead of one quietly replacing the other; when they DISAGREE that is the finding, and
+    # it is printed as one rather than left for a reader to notice.
+    _tc = res.get("tether_chain") or {}
+    print("\n=== WHAT THE SWEEP INDICTS (branch reading vs stage reading) ===")
+    print("  indicts=%s   (source=%s, scope=%s, attempts=%s)"
+          % (_tc.get("indicts"), _tc.get("indicts_source"), _tc.get("indicts_scope"), _tc.get("indicts_attempts")))
+    print("  indicts_worst_stage=%s   (worst_stage=%s)"
+          % (_tc.get("indicts_worst_stage"), _tc.get("worst_stage")))
+    for _l, _n in sorted((_tc.get("indicts_layers") or {}).items()):
+        print("    %-18s %6d attempts" % (_l, int(_n)))
+    if _tc.get("indicts_unmapped"):
+        print("  ★ UNMAPPED BRANCHES -- a literal was added without a layer, so NO verdict is claimed: %s"
+              % dict(_tc["indicts_unmapped"]))
+    if _tc.get("indicts_source") == "reuse_funnel" and _tc.get("indicts") != _tc.get("indicts_worst_stage"):
+        print("  ★ THE TWO READINGS DISAGREE. The stage name covers more than one branch, so the BRANCH reading is"
+              " the attribution and the stage reading is only the depth. Cite `indicts` with its scope, never the"
+              " stage word on its own.")
+
     # ★ THE OPEN DENOMINATOR, GIVEN A COLUMN. Last sweep R_τ filed 25 break events of which 19 had `diff_ran`, so
     # SIX receipts had a dead diff -- but only FOUR segments scored `DIED_PRE_DIFF`. Two counts of the same thing
     # that do not agree is not a mystery to narrate, it is a missing column. There are two different diffs: the
