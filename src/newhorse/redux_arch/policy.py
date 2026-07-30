@@ -1028,7 +1028,9 @@ class ReduxPolicy:
             # shared library whose every offer is same-game has not crossed anything, however busy `reuse_attempted`
             # looks.
             ev.reuse_attempted_foreign = ev.library_foreign_before > 0
-            hit = self.echo.explains_scored(exc)
+            # THE PEN IS THE LEDGER'S OWN METHOD: whichever way `explains_scored` comes out, the name is written
+            # from inside it, into the same object that scores the segment. Nothing here reads the branch back.
+            hit = self.echo.explains_scored(exc, branch=self.chain.note_reuse_exit)
             if hit is not None:
                 pred, gain = hit
                 self.chain.note_reuse()
@@ -1132,9 +1134,16 @@ class ReduxPolicy:
                     self.receipts.append(ev)
         else:
             ev = None
+        # READ BEFORE THE CLOSE. `end_segment` zeroes the segment's reuse tally, and this receipt is the ONLY row on
+        # which the segment's STAGE and the branches that produced that stage ever appear together. Reading it after
+        # the close would print a measured zero on every segment -- a field never computed, rendered as evidence.
+        seg_att = self.chain.reuse_attempts_in_segment
+        seg_reuse = dict(self.chain.reuse_branch_in_segment)
         st = self.chain.end_segment(reason)
         if ev is not None:
             ev.stage = None if st is None else st.name
+            ev.reuse_attempts = int(seg_att)
+            ev.reuse_branch = seg_reuse
             ev.boundary_diff_ran = bool(self._seg_boundary_diff)
             # THE DECISION SITE's segment tally lands on the SAME receipt that carries the segment's stage, so a
             # lifted stage and the organ that lifted it are always read off one row. `reuse_source` is composed
@@ -1591,9 +1600,22 @@ class ReduxPolicy:
                 best, best_score, ties = lbl, score, 1
             elif score == best_score:
                 ties += 1
-        if best is None or best_score <= 0.0 or ties > 1:
-            return None                                     # no endorsement, or no preference between equals
+        # THE THREE WAYS A CONSULTED Γ STILL SAYS NOTHING, SPLIT. These were one `return None` under a three-clause
+        # `or`, which is an exit name covering three branches: "no label had an evaluable context", "Γ endorsed
+        # nothing positively" and "two candidates tied" are a seam failure, a sign failure and a refusal, and they
+        # have nothing to do with each other. Split in the ORIGINAL short-circuit order, so what the agent does is
+        # bit-identical; only the name is new.
+        if best is None:
+            self.chain.note_reuse_exit("dir_no_evaluable")
+            return None
+        if best_score <= 0.0:
+            self.chain.note_reuse_exit("dir_no_endorsement")
+            return None
+        if ties > 1:
+            self.chain.note_reuse_exit("dir_tie")
+            return None                                     # no preference between equals -- refusal (4)
         self.chain.note_reuse()
+        self.chain.note_reuse_exit("dir_acted")
         self._g_act += 1
         return best
 

@@ -170,6 +170,19 @@ class ChainLedger:
     _sig: ChainSignals = field(default_factory=ChainSignals)
     _reasons: Counter = field(default_factory=Counter)
     _steps: int = 0                                    # frames observed inside the CURRENT segment
+    # ★ THE REUSE FUNNEL. MINTED_UNUSED is the ONE code that indicts the architecture, and for thirteen beats it has
+    # been a bare count: "reuse was attempted and the library did not explain". That sentence names no branch. An
+    # attempt can fail because no promoted φ even SPLITS the fresh contexts (Γ was never applicable -- a grain
+    # verdict), because eligible φ existed and none of them paid their cost (Γ was tested and lost -- the only
+    # reading that is actually about the architecture), or, at the directive site, because nothing was evaluable /
+    # nothing was endorsed / two candidates tied. Those have four different fixes and one name. So every reuse
+    # ATTEMPT is charged to a STRING LITERAL written at the branch that resolved it, and the identity
+    # `sum(reuse_branch) == reuse_attempts` is published rather than assumed -- an attempt with no branch, or a
+    # branch with no attempt, is a defect this counter is able to state.
+    _att: int = 0                                      # reuse attempts inside the CURRENT segment
+    _seg_reuse: Counter = field(default_factory=Counter)   # ...and which branch resolved each of them
+    reuse_attempts: int = 0                            # run-level total (never reset by a segment close)
+    reuse_branch: Counter = field(default_factory=Counter)
 
     @property
     def steps_in_segment(self) -> int:
@@ -196,10 +209,31 @@ class ChainLedger:
         confirmation still MINTED, and conflating the two would report a gate decision as a library failure."""
         self._sig.minted = True
 
+    @property
+    def reuse_attempts_in_segment(self) -> int:
+        """Reuse attempts made inside the CURRENTLY OPEN segment -- the denominator the branch tally must close
+        against. Read before `end_segment`, which zeroes it: a count carried across a segment boundary would charge
+        this segment's failures to the next segment's stage, which is the exact defect `_sig` is scoped to avoid."""
+        return int(self._att)
+
+    @property
+    def reuse_branch_in_segment(self) -> Dict[str, int]:
+        return {k: int(n) for k, n in sorted(self._seg_reuse.items())}
+
     def note_reuse_attempt(self) -> None:
         """A FRESH task's residual was offered to the promoted library (Consolidator.explains). Until some call site
         exists this stays False and the ceiling is REUSE_UNWIRED -- an implementation verdict, never an architectural one."""
         self._sig.reuse_attempted = True
+        self._att += 1
+        self.reuse_attempts += 1
+
+    def note_reuse_exit(self, where: str) -> None:
+        """The branch that RESOLVED one reuse attempt, named by a string literal written at that branch. Callers pass
+        this method itself (not a dict) so the count lands in the ledger from the site where the thing happens --
+        never re-derived from another organ's number, and never carried by a second object that could be constructed
+        somewhere the wiring does not reach. Every attempt must reach exactly one of these; the residue says so."""
+        self._seg_reuse[str(where)] += 1
+        self.reuse_branch[str(where)] += 1
 
     def note_reuse(self) -> None:
         """The promoted library EXPLAINED a fresh task without re-minting -- transfer."""
@@ -224,10 +258,15 @@ class ChainLedger:
             st = self.probe.record(self._sig)
         self._sig = ChainSignals()                     # signals belong to a segment, never to the run
         self._steps = 0
+        self._att = 0                                  # ...and so does the reuse tally that explains the signals
+        self._seg_reuse = Counter()
         return st
 
     def report(self) -> Dict[str, object]:
         r = dict(self.probe.report())
         r.update(stalls=self.stalls, advances=self.advances,
-                 segment_ends={k: n for k, n in sorted(self._reasons.items())})
+                 segment_ends={k: n for k, n in sorted(self._reasons.items())},
+                 reuse_attempts=int(self.reuse_attempts),
+                 reuse_branch={k: int(n) for k, n in sorted(self.reuse_branch.items())},
+                 reuse_residue=int(self.reuse_attempts) - int(sum(self.reuse_branch.values())))
         return r

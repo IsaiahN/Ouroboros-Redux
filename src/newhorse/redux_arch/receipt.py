@@ -133,6 +133,15 @@ class ResidualEvent:
     library_foreign_before: int = 0
     reuse_attempted: bool = False
     reuse_attempted_foreign: bool = False  # this residual was offered a φ minted on a game that is NOT this game
+    # ★ THE REUSE FUNNEL, PER SEGMENT. `reuse_attempted` is a BOOLEAN and MINTED_UNUSED is what it looks like when it
+    # is True and `reused` is False -- which for thirteen beats has been the whole of what the build knows about the
+    # one code entitled to indict the architecture. These two fields carry the COUNT of attempts this segment made
+    # and the branch that resolved each one, written at those branches (consolidate.explains_scored /
+    # policy._gamma_directive) and read off the ledger before it is zeroed. They sit on the SAME receipt as `stage`
+    # on purpose: the stage and the branches that produced it must be readable from one row, or the cross-tab is a
+    # join between two organs. `sum(reuse_branch.values()) == reuse_attempts` and `summary()` publishes the residue.
+    reuse_attempts: int = 0
+    reuse_branch: Dict[str, int] = field(default_factory=dict)
 
     transferred: Optional[str] = None     # str(φ) that explained this residual without re-minting
     transfer_gain_bits: float = 0.0
@@ -345,6 +354,36 @@ def summary_line(events: List[ResidualEvent]) -> str:
             "offered to Γ=%d | FIRED=%d | cleared=%d" % (len(evs), ran, ne, mi, pr, at, fi, cl))
 
 
+def _reuse_funnel(evs: List[ResidualEvent]) -> Dict[str, Any]:
+    """Pool the per-segment reuse funnel, and cross-tab it against the stage the segment was scored.
+
+    THE QUESTION THIS ANSWERS, AND WHY A POOLED BRANCH COUNT CANNOT. `branch` says how the sweep's offers to Γ came
+    out; it says nothing about the segments that were scored MINTED_UNUSED specifically, and a pooled number offered
+    as evidence about a subset is a mis-labelled receipt. `by_stage` asks WHICH MEMBERS: it is keyed
+    "<STAGE>|<branch>", taken from each receipt's OWN stage and OWN branch tally, so no segment's branches can be
+    charged to another segment's stage. Segments that were not scored (an advance, or a receipt filed before the
+    ledger returned a stage) are named `UNSCORED` rather than dropped: a dropped row is a residue that closes
+    itself."""
+    attempts = sum(int(e.reuse_attempts) for e in evs)
+    branch: Dict[str, int] = {}
+    by_stage: Dict[str, int] = {}
+    for e in evs:
+        st = e.stage or "UNSCORED"
+        for k, n in (e.reuse_branch or {}).items():
+            branch[k] = branch.get(k, 0) + int(n)
+            sk = "%s|%s" % (st, k)
+            by_stage[sk] = by_stage.get(sk, 0) + int(n)
+    # NO `by_stage_residue` IS PUBLISHED HERE, AND THAT IS DELIBERATE. Within this function every branch write also
+    # writes a `by_stage` row, so the two sums are equal BY CONSTRUCTION and a residue over them could never fail --
+    # an identity that cannot fail is decoration, not a check. The residue worth printing is across the POOLING
+    # boundary (a pooler that drops one dict and keeps the other), so the sweep printer computes it there, from the
+    # two pooled dicts, where it is genuinely able to be non-zero.
+    return dict(attempts=attempts,
+                branch=dict(sorted(branch.items())),
+                residue=attempts - sum(branch.values()),
+                by_stage=dict(sorted(by_stage.items())))
+
+
 def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     """Machine-readable form of the same counts, for pooling across a sweep. Kinds are counted separately so a
     pooled report can never add a within-run echo to a cross-game one and call the sum 'transfers'."""
@@ -520,6 +559,14 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                                    click_reg_residue=(sum(v for k, v in dec_act_attr.items()
                                                           if k.endswith("|A6"))
                                                       - sum(dec_click_reg_attr.values()))),
+                # ★ THE REUSE FUNNEL. Which branch resolved each offer of a fresh residual to Γ, and -- the whole
+                # point -- what the segments scored MINTED_UNUSED actually hit. `by_stage` is keyed "<STAGE>|<branch>"
+                # and is a READING OF ONE ROW, not a join: every receipt carries its own stage and its own branch
+                # tally, so a segment's failures can never be credited to another segment's stage. Sum `by_stage`
+                # over branches and you get `branch` back exactly; `by_stage_residue` publishes that rather than
+                # assuming it. `residue` closes attempts against branches: an attempt that reached no named branch
+                # (or a branch written without an attempt) is a defect, and it is stated instead of absorbed.
+                reuse_funnel=_reuse_funnel(evs),
                 # §5.3: A STREAM IS A GROUND AND GROUNDS ARE ASSESSED PER STREAM. This breakdown exists so that a
                 # second stream arriving can never be read as the first one getting better -- the top-level totals
                 # below are a convenience, and this is the number that carries the claim.

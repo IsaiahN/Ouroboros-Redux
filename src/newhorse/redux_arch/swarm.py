@@ -201,6 +201,27 @@ def tether_distribution(results: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
+def _pool_block(src: Dict[str, Any], flat: Dict[str, int], sub: Dict[str, Dict[str, int]],
+                members: Dict[str, Dict[str, Dict[str, int]]], gid: str) -> None:
+    """Pool ONE funnel block from one game into the sweep's accumulators, BY UNION over whatever keys the producer
+    actually emitted -- never against a fixed key list, which is how a key the producer stopped computing got
+    rendered as a confident zero. Int-valued keys sum into `flat`; dict-valued keys union into `sub` AND are carried
+    per game into `members` at the same line that pools them, so the members question ("pooled over which games?")
+    is answerable without a second traversal that could drift from this one."""
+    for k, v in src.items():
+        if isinstance(v, dict):
+            acc = sub.setdefault(k, {})
+            per = members.setdefault(gid, {})
+            for xk, xn in v.items():
+                acc[xk] = acc.get(xk, 0) + int(xn)
+                row = per.setdefault(xk, {})
+                row[k] = row.get(k, 0) + int(xn)
+            continue
+        if isinstance(v, bool) or not isinstance(v, int):
+            continue
+        flat[k] = flat.get(k, 0) + int(v)
+
+
 def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     """Pool the ECHO/receipt accounting across the sweep. Two things are reported that a stage histogram cannot say:
     (1) CARRIER REACH -- how many games ever reach a SECOND level in one run, the question that decides whether a
@@ -255,6 +276,10 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
     # that could drift from the pooled one. Sum this split over games and you get `dfun_sub` back, exactly; the
     # printer publishes that residue rather than assuming it.
     fgame: Dict[str, Dict[str, Dict[str, int]]] = {}
+    # the reuse funnel's three accumulators, exactly parallel to the decide funnel's, pooled by the same body
+    rfun: Dict[str, int] = {}
+    rfun_sub: Dict[str, Dict[str, int]] = {}
+    rgame: Dict[str, Dict[str, Dict[str, int]]] = {}
     streams: Dict[str, Dict[str, Any]] = {}
     lvl_hist: Dict[str, int] = {}
     mkeys: Dict[str, set] = {}
@@ -280,21 +305,12 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
             cscan[k] += int(cs.get(k) or 0)
         for k, n in (e.get("dead_diff_stages") or {}).items():
             dead_stages[k] = dead_stages.get(k, 0) + int(n)
-        df = e.get("decide_funnel") or {}
         gid = str(r.get("game") or ("game#%d" % len(fgame)))
-        for k, v in df.items():
-            if isinstance(v, dict):
-                acc = dfun_sub.setdefault(k, {})
-                per = fgame.setdefault(gid, {})
-                for xk, xn in v.items():
-                    acc[xk] = acc.get(xk, 0) + int(xn)
-                    # the members, carried at the same line that pools them: exit -> sub-key -> this game's count
-                    row = per.setdefault(xk, {})
-                    row[k] = row.get(k, 0) + int(xn)
-                continue
-            if isinstance(v, bool) or not isinstance(v, int):
-                continue
-            dfun[k] = dfun.get(k, 0) + int(v)
+        _pool_block(e.get("decide_funnel") or {}, dfun, dfun_sub, fgame, gid)
+        # THE REUSE FUNNEL POOLS THROUGH THE SAME FUNCTION, NOT A SECOND COPY OF IT. A merge written twice is where
+        # this printer last re-merged two terms and closed an identity by accident; the union rule, the members
+        # carry and the int/dict discrimination all live in ONE body so a fix to any of them reaches both.
+        _pool_block(e.get("reuse_funnel") or {}, rfun, rfun_sub, rgame, gid)
         gd = e.get("gamma_decision") or {}
         for k, v in gd.items():
             if isinstance(v, bool) or not isinstance(v, int):
@@ -343,6 +359,14 @@ def echo_pool(results: Dict[str, Any]) -> Dict[str, Any]:
                           decide_funnel_by_game={g: {x: dict(sorted(sv.items()))
                                                      for x, sv in sorted(xs.items())}
                                                  for g, xs in sorted(fgame.items())},
+                          # ★ THE REUSE FUNNEL, pooled and with its members, published as its own sibling. It is NOT
+                          # folded into `decide_funnel`: these branches are not `_decide` exits, and a block whose
+                          # name lies about where its counts come from is the mis-labelled receipt one level up.
+                          reuse_funnel=dict(rfun, **{k: dict(sorted(v.items()))
+                                                     for k, v in sorted(rfun_sub.items())}),
+                          reuse_funnel_by_game={g: {x: dict(sorted(sv.items()))
+                                                    for x, sv in sorted(xs.items())}
+                                                for g, xs in sorted(rgame.items())},
                           gamma_decision=dict(gdec, sign_report_by_game=dict(sorted(gsign.items())),
                                               sign_report_at_first_entry_by_game=dict(sorted(gentry.items())))),
                 games_reaching_L2=reach_l2,

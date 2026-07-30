@@ -268,6 +268,90 @@ def report(res: dict) -> None:
             print("  VERDICT: MIXED -- no branch holds half the click steps (largest is %s at %.1f%%); the"
                   " prediction is neither held nor refuted." % (_top[1], 100.0 * _top[0] / _clk_steps))
 
+    # ★★★ THE REUSE FUNNEL -- WHY A MINTED φ IS NEVER USED. THIRTEEN BEATS OWED. ★★★
+    # MINTED_UNUSED is the ONE stage code that indicts the ARCHITECTURE, and every sweep so far has reported it as a
+    # bare count under a sentence -- "reuse was attempted and the library did not explain" -- that names no branch.
+    # An attempt can end four different ways at the offer site and four more at the directive site, and they
+    # implicate four different layers. These counts are string literals written at those branches:
+    #   explains_no_eligible   Γ held nothing that even SPLITS these contexts. The library never competed. This is a
+    #                          GRAIN/applicability verdict and it is NOT a verdict on the architecture.
+    #   explains_no_compress   eligible φ existed and none paid its own cost + log2(eligible). Γ was tested and lost
+    #                          -- the only reading MINTED_UNUSED has ever claimed to be.
+    #   explains_already_pure  the residual had one outcome; nothing to explain (unreachable from the live site,
+    #   explains_no_exceptions the residual was empty (likewise) -- both named so a future caller cannot hide there.
+    #   dir_no_evaluable       Γ was consulted for an ACTION and no label had an evaluable context (seam failure)
+    #   dir_no_endorsement     ...contexts evaluated, no candidate scored positive (the sign said nothing here)
+    #   dir_tie                ...two candidates tied and Γ is refused the pick (refusal 4 -- a deliberate no)
+    #   dir_acted              a directive actually chose the action -- a reuse, counted where it happened
+    # ★ PRE-REGISTERED PREDICTION (written before the sweep that reads it, evaluated below by the script itself):
+    #   `explains_no_eligible` DOMINATES, and the directive site contributes ZERO attempts. If that holds, then what
+    #   has been reported as an ARCHITECTURE stall for thirteen beats is a stall in which Γ's promoted φ were never
+    #   applicable to the fresh residual's contexts at all -- the library was never on trial. If instead
+    #   `explains_no_compress` dominates, the architecture reading survives its first real test and the next beat is
+    #   about the MDL bar, not about grain. Published either way; NOTHING is widened this beat.
+    rfn = (res.get("tether_chain") or {}).get("echo", {}).get("reuse_funnel") or {}
+    rbr = (rfn.get("branch") or {})
+    _RB_NAMED = ("explains_no_eligible", "explains_no_compress", "explains_already_pure", "explains_no_exceptions",
+                 "explains_transfer", "dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted")
+    _att = int(rfn.get("attempts", 0))
+    print("\n=== THE REUSE FUNNEL (which branch resolved each offer of a fresh residual to Γ) ===")
+    if not rbr:
+        print("  (no reuse branch recorded -- Γ was never offered anything this sweep)")
+    for k in _RB_NAMED:
+        _n = int(rbr.get(k, 0))
+        if _n or k in ("explains_no_eligible", "explains_no_compress", "explains_transfer"):
+            print("    %-24s attempts %7d (%5.1f%% of attempts)" % (k, _n, 100.0 * _n / max(1, _att)))
+    for k, n in sorted(rbr.items()):
+        if k not in _RB_NAMED:
+            print("    %-24s attempts %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
+    _rres = int(rfn.get("residue", 0))
+    print("  attempts=%d | branch sum=%d | RESIDUE=%d" % (_att, sum(rbr.values()), _rres))
+    if _rres:
+        print("  ★ THE REUSE FUNNEL DOES NOT SUM TO THE ATTEMPTS. Do not read any row above until the residue is"
+              " named: an attempt that reached no branch means a `return` was added without a literal, and a branch"
+              " without an attempt means a name is being written where no offer was made.")
+    elif not _att:
+        print("  VERDICT: MUTE -- Γ was never non-empty at an offer, so no attempt was made and MINTED_UNUSED"
+              " cannot have been reached by this route. Nothing here is a verdict on the architecture.")
+    else:
+        _ne, _nc = int(rbr.get("explains_no_eligible", 0)), int(rbr.get("explains_no_compress", 0))
+        _dir = sum(int(rbr.get(k, 0)) for k in ("dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted"))
+        if _ne >= 0.5 * _att:
+            print("  VERDICT: Γ WAS NEVER APPLICABLE -- %.1f%% of offers found NO promoted φ that even splits the"
+                  " fresh contexts. PREDICTION HELD. MINTED_UNUSED has been reporting a GRAIN failure under an"
+                  " ARCHITECTURE name: the library was not tested and lost, it never took the field."
+                  % (100.0 * _ne / _att))
+        elif _nc >= 0.5 * _att:
+            print("  VERDICT: Γ WAS TESTED AND LOST -- %.1f%% of offers had eligible φ and none of them paid its"
+                  " cost. PREDICTION WRONG, and this is the first sweep in which MINTED_UNUSED means what it says."
+                  % (100.0 * _nc / _att))
+        else:
+            print("  VERDICT: MIXED -- neither applicability nor compression holds half the attempts"
+                  " (no_eligible %.1f%%, no_compress %.1f%%); both readings stay open."
+                  % (100.0 * _ne / _att, 100.0 * _nc / _att))
+        print("  directive-site attempts=%d (predicted 0)%s" % (_dir, "" if not _dir else "  ★ PREDICTION WRONG"))
+    # THE CROSS-TAB. The branch counts above are pooled over EVERY segment; the question owed is about the segments
+    # scored MINTED_UNUSED specifically, and a pooled rate offered as evidence about a subset is a mis-labelled
+    # receipt. These rows are read off each receipt's own stage and own branch tally -- one row, never a join.
+    _bys = (rfn.get("by_stage") or {})
+    print("  --- by the stage the SEGMENT was scored (the subset the architecture claim is about) ---")
+    if not _bys:
+        print("    (no cross-tab recorded -- the pooled rows above are UNSPLIT by stage; do not cite one about"
+              " MINTED_UNUSED)")
+    for k, n in sorted(_bys.items(), key=lambda kv: (-kv[1], kv[0])):
+        print("    %-46s %7d%s" % (k, int(n), "   ← THE ARCHITECTURE CLAIM" if k.startswith("MINTED_UNUSED|") else ""))
+    # THE CROSS-TAB RESIDUE IS COMPUTED **HERE**, NOT READ FROM THE PRODUCER, AND THAT IS THE WHOLE POINT. Inside
+    # `receipt._reuse_funnel` every branch write also writes a by_stage row, so a residue over the two is zero BY
+    # CONSTRUCTION -- an identity that cannot fail is decoration, and a producer field that can only ever be 0 is a
+    # field never computed, printed as evidence. The place the two dicts can genuinely diverge is the POOLING
+    # boundary: `swarm._pool_block` unions dict-valued sub-keys, and a pooler that carried one dict and dropped the
+    # other would show up only in a subtraction taken AFTER the pool. So it is taken after the pool, from the two
+    # pooled dicts, where it is able to be non-zero.
+    _bres = sum(int(n) for n in rbr.values()) - sum(int(n) for n in _bys.values())
+    if _bres:
+        print("    ★ CROSS-TAB RESIDUE=%d -- the pooled by-stage rows do not sum back to the pooled branch totals,"
+              " so one of the two dicts did not survive the pooling boundary intact. Do not cite either." % _bres)
+
     # ★★★ THE MEMBERS QUESTION: WHICH GAMES ARE BEHIND EACH POOLED RATE. ★★★
     # Every `answered` number in the block above is pooled across that exit's games. `dir_target_colour` answered
     # 89.0% masked over TWELVE games last sweep, and that one number cannot distinguish uniform competence from

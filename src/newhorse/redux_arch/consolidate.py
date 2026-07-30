@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, FrozenSet, Tuple
+from typing import Callable, Dict, List, Optional, Set, FrozenSet, Tuple
 from .dsl import Predicate, Context
 from .minting import Mint, two_part_mdl, Exception_, _entropy_bits
 from .residual_bank import family_key as _family
@@ -182,7 +182,8 @@ class Consolidator:
             self._split_by_key.clear()
             self.log.clear()
 
-    def explains_scored(self, exceptions: List[Exception_], report: Optional[Dict[str, float]] = None):
+    def explains_scored(self, exceptions: List[Exception_], report: Optional[Dict[str, float]] = None,
+                        branch: Optional[Callable[[str], None]] = None):
         """`explains`, but returning (φ, bits saved) so the firing receipt can record the MDL delta the transfer
         actually bought instead of merely asserting that one happened.
 
@@ -197,13 +198,24 @@ class Consolidator:
         THE ASYMMETRY THAT REMAINS, MEASURED AND NOT FIXED HERE: `two_part_mdl` also charges `_parametric_bits` on
         the baseline and on both sides of a split, and this scorer does not, which leaves transfer a slightly
         LAXER test than minting. That is backwards and is owed a fix, but it is a SECOND change and would make this
-        one unattributable."""
+        one unattributable.
+
+        ★ `branch` IS THE REUSE FUNNEL'S PEN, AND IT IS A CALLABLE ON PURPOSE. Every way out of this function is a
+        different verdict on Γ, and a caller that only sees `None` cannot tell "no promoted φ even applies to these
+        contexts" from "φ applied and did not pay". Those are a grain failure and an architecture failure. Each way
+        out therefore writes its OWN string literal at its OWN branch. It is passed the ledger's bound method rather
+        than a dict so there is no second carrier that could be built somewhere the wiring does not reach -- the
+        defect that made the click branch read a residue of 126 for a beat. Scoring is untouched: this writes a
+        name and returns exactly what it returned before."""
+        _b = branch if branch is not None else (lambda _name: None)
         n = len(exceptions)
         if n == 0:
+            _b("explains_no_exceptions")
             return None
         k = sum(1 for _, o in exceptions if o)
         base = _entropy_bits(n, k)
         if base == 0.0:
+            _b("explains_already_pure")
             return None                                      # already pure -> nothing to explain
         with self._lock:
             lib = list(self.library)                         # snapshot: Γ is shared and another game may be appending
@@ -225,7 +237,20 @@ class Consolidator:
                 best, best_gain = pred, gain
         if report is not None:
             report["gain_bits"] = float(best_gain) if best is not None else 0.0
-        return None if best is None else (best, float(best_gain))
+        # THE TWO WAYS TO LOSE ARE NAMED SEPARATELY, AT THEIR OWN BRANCHES. One `return None` covering both would be
+        # an exit name spanning two branches, which is not an attribution. `explains_no_eligible` means Γ held
+        # nothing that non-trivially splits THESE contexts -- the library never got to compete, so the stall is
+        # about grain/applicability and NOT about the architecture. `explains_no_compress` means eligible φ existed
+        # and none strictly compressed after paying its own cost plus log2(eligible) -- that one is the reading
+        # MINTED_UNUSED has always claimed to be.
+        if best is None:
+            if not eligible:
+                _b("explains_no_eligible")
+            else:
+                _b("explains_no_compress")
+            return None
+        _b("explains_transfer")
+        return (best, float(best_gain))
 
     def explains(self, exceptions: List[Exception_]) -> Optional[Predicate]:
         """Does Γ (a promoted predicate) already account for these exceptions? If so, the new task is solved
