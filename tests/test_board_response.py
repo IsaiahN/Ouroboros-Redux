@@ -42,6 +42,38 @@ def test_every_charge_lands_in_one_literal_and_the_two_denominators_stay_apart()
     assert r["band_at_step"] == {"banded": 3, "unbanded": 1}   # its own denominator: the reshape passed no flag
 
 
+def test_the_cell_histogram_is_exact_and_shares_the_mean_s_denominator():
+    """WHICH MEMBERS. `mean_masked_cells` pools four populations into one number, and every predicate downstream of
+    this reading is a MAX. The histogram and the per-literal max exist so both of those can be checked instead of
+    argued. The histogram's denominator must be the SAME `cells_n` the mean is divided by -- a charge that reached
+    one site and not the other has to be a number that fails."""
+    c = ChainLedger()
+    for cells in (0, 0, 2, 2, 3, 12):
+        c.note_board("live" if cells >= MIN_CELLS else ("still" if cells == 0 else "sub_floor"), cells, False)
+    c.note_board("reshape")                                # no comparable count: in neither the mean nor the hist
+    r = c.board_report()
+    assert r["cells_hist"] == {"0": 2, "2": 2, "3": 1, "12": 1}
+    assert r["cells_hist_n"] == r["cells_n"] == 6          # one denominator, two readouts
+    assert sum(r["cells_hist"].values()) == r["cells_hist_n"]
+    bk = r["cells_by_kind"]
+    assert bk["sub_floor"] == {"n": 3, "mean": (2 + 2 + 3) / 3.0, "max": 3}
+    assert bk["live"] == {"n": 1, "mean": 12.0, "max": 12}
+    assert "reshape" not in bk                             # a fabricated count here would be averaged downstream
+    assert max(int(k) for k in r["cells_hist"]) == 12       # the statistic the predicates read, recoverable
+
+
+def test_the_histogram_is_a_readout_and_no_decision_reads_it():
+    """An instrument that feeds a decision is not an instrument. `board_cells_hist` and `_board_cells_kind` are
+    written at exactly one site and read only by `board_report` and the sweep printer; if a decision path ever
+    imports them this fails, which is the notice that the freeze in HEARTBEAT item 4 has been crossed."""
+    import subprocess
+    out = subprocess.run(["grep", "-rn", "board_cells_hist\\|_board_cells_kind\\|cells_by_kind",
+                          os.path.join(os.path.dirname(__file__), "..", "src")],
+                         capture_output=True, text=True).stdout
+    files = {ln.split(":")[0].rsplit("/", 1)[-1] for ln in out.splitlines() if ln.strip()}
+    assert files <= {"abort_code.py"}, files
+
+
 def test_the_board_charge_is_run_level_and_a_segment_close_does_not_reset_it():
     """A segment-scoped inertness count would be unreadable beside the per-game `steps` it has to be compared with,
     and closing a segment mid-run would silently shrink it. The stage signals ARE segment-scoped; this is not."""

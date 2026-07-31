@@ -32,7 +32,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 
 class Stage(IntEnum):
@@ -316,6 +316,15 @@ class ChainLedger:
     board_band: Counter = field(default_factory=Counter)
     _board_cells: int = 0                              # masked changed cells summed over steps that HAVE a count
     _board_cells_n: int = 0                            # ...and its own denominator (a reshape contributes neither)
+    # `mean_masked_cells` pools still (0) with band_only (0) with sub_floor (1..floor-1) with live (>=floor) and
+    # reports one number about four populations -- a POOLED number offered as evidence about a SUBSET, which is the
+    # defect this file names elsewhere, one level up. These two answer WHICH MEMBERS. `board_cells_hist` is the
+    # EXACT distribution (keys are the cell count as a string, never a bucket: a bucket edge chosen by the author is
+    # a floor smuggled in beside the one under test). `_board_cells_kind` carries sum / n / MAX per literal, and the
+    # MAX is there because every predicate downstream of this reading is a max (`best`, `answered`, `frozen`) while
+    # every number published about it so far has been a mean. READOUT ONLY: nothing here is read by any decision.
+    board_cells_hist: Counter = field(default_factory=Counter)
+    _board_cells_kind: Dict[str, List[int]] = field(default_factory=dict)
 
     @property
     def steps_in_segment(self) -> int:
@@ -450,8 +459,14 @@ class ChainLedger:
         disagree, and it is None only when the caller could not compute a mask at all."""
         self.board_steps[str(kind)] += 1
         if cells is not None:
-            self._board_cells += int(cells)
+            c = int(cells)
+            self._board_cells += c
             self._board_cells_n += 1
+            self.board_cells_hist[str(c)] += 1         # the distribution, exact; charged from the same read
+            e = self._board_cells_kind.setdefault(str(kind), [0, 0, 0])
+            e[0] += c
+            e[1] += 1
+            e[2] = max(e[2], c)
         if banded is not None:
             self.board_band["banded" if banded else "unbanded"] += 1
 
@@ -482,6 +497,12 @@ class ChainLedger:
             "live": int(self.board_steps.get("live", 0)),
             "mean_masked_cells": (float(self._board_cells) / self._board_cells_n) if self._board_cells_n else None,
             "cells_n": int(self._board_cells_n),
+            # WHICH MEMBERS. The histogram is keyed by the exact masked cell count; `cells_hist_n` is its own
+            # denominator so a charge lost between the two sites is a number that fails rather than a silence.
+            "cells_hist": {k: int(n) for k, n in sorted(self.board_cells_hist.items(), key=lambda kv: int(kv[0]))},
+            "cells_hist_n": int(sum(self.board_cells_hist.values())),
+            "cells_by_kind": {k: {"n": int(v[1]), "mean": (float(v[0]) / v[1]) if v[1] else None, "max": int(v[2])}
+                              for k, v in sorted(self._board_cells_kind.items())},
         }
 
     def end_segment(self, reason: str) -> Optional[Stage]:

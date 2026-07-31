@@ -111,6 +111,37 @@ def test_the_report_renders_at_all_without_a_live_session():
         assert title in out, (title, out)
 
 
+def _res_engaged(**games):
+    """`_res` above builds the echo half of a result row; the board half rides on its own key and no test had ever
+    supplied it, so the two blocks that read it have only ever been exercised on their ABSENCE branch. This adds the
+    real `engage_report()` from the same driven policy, so the printer is rendered on numbers rather than on a
+    missing key."""
+    res = _res(**games)
+    for gid, p in games.items():
+        res["results"][gid]["engage"] = p.engage_report()
+    return res
+
+
+def test_the_floor_block_renders_the_distribution_and_not_only_its_absence():
+    """★ THE FLOOR, PRICED. The board here answers with exactly four interior cells or not at all, so the histogram
+    is knowable in advance: a column at 0 and a column at MIN_CELLS, nothing between them. That is what makes this
+    a printer test rather than a restatement -- if the section rendered a mean, or bucketed the counts, or lost the
+    max, the assertions below could not hold.
+
+    It also pins the ABSENCE branch's wording, because a block that silently prints nothing when the instrument is
+    unwired is how a zero gets read as a measurement."""
+    from newhorse.redux_arch.engagement import MIN_CELLS
+    p = _run("aa11-aaaa", _N, ("A1",))
+    out = _section(_render(_res_engaged(aa11=p)), "=== THE FLOOR, PRICED")
+    assert "MIN_CELLS=%d" % MIN_CELLS in out, out
+    assert "aa11" in out, out
+    hist = p.engage_report()["board"]["cells_hist"]
+    assert set(hist) == {"0", str(MIN_CELLS)}, hist          # the board answers with 4 cells or with none
+    assert "not a proposal to move" in out, out              # the readout says so in its own voice
+    empty = _section(_render(_res(bb22=_run("bb22-bbbb", 10, ("A1",)))), "=== THE FLOOR, PRICED")
+    assert "prices nothing" in empty, empty
+
+
 def test_a_board_that_answers_only_ONE_action_renders_as_ACTION_CONDITIONAL():
     """The good case, and the one that lets a rate be cited: the change tracks WHICH action was sent, so it is the
     agent's doing. The printer must say that in the classifier line, not merely print the numbers and leave the

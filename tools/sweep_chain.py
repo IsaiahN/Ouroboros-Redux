@@ -378,6 +378,59 @@ def board_section(res: dict) -> None:
         print("    (none: every game observed at least two distinct action labels)")
 
 
+def floor_section(res: dict) -> None:
+    """★ WHERE THE SMALLNESS FLOOR ACTUALLY SITS, per game. `MIN_CELLS = 4` is the number that decides whether a
+    board ANSWERED, and every predicate built on it (`answered`, `is_null`, `failed_trial`, `frozen`) is a MAX over
+    the masked changed-cell count. Until now the only number published about that count was `mean_masked_cells` --
+    one mean pooled over four populations (`still` at 0, `band_only` at 0, `sub_floor` below the floor, `live` at or
+    above it). A pooled number offered as evidence about a subset cannot say WHICH MEMBERS, and a mean cannot say
+    anything at all about a predicate that reads a max.
+
+    This is the distribution, exact and per game, plus the max the predicates actually read. `would-be-live @3 / @2`
+    are counted, not applied: they say how many charged steps sit in each cell just under the floor, which is the
+    only honest way to ask whether the floor is where the silence comes from.
+
+    THIS IS A READOUT. Nothing here is read by any decision, no detector is added, and the floor is NOT moved by
+    this section or by anything it prints. A number that says the floor is badly placed is a reason to PREREG a
+    change, not to make one -- see the freeze in HEARTBEAT's ranking, item 4."""
+    from newhorse.redux_arch.engagement import MIN_CELLS
+    results = res.get("results") or {}
+    rows = [(gid, results[gid]) for gid in sorted(results)
+            if ((results[gid].get("engage") or {}).get("board") or {}).get("cells_hist_n")]
+    print("\n=== THE FLOOR, PRICED (masked changed-cell distribution; MIN_CELLS=%d) ===" % MIN_CELLS)
+    if not rows:
+        print("  (no game carried a cell histogram: either the instrument is not wired in this run, or every"
+              " charged step was a reshape. This is an ABSENCE and prices nothing.)")
+        return
+    cols = list(range(0, MIN_CELLS + 4))
+    print("  %-18s %6s %s %7s %6s %6s %s"
+          % ("game", "n", " ".join("%5d" % c for c in cols), "%d+" % (MIN_CELLS + 4), "@%d" % (MIN_CELLS - 1),
+             "@%d" % (MIN_CELLS - 2), "  max  sub_floor(mean/max)  live(mean/max)"))
+    for gid, r in rows:
+        b = r["engage"]["board"]
+        hist = {int(k): int(v) for k, v in (b.get("cells_hist") or {}).items()}
+        n = int(b.get("cells_hist_n", 0))
+        tail = sum(v for k, v in hist.items() if k >= MIN_CELLS + 4)
+        mx = max(hist) if hist else 0
+        # steps that would cross a floor of MIN_CELLS-1 / MIN_CELLS-2 and are currently charged `sub_floor`
+        w1 = sum(v for k, v in hist.items() if MIN_CELLS - 1 <= k < MIN_CELLS)
+        w2 = sum(v for k, v in hist.items() if MIN_CELLS - 2 <= k < MIN_CELLS)
+        bk = b.get("cells_by_kind") or {}
+
+        def _mm(kind):
+            e = bk.get(kind)
+            if not e or not e.get("n"):
+                return "   -/-   "
+            return "%5.2f/%-4d" % (float(e["mean"]), int(e["max"]))
+
+        print("  %-18s %6d %s %7d %6d %6d  %5d  %s  %s"
+              % (gid, n, " ".join("%5d" % hist.get(c, 0) for c in cols), tail, w1, w2, mx,
+                 _mm("sub_floor"), _mm("live")))
+    print("  (`@%d` / `@%d` are COUNTS of charged steps in the cells just below the floor, not a proposal to move"
+          " it. `max` is the statistic every engagement predicate reads; the mean beside it is the statistic every"
+          " report so far has published.)" % (MIN_CELLS - 1, MIN_CELLS - 2))
+
+
 def report(res: dict) -> None:
     """Render one sweep's result dict. SEPARATE FROM `main` on purpose: a printer bug in this file has twice been
     discovered only after a live sweep had already been spent on it, and a printer that can only be exercised by
@@ -400,6 +453,7 @@ def report(res: dict) -> None:
     budget_section(res)
     deaths_section(res)
     board_section(res)
+    floor_section(res)
     print("\n=== POOLED TETHER-STAGE DISTRIBUTION ===")
     print(json.dumps(res.get("tether_chain"), indent=2, sort_keys=True))
 
