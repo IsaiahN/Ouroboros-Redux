@@ -16,6 +16,7 @@ than folded into the flat count.
 """
 import io
 import os
+import re
 import sys
 import contextlib
 
@@ -23,7 +24,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
 
-from death_depth import lives, parse, main                             # noqa: E402
+from death_depth import lives, parse, main, board_story                # noqa: E402
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -158,4 +159,107 @@ def test_a_game_whose_lives_VARY_is_named_rather_than_folded_into_the_flat_count
     assert "1 of 2 reproduce their per-life action count EXACTLY across every life: flat-000000" in out, out
     assert "★ vary-000000 did NOT" in out, out
     assert "30, 30" in out and "16, 64" in out, out
-    assert "cannot tell them apart" in out, "the tool must refuse to say WHY the count is constant"
+    assert "does NOT say why" in out, "the tool must not let the life count alone say WHY it is constant"
+    # this hand-built capture carries no DEATH-BOARD clause, so both games must land in `unknown` -- an ABSENCE.
+    # If a boardless capture read as `distinct`, the tool would be manufacturing evidence for H1 out of a field
+    # that was never printed, which is the mis-labelled-receipt failure with the label supplied by this file.
+    assert "DEATH BOARDS -- unknown" in out and "flat-000000, vary-000000" in out, out
+    assert "DEATH BOARDS -- distinct" not in out, out
+
+
+# --------------------------------------------------------------------------------------------------------------
+# ★ the board column -- the only thing that separates CLASSIFIER 12's two readings, and half of it is a tautology
+
+def test_all_distinct_boards_is_the_CLOCK_shape_and_says_so_without_saying_replay():
+    labels, verdict = board_story(["aaaaaa111111", "bbbbbb222222"], "cccccc333333", True)
+    assert verdict == "distinct", (labels, verdict)
+    assert labels == ["aaaaaa", "bbbbbb", "cccccc"], labels
+    assert not any("REPEAT" in l for l in labels), labels
+
+
+def test_an_EARNED_death_repeating_an_EARLIER_board_is_REPLAY_and_names_the_life_it_repeats():
+    """★ THIS IS THE ONLY SHAPE IN THE TABLE THAT IS EVIDENCE FOR H2. The gate ruled this death a NEW cause, so
+    the agent walked back to a screen it had already died on and found a second way to die there -- a replayed
+    route, not a clock. The label must say WHICH life it repeats, because 'a repeat happened somewhere' is a
+    pooled claim about a subset and the discipline forbids exactly that."""
+    labels, verdict = board_story(["aaaaaa111111", "bbbbbb222222", "aaaaaa111111"], None, False)
+    assert verdict == "replay", (labels, verdict)
+    assert labels[2] == "aaaaaa=life1★REPEAT", labels
+    assert labels[0] == "aaaaaa" and labels[1] == "bbbbbb", labels
+
+
+def test_a_no_new_cause_TERMINAL_repeat_is_BY_DEFN_and_can_never_be_read_as_a_replayed_route():
+    """★ THE TAUTOLOGY, HELD APART FROM THE EVIDENCE. `death_no_new_cause` is chosen BECAUSE the memory already
+    holds this (board, action); finding that board among the earlier ones restates the branch condition. If this
+    ever verdicts `replay`, the tool is citing the classifier's premise back as its conclusion."""
+    labels, verdict = board_story(["aaaaaa111111", "bbbbbb222222"], "aaaaaa111111", True)
+    assert verdict == "by-defn", (labels, verdict)
+    assert labels[-1] == "aaaaaa=life1[by defn]", labels
+    # the SAME board sequence under a literal that does NOT assert the repeat is real evidence again
+    _, other = board_story(["aaaaaa111111", "bbbbbb222222"], "aaaaaa111111", False)
+    assert other == "replay", other
+
+
+def test_a_capture_with_NO_boards_is_UNKNOWN_and_never_distinct():
+    """An absence is not a measurement. Every capture before this beat lacks the clause entirely, and a partial
+    one (some lines carried it, some did not) cannot support either reading either."""
+    assert board_story([], None, False) == ([], "unknown")
+    assert board_story([None, None], None, False)[1] == "unknown"
+    assert board_story(["aaaaaa111111", None], "cccccc333333", False)[1] == "unknown"
+
+
+def test_the_boards_and_the_PRINTED_terminal_step_survive_the_REAL_printer(tmp_path):
+    """Same contract as the parser test above: driven through `sweep_chain.report()`, not a shape I typed."""
+    path, res = _real_capture(tmp_path)
+    d = parse(path)
+    g = d["per"]["aa11-aaaa"]
+    assert len(g["boards"]) == 2 and all(re.fullmatch(r"[0-9a-f]{12}", b) for b in g["boards"]), g["boards"]
+    assert g["terminal_board"] is not None and g["terminal_board"] not in g["boards"], g
+    # the terminal death now carries its OWN mark, and it must agree with the depth the old tool DERIVED --
+    # otherwise every life table published from the derivation was describing a different run.
+    assert g["terminal_at"] == res["results"]["aa11-aaaa"]["steps"], (g["terminal_at"], res)
+
+
+def test_a_PRINTED_terminal_step_that_disagrees_with_the_DERIVED_one_is_shouted_by_name(tmp_path):
+    """★ THE CROSS-CHECK IS THE POINT OF PRINTING IT AT ALL. Switching silently from the derived depth to the
+    printed one would hide the very disagreement that would tell us the published tables were wrong."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    from test_sweep_report import _res, _run, _priced, _logged, _render, _N
+    res = _logged(_priced(_res(**{"aa11-aaaa": _run("aa11-aaaa", _N, ("A1",))}), retries={"aa11-aaaa": 1},
+                          outcome="death_no_new_cause", extra_deaths=1),
+                  terminal="death_no_new_cause", earned=1, causes=1, terminal_step=999)
+    p = tmp_path / "disagree.txt"
+    p.write_text(_render(res), encoding="utf-8")
+    out = _run_main(str(p))
+    assert "THE PRINTED TERMINAL STEP DISAGREES WITH THE DERIVED ONE" in out, out
+    assert "aa11-aaaa(printed 999, derived" in out, out
+
+
+def test_a_LEGACY_capture_without_the_stamp_still_reads_and_marks_its_depth_derived(tmp_path):
+    """Every capture taken before this beat -- including arm L, which the CLASSIFIER 12 table rests on -- has an
+    unstamped terminal line. It must keep parsing, keep saying `[derived]`, and must NOT be silently credited
+    with a printed mark it never carried."""
+    body = ("  old1-000000              2        1       2  death_no_new_cause\n"
+            "      TERMINAL: no RESET (death_no_new_cause, earned=False): reset NOT earned: death #2 repeats a"
+            " cause already in game-memory (action A3 from a board I already recorded as fatal).\n")
+    p = tmp_path / "legacy.txt"
+    p.write_text(_capture([("old1-000000", 40, 38, 0, 1, 0, "death_no_new_cause")], body), encoding="utf-8")
+    d = parse(str(p))
+    assert d["per"]["old1-000000"]["terminal"] == "A3"
+    assert d["per"]["old1-000000"]["terminal_at"] is None
+    assert d["per"]["old1-000000"]["terminal_board"] is None
+    out = _run_main(str(p))
+    assert "[40 derived]" in out, out
+    assert "DISAGREES" not in out, "there is nothing to disagree with -- silence, not a false alarm"
+
+
+def _run_main(path: str) -> str:
+    buf = io.StringIO()
+    argv = sys.argv
+    sys.argv = ["death_depth.py", path]
+    try:
+        with contextlib.redirect_stdout(buf):
+            main()
+    finally:
+        sys.argv = argv
+    return buf.getvalue()

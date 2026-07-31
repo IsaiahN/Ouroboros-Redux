@@ -17,6 +17,7 @@ Coarser, avatar-centric generalization is a deliberate follow-up, not smuggled i
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Set
+import hashlib
 import numpy as np
 
 
@@ -25,6 +26,25 @@ def board_fingerprint(grid) -> int:
     pixel-identical. Domain-general (no colours/positions are privileged)."""
     a = np.ascontiguousarray(np.asarray(grid, dtype=np.int64))
     return hash((a.shape, a.tobytes()))
+
+
+def board_digest(grid) -> str:
+    """★ THE SAME IDENTITY AS `board_fingerprint`, WRITTEN DOWN SO A RECEIPT CAN CARRY IT. ★
+
+    `board_fingerprint` is built on `hash()`, which Python salts per process: the integer the death-memory compares
+    is correct WITHIN a run and meaningless BETWEEN runs. A fingerprint printed into a log and then compared across
+    two arms would therefore be a mis-labelled receipt of exactly the kind the discipline forbids -- it would look
+    like a board identity and behave like a session nonce.
+
+    So this returns a STABLE, reproducible digest of the same bytes and the same shape. It induces THE SAME
+    EQUIVALENCE the gate uses (two boards share a digest iff they are pixel-identical, collisions aside), which is
+    what licenses reading it as the gate's identity; `tests/test_survival.py` pins that agreement rather than
+    asserting it here. It is used for LOGGING ONLY. Nothing in the agent reads it, and it is NOT a second key --
+    substituting it for `board_fingerprint` in the death memory would change nothing except the cost."""
+    a = np.ascontiguousarray(np.asarray(grid, dtype=np.int64))
+    h = hashlib.blake2b(a.tobytes(), digest_size=6)
+    h.update(repr(tuple(int(x) for x in a.shape)).encode("ascii"))
+    return h.hexdigest()
 
 
 @dataclass

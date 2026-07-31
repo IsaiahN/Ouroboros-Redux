@@ -619,21 +619,34 @@ def test_the_retired_GAME_OVER_literal_is_REFUSED_by_the_printer():
 _DEATHS = "=== WHAT THE DEATHS TAUGHT"
 
 
-def _logged(res, terminal=None, earned=0, causes=None, drop_log=False):
+def _logged(res, terminal=None, earned=0, causes=None, drop_log=False, boards=None, terminal_step=None):
     """Attach the run log `_play_policy` returns, written in the SAME shape the POLICY writes it -- prefixes and
     all -- because the printer parses by prefix and a fixture that invented its own shape would only test itself.
-    `drop_log=True` models a result from before the field existed, which must never read as 'nothing died'."""
+    `drop_log=True` models a result from before the field existed, which must never read as 'nothing died'.
+
+    ★ THE SHAPE MOVED WHEN THE DEATH-BOARD CLAUSE SHIPPED, AND THIS FIXTURE MOVES WITH IT. Every death line now
+    ends `‖ DEATH-BOARD board=… act=… pstep=…`, and the TERMINAL line now stamps its own `@N` exactly as the
+    earned ones do. A fixture left on the old shape would keep passing while describing a log the agent no longer
+    writes -- which is the drift the docstring above already warns about, one beat later. `boards` supplies the
+    digests (earned deaths first, terminal last) so a caller can make two deaths share a board on purpose;
+    `terminal_step` defaults to the result's own `steps`, i.e. printed AGREES with derived unless a test forces a
+    disagreement."""
+    n = int(earned)
     for gid, r in res["results"].items():
         if drop_log:
             r.pop("log", None)
             continue
+        bs = list(boards) if boards else ["%012x" % (0xb4b0 + i) for i in range(n + (1 if terminal else 0))]
         lines = ["EARNED RESET #%d @%d: reset_earned: death #%d at level 0 — action A3 from this board ended the"
                  " run and is a NEW avoidable cause (%d distinct causes now in game-memory); GAME_OVER leaves no"
-                 " in-play action." % (i + 1, i * 7 + 1, i + 1, i + 1) for i in range(int(earned))]
+                 " in-play action. ‖ DEATH-BOARD board=%s act=A3 pstep=%d"
+                 % (i + 1, i * 7 + 1, i + 1, i + 1, bs[i], i * 7) for i in range(n)]
         if terminal:
-            lines.append("no RESET (%s, earned=False): reset NOT earned: death #%d repeats a cause already in"
+            ts = r.get("steps") if terminal_step is None else terminal_step
+            lines.append("no RESET @%s (%s, earned=False): reset NOT earned: death #%d repeats a cause already in"
                          " game-memory (action A3 from a board I already recorded as fatal) — this attempt taught"
-                         " nothing new. Session ends at GAME_OVER (§XIX)." % (terminal, int(earned) + 1))
+                         " nothing new. Session ends at GAME_OVER (§XIX). ‖ DEATH-BOARD board=%s act=A3 pstep=%s"
+                         % (ts, terminal, n + 1, bs[n], ts))
         r["log"] = lines
         if causes is not None:
             r["causes"] = int(causes)

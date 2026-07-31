@@ -33,7 +33,7 @@ from .engagement import EngagementMeter, MIN_CELLS
 from .loci import LociTracker
 from .boundary import BoundaryDiff, diff_identities, Quarantine
 from .affordance import EffectAffordance
-from .survival import DeathMemory, AvatarHazard
+from .survival import DeathMemory, AvatarHazard, board_digest
 from .progress import ProgressProbe
 from .referent import find_referents, Referent
 from .relation import RelationBank, RelationCtx
@@ -260,6 +260,7 @@ class ReduxPolicy:
         self._state = "NOT_FINISHED"                    # last observed game state (for death detection)
         self._reset_earned = False                      # §XIX reset-earned gate: did the last death EARN a retry?
         self._reset_rationale = ""                      # the agent's evidence-cited reasoning for (not) resetting
+        self._death_board = None                        # digest of the board the LAST fatal action was taken from
         # TETHER-STAGE instrument: per-SEGMENT chain accounting. Not a proxy -- every signal below is set from the
         # exact call site of the event it names, so an unwired organ reports as unwired instead of as absent evidence.
         self.chain = ChainLedger()
@@ -474,18 +475,36 @@ class ReduxPolicy:
                 # is scored at whatever stage the segment actually reached (never inferred, never back-filled).
                 self._close_segment("death")
                 self._reset_earned = bool(new_cause)
+                # ★ THE IDENTITY THE GATE JUDGED, WRITTEN DOWN AT THE SITE THAT JUDGED IT. ★
+                # §XIX's question reads "did this death teach a NEW avoidable cause?" and EXECUTES as "is this exact
+                # screen novel?", because `note_death` keys on `board_fingerprint`, which is pixel-exact. The gate
+                # therefore had a board identity in its hand at every death and threw it away, leaving the receipt
+                # able to say a restart bought no depth and unable to say whether the agent kept dying on the SAME
+                # screen (a replayed route) or on DIFFERENT screens at the same depth (a per-game death clock).
+                # Those are the two readings of CLASSIFIER 12 and nothing on any receipt separates them.
+                # This clause is that separator and nothing else: the digest of the board the fatal action was taken
+                # FROM, the action itself, and the index of that board in this policy's own frame stream -- each
+                # written here, at the branch that decided, never derived from another organ. It is a LOG STRING.
+                # No organ reads it, and the §XIX key is UNCHANGED -- reading these digests is the measurement that
+                # would license changing the key, so the change may not ship in the beat that measures it.
+                # `pstep` is the POLICY's frame index, NOT the harness action budget: the harness counts a step for
+                # each granted reset and the policy does not, so the two diverge by exactly `retries`. The harness
+                # stamps its own counter on its own line; these two numbers are never substituted for each other.
+                self._death_board = board_digest(self.frames[-2])
+                _receipt = (" ‖ DEATH-BOARD board=%s act=%s pstep=%d"
+                            % (self._death_board, self.acts[-1], len(self.frames) - 2))
                 if new_cause:
                     self._reset_rationale = (
                         "reset_earned: death #%d at level %d — action %s from this board ended the run and is a NEW "
                         "avoidable cause (%d distinct causes now in game-memory); GAME_OVER leaves no in-play action, "
                         "so return-to-start is the missing primitive I need to apply the learned veto."
-                        % (self.n_deaths, self.level, self.acts[-1], self.deaths.distinct_causes))
+                        % (self.n_deaths, self.level, self.acts[-1], self.deaths.distinct_causes)) + _receipt
                 else:
                     self._reset_rationale = (
                         "reset NOT earned: death #%d repeats a cause already in game-memory (action %s from a board I "
                         "already recorded as fatal) — this attempt taught nothing new, so a retry has no reasoned "
                         "basis for a different outcome. Session ends at GAME_OVER (§XIX)."
-                        % (self.n_deaths, self.acts[-1]))
+                        % (self.n_deaths, self.acts[-1])) + _receipt
         self._avail = [int(a) for a in available]
         self._levels.append(int(levels_completed))      # reward stream (for goal abduction on reward)
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame

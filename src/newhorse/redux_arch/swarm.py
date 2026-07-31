@@ -107,7 +107,14 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
                     outcome = ("death_no_reset_support" if not can_retry      # SAME ORDER as the `or` chain above:
                                else "death_no_new_cause" if not earned       # a later condition may also hold, and
                                else "death_retry_cap")                       # the FIRST one is the one that fired.
-                    log.append("no RESET (%s, earned=%s): %s" % (outcome, earned, why)); break
+                    # ★ THE TERMINAL DEATH NOW STAMPS ITS OWN STEP INDEX. Every EARNED reset has carried `@steps`
+                    # since §XIX shipped; the terminal branch carried none, so the depth of the death that ENDED a
+                    # run had to be DERIVED offline from the game's final `steps`. Deriving it is sound and it is
+                    # still not a receipt, and the whole death-depth table rests on it. `steps` here is the same
+                    # counter the EARNED line stamps, read at the same site, one branch apart -- so the terminal
+                    # mark is directly comparable to the earned ones and needs no correction. Note it is NOT
+                    # post-incremented: this branch grants no reset, so nothing is added back for it.
+                    log.append("no RESET @%d (%s, earned=%s): %s" % (steps, outcome, earned, why)); break
                 retries += 1; steps += 1
                 log.append("EARNED RESET #%d @%d: %s" % (retries, steps, why))
                 snap = session.reset_after_death(reasoning={"why": why, "reset_earned": True})

@@ -380,6 +380,49 @@ def test_the_TERMINAL_death_carries_the_reason_it_refused_the_restart():
     assert "repeats a cause already in game-memory" in terminal[0], terminal[0]
 
 
+def test_the_TERMINAL_death_STAMPS_ITS_OWN_STEP_and_the_depth_stops_being_derived():
+    """★ THE ONE NUMBER IN THE DEATH-DEPTH TABLE THAT WAS NEVER A RECEIPT. ★ Every EARNED reset has carried `@steps`
+    since §XIX shipped. The terminal branch carried none, so `tools/death_depth.py` had to DERIVE the last life's
+    depth from the game's final `steps` and print it `[derived]`. That is sound and it is still an inference, and
+    the whole "the restart bought no depth" reading rests on it being right.
+
+    Pinned here: the terminal line carries `@N`, N is the SAME counter the earned lines stamp, and -- the failure
+    that would be invisible -- N equals what the offline tool used to derive, so the table does not shift under the
+    change. It must NOT be post-incremented: this branch grants no reset, so nothing is added back for it."""
+    import re
+    r = _play_policy(_DyingSession(_Still(), [1], die_every=1), Blackboard(), "m0r0-x",
+                     max_actions=40, wall_cap_s=30)
+    assert r["outcome"].startswith("death_"), r["outcome"]
+    terminal = [l for l in r["log"] if l.startswith("no RESET")]
+    assert len(terminal) == 1, r["log"]
+    m = re.match(r"no RESET @(\d+) \(", terminal[0])
+    assert m, terminal[0]
+    assert int(m.group(1)) == r["steps"], (terminal[0], r["steps"])       # what the tool used to derive
+    marks = [int(re.search(r"@(\d+):", l).group(1)) for l in r["log"] if l.startswith("EARNED RESET")]
+    assert all(x < int(m.group(1)) for x in marks), (marks, terminal[0])  # same counter, strictly later
+
+
+def test_EVERY_death_line_carries_the_BOARD_and_the_terminal_one_is_not_a_dialect():
+    """The §XIX gate keys on a pixel-exact board and printed a sentence about that board without naming it. With
+    the digest on the line, a reader can finally ask whether successive deaths landed on the SAME screen (a
+    replayed route) or on DIFFERENT screens at the same depth (a per-game death clock) -- the two readings nothing
+    on any receipt has ever separated.
+
+    The clause has to be IDENTICAL in shape on the earned and terminal branches. If the terminal death needed its
+    own regex, it would be the one death most likely to fall out of a table that claims to cover every death --
+    and it is also the only death every dying game is guaranteed to have."""
+    import re
+    r = _play_policy(_DyingSession(_Still(), [1], die_every=1), Blackboard(), "m0r0-x",
+                     max_actions=40, wall_cap_s=30)
+    lines = [l for l in r["log"] if l.startswith("EARNED RESET") or l.startswith("no RESET")]
+    assert len(lines) == r["retries"] + 1, (lines, r["retries"])          # every death, earned ones plus the last
+    pat = re.compile(r"‖ DEATH-BOARD board=([0-9a-f]+) act=(A\d+) pstep=(\d+)$")
+    hits = [pat.search(l) for l in lines]
+    assert all(hits), [l for l, h in zip(lines, hits) if not h]
+    psteps = [int(h.group(3)) for h in hits]
+    assert psteps == sorted(psteps) and len(set(psteps)) == len(psteps), psteps
+
+
 def test_an_EARNED_restart_records_the_new_cause_it_was_granted_for():
     """The other half: a restart that WAS granted writes its own line, so a reader can tell a run that learned four
     new causes and then stopped from one that learned nothing and stopped immediately."""

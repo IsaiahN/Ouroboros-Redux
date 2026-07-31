@@ -6,7 +6,7 @@ pin the pure memory and prove the SAME fatal cause is not repeated once learned 
 import sys, os
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from newhorse.redux_arch.survival import DeathMemory, board_fingerprint, AvatarHazard
+from newhorse.redux_arch.survival import DeathMemory, board_fingerprint, board_digest, AvatarHazard
 from newhorse.redux_arch.policy import ReduxPolicy, Blackboard, DIRECTIONAL
 
 
@@ -22,6 +22,46 @@ def test_fingerprint_exact_and_distinct():
     a = _f({(1, 1): 3}); b = _f({(1, 1): 3}); c = _f({(1, 2): 3})
     assert board_fingerprint(a) == board_fingerprint(b)      # pixel-identical -> same fingerprint
     assert board_fingerprint(a) != board_fingerprint(c)      # one pixel different -> different
+
+
+# ---- the digest that goes on the receipt ------------------------------------------------------------------------
+def test_the_digest_induces_the_SAME_equivalence_as_the_key_the_gate_actually_uses():
+    """`board_digest` is printed on every §XIX death line and read as "the board the gate judged". That reading is
+    only honest if the digest partitions boards the way `board_fingerprint` does -- same digest iff same
+    fingerprint. Pinned on identity, on a one-pixel difference, and on a RESHAPE, which is the case a bytes-only
+    digest would silently miss (the fingerprint carries the shape, so the digest must too)."""
+    a = _f({(1, 1): 3}); b = _f({(1, 1): 3}); c = _f({(1, 2): 3})
+    assert board_digest(a) == board_digest(b) and board_fingerprint(a) == board_fingerprint(b)
+    assert board_digest(a) != board_digest(c) and board_fingerprint(a) != board_fingerprint(c)
+    flat = np.zeros((1, 64), dtype=int); square = np.zeros((8, 8), dtype=int)
+    assert flat.tobytes() == square.tobytes()                # same bytes...
+    assert board_digest(flat) != board_digest(square)        # ...different board, and the digest says so
+    assert board_fingerprint(flat) != board_fingerprint(square)
+
+
+def test_the_digest_is_STABLE_ACROSS_PROCESSES_and_the_fingerprint_is_NOT():
+    """★ THE REASON THE DIGEST EXISTS AT ALL. ★ `board_fingerprint` is built on `hash()`, which Python salts per
+    process. Printing THAT integer on a receipt and then comparing two arms would compare session nonces while
+    looking exactly like a board comparison -- a mis-labelled receipt of the worst kind, because it would read as
+    "the agent died on different boards" in every arm regardless of the boards.
+
+    This test runs the same board through two interpreters with DIFFERENT hash seeds and asserts the split: the
+    digest must agree, and the fingerprint must not. If the fingerprint ever stops disagreeing, the risk is gone
+    and this test may be deleted -- but it may not be deleted merely because it is inconvenient."""
+    import subprocess
+    src = os.path.join(os.path.dirname(__file__), "..", "src")
+    prog = ("import numpy as np, sys; sys.path.insert(0, %r);"
+            "from newhorse.redux_arch.survival import board_digest, board_fingerprint;"
+            "g = np.arange(64, dtype=int).reshape(8, 8);"
+            "print(board_digest(g)); print(board_fingerprint(g))" % src)
+    out = []
+    for seed in ("1", "2"):
+        env = dict(os.environ, PYTHONHASHSEED=seed)
+        r = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True, env=env)
+        assert r.returncode == 0, r.stderr
+        out.append(r.stdout.split())
+    assert out[0][0] == out[1][0], ("the digest must survive a seed change", out)
+    assert out[0][1] != out[1][1], ("the fingerprint must NOT -- if it does, re-read this test's docstring", out)
 
 
 def test_note_and_veto():
@@ -174,6 +214,50 @@ def test_first_death_earns_reset_repeat_does_not():
     pol.observe(np.zeros((8, 8), dtype=int), [3, 4], 0, state="GAME_OVER")   # same (board,action) death repeats
     earned2, why2 = pol.reset_earned()
     assert earned2 is False and "NOT earned" in why2 and "repeats" in why2   # no new learning -> not earned (§XIX)
+    # ★ AND BOTH RATIONALES CARRY THE BOARD THE GATE JUDGED, IN THE SAME SHAPE. ★ The terminal line is the one
+    # that never had it: for thirteen sweeps a run could end saying "this repeats a cause already in game-memory"
+    # without naming WHICH board, so no receipt could tell a replayed route from a per-game death clock. The two
+    # branches must print ONE clause, not two dialects -- a parser that needs a different regex per branch is how
+    # a terminal death quietly drops out of a table that claims to cover every death.
+    for why in (why1, why2):
+        assert "‖ DEATH-BOARD board=" in why, why
+        assert " act=%s " % fatal_act in why, why
+    d1 = _board_of(why1); d2 = _board_of(why2)
+    assert d1 == board_digest(fatal_board), "the printed digest must be the board the fatal action was taken FROM"
+    assert d2 == d1, "the SAME board killed it twice, so the two receipts must agree -- that is the whole point"
+
+
+def _board_of(why: str) -> str:
+    """Read the digest off a §XIX rationale exactly the way `tools/death_depth.py` does."""
+    import re
+    m = re.search(r"‖ DEATH-BOARD board=(\w+) act=(\S+) pstep=(\d+)", why)
+    assert m, why
+    return m.group(1)
+
+
+def test_two_DIFFERENT_fatal_boards_print_two_DIFFERENT_digests_and_pstep_tracks_the_frame_stream():
+    """The separator only separates if it VARIES. A death-board clause that printed the same string at every death
+    would read as "the agent keeps dying on one screen" in every game ever run -- which is the failure mode of a
+    field that is never actually COMPUTED and is printed as a constant. So kill the agent twice from two boards
+    that differ by one pixel and require two digests, and require `pstep` to move with the frame stream.
+
+    `pstep` is checked here because it is the number most easily wrong by one: it must index the board the fatal
+    action was taken FROM (`frames[-2]`), not the GAME_OVER frame that followed it."""
+    pol = ReduxPolicy(game_id="two-boards", blackboard=Blackboard(), warmup_cap=1)
+    seen, steps_at = [], []
+    for col in (1, 2):
+        fatal = _f({(3, col): 2})
+        pol.frames.append(fatal); pol.acts.append("A3"); pol._pending = "A3"
+        pol.observe(np.zeros((8, 8), dtype=int), [3, 4], 0, state="GAME_OVER")
+        _e, why = pol.reset_earned()
+        m = __import__("re").search(r"board=(\w+) act=(\S+) pstep=(\d+)", why)
+        assert m, why
+        seen.append(m.group(1)); steps_at.append(int(m.group(3)))
+        assert m.group(1) == board_digest(fatal)
+        assert pol.frames[int(m.group(3))] is fatal, "pstep must index the board the action was taken FROM"
+        pol.note_reset()
+    assert seen[0] != seen[1], seen
+    assert steps_at[1] > steps_at[0], steps_at
 
 
 def test_would_earn_reset_predicate_agrees_with_reset_earned():
