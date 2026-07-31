@@ -39,6 +39,18 @@ class RateLimiter:
             time.sleep(wait)
 
 
+def _scrub(obj: Any, cap: int = 300) -> str:
+    """Exception text is about to be written onto a receipt that gets captured to a file and read back into a
+    prompt. The ARC key is ENV-ONLY and that has to hold in the FAILURE path too, where a URL or an SDK message is
+    most likely to carry it. Any occurrence of the live key value is replaced before the string leaves this
+    function, and the text is capped so one pathological traceback cannot bury the rest of the receipt."""
+    s = str(obj).replace("\n", " ⏎ ")
+    k = os.environ.get("ARC_API_KEY", "")
+    if k and len(k) >= 8:
+        s = s.replace(k, "***KEY-REDACTED***")
+    return s[:cap] + ("…" if len(s) > cap else "")
+
+
 def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int, wall_cap_s: float,
                  open_retries: int = 6, open_backoff: float = 1.5) -> Dict[str, Any]:
     """Drive one ReduxPolicy through one (already-constructed) session to completion. Session is duck-typed on the
@@ -57,8 +69,16 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
                 if open_backoff:                            # exp backoff (cap 12s) + jitter to break lockstep
                     time.sleep(min(12.0, open_backoff * (2 ** attempt)) * (0.5 + random.random()))
         if snap is None:
+            # ★ `open_error:RuntimeError` NAMES THE EXCEPTION CLASS AND NOTHING ELSE. Three games across three arms
+            # ended here -- `cn04` and `r11l` in arm K, `tn36` on RESET in arms I and J -- and the receipt could not
+            # say whether that was a 400, a 500, a timeout or a None reset, because one class name covers all of
+            # them. The outcome LITERAL is deliberately unchanged (every comparison ever made against it still
+            # holds); the text rides in its own field, scrubbed of the key, so a lost game is a diagnosis and not
+            # just a missing denominator.
             return dict(game=game_id, family="error", levels=0, steps=0,
-                        outcome="open_error:%s" % (type(last).__name__ if last else "none"), log=log)
+                        outcome="open_error:%s" % (type(last).__name__ if last else "none"),
+                        error_text=(_scrub(last) if last is not None
+                                    else "no exception: open() returned None on every attempt"), log=log)
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)
         can_retry = hasattr(session, "reset_after_death")   # live sessions retry after death; simple fakes may not
         retry_cap = 6
@@ -115,13 +135,18 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
         # stall distribution was blind to nearly every stall the build has ever produced. Close the last segment and
         # report what the chain actually reached -- per stall, not per run.
         pol.end_run()
+        # `causes` is the size of the death-memory AT THE END OF THE RUN, carried so a `death_no_new_cause` exit can
+        # be read: that literal says the terminal death repeated something already held, and this says how much was
+        # held. A run that stops with causes=1 stopped on its second-ever death; one that stops with causes=9 spent
+        # the run learning and then declined the tenth restart. Same literal, two very different agents.
         return dict(game=game_id, family=pol.family, levels=best, steps=steps, outcome=outcome,
-                    view_url=getattr(session, "view_url", None), log=log,
+                    view_url=getattr(session, "view_url", None), log=log, causes=pol.deaths.distinct_causes,
                     deaths=pol.n_deaths, retries=retries, vetoes=pol.n_vetoes,
                     tether_stage=pol.chain_report(), echo=pol.echo_report(),
                     firings=pol.firing_receipts())
     except Exception as e:                                   # one game's failure must not sink the swarm
-        return dict(game=game_id, family="error", levels=0, steps=0, outcome="error:%s" % type(e).__name__, log=log)
+        return dict(game=game_id, family="error", levels=0, steps=0, outcome="error:%s" % type(e).__name__,
+                    error_text=_scrub(e), log=log)
     finally:
         try:
             session.close()

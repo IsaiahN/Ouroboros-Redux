@@ -613,3 +613,106 @@ def test_the_retired_GAME_OVER_literal_is_REFUSED_by_the_printer():
     out = _section(_render(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), outcome="GAME_OVER")), _BUDGET)
     assert "RETIRED literal" in out, out
     assert "may not be read as any one of the three" in out, out
+
+
+# ---- ★ WHAT THE DEATHS TAUGHT --------------------------------------------------------------------------------
+_DEATHS = "=== WHAT THE DEATHS TAUGHT"
+
+
+def _logged(res, terminal=None, earned=0, causes=None, drop_log=False):
+    """Attach the run log `_play_policy` returns, written in the SAME shape the POLICY writes it -- prefixes and
+    all -- because the printer parses by prefix and a fixture that invented its own shape would only test itself.
+    `drop_log=True` models a result from before the field existed, which must never read as 'nothing died'."""
+    for gid, r in res["results"].items():
+        if drop_log:
+            r.pop("log", None)
+            continue
+        lines = ["EARNED RESET #%d @%d: reset_earned: death #%d at level 0 — action A3 from this board ended the"
+                 " run and is a NEW avoidable cause (%d distinct causes now in game-memory); GAME_OVER leaves no"
+                 " in-play action." % (i + 1, i * 7 + 1, i + 1, i + 1) for i in range(int(earned))]
+        if terminal:
+            lines.append("no RESET (%s, earned=False): reset NOT earned: death #%d repeats a cause already in"
+                         " game-memory (action A3 from a board I already recorded as fatal) — this attempt taught"
+                         " nothing new. Session ends at GAME_OVER (§XIX)." % (terminal, int(earned) + 1))
+        r["log"] = lines
+        if causes is not None:
+            r["causes"] = int(causes)
+    return res
+
+
+def test_the_TERMINAL_rationale_and_every_EARNED_one_reach_the_receipt():
+    """★ THE `why` STRING WAS PRODUCED AND THROWN AWAY FOR TWELVE SWEEPS. The exit literal names the BRANCH; this
+    section names the EVIDENCE the branch stood on. Both halves must print: the restarts the agent granted itself
+    and the one it refused."""
+    res = _logged(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 2},
+                          outcome="death_no_new_cause", extra_deaths=1),
+                  terminal="death_no_new_cause", earned=2, causes=5)
+    out = _section(_render(res), _DEATHS)
+    assert "TERMINAL:" in out and "repeats a cause already in game-memory" in out, out
+    assert out.count("EARNED  :") == 2, out
+    assert "1 terminal rationale(s), 2 earned-reset rationale(s)" in out, out
+
+
+def test_a_death_exit_that_carried_NO_rationale_is_flagged_MISSING_rather_than_blank():
+    """★ A FIELD NEVER CARRIED, PRINTED AS BLANK, IS A MIS-LABELLED RECEIPT. An empty rationale and an uncarried
+    one are different findings and the printer must not merge them into white space."""
+    res = _logged(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 1},
+                          outcome="death_retry_cap", extra_deaths=1), terminal=None, earned=0)
+    out = _section(_render(res), _DEATHS)
+    assert "★ MISSING" in out and "never carried" in out, out
+    assert "exited on a death with NO rationale on the receipt" in out and "aa11" in out, out
+
+
+def test_a_result_with_NO_LOG_AT_ALL_is_named_and_excluded_not_read_as_deathless():
+    """The same defect one level up: a capture from before the log crossed the boundary must be listed by name,
+    not silently absent from a section whose whole subject is what died."""
+    res = _logged(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), outcome="death_no_new_cause",
+                          extra_deaths=1), drop_log=True)
+    out = _section(_render(res), _DEATHS)
+    assert "carried NO run log and are excluded, not scored as deathless" in out and "aa11" in out, out
+
+
+def test_a_sweep_WITHOUT_a_single_death_decision_prints_an_ABSENCE_and_refuses_it_as_a_finding():
+    """A silent section reads as 'nothing died'. It is not the same claim, and the printer says so in words."""
+    out = _section(_render(_logged(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",)))), earned=0)), _DEATHS)
+    assert "NO GAME REPORTED ANY §XIX DECISION" in out, out
+    assert "may not be cited as" in out, out
+
+
+def test_the_SIZE_of_the_death_memory_is_printed_beside_the_literal_or_says_n_a():
+    """`death_no_new_cause` says the terminal death repeated something already held; this says how much was held.
+    A run that stopped holding one cause and one that stopped holding nine are different agents behind the same
+    word -- and a result that never carried the number says `n/a` rather than 0."""
+    have = _section(_render(_logged(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 1},
+                                            outcome="death_no_new_cause", extra_deaths=1),
+                                    terminal="death_no_new_cause", earned=1, causes=9)), _DEATHS)
+    row = [l for l in have.splitlines() if l.strip().startswith("aa11")][0]
+    assert " 9 " in row + " ", row
+    lack = _section(_render(_logged(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 1},
+                                            outcome="death_no_new_cause", extra_deaths=1),
+                                    terminal="death_no_new_cause", earned=1)), _DEATHS)
+    assert "n/a" in [l for l in lack.splitlines() if l.strip().startswith("aa11")][0], lack
+
+
+def test_TWO_terminal_rationales_are_impossible_and_the_printer_refuses_them():
+    """The branch that writes that line `break`s immediately, so a second one means the log is being reused across
+    runs or the branch is no longer terminal. Either way it is not a death to be read -- it is a defect."""
+    res = _logged(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 1},
+                          outcome="death_no_new_cause", extra_deaths=1), terminal="death_no_new_cause", earned=0)
+    for r in res["results"].values():
+        r["log"] = r["log"] + list(r["log"])
+    out = _section(_render(res), _DEATHS)
+    assert "MORE THAN ONE TERMINAL RATIONALE" in out and "aa11" in out, out
+
+
+def test_the_EXCEPTION_TEXT_of_a_game_that_never_opened_is_printed_beside_its_class():
+    """★ THREE GAMES, THREE ARMS, AND THE RECEIPT RECORDED ONLY `open_error:RuntimeError`. One class name covered a
+    400, a 500 and a None reset. The text now prints under the roster; a result without it says so."""
+    res = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))))
+    res["results"]["cn04"] = {"game": "cn04", "family": "error", "levels": 0, "steps": 0, "log": [],
+                              "outcome": "open_error:RuntimeError", "error_text": "HTTP 400 on RESET: bad scorecard"}
+    res["results"]["r11l"] = {"game": "r11l", "family": "error", "levels": 0, "steps": 0, "log": [],
+                              "outcome": "open_error:RuntimeError"}
+    out = _section(_render(res), _BUDGET)
+    assert "HTTP 400 on RESET" in out, out
+    assert "NO EXCEPTION TEXT ON THE RECEIPT" in out and "r11l" in out, out

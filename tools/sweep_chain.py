@@ -166,8 +166,87 @@ def budget_section(res: dict) -> None:
     print("  GAME SET: %d reporting, %d with no funnel | roster digest %s" % (len(reporting), len(errored), digest))
     if errored:
         print("    no funnel: %s" % ", ".join("%s(%s)" % (g, results[g].get("outcome")) for g in errored))
+        for g in errored:                                # ★ THE CLASS NAME IS NOT THE FAILURE. Print the text.
+            txt = results[g].get("error_text")
+            print("      %-18s %s" % (g, txt if txt else
+                                      "★ NO EXCEPTION TEXT ON THE RECEIPT -- this result predates the field, so the"
+                                      " cause was not recorded. That is an absence, not a transient."))
     print("    ⇒ EVERY POOLED NUMBER BELOW IS SCOPED TO THIS ROSTER. A sweep with a different digest may not be"
           " compared to this one pooled; recompute on the intersection or do not compare.")
+
+
+def parse_death_log(log) -> dict:
+    """Split one game's run log into the §XIX reset decisions it recorded. `_play_policy` writes exactly one
+    `EARNED RESET #n @s: <why>` line per restart it GRANTED and exactly one `no RESET (<literal>, earned=…): <why>`
+    line at the terminal death (that branch `break`s, so a second one is impossible and is reported if it appears).
+    Nothing here is recomputed or inferred: these are the strings the POLICY wrote at the moment it decided."""
+    earned, terminal, n_term = [], None, 0
+    for line in (log or []):
+        s = str(line)
+        if s.startswith("EARNED RESET"):
+            earned.append(s)
+        elif s.startswith("no RESET"):
+            n_term += 1
+            terminal = s
+    return {"earned": earned, "terminal": terminal, "n_terminal": n_term}
+
+
+def deaths_section(res: dict) -> None:
+    """★ WHAT THE DEATH TAUGHT -- the §XIX rationale, produced on every death since §XIX shipped and thrown away
+    every time. `pol.reset_earned()` returns `(earned, why)` and `_play_policy` writes `why` into the run log; this
+    file has never printed the log. So for twelve sweeps the receipt could say a run ended on a death that earned no
+    restart and could NOT say WHICH cause that death repeated, or how much the agent had learned before it stopped.
+    The exit literals shipped last beat name the BRANCH; this names the EVIDENCE the branch was standing on.
+
+    THREE THINGS THIS SECTION REFUSES TO DO. A game whose result carries no `log` key at all is listed by name and
+    excluded -- it is not a game that died silently. A game whose outcome starts with `death_` and which wrote NO
+    rationale line is flagged ★ MISSING rather than printed blank, because an empty rationale and an uncarried one
+    are different findings. And a sweep where NO game reported a terminal rationale prints that as an ABSENCE, which
+    may not be cited as evidence that nothing died -- the outcome roll-up above is what says that."""
+    results = res.get("results") or {}
+    if not results:
+        return
+    print("\n=== WHAT THE DEATHS TAUGHT (§XIX rationale, read off the run log -- never recomputed) ===")
+    print("  %-18s %7s %8s %7s  %s" % ("game", "deaths", "retries", "causes", "outcome"))
+    no_log, silent, doubled = [], [], []
+    n_term = n_earned = 0
+    for gid in sorted(results):
+        r = results[gid]
+        out = str(r.get("outcome"))
+        if "log" not in r:
+            no_log.append(gid)
+            continue
+        p = parse_death_log(r.get("log"))
+        if not p["earned"] and not p["terminal"] and not out.startswith("death_"):
+            continue                                     # this game recorded no death decision; nothing to print
+        print("  %-18s %7s %8s %7s  %s"
+              % (gid, r.get("deaths"), r.get("retries"),
+                 ("n/a" if r.get("causes") is None else r.get("causes")), out))
+        if p["n_terminal"] > 1:
+            doubled.append("%s(%d)" % (gid, p["n_terminal"]))
+        if p["terminal"]:
+            n_term += 1
+            print("      TERMINAL: %s" % p["terminal"])
+        elif out.startswith("death_"):
+            silent.append(gid)
+            print("      TERMINAL: ★ MISSING -- this game exited on a death and carried NO rationale line. The"
+                  " rationale was not empty; it was never carried. Do not read this as 'no cause given'.")
+        for line in p["earned"]:
+            n_earned += 1
+            print("      EARNED  : %s" % line)
+    print("  %d terminal rationale(s), %d earned-reset rationale(s) printed." % (n_term, n_earned))
+    if no_log:
+        print("  %d game(s) carried NO run log and are excluded, not scored as deathless: %s"
+              % (len(no_log), ", ".join(no_log)))
+    if silent:
+        print("  ★ %d game(s) exited on a death with NO rationale on the receipt: %s. Until that is fixed, their"
+              " exit literal is the only thing known about them." % (len(silent), ", ".join(silent)))
+    if doubled:
+        print("  ★ MORE THAN ONE TERMINAL RATIONALE on %s, which the `break` after that line makes impossible."
+              " Either the log is being reused across runs or the branch is no longer terminal." % ", ".join(doubled))
+    if not n_term and not n_earned:
+        print("  ⇒ NO GAME REPORTED ANY §XIX DECISION in this sweep. That is an ABSENCE and may not be cited as"
+              " evidence that nothing died -- the OUTCOME roll-up above is what answers that.")
 
 
 def report(res: dict) -> None:
@@ -190,6 +269,7 @@ def report(res: dict) -> None:
               % (gid, r.get("family"), r.get("levels"), ts.get("stalls"), ts.get("advances"),
                  ec.get("residual_nonempty"), ec.get("minted"), ec.get("fired"), ts.get("furthest_stage")))
     budget_section(res)
+    deaths_section(res)
     print("\n=== POOLED TETHER-STAGE DISTRIBUTION ===")
     print(json.dumps(res.get("tether_chain"), indent=2, sort_keys=True))
 

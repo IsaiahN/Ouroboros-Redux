@@ -364,3 +364,66 @@ def test_the_retired_GAME_OVER_literal_is_gone_from_the_exit():
               _DyingNoResetSession(_Maze(), [1, 2, 3, 4, 5], die_every=4)):
         r = _play_policy(s, Blackboard(), "m0r0-x", max_actions=60, wall_cap_s=30)
         assert r["outcome"] != "GAME_OVER", r["outcome"]
+
+
+def test_the_TERMINAL_death_carries_the_reason_it_refused_the_restart():
+    """★ THE `why` STRING WAS PRODUCED AND THROWN AWAY. `reset_earned()` has returned `(earned, why)` since §XIX
+    shipped and `_play_policy` has written it into `log` all along; nothing ever read it. The exit literal names the
+    BRANCH -- this names the EVIDENCE the branch stood on, which is the only place the WHICH-cause question has ever
+    been answered. Assert on the log the policy WROTE, not on a reconstruction of it."""
+    r = _play_policy(_DyingSession(_Still(), [1], die_every=1), Blackboard(), "m0r0-x",
+                     max_actions=40, wall_cap_s=30)
+    assert r["outcome"] == "death_no_new_cause", r["outcome"]
+    terminal = [l for l in r["log"] if l.startswith("no RESET")]
+    assert len(terminal) == 1, r["log"]                       # the branch `break`s, so exactly one can exist
+    assert "death_no_new_cause" in terminal[0] and "earned=False" in terminal[0]
+    assert "repeats a cause already in game-memory" in terminal[0], terminal[0]
+
+
+def test_an_EARNED_restart_records_the_new_cause_it_was_granted_for():
+    """The other half: a restart that WAS granted writes its own line, so a reader can tell a run that learned four
+    new causes and then stopped from one that learned nothing and stopped immediately."""
+    r = _play_policy(_DyingSession(_Maze(), [1, 2, 3, 4, 5], die_every=5), Blackboard(), "m0r0-x",
+                     max_actions=40, wall_cap_s=30)
+    earned = [l for l in r["log"] if l.startswith("EARNED RESET")]
+    assert earned and len(earned) == r["retries"], (earned, r["retries"])
+    assert "NEW avoidable cause" in earned[0], earned[0]
+
+
+def test_the_size_of_the_death_MEMORY_crosses_the_process_boundary():
+    """`death_no_new_cause` says the terminal death repeated something already held. How MUCH was held is a
+    different number and it lived only inside the policy. A run that stops with one cause stopped on its second
+    death; a run that stops with several spent the run learning first. Same literal, two different agents."""
+    lots = _play_policy(_DyingSession(_Maze(), [1, 2, 3, 4, 5], die_every=5), Blackboard(), "m0r0-x",
+                        max_actions=40, wall_cap_s=30)
+    assert lots["causes"] >= 1 and lots["causes"] >= lots["retries"], lots
+    none = _play_policy(FakeSession(_Maze(), [1, 2, 3, 4, 5]), Blackboard(), "m0r0-x",
+                        max_actions=10, wall_cap_s=30)
+    assert none["deaths"] == 0 and none["causes"] == 0, none    # nothing died, so nothing was learned this way
+
+
+def test_a_game_that_never_opens_reports_the_EXCEPTION_TEXT_and_not_just_its_class():
+    """★ `open_error:RuntimeError` NAMES THE CLASS AND NOTHING ELSE -- and one class covered a 400, a 500 and a
+    None reset across three games and three arms. The literal is UNCHANGED (every comparison against it still
+    holds); the text rides beside it."""
+    s = _FlakyOpenSession(_TwoBody(), [1, 2, 3, 4, 5], fail_n=99)
+    r = _play_policy(s, Blackboard(), "x-1", max_actions=5, wall_cap_s=5, open_retries=2, open_backoff=0.0)
+    assert r["outcome"] == "open_error:RuntimeError"
+    assert "rate limit / server 500" in r["error_text"], r.get("error_text")
+
+
+def test_the_key_can_never_ride_out_on_an_exception_string():
+    """ENV-ONLY has to hold in the FAILURE path too: the receipt is captured to a file and read back. A key value
+    present in the environment is redacted out of any text this module emits."""
+    from newhorse.redux_arch.swarm import _scrub
+    old = os.environ.get("ARC_API_KEY")
+    os.environ["ARC_API_KEY"] = "sk-live-abcdef0123456789"
+    try:
+        out = _scrub(RuntimeError("GET /api?key=sk-live-abcdef0123456789 failed"))
+        assert "sk-live-abcdef0123456789" not in out and "***KEY-REDACTED***" in out, out
+        assert len(_scrub("x" * 5000)) < 400                    # one traceback cannot bury the receipt
+    finally:
+        if old is None:
+            os.environ.pop("ARC_API_KEY", None)
+        else:
+            os.environ["ARC_API_KEY"] = old
