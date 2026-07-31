@@ -135,9 +135,9 @@ def test_a_frame_the_agent_did_not_cause_is_excluded_by_name_not_dropped():
 
 
 # ---- the printer ----------------------------------------------------------------------------------------------
-def _res(charged=10, steps=11, retries=1, live=3):
+def _res(charged=10, steps=11, retries=1, live=3, outcome="death_retry_cap"):
     return {"results": {"aa11-1": {
-        "family": "effect", "steps": steps, "retries": retries,
+        "family": "effect", "steps": steps, "retries": retries, "outcome": outcome,
         "engage": {"family": "effect", "escalations": 0, "esc_branch": {}, "escalated_at_end": None, "reverts": 0,
                    "board": {"steps": charged, "skipped": 1, "frames": charged + 1,
                              "split": {"still": 2, "band_only": charged - 2 - live, "live": live},
@@ -163,6 +163,45 @@ def test_the_printer_stars_a_residue_instead_of_absorbing_it(capsys):
     board_section(_res(charged=7))                          # steps-retries == 10, charge == 7
     out = capsys.readouterr().out
     assert "NON-ZERO residue" in out
+
+
+# ---- the tail: the one action whose frame nobody observed -----------------------------------------------------
+def test_the_unobserved_tail_is_read_off_the_exit_literal_and_both_branches_are_pinned():
+    """`_play_policy` observes at the TOP of its loop. A run that ends on a `break` (WIN, any `death_*`) observed
+    the frame it broke on; a run that falls out of the loop CONDITION never observed the frame its last action
+    produced. One rule, both branches, and a literal nobody has classified gets a number from nobody."""
+    from sweep_chain import observed_tail
+    assert observed_tail("WIN") == 0
+    for lit in ("death_no_reset_support", "death_no_new_cause", "death_retry_cap"):
+        assert observed_tail(lit) == 0
+    for lit in ("action_cap", "wall_cap", "action_and_wall_cap", "loop_exit_unattributed"):
+        assert observed_tail(lit) == 1
+    assert observed_tail("open_error:RuntimeError") is None  # reached no exit; it may NOT be given a number
+    assert observed_tail(None) is None
+
+
+def test_a_cap_exit_is_clean_one_short_and_a_death_exit_is_clean_dead_on(capsys):
+    """THE POST-HOC CORRECTION, PINNED SO IT CAN FAIL. Arm N pre-registered `charged == steps - retries` flat and
+    it failed by exactly -1 on exactly the capped games. This test states the fitted rule; the NEXT arm is where it
+    stands or falls, and the printer must not absorb a violation of it silently."""
+    from sweep_chain import board_section
+    board_section(_res(charged=9, steps=11, retries=1, outcome="action_cap"))     # 10 actions, tail 1 -> clean
+    out = capsys.readouterr().out
+    assert "NON-ZERO residue" not in out
+    board_section(_res(charged=10, steps=11, retries=1, outcome="action_cap"))    # the OLD identity now stars
+    assert "NON-ZERO residue" in capsys.readouterr().out
+    board_section(_res(charged=10, steps=11, retries=1, outcome="death_retry_cap"))
+    assert "NON-ZERO residue" not in capsys.readouterr().out
+    board_section(_res(charged=9, steps=11, retries=1, outcome="death_retry_cap"))
+    assert "NON-ZERO residue" in capsys.readouterr().out
+
+
+def test_a_game_with_no_exit_literal_forfeits_its_residue_rather_than_guessing(capsys):
+    from sweep_chain import board_section
+    board_section(_res(charged=3, steps=11, retries=1, outcome="open_error:RuntimeError"))
+    out = capsys.readouterr().out
+    assert "does not say whether the last frame was observed" in out
+    assert "NON-ZERO residue" not in out                    # a wild residue is NOT claimed off an unclassified exit
 
 
 def test_the_printer_reports_a_missing_instrument_as_an_absence(capsys):

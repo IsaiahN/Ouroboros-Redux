@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from typing import Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -249,6 +250,27 @@ def deaths_section(res: dict) -> None:
               " evidence that nothing died -- the OUTCOME roll-up above is what answers that.")
 
 
+# Exit literals that leave the `while` by falling out of its CONDITION, so the frame the last action produced is
+# never observed. They are listed BY NAME rather than inferred from a prefix: a literal added at a new fall-through
+# `return` and not added here reads as `?` and forfeits its residue, which is the failure mode we want.
+_TAIL_EXITS = ("action_cap", "wall_cap", "action_and_wall_cap", "loop_exit_unattributed")
+
+
+def observed_tail(outcome) -> Optional[int]:
+    """How many of the agent's actions produced a frame the policy never saw. 0, 1, or None for "the literal does
+    not say" -- an `open_error:*` or `error:*` game reached no exit at all and may not be given a number.
+
+    This is the exit-literal reading, not a per-game correction: `_play_policy` observes at the TOP of its loop, so
+    an exit that `break`s (WIN, every `death_*`) has already observed the frame it is breaking on, while an exit
+    that falls out of the loop condition has not. One rule, two branches, both named."""
+    o = str(outcome)
+    if o == "WIN" or o.startswith("death_"):
+        return 0
+    if o in _TAIL_EXITS:
+        return 1
+    return None
+
+
 def board_section(res: dict) -> None:
     """★ THE INERTNESS RECEIPT, PER GAME. The decide funnel below already prints an `answered` rate per EXIT, pooled
     over every game -- and a pooled rate cannot say WHICH members it is about, which is the whole question here.
@@ -261,9 +283,17 @@ def board_section(res: dict) -> None:
     produced) and is excluded from the rates by name, never dropped.
 
     THE IDENTITY, published so it can fail: the agent's actions on a game are `steps - retries` (CLASSIFIER 11), and
-    every one of them produces exactly one observed frame with an action label, so `charged` must equal it. A
-    non-zero residue means a frame was observed with no action behind it, or an action produced no frame -- either
-    is a defect in this instrument, and the reader must be able to see it rather than trust it.
+    every one of them produces exactly one observed frame with an action label, so `charged` must equal it MINUS THE
+    UNOBSERVED TAIL. The tail is one action wide and only on a run that ends on a cap: `_play_policy` observes at the
+    TOP of its loop, so the frame produced by the last action of a capped run is never observed and cannot be
+    charged, while a run that ends on a DEATH observes the fatal frame before the §XIX gate refuses it. The tail is
+    therefore predicted by the exit literal, and it is printed as its own column rather than folded into the residue
+    -- a correction absorbed silently is how a receipt stops being able to fail.
+
+    PROVENANCE OF THAT CORRECTION, because it matters: it was NOT pre-registered. Arm N pre-registered `charged ==
+    steps - retries` flat, and that identity FAILED on 22 of 24 games by exactly -1, on exactly the games whose exit
+    was a cap. The rule above was fitted to that failure and is therefore not evidence about itself; the arm AFTER
+    it is where it stands or falls as a prediction. `tests/test_board_response.py` pins both branches end to end.
 
     WHAT IT MAY NOT BE READ AS. A `still` step is not a wasted step by the agent's own lights -- a game can require
     a key press that only takes effect later. It IS a step from which no residual can be built, because R_τ = 0 has
@@ -277,11 +307,12 @@ def board_section(res: dict) -> None:
         print("  (no game carried an `engage` receipt: the instrument is not wired in this run. This is an ABSENCE"
               " and may not be read as an inert -- or a responsive -- agent.)")
         return
-    print("  %-18s %-13s %7s %7s %6s %6s %6s %7s %6s %6s %7s %s"
-          % ("game", "family", "charged", "resid", "still", "band", "sub", "live", "live%", "skip", "banded",
-             "frozen/esc"))
-    tot = {"charged": 0, "still": 0, "band_only": 0, "sub_floor": 0, "live": 0, "reshape": 0, "skip": 0}
+    print("  %-18s %-13s %7s %4s %6s %6s %6s %6s %7s %6s %6s %7s %s"
+          % ("game", "family", "charged", "tail", "resid", "still", "band", "sub", "live", "live%", "skip",
+             "banded", "frozen/esc"))
+    tot = {"charged": 0, "still": 0, "band_only": 0, "sub_floor": 0, "live": 0, "reshape": 0, "skip": 0, "tail": 0}
     n_resid = 0
+    unattributed = []
     for gid, r in rows:
         e = r["engage"]
         b, m = e["board"], (e.get("meter") or {})
@@ -289,32 +320,45 @@ def board_section(res: dict) -> None:
         charged = int(b.get("steps", 0))
         # CLASSIFIER 11's identity is the control on this column, not a decoration: `steps - retries` is the number
         # of actions the agent emitted, computed from counters incremented at two different sites in `swarm.py`.
+        # The TAIL is the second term, and it is read off the EXIT LITERAL rather than fitted per game: an exit that
+        # `break`s observed the frame its last action produced, an exit that falls out of the `while` never did.
         acts = None
         if r.get("steps") is not None and r.get("retries") is not None:
             acts = int(r["steps"]) - int(r["retries"])
-        resid = "n/a" if acts is None else str(charged - acts)
-        if resid not in ("n/a", "0"):
-            n_resid += 1
+        tail = observed_tail(r.get("outcome"))
+        if tail is None:
+            unattributed.append("%s(%s)" % (gid, r.get("outcome")))
+        if acts is None or tail is None:
+            resid = "n/a"
+        else:
+            resid = str(charged - (acts - tail))
+            if resid != "0":
+                n_resid += 1
         live = int(sp.get("live", 0))
         banded = int((b.get("band_at_step") or {}).get("banded", 0))
-        print("  %-18s %-13s %7d %7s %6d %6d %6d %7d %5.0f%% %6d %7d %s/%s"
-              % (gid, str(e.get("family"))[:13], charged, resid, int(sp.get("still", 0)),
+        print("  %-18s %-13s %7d %4s %6s %6d %6d %6d %7d %5.0f%% %6d %7d %s/%s"
+              % (gid, str(e.get("family"))[:13], charged, "?" if tail is None else str(tail), resid,
+                 int(sp.get("still", 0)),
                  int(sp.get("band_only", 0)), int(sp.get("sub_floor", 0)), live,
                  (100.0 * live / charged) if charged else 0.0, int(b.get("skipped", 0)), banded,
                  "Y" if m.get("frozen") else "n", e.get("escalations")))
         tot["charged"] += charged
         tot["skip"] += int(b.get("skipped", 0))
+        tot["tail"] += int(tail or 0)
         for k in ("still", "band_only", "sub_floor", "live", "reshape"):
             tot[k] += int(sp.get(k, 0))
-    print("  %-18s %-13s %7d %7s %6d %6d %6d %7d %5.0f%% %6d"
-          % ("TOTAL", "", tot["charged"], "", tot["still"], tot["band_only"], tot["sub_floor"], tot["live"],
-             (100.0 * tot["live"] / tot["charged"]) if tot["charged"] else 0.0, tot["skip"]))
+    print("  %-18s %-13s %7d %4d %6s %6d %6d %6d %7d %5.0f%% %6d"
+          % ("TOTAL", "", tot["charged"], tot["tail"], "", tot["still"], tot["band_only"], tot["sub_floor"],
+             tot["live"], (100.0 * tot["live"] / tot["charged"]) if tot["charged"] else 0.0, tot["skip"]))
     if tot["reshape"]:
         print("  (%d reshape step(s) are charged but carry no cell count and are in none of the four columns.)"
               % tot["reshape"])
+    if unattributed:
+        print("  ★ %d game(s) carry an exit literal that does not say whether the last frame was observed, so NO"
+              " residue is claimed on them: %s" % (len(unattributed), ", ".join(unattributed)))
     if n_resid:
-        print("  ★ %d game(s) have a NON-ZERO residue against `steps - retries`. The charge and the action budget"
-              " disagree, so no rate in this table may be cited until that is explained." % n_resid)
+        print("  ★ %d game(s) have a NON-ZERO residue against `steps - retries - tail`. The charge and the action"
+              " budget disagree, so no rate in this table may be cited until that is explained." % n_resid)
     # THE PER-ACTION TABLE, only for the games where it says something the row above cannot: the ones the agent
     # spent on ONE label. A game played with one action for its whole budget is the pathology `engagement.py` was
     # built to break, and if the meter is not reporting `frozen` on such a game that is a finding about the METER.

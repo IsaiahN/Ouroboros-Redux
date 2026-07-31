@@ -80,3 +80,40 @@ the lever it is documented to be.
   measurement that would motivate that fix, which is exactly why the fix may not ship in the beat that measures it.
 * **`band_cells` in the meter report is the mask AS OF THE LAST FRAME**, recomputed from a sliding window. Only
   `board_band`, charged per step, may be cited about what was masked during play.
+
+---
+
+## AMENDMENT — written after arm N, before arm O opens, at the commit that changes the printer
+
+**S2 FAILED AS WRITTEN.** Arm N reported residue `−1` on 22 of the 24 games that reported, and `0` on exactly two:
+`s5i5-18d95033` and `vc33-5430563c`. Those two are the only games in the run whose exit literal was a `death_*`.
+Every other reporting game exited on a cap. Zero exceptions in either direction.
+
+The cause is in `_play_policy` and is one line of control flow, not a defect in the charge: the policy observes at
+the **top** of the loop. A run that leaves the loop by `break` — `WIN`, or any of the three `death_*` literals — has
+already observed the frame it is breaking on, so every one of its actions is charged. A run that leaves by falling
+out of the `while` **condition** never observes the frame its last action produced, so exactly one action is
+uncharged. The corrected identity is therefore
+
+> `board.steps == steps − retries − tail`, where `tail = 1` if the exit literal is `action_cap` / `wall_cap` /
+> `action_and_wall_cap` / `loop_exit_unattributed`, `0` if it is `WIN` or `death_*`, and **undefined** for an
+> `open_error:*` / `error:*` game, which reached no exit and is given no number at all.
+
+**This rule is FITTED, not predicted.** It was derived from the arm N failure it explains and is therefore not
+evidence about itself. It is printed as its own `tail` column rather than folded into `resid`, because a correction
+absorbed silently is how a receipt stops being able to fail, and `tools/sweep_chain.py::observed_tail` names the
+fall-through literals explicitly so that a fall-through `return` added later and not registered here reads `?` and
+forfeits its residue instead of quietly borrowing a `1`.
+
+**S2′ — THE OUT-OF-SAMPLE TEST, on the record before arm O opens.** On arm O, every reporting game shows
+`resid = 0` under the corrected identity, and the `tail` column equals `1` on every cap-exit game and `0` on every
+`death_*`/`WIN` game — **with the branch assignment made by the literal alone, before the residue is looked at.**
+A single game where a `death_*` exit needs a tail of 1, or a cap exit needs 0, falsifies the control-flow
+explanation above and sends the whole board table back to unreadable. `tests/test_board_response.py` pins both
+branches synthetically; arm O is where the rule meets data it was not fitted to.
+
+**What arm O may NOT be used for.** It is a re-run of the same roster with the same agent code — the ONLY changes
+since arm N are in the printer and in tests. It is therefore a reproduction check on the arm N readings and a test
+of S2′, and it is **not** a second sample about the agent: two runs of one build on one roster do not average into
+a stronger claim about behaviour. Nothing about `_modality_escalate`, the native-click escalation guard, the §XIX
+key, the death memory, or `EngagementMeter._frames` changes in this arm.
