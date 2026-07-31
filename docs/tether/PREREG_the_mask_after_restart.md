@@ -107,3 +107,43 @@ Then the ratchet break IS blinding the mask on identical frames, but the restart
 — for example the bar's refill is slow enough that the band never re-reaches `min_fill` before the run ends. That is
 a statement about `min_fill` and `keep`, not about the reset, and it would be the next thing measured. Recording it
 here so the fallback is not invented after the numbers arrive.
+
+---
+
+## AMENDMENT — written after the OFFLINE CONTRAST and the CONTROL arm, BEFORE the treatment arm opens
+
+The control arm (`NEWHORSE_MASK_RESET=keep`, scorecard `62011900-836d-4d4e-9762-e5c764ec3f63`, roster digest
+`793049198616`, `TOTAL steps=2959 decide=2939 retries=20 | BUDGET RESIDUE=0`) reproduced arm O cell for cell on all
+24 games arm O reported, and `wa30-ee6fef47` opened this time, so all 25 report. S1/S2/S3 hold.
+
+**P0 PASSED, and by a wide margin.** On identical frames, with no agent in the loop:
+
+| game | frames | charged | `banded` keep | `banded` clear | `live` keep | `live` clear | `band_only` keep | `band_only` clear |
+|---|---|---|---|---|---|---|---|---|
+| `bp35` | 121 | 118 | 30 | 81 | 23 | 23 | 18 | 65 |
+| `s5i5` | 102 | 100 | 42 | 76 | 4 | 4 | 42 | 76 |
+| `sp80` | 121 | 117 | 23 | 89 | 45 | 45 | 16 | 64 |
+| `su15` | 118 | 115 | 41 | 91 | 6 | 6 | 20 | 70 |
+| `tu93` | 121 | 118 | 42 | 82 | 3 | 3 | 41 | 81 |
+| `vc33` | 102 | 100 | 42 | 76 | 2 | 2 | 42 | 76 |
+
+The `keep` column reproduces the live control arm's own `banded` column exactly on all six, which is what licenses
+reading anything off this replay at all.
+
+**And P3 is ALREADY FALSIFIED, before the treatment arm opens.** `live` does not move by a single step on any of the
+six. The bar's tick is 1–3 cells — BELOW `MIN_CELLS = 4` — so a blinded mask was never turning a bar tick into an
+`live`. What it was doing was moving steps between `band_only` and `sub_floor`, two literals that are both below the
+floor. **The defect is real and it is large as an instrument defect; its consequence for anything the agent READS is
+not established and now looks likely to be nil**, because `frozen()` tests `max(_recent) < MIN_CELLS` against the
+same floor these steps were already under.
+
+So the treatment arm is now a test of a NARROWER and more falsifiable claim, registered here before it runs:
+
+**P6 — the treatment arm reproduces the control arm CELL FOR CELL in the budget table** (`steps`, `decide`,
+`retries`, `deaths`, `outcome`) on all 25 games, and `live` / `live%` / `frozen` / `escalations` are unchanged on all
+25. Only `banded`, `band_only` and `sub` move, and they move as the offline table above says. **This is the +0 being
+published in advance: the honest expectation is now that this fix changes what the receipt SAYS and changes nothing
+the agent DOES.** If instead any game's `steps`, `deaths` or `outcome` moves, the mask does reach a decision by a
+route I have not found, and that route must be located and named before anything else is claimed.
+
+P1 stands as written and is expected to pass. P4 is superseded by P6. P5 stands.
