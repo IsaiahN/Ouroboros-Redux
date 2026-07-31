@@ -160,6 +160,12 @@ def test_a_game_whose_lives_VARY_is_named_rather_than_folded_into_the_flat_count
     assert "★ vary-000000 did NOT" in out, out
     assert "30, 30" in out and "16, 64" in out, out
     assert "does NOT say why" in out, "the tool must not let the life count alone say WHY it is constant"
+    # ★ AND THE `replay` GLOSS MUST CARRY ITS OWN DEFEATER. The first live run of this column produced a `replay`
+    # on a game whose avatar had not moved in thirty actions, where same-depth FORCES same-board and the verdict
+    # is the life count re-encoded. A printer that offered `replay` as evidence about the agent without that
+    # caveat would be a mis-labelled receipt written by the very tool that exists to catch them.
+    assert "only if the agent is shown to change" in out, out
+    assert "function of the step index" in out, out
     # this hand-built capture carries no DEATH-BOARD clause, so both games must land in `unknown` -- an ABSENCE.
     # If a boardless capture read as `distinct`, the tool would be manufacturing evidence for H1 out of a field
     # that was never printed, which is the mis-labelled-receipt failure with the label supplied by this file.

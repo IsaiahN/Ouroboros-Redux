@@ -42,6 +42,14 @@ if the tautology is held apart from the evidence:
     animated tile are distinct to this column and to the gate, which is the same equivalence -- that is the point,
     and it is also the limit. A game whose screen ticks every frame CANNOT show a repeat, so `distinct` from such a
     game is weak evidence for H1 and must be reported as such rather than counted.
+  * ★ AND THE MIRROR CAVEAT, WHICH THE FIRST RUN OF THIS COLUMN IMMEDIATELY NEEDED. If a game's board is a
+    FUNCTION OF THE STEP INDEX -- because nothing the agent does changes the screen -- then two deaths at the same
+    DEPTH have the same BOARD necessarily, and `replay` is not a second observation about the route: it is the
+    flat life count re-encoded as a digest. `sp80-589a99af` is exactly that case (see
+    `docs/tether/EVIDENCE_the_death_board.md`): its avatar did not move in thirty actions, so its three
+    pixel-identical death boards say the agent was INERT, not that it navigated back. A `replay` verdict is
+    evidence about the AGENT only where the agent is shown to move the board at all -- which this capture does not
+    measure and must not be read as having measured.
 """
 from __future__ import annotations
 import re
@@ -171,12 +179,15 @@ def main() -> None:
         if verdicts.get(v):
             print("  DEATH BOARDS -- %-8s: %s" % (v, ", ".join(sorted(verdicts[v]))))
     print("  ⇒ READ IT THIS WAY. A flat per-life count says a restart bought no depth and does NOT say why."
-          " `replay` (an EARNED death on a board an earlier death already used) is evidence the agent walked the"
-          " SAME route back to the SAME screen -- H2. `by-defn` is NOT evidence: a `death_no_new_cause` terminal"
-          " repeats its board because that is the branch condition, so counting it would be citing the premise as"
-          " the conclusion. `distinct` boards under a FLAT life count is the H1 shape (a per-game death clock),"
-          " weakly -- a screen that ticks every frame cannot show a repeat, so check the game before counting it."
-          " `unknown` means the capture predates the DEATH-BOARD clause and separates nothing.")
+          " `replay` (an EARNED death on a board an earlier death already used) means the agent walked back to a"
+          " screen it had already died on -- and is evidence ABOUT THE AGENT only if the agent is shown to change"
+          " that screen at all. Where the board is a function of the step index, same depth FORCES same board and"
+          " `replay` is the flat life count re-encoded, not a second observation. `by-defn` is NOT evidence: a"
+          " `death_no_new_cause` terminal repeats its board because that is the branch condition, so counting it"
+          " would be citing the premise as the conclusion. `distinct` boards under a FLAT life count is the H1"
+          " shape (a per-game death clock), weakly -- a screen that ticks every frame cannot show a repeat, so"
+          " check the game before counting it. `unknown` means the capture predates the clause and separates"
+          " nothing. RENDER THE GAME BEFORE READING ANY OF THESE FOUR AS A STATEMENT ABOUT REASONING.")
 
 
 if __name__ == "__main__":
