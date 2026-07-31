@@ -20,7 +20,20 @@ Two pieces, both general (no game id, no per-game pixel calibration):
     answering, so it cannot preempt a working plan.
 """
 from typing import Dict, List, Optional
+import os
 import numpy as np
+
+# ★ THE CONTROL-ARM SWITCH, AND THE ONLY REASON IT EXISTS. "clear" is the shipped wiring (the frame history the band
+# mask is computed from is DROPPED when the level restarts); "keep" is the pre-2026-07-31 wiring (history carried
+# across the restart). Two arms at the SAME commit are what separate the intervention from the counters added to
+# measure it -- without that, the beat would be two changes and one number. The agent never reads this; only
+# `EngagementMeter.note_restart` does, once per restart.
+#
+# Why the default moved. `monotone_band_mask` requires the band's filled count to be NON-DECREASING across the whole
+# retained history. A restart REFILLS the timer bar -- the count falls -- so for up to `keep` frames after every
+# restart no band qualifies and the bar's own tick is charged as board response. That is the proxy that talks,
+# admitted through the back door by a history that outlives the episode it described.
+MASK_ON_RESTART = (os.environ.get("NEWHORSE_MASK_RESET") or "clear").strip().lower()
 
 # A change smaller than this many cells is a cursor blink / heartbeat, not a state change. It is a general smallness
 # floor applied identically to every board (a 64x64 board is ~4096 cells); it is NOT fit to any game's pixels.
@@ -121,7 +134,28 @@ class EngagementMeter:
             self._recent.pop(0)
         self.n_steps += 1
 
+    def note_restart(self) -> None:
+        """The level restarted: DROP the frame history the band mask is computed from, and nothing else.
+
+        What this fixes. The mask's qualifying test is a RATCHET -- the band's filled count must never fall across the
+        retained history. A restart refills the timer bar, so the count falls, so no band qualifies for up to `keep`
+        frames afterwards and every step in that stretch has the bar's own tick counted as the board ANSWERING the
+        agent. The history describes an episode that has ended; carrying it into the next one is what blinds the mask.
+
+        What this deliberately does NOT clear. `_resp` (per-action response) and `_recent` (the frozen-test window) are
+        the agent's evidence about which modality is live, and a restart is not evidence that a dead modality woke up.
+        Clearing them would delay `frozen()` by a full window after every death -- a SECOND change, and one nothing has
+        measured. One change per arm.
+
+        `NEWHORSE_MASK_RESET=keep` makes this a no-op, restoring the pre-2026-07-31 behaviour EXACTLY."""
+        if MASK_ON_RESTART == "keep":
+            return
+        self._frames = []
+        self._mask = None
+
     def mask(self) -> np.ndarray:
+        if not self._frames:                     # only reachable between a restart and the first frame after it
+            return np.zeros((1, 1), dtype=bool)
         if self._mask is None or self._mask.shape != self._frames[-1].shape:
             self._mask = monotone_band_mask(self._frames)
         return self._mask

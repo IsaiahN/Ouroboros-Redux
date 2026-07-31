@@ -601,6 +601,9 @@ class ReduxPolicy:
         self._pending = "RESET"
         self._state = "NOT_FINISHED"
         self._reset_earned = False                      # the earned grant is consumed by the reset
+        self.engage.note_restart()                      # the refilled timer bar breaks the mask's ratchet -- see
+        #                                                 engagement.note_restart; NEWHORSE_MASK_RESET=keep is the
+        #                                                 control arm and makes that call a no-op.
 
     def reset_earned(self) -> Tuple[bool, str]:
         """§XIX gate: (earned?, rationale). True only when the last death taught a NEW avoidable cause -- the agent
