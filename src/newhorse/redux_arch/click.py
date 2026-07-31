@@ -13,24 +13,48 @@ Two pure pieces (unit-tested without the wire):
                             fallback when the frame has too few components. It manufactures its own gradient on games
                             with no reward and no gameplay recordings to imitate.
 
-★ THE DOCSTRING ABOVE AND THE CALL SITE DISAGREE, AND THE CALL SITE WINS. "a coarse grid sweep as a FALLBACK when
-the frame has too few components" is the DESIGN; `ReduxPolicy._new_prober` passes `grid_sweep(grid, n=8)` -- 64
-blind lattice points -- UNCONDITIONALLY, on every prober ever built, alongside up to 24 perceptual centroids. So
-the documented fallback is in fact a mandatory 64-point enumeration tax paid before any learned score can be
-consulted (`choose` cannot leave the untried branch until EVERY target has been tried once). The disagreement is
-left standing on purpose: it is the finding, banked in docs/tether/EVIDENCE_the_click_pool_floor.md, and the
-branch/pool counters below are the instrument that converts the offline bound into a direct receipt. DO NOT
-"repair" the docstring or the call site without reading that document first -- the fix is a separate beat from
-the measurement that motivated it, and it must predict both the branch split AND the region answer rate.
+★ THE DISAGREEMENT, AND ITS RESOLUTION (2026-07-31). FOR EIGHT SWEEPS THE DOCSTRING ABOVE AND THE CALL SITE
+DISAGREED AND THE CALL SITE WON. The old text is preserved verbatim in docs/tether/EVIDENCE_the_click_pool_floor.md
+and reads: "a coarse grid sweep as a FALLBACK when the frame has too few components" is the DESIGN;
+`ReduxPolicy._new_prober` passes `grid_sweep(grid, n=8)` -- 64 blind lattice points -- UNCONDITIONALLY, on every
+prober ever built, alongside up to 24 perceptual centroids. So the documented fallback is in fact a mandatory
+64-point enumeration tax paid before any learned score can be consulted (`choose` cannot leave the untried branch
+until EVERY target has been tried once).
+
+Sweep H at `67e8d8a` turned that offline bound into a receipt: 1131 of 1393 click steps (81.2%) drained the
+construction pool blind, ELEVEN of fifteen clicking games spent that pool to the last target, and 978 refresh
+arrivals yielded 211 chosen steps (21.6%) against 80.7% for construction admissions. `exploit_scored` -- the only
+branch that consults anything the click policy LEARNED -- took 51 steps, 3.7%. The receipt indicted the word
+UNCONDITIONAL at a named call site. It did NOT indict the constant 8, and this change does not touch it.
+
+★ WHAT CHANGED. The lattice is no longer ADMITTED at construction; it is HELD IN RESERVE and promoted into the
+target pool on exactly the two conditions the docstrings above already name, and on no others:
+  (1) perception proposed NOTHING            -> "when the frame has too few components" (promoted in `__init__`)
+  (2) nothing perceptual ever moved the board -> "falling back to a coarse grid sweep if nothing perceptual ever
+                                                 moved" (promoted at the inert exit of `choose`)
+This is the DESIGN being wired for the first time, not a new policy. It removes no capability: every lattice point
+is still reachable, and on a frame where perception is useless it is reached on the very first choose(). What it
+removes is the ORDERING -- the lattice no longer sits in front of the learned scores and the refresh arrivals.
+
+★ HOW TO OVERTURN / RUN THE CONTROL. `NEWHORSE_CLICK_LATTICE=eager` restores the pre-07-31 wiring EXACTLY, at the
+same commit. That switch exists so the intervention can be isolated from the counters that measure it (two changes
+and one number is not a measurement); it is not a tuning knob and nothing in the agent reads it.
 
 We reclaim the MECHANISM (choose-a-click-that-informs), never a per-game answer. LAW 0: the prober SEES the frame
 change before it "says" a target is productive.
 """
 from __future__ import annotations
+import os
 from typing import List, Optional, Tuple, Dict, Set
 from .survival import board_fingerprint
 import numpy as np
 from scipy import ndimage as _ndi
+
+# ★ THE CONTROL-ARM SWITCH, AND THE ONLY REASON IT EXISTS. "reserve" is the shipped wiring (the lattice is a
+# fallback, as designed); "eager" is the pre-2026-07-31 wiring (the lattice is admitted at construction). Two arms
+# at the SAME commit are what separate the intervention from the counters added to measure it -- without that, the
+# beat would be two changes and one number. The agent never reads this; only `ClickProber.__init__` does, once.
+LATTICE_ADMISSION = (os.environ.get("NEWHORSE_CLICK_LATTICE") or "reserve").strip().lower()
 
 
 def _background(frame: np.ndarray) -> int:
@@ -102,27 +126,40 @@ class ClickProber:
     """
 
     def __init__(self, candidates: List[Tuple[int, int]], sweep: Optional[List[Tuple[int, int]]] = None,
-                 branch: Optional[Dict[str, int]] = None, pool: Optional[Dict[str, int]] = None):
-        # de-dup while preserving perceptual order, then append any sweep points not already present
+                 branch: Optional[Dict[str, int]] = None, pool: Optional[Dict[str, int]] = None,
+                 lattice: Optional[str] = None):
+        # de-dup while preserving perceptual order, then EITHER append the sweep points (eager, the pre-07-31
+        # wiring) OR hold them in a reserve that is promoted only on the two documented fallback conditions.
         # ★ PROVENANCE IS RECORDED AT ADMISSION, which is the only place it is knowable. `origin` says WHERE a
-        # target came from -- perception, the blind lattice, or a later `refresh` -- and it is what lets the
-        # untried branch name WHICH POOL it is draining instead of reporting one undifferentiated `untried_first`.
+        # target came from -- perception, the blind lattice at construction, the blind lattice on PROMOTION, or a
+        # later `refresh` -- and it is what lets the untried branch name WHICH POOL it is draining instead of
+        # reporting one undifferentiated `untried_first`. `sweep` and `reserve` are DELIBERATELY separate names:
+        # `untried_sweep` keeps meaning exactly what it meant on sweeps A-H (a lattice point admitted at
+        # CONSTRUCTION) so the eight-sweep series stays readable, and the new mechanism gets its own literal at
+        # its own return rather than being folded into an existing name (RANKING 5).
+        self._lattice_mode: str = (lattice or LATTICE_ADMISSION)
+        _eager = (self._lattice_mode == "eager")
         self.targets: List[Tuple[int, int]] = []
         self.origin: Dict[Tuple[int, int], str] = {}
-        seen = set()
-        _cand = list(candidates)
-        _n_cand = len(_cand)
+        self._reserve: List[Tuple[int, int]] = []
+        seen: Set[Tuple[int, int]] = set()
         _n_perc = _n_sweep = 0
-        for _i, rc in enumerate(_cand + list(sweep or [])):
+        for rc in list(candidates):
             if rc not in seen:
                 seen.add(rc)
                 self.targets.append(rc)
-                if _i < _n_cand:
-                    self.origin[rc] = "perceptual"
-                    _n_perc += 1
-                else:
-                    self.origin[rc] = "sweep"
-                    _n_sweep += 1
+                self.origin[rc] = "perceptual"
+                _n_perc += 1
+        for rc in list(sweep or []):
+            if rc in seen:
+                continue
+            seen.add(rc)
+            if _eager:
+                self.targets.append(rc)
+                self.origin[rc] = "sweep"
+                _n_sweep += 1
+            else:
+                self._reserve.append(rc)
         self.tries: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}
         self.changed: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}
         self.novel: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}   # clicks that reached an UNSEEN board
@@ -140,18 +177,51 @@ class ClickProber:
         # written here in `__init__` and in `refresh` -- the two places a target can enter the pool -- and never
         # derived from anything else. Keys: `ctor_probers` (constructions), `ctor_perceptual` / `ctor_sweep`
         # (targets admitted at construction, by origin), `ctor_targets` (their sum, published so the de-dup
-        # between the two sources is visible rather than assumed), `refresh_calls`, `refresh_admitted`.
+        # between the two sources is visible rather than assumed), `refresh_calls`, `refresh_admitted`, and for the
+        # reserve: `ctor_reserved` (lattice points HELD, not admitted), `reserve_promotions_empty` /
+        # `reserve_promotions_inert` (promotion events, one literal per cause), `reserve_admitted` (points that
+        # actually entered `targets` on promotion). `ctor_reserved` is written AFTER `ctor_targets` and is not part
+        # of the construction identity, because a held point is not an admission.
         self.pool: Dict[str, int] = {} if pool is None else pool
         self._p("ctor_probers", 1)
         self._p("ctor_perceptual", _n_perc)
         self._p("ctor_sweep", _n_sweep)
         self._p("ctor_targets", len(self.targets))
+        # ★ THE RESERVE IS COUNTED SEPARATELY AND *AFTER* `ctor_targets`, so the construction identity
+        # `ctor_targets - ctor_perceptual - ctor_sweep == 0` is untouched in both modes. A held point is not an
+        # admission; it becomes one only when a promotion writes `reserve_admitted` at its own call site.
+        self._p("ctor_reserved", len(self._reserve))
+        # CONDITION (1), the module docstring's "too few components", in its only unambiguous form: NONE. Without
+        # this the prober would return `no_targets` on a frame perception cannot read, which is the one case the
+        # blind lattice was actually written for.
+        if not self.targets and self._reserve:
+            self._promote_reserve("empty")
 
     def _b(self, name: str) -> None:
         self.branch[name] = self.branch.get(name, 0) + 1
 
     def _p(self, name: str, n: int) -> None:
         self.pool[name] = self.pool.get(name, 0) + int(n)
+
+    def _promote_reserve(self, cause: str) -> int:
+        """Move the held lattice into the live target pool. THE ONLY PLACE A RESERVE POINT IS ADMITTED, and the
+        cause is a string literal chosen at the call site -- an abort code is a name somebody chose, so the branch
+        that produced a promotion writes its own literal rather than letting one name cover two reasons."""
+        if not self._reserve:
+            return 0
+        added = 0
+        for rc in self._reserve:
+            if rc not in self.tries:
+                self.targets.append(rc)
+                self.origin[rc] = "reserve"
+                self.tries[rc] = 0
+                self.changed[rc] = 0
+                self.novel[rc] = 0
+                added += 1
+        self._reserve = []
+        self._p("reserve_promotions_" + cause, 1)
+        self._p("reserve_admitted", added)
+        return added
 
     def choose(self) -> Optional[Tuple[int, int]]:
         """Pick the next (row, col) to click. None only if there are no candidates at all."""
@@ -166,8 +236,11 @@ class ClickProber:
             # click the agent made. It resolves here into THREE returns by the ADMISSION ORIGIN of the target
             # being drained, because the two mechanisms that can produce a blind click are different organs:
             #   untried_perceptual  perception proposed this point (`click_targets` centroids)
-            #   untried_sweep       nobody proposed it -- it is a `grid_sweep` lattice point, the documented
-            #                       FALLBACK, admitted unconditionally at construction
+            #   untried_sweep       nobody proposed it -- it is a `grid_sweep` lattice point admitted at
+            #                       CONSTRUCTION. That is the pre-07-31 wiring and it is what sweeps A-H measured;
+            #                       under the shipped `reserve` wiring this row is 0 by construction.
+            #   untried_reserve     a `grid_sweep` lattice point admitted by PROMOTION -- i.e. the fallback fired
+            #                       because perception proposed nothing, or because nothing perceptual ever moved
             #   untried_refresh     the board changed and `refresh()` folded a newly-perceived point in
             # `self.targets` is drained IN ADMISSION ORDER (perceptual, then sweep, then refresh arrivals), so a
             # prober cannot reach a refresh-admitted target until the whole construction pool is spent. That is
@@ -175,6 +248,9 @@ class ClickProber:
             _o = self.origin.get(pick)
             if _o == "sweep":
                 self._b("untried_sweep")
+                return pick
+            if _o == "reserve":
+                self._b("untried_reserve")
                 return pick
             if _o == "refresh":
                 self._b("untried_refresh")
@@ -185,7 +261,16 @@ class ClickProber:
         # already-seen state) scores changed>0 forever but adds no new territory, so it must not out-rank a
         # target still discovering unseen configurations. Novelty first, then raw change, then least-tried.
         pick = max(self.targets, key=lambda t: (self.novel[t], self.changed[t], -self.tries[t]))
-        if self.novel[pick] == 0 and self.changed[pick] == 0:   # nothing ever moved -> least-tried anything
+        if self.novel[pick] == 0 and self.changed[pick] == 0:   # nothing ever moved
+            # CONDITION (2), and it is the class docstring's own sentence: "falling back to a coarse grid sweep if
+            # nothing perceptual ever moved". Every perceptual (and refresh-perceived) target has now been clicked
+            # at least once and NONE of them changed the board, so perception has been given its turn and failed.
+            # THIS is where the blind lattice earns its keep -- after the evidence, not in front of it.
+            if self._promote_reserve("inert"):
+                pick = next((t for t in self.targets if self.tries[t] == 0), pick)
+                self._b("untried_reserve")
+                self._last = pick
+                return pick
             pick = min(self.targets, key=lambda t: self.tries[t])
             self._b("nothing_moved_least_tried")
             self._last = pick

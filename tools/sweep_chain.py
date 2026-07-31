@@ -255,7 +255,7 @@ def report(res: dict) -> None:
     # reading and the offline bound would be wrong. Published either way.
     cbr = (dfn.get("click_branch") or {})
     cpl = (dfn.get("click_pool") or {})
-    _CB_NAMED = ("untried_perceptual", "untried_sweep", "untried_refresh", "exploit_scored",
+    _CB_NAMED = ("untried_perceptual", "untried_sweep", "untried_reserve", "untried_refresh", "exploit_scored",
                  "nothing_moved_least_tried", "no_targets")
     _clk_steps = int(dfx.get("click_native", 0)) + int(dfx.get("escalate_click", 0))
     print("\n=== THE CLICK BRANCH (which return of ClickProber.choose produced the click) ===")
@@ -270,7 +270,8 @@ def report(res: dict) -> None:
             print("    %-26s steps %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
     _u_perc, _u_swp = int(cbr.get("untried_perceptual", 0)), int(cbr.get("untried_sweep", 0))
     _u_ref = int(cbr.get("untried_refresh", 0))
-    _u_all = _u_perc + _u_swp + _u_ref
+    _u_res = int(cbr.get("untried_reserve", 0))
+    _u_all = _u_perc + _u_swp + _u_res + _u_ref
     print("    %-26s steps %7d (%5.1f%% of click steps)   [was one row: `untried_first`]"
           % ("untried_* TOTAL", _u_all, 100.0 * _u_all / max(1, _clk_steps)))
     _cres = int(dfn.get("click_branch_residue", 0))
@@ -297,6 +298,25 @@ def report(res: dict) -> None:
         print("       DRAIN (steps taken per target ADMITTED): construction %d/%d = %.1f%% | refresh %d/%d = %.1f%%"
               % (_ctor_steps, _ctt, 100.0 * _ctor_steps / float(max(1, _ctt)),
                  _u_ref, _rfa, 100.0 * _u_ref / float(max(1, _rfa))))
+        # ★ THE RESERVE, on the SAME admissions denominator. `ctor_reserved` are lattice points BUILT and HELD;
+        # they are not admissions and never join `ctor_targets`. A promotion is an event with a named cause, and
+        # `reserve_admitted` is the only way a lattice point can become choosable under the shipped wiring. Under
+        # `NEWHORSE_CLICK_LATTICE=eager` every number on this line is 0 BY CONSTRUCTION -- a real zero at a live
+        # call site, not a field that was never computed -- and that is exactly what the control arm checks.
+        _crv = int(cpl.get("ctor_reserved", 0))
+        _pe, _pi = int(cpl.get("reserve_promotions_empty", 0)), int(cpl.get("reserve_promotions_inert", 0))
+        _rad = int(cpl.get("reserve_admitted", 0))
+        print("       RESERVE (lattice HELD, not admitted): held=%d | promotions: empty=%d inert=%d | admitted=%d"
+              " (%.1f%% of held) | steps on a promoted point=%d (%.1f%% of click steps)"
+              % (_crv, _pe, _pi, _rad, 100.0 * _rad / float(max(1, _crv)),
+                 _u_res, 100.0 * _u_res / float(max(1, _clk_steps))))
+        if _rad > _crv:
+            print("       ★ RESERVE IDENTITY BROKEN: admitted %d > held %d. A promoted point had no reserve to"
+                  " come from; no `untried_reserve` row may be read until this is re-derived." % (_rad, _crv))
+        if _crv and not (_pe + _pi):
+            print("       ⇒ the lattice was BUILT AND NEVER PROMOTED on any prober this sweep: perception always"
+                  " proposed something AND something perceptual always moved. The 64-point fallback was paid ZERO"
+                  " times, which is the whole of the intervention.")
         if _pres:
             print("  ★ THE POOL DOES NOT CLOSE: the two origins do not sum to the targets admitted. Do not read"
                   " the untried rows -- a target was admitted without an origin.")
@@ -307,7 +327,8 @@ def report(res: dict) -> None:
     # `decide_funnel`; this reads it rather than adding a second traversal that could drift from the pooler.
     _fbg = (res.get("tether_chain") or {}).get("echo", {}).get("decide_funnel_by_game") or {}
     _PL_NAMED = ("ctor_probers", "ctor_perceptual", "ctor_sweep", "ctor_targets",
-                 "refresh_calls", "refresh_admitted")
+                 "refresh_calls", "refresh_admitted",
+                 "ctor_reserved", "reserve_promotions_empty", "reserve_promotions_inert", "reserve_admitted")
     _rows = []
     for _g, _xs in sorted(_fbg.items()):
         _r = {k: int((_xs.get(k) or {}).get("click_branch", 0)) for k in _CB_NAMED}
@@ -318,9 +339,11 @@ def report(res: dict) -> None:
         print("  PER GAME (%d of %d games took a click step):" % (len(_rows), len(_fbg)))
         for _g, _r, _p in _rows:
             _tot = sum(_r.values())
-            print("    %-18s steps %5d | perc %4d  sweep %4d  refresh %4d  exploit %4d  nomove %4d  notgt %4d"
-                  % (_g, _tot, _r["untried_perceptual"], _r["untried_sweep"], _r["untried_refresh"],
-                     _r["exploit_scored"], _r["nothing_moved_least_tried"], _r["no_targets"]))
+            print("    %-18s steps %5d | perc %4d  sweep %4d  reserve %4d  refresh %4d  exploit %4d  nomove %4d"
+                  "  notgt %4d"
+                  % (_g, _tot, _r["untried_perceptual"], _r["untried_sweep"], _r["untried_reserve"],
+                     _r["untried_refresh"], _r["exploit_scored"], _r["nothing_moved_least_tried"],
+                     _r["no_targets"]))
         # ★ WHICH MEMBERS, ON THE ADMISSIONS DENOMINATOR. The pooled drain above is exactly the pooled-number defect
         # if it is offered as evidence about the ORDERING, because one game that never spent its pool and one game
         # that spent it twice average to something that describes neither. A game at 100% construction drain is a
@@ -336,10 +359,12 @@ def report(res: dict) -> None:
             if _t and _cs >= _t:
                 _full += 1
             print("    %-18s probers %2d | ctor perc %4d + sweep %4d = %5d (%5.1f/prober) | refresh %4d calls"
-                  " admitted %4d | DRAIN ctor %5.1f%% refresh %5.1f%%%s"
+                  " admitted %4d | DRAIN ctor %5.1f%% refresh %5.1f%% | reserve held %4d promo %d/%d adm %4d%s"
                   % (_g, _pr, _p["ctor_perceptual"], _p["ctor_sweep"], _t, _t / float(max(1, _pr)),
                      _p["refresh_calls"], _p["refresh_admitted"], _dr,
                      100.0 * _r["untried_refresh"] / float(max(1, _p["refresh_admitted"])),
+                     _p["ctor_reserved"], _p["reserve_promotions_empty"], _p["reserve_promotions_inert"],
+                     _p["reserve_admitted"],
                      "  full" if (_t and _cs >= _t) else ""))
         if _full:
             print("  ⇒ %d of %d games spent their ENTIRE construction pool. In each of those the lattice was"

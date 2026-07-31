@@ -1394,7 +1394,12 @@ class ReduxPolicy:
         branch dict, so every click after a level re-parameterization was written into a private dict nobody
         reads: 126 clicks of a 1393-click sweep, counted at the exit and MISSING from the branch split. The
         published residue is what caught it -- but a second call site is how it happened, so there is now one.
-        A carrier must be verified to have a LIVE INSTANCE before anything is wired to it."""
+        A carrier must be verified to have a LIVE INSTANCE before anything is wired to it.
+
+        ★ `n=8` IS UNCHANGED ON PURPOSE. Sweep H indicted the word UNCONDITIONAL at this line, not the constant:
+        nothing measured says 64 is the wrong lattice size, only that the lattice was being enumerated in FRONT of
+        everything the click policy had learned. The 64 points are still built and still passed; what changed is
+        that `ClickProber` now HOLDS them until one of the two fallback conditions its own docstrings name."""
         return ClickProber(click_targets(grid), grid_sweep(grid, n=8),
                            branch=self._click_branch, pool=self._click_pool)
 

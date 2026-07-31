@@ -27,10 +27,28 @@ docs/tether/EVIDENCE_the_click_pool_floor.md: the unconditional 64-point `grid_s
 Nothing here changes what the agent does. Both instruments are counted at the sites that already exist, and the
 last test in this file is the one that proves it.
 """
+from contextlib import contextmanager
+
 import numpy as np
 
+from newhorse.redux_arch import click as _click_mod
 from newhorse.redux_arch.policy import ReduxPolicy, CLICK
 from newhorse.redux_arch.receipt import summary
+
+
+@contextmanager
+def _lattice(mode):
+    """Pin the lattice-admission wiring for one test. `eager` is the pre-2026-07-31 wiring -- the lattice admitted
+    at CONSTRUCTION -- which is what sweeps A-H measured and what arm I re-runs as the control; `reserve` is the
+    shipped default, where the lattice is HELD and promoted only on the two documented fallback conditions. Any
+    test that asserts on `untried_sweep` or on the 64-point construction floor is an assertion ABOUT THE CONTROL
+    ARM and must say so by pinning it here, rather than silently depending on an environment variable."""
+    old = _click_mod.LATTICE_ADMISSION
+    _click_mod.LATTICE_ADMISSION = mode
+    try:
+        yield
+    finally:
+        _click_mod.LATTICE_ADMISSION = old
 
 
 def _policy(gid="cl11-cccc"):
@@ -228,10 +246,13 @@ def test_a_reparameterized_prober_keeps_writing_into_the_LIVE_dict():
 # ---------------------------------------------------------------------------------------------------------------
 
 def test_the_untried_branch_names_WHICH_POOL_it_is_draining():
-    """The decomposition, at the floor. A board with four coloured cells gives perception a handful of centroids
-    and the lattice gives 64 more; the first clicks must be charged to `untried_perceptual` (perception's points
-    are admitted FIRST) and the branch must then move to `untried_sweep` -- never to one undifferentiated row."""
-    p = _drive(_policy("cl11-prov"), _board(), 40)
+    """The decomposition, at the floor, ON THE CONTROL ARM. A board with four coloured cells gives perception a
+    handful of centroids and the lattice gives 64 more; the first clicks must be charged to `untried_perceptual`
+    (perception's points are admitted FIRST) and the branch must then move to `untried_sweep` -- never to one
+    undifferentiated row. Pinned to `eager` because `untried_sweep` IS the eager wiring: under the shipped
+    `reserve` default that row is 0 by construction, which the companion test below pins from the other side."""
+    with _lattice("eager"):
+        p = _drive(_policy("cl11-prov"), _board(), 40)
     b = p._click_branch
     assert sum(b.values()) == 40, b
     assert b.get("untried_perceptual", 0) >= 1, b
@@ -244,7 +265,8 @@ def test_the_pool_counts_ADMISSIONS_and_closes_on_its_own_denominator():
     a separate dict and it has its own identity: the two construction origins must sum to the targets actually
     admitted after de-dup. A lattice point that collided with a perceptual centroid must show as a de-dup, never
     as a double count."""
-    p = _drive(_policy("cl11-pool"), _board(), 30)
+    with _lattice("eager"):
+        p = _drive(_policy("cl11-pool"), _board(), 30)
     p._close_segment("death")
     dfn = summary(p.receipts)["decide_funnel"]
     cpl = dfn["click_pool"]
@@ -265,7 +287,7 @@ def test_refresh_admissions_are_drained_LAST_which_is_what_makes_the_split_a_dec
     Built directly on the prober -- one perceptual point, one lattice point, then a refresh arrival."""
     from newhorse.redux_arch.click import ClickProber
     b = {}
-    pr = ClickProber([(1, 1)], sweep=[(5, 5)], branch=b, pool={})
+    pr = ClickProber([(1, 1)], sweep=[(5, 5)], branch=b, pool={}, lattice="eager")
     pr.refresh([(9, 9)])
     g0, g1 = np.zeros((10, 10), dtype=int), np.ones((10, 10), dtype=int)
     picks = []
@@ -289,3 +311,154 @@ def test_the_pool_dict_survives_a_segment_boundary_like_the_branch_dict_does():
     # no prober was REBUILT for the second segment, so the second receipt records refresh admissions and no
     # construction -- which is the point: `ctor_probers` counts constructions, not segments.
     assert p.receipts[-2].decide_click_pool.get("ctor_probers", 0) == 1, p.receipts[-2].decide_click_pool
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# ★★★ HOLDING THE LATTICE: THE ORDERING REMOVED, THE CAPABILITY KEPT. ★★★
+# Sweep H made the offline bound a receipt: 1131 of 1393 click steps (81.2%) drained the construction pool blind,
+# and ELEVEN of fifteen clicking games spent that pool to the last target before a single refresh arrival became
+# choosable. The receipt indicted the word UNCONDITIONAL at `_new_prober`, not the constant 8. `ClickProber` now
+# HOLDS the 64 lattice points and promotes them on exactly the two conditions its own docstrings already name:
+# perception proposed NOTHING (`empty`), or nothing perceptual ever MOVED the board (`inert`). The predictions
+# these tests protect are pre-registered in docs/tether/PREREG_the_lattice_held.md, written before either arm ran.
+#
+# THE STANDARD EVERY TEST BELOW IS HELD TO: no capability is removed. Every point the eager wiring could click,
+# the reserve wiring can still click -- later, and only after the evidence has had its turn.
+# ---------------------------------------------------------------------------------------------------------------
+
+def test_the_lattice_is_HELD_not_admitted_and_the_two_counters_do_not_overlap():
+    """The floor of the intervention. In reserve mode no lattice point may be in `targets` at construction, the
+    held points must be counted under their OWN key, and the construction identity that makes the origin tags
+    readable -- `ctor_targets == ctor_perceptual + ctor_sweep` -- must survive in BOTH modes. `ctor_reserved` is
+    written after `ctor_targets` precisely so a held point is never mistaken for an admission."""
+    from newhorse.redux_arch.click import ClickProber
+    latt = [(r, c) for r in (2, 6) for c in (2, 6)]
+    pool = {}
+    pr = ClickProber([(1, 1), (9, 9)], sweep=latt, branch={}, pool=pool, lattice="reserve")
+    assert pr.targets == [(1, 1), (9, 9)], pr.targets
+    assert pool["ctor_perceptual"] == 2 and pool["ctor_sweep"] == 0, pool
+    assert pool["ctor_targets"] == pool["ctor_perceptual"] + pool["ctor_sweep"], pool
+    assert pool["ctor_reserved"] == len(latt), pool
+    assert "reserve_admitted" not in pool, pool             # nothing promoted, so no promotion counter exists yet
+
+    epool = {}
+    epr = ClickProber([(1, 1), (9, 9)], sweep=latt, branch={}, pool=epool, lattice="eager")
+    assert epr.targets == [(1, 1), (9, 9)] + latt, epr.targets
+    assert epool["ctor_sweep"] == len(latt) and epool["ctor_reserved"] == 0, epool
+    assert epool["ctor_targets"] == epool["ctor_perceptual"] + epool["ctor_sweep"], epool
+
+
+def test_condition_ONE_perception_proposed_NOTHING_promotes_at_construction():
+    """The capability that would otherwise be LOST, and the reason this is a wiring change rather than a policy
+    change. On a frame perception cannot read, the eager wiring still had 64 points to click; a naive reserve
+    would return `no_targets` and the prober would be mute exactly where the blind lattice was actually designed
+    to help. Promotion happens in `__init__`, under its own cause literal."""
+    from newhorse.redux_arch.click import ClickProber
+    latt = [(2, 2), (6, 6)]
+    pool, br = {}, {}
+    pr = ClickProber([], sweep=latt, branch=br, pool=pool, lattice="reserve")
+    assert pr.targets == latt, pr.targets
+    assert pool["reserve_promotions_empty"] == 1, pool
+    assert pool["reserve_admitted"] == len(latt), pool
+    assert "reserve_promotions_inert" not in pool, pool     # one cause fired, and only one
+    assert pr.choose() == (2, 2), pr.targets
+    assert br == {"untried_reserve": 1}, br                 # its own literal at its own return, never `sweep`
+
+
+def test_condition_TWO_nothing_perceptual_ever_MOVED_promotes_at_the_inert_exit():
+    """The class docstring's own sentence -- "falling back to a coarse grid sweep if nothing perceptual ever
+    moved" -- wired for the first time. Every perceptual target is clicked once against a board that never
+    answers; only THEN is the lattice promoted, and the step that follows is charged to `untried_reserve` rather
+    than to `nothing_moved_least_tried`, because the fallback firing and the fallback being exhausted are two
+    different events and an exit name may not cover both."""
+    from newhorse.redux_arch.click import ClickProber
+    g = np.zeros((10, 10), dtype=int)
+    pool, br = {}, {}
+    pr = ClickProber([(1, 1), (9, 9)], sweep=[(2, 2), (6, 6)], branch=br, pool=pool, lattice="reserve")
+    for _ in range(2):                                     # spend the perceptual pool; the board never moves
+        pr.choose(); pr.observe(g, g)
+    assert br.get("untried_perceptual") == 2, br
+    assert "reserve_promotions_inert" not in pool, pool     # not yet: the pool was still untried
+    pick = pr.choose()                                     # the inert exit -- perception has had its turn
+    assert pool["reserve_promotions_inert"] == 1, pool
+    assert pool["reserve_admitted"] == 2, pool
+    assert pick in ((2, 2), (6, 6)), pick
+    assert br.get("untried_reserve") == 1, br
+    assert br.get("nothing_moved_least_tried", 0) == 0, br
+
+
+def test_a_promoted_point_is_admitted_ONCE_and_the_reserve_identity_holds():
+    """`reserve_admitted <= ctor_reserved`, always -- the identity the printer checks on every sweep and refuses
+    the arm if it breaks. Drive the prober past the inert exit repeatedly: the promotion must be idempotent, the
+    reserve must empty, and no point may be admitted twice or overwrite a `tries` history."""
+    from newhorse.redux_arch.click import ClickProber
+    g = np.zeros((8, 8), dtype=int)
+    pool, br = {}, {}
+    pr = ClickProber([(1, 1)], sweep=[(2, 2), (5, 5)], branch=br, pool=pool, lattice="reserve")
+    for _ in range(12):
+        pr.choose(); pr.observe(g, g)
+    assert pool["reserve_promotions_inert"] == 1, pool      # promoted once, not once per inert step
+    assert pool["reserve_admitted"] <= pool["ctor_reserved"], pool
+    assert pr._reserve == [], pr._reserve
+    assert sorted(pr.targets) == [(1, 1), (2, 2), (5, 5)], pr.targets
+    assert len(pr.targets) == len(set(pr.targets)), pr.targets
+    assert br.get("nothing_moved_least_tried", 0) > 0, br   # after the fallback is spent, the old exit resumes
+
+
+def test_NO_CAPABILITY_IS_REMOVED_every_eager_point_is_still_reachable():
+    """The claim the intervention rests on, tested rather than asserted in prose. Run the same inert board under
+    both wirings for long enough that both spend everything they have: the SET of points each prober can click
+    must be identical. Reserve changes the ORDER, never the reach."""
+    from newhorse.redux_arch.click import ClickProber
+    g = np.zeros((12, 12), dtype=int)
+    latt = [(r, c) for r in (1, 5, 9) for c in (1, 5, 9)]
+    seen = {}
+    for mode in ("eager", "reserve"):
+        pr = ClickProber([(0, 0), (11, 11)], sweep=latt, branch={}, pool={}, lattice=mode)
+        picks = set()
+        for _ in range(60):
+            picks.add(pr.choose()); pr.observe(g, g)
+        seen[mode] = picks
+    assert seen["eager"] == seen["reserve"], (sorted(seen["eager"]), sorted(seen["reserve"]))
+
+
+def test_the_ORDERING_is_what_changed_the_learned_score_is_reached_sooner():
+    """The mechanism the whole beat is about, isolated to a single prober. Perception proposes a point that MOVES
+    the board; the lattice does not. Under eager the prober must enumerate the lattice before it can consult what
+    it learned; under reserve it reaches `exploit_scored` as soon as the perceptual pool is spent. Same board,
+    same points, same commit -- only the admission wiring differs."""
+    from newhorse.redux_arch.click import ClickProber
+    latt = [(r, c) for r in (1, 4, 7, 10) for c in (1, 4, 7, 10)]
+    steps = {}
+    for mode in ("eager", "reserve"):
+        br = {}
+        pr = ClickProber([(0, 0), (11, 11)], sweep=latt, branch=br, pool={}, lattice=mode)
+        tick = 0
+        for i in range(40):
+            pick = pr.choose()
+            prev = np.zeros((12, 12), dtype=int); prev[6, 6] = tick % 5
+            new = prev.copy()
+            if pick == (0, 0):                             # exactly one point ever moves the board
+                tick += 1; new[6, 6] = tick % 5 + 1
+            pr.observe(prev, new)
+            if br.get("exploit_scored", 0) and mode not in steps:
+                steps[mode] = i
+                break
+    assert "reserve" in steps, steps                        # reserve reaches the learned score inside 40 steps
+    assert steps.get("eager", 10 ** 6) > steps["reserve"], steps
+
+
+def test_the_shipped_default_is_reserve_and_the_control_switch_is_read_ONCE():
+    """The switch exists to isolate the intervention from the counters that measure it, and for nothing else. It
+    must default to the shipped wiring, and NO decision path may consult it -- an agent that reads its own control
+    arm is not a control arm. Checked in the source, so a future beat that wires it into a policy fails here."""
+    import inspect
+    import os
+    from newhorse.redux_arch import click as _cm
+    from newhorse.redux_arch import policy as _pol
+    assert (os.environ.get("NEWHORSE_CLICK_LATTICE") or "reserve").strip().lower() in ("reserve", "eager")
+    src = inspect.getsource(_cm)
+    assert src.count("LATTICE_ADMISSION") == 2, src.count("LATTICE_ADMISSION")   # the definition and one read
+    for fn in (_pol.ReduxPolicy._decide, _pol.ReduxPolicy._act_click, _pol.ReduxPolicy._new_prober,
+               _pol.ReduxPolicy.choose):
+        assert "LATTICE" not in inspect.getsource(fn), fn.__name__

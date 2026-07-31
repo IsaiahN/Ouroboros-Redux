@@ -334,7 +334,15 @@ def test_a_sweep_that_never_EXHAUSTS_a_pool_is_refused_the_ordering_reading():
     game ever reached the point where a refresh arrival BECOMES choosable, and the sweep has not observed the
     ordering at all -- it has only observed that the lattice is big. The printer must say so in words rather than
     let the pooled branch split stand in for a mechanism it did not test."""
-    out = _section(_render(_res(cl11=_click_game("cl11-cccc", 6))), "=== THE CLICK BRANCH")
+    # Pinned to the `eager` wiring on purpose: this row is about a construction pool TOO BIG to spend, which is
+    # the pre-2026-07-31 64-point lattice. Under the shipped `reserve` wiring a four-centroid pool IS spent in six
+    # steps, and the printer would be correct to say so -- so testing the refusal line there would test nothing.
+    from newhorse.redux_arch import click as _cm
+    _old, _cm.LATTICE_ADMISSION = _cm.LATTICE_ADMISSION, "eager"
+    try:
+        out = _section(_render(_res(cl11=_click_game("cl11-cccc", 6))), "=== THE CLICK BRANCH")
+    finally:
+        _cm.LATTICE_ADMISSION = _old
     assert "NO game spent its entire construction pool" in out, out
     assert "untested at the mechanism" in out, out
 
@@ -463,3 +471,28 @@ def test_a_sweep_with_no_gate_rows_at_all_refuses_the_stage_reading_in_words():
     stopped writing", and the printer must not let REUSE_UNWIRED be read while it cannot."""
     out = _section(_render(_res(aa11=_run("aa11-aaaa", _N, ("A1",)))), "=== THE OFFER GATE")
     assert "no gate recorded" in out, out
+
+
+def test_the_RESERVE_block_reports_the_held_lattice_and_its_promotions():
+    """The intervention has to be visible in the sweep report or it is unmeasurable. Under the shipped `reserve`
+    wiring the printer must state how many lattice points were HELD, how many promotions fired UNDER EACH CAUSE
+    (two literals, never one), and how many held points were actually admitted -- and it must say in words when
+    the fallback was built and never paid, because that is a real outcome and not a missing number."""
+    out = _section(_render(_res(cl11=_click_game("cl11-cccc", _N))), "=== THE CLICK BRANCH")
+    assert "RESERVE (lattice HELD, not admitted)" in out, out
+    assert "promotions: empty=" in out and "inert=" in out, out
+    assert "reserve" in out.lower(), out
+    res = [l for l in out.splitlines() if "RESERVE (lattice HELD" in l]
+    assert len(res) == 1, out
+    assert "held=64" in res[0], res[0]                     # the lattice is still BUILT; it is simply not admitted
+    assert "★ RESERVE IDENTITY BROKEN" not in out, out
+
+
+def test_the_reserve_identity_is_CHECKED_by_the_printer_not_assumed():
+    """`reserve_admitted <= ctor_reserved` is the identity that makes the promotion counts readable. A printer
+    that only prints it is not checking it. Feed the block a pool where admissions exceed the held count and the
+    report must refuse the row by name."""
+    p = _click_game("cl11-cccc", _N)
+    p.receipts[-1].decide_click_pool["reserve_admitted"] = 10 ** 4
+    out = _section(_render(summary([p.receipts[-1]]) and _res(cl11=p)), "=== THE CLICK BRANCH")
+    assert "RESERVE IDENTITY BROKEN" in out, out
