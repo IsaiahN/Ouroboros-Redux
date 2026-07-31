@@ -129,9 +129,29 @@ def budget_section(res: dict) -> None:
     else:
         print("  ⇒ The budget closes on every reporting game. A move in `decide_calls` between two sweeps is a move"
               " in `steps` or in `retries` and in nothing else, and this table says which.")
+    # ★ THE SECOND IDENTITY, FREE ON THE SAME RECEIPT. `deaths` counts every observed GAME_OVER; `retries` counts
+    # the ones that EARNED a restart. A run that ends on a death therefore carries exactly ONE unearned death -- the
+    # terminal one -- and a run that ends any other way carries NONE. So `deaths - retries` is 1 on a death exit and
+    # 0 otherwise, and a violation means a death went unobserved or a reset fired without one.
+    deaths_bad = []
+    for gid in sorted(results):
+        r = results[gid]
+        if "retries" not in r or r.get("deaths") is None:
+            continue
+        unearned = int(r["deaths"]) - int(r["retries"])
+        want = 1 if str(r.get("outcome", "")).startswith("death_") else 0
+        if unearned != want:
+            deaths_bad.append("%s(%d, want %d, %s)" % (gid, unearned, want, r.get("outcome")))
+    if deaths_bad:
+        print("  ★ DEATH IDENTITY BROKEN (deaths - retries must be 1 on a death exit and 0 otherwise): %s"
+              % ", ".join(deaths_bad))
     print("  OUTCOME (one literal per exit, chosen AT the exit that produced it):")
     for k, n in sorted(outcomes.items(), key=lambda kv: (-kv[1], kv[0])):
         print("    %-28s %4d games" % (k, n))
+    if "GAME_OVER" in outcomes:
+        print("    ★ `GAME_OVER` is the RETIRED literal: it covered three different conditions -- no restart"
+              " support, a death that taught no new cause, and an exhausted retry cap -- at one `break`. A result"
+              " still carrying it predates the split and may not be read as any one of the three.")
     if unattributed:
         print("  ★ %d game(s) report `action_cap` below the action budget, which cannot happen: %s"
               % (len(unattributed), ", ".join(unattributed)))

@@ -499,7 +499,7 @@ def test_the_reserve_identity_is_CHECKED_by_the_printer_not_assumed():
 
 
 # ---- ★ THE ACTION BUDGET SECTION ----------------------------------------------------------------------------
-def _priced(res, retries=None, max_actions=200, outcome="action_cap"):
+def _priced(res, retries=None, max_actions=200, outcome="action_cap", extra_deaths=0):
     """Give a real `_res(...)` the budget fields a live `_play_policy` now returns, DERIVED from the funnel the
     printer will read rather than hand-set beside it: `steps = decide_exits + retries` is the identity, so a
     fixture built this way is consistent by construction and any residue the printer finds is the printer's."""
@@ -510,7 +510,7 @@ def _priced(res, retries=None, max_actions=200, outcome="action_cap"):
         rets = int(retries.get(gid, 0))
         r["retries"] = rets
         r["steps"] = int(dec.get(gid, 0)) + rets
-        r["deaths"] = rets
+        r["deaths"] = rets + int(extra_deaths)
         r["outcome"] = outcome
     res["max_actions"] = max_actions
     res["wall_cap_s"] = 200.0
@@ -584,3 +584,32 @@ def test_the_roster_digest_moves_when_the_GAME_SET_moves():
     assert "2 reporting" in d2 and "1 reporting" in d1, (d2, d1)
     assert d2.split("roster digest")[1] != d1.split("roster digest")[1], (d2, d1)
     assert "may not be compared to this one pooled" in out2, out2
+
+
+def test_the_death_identity_is_CHECKED_and_names_the_offending_game():
+    """★ THE SECOND IDENTITY. A run ending on a death carries exactly one unearned death; a run ending any other
+    way carries none. Feed the printer an `action_cap` game with a death nobody restarted from and it must refuse
+    that game BY NAME rather than let the death columns drift silently."""
+    clean = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 2})
+    assert "DEATH IDENTITY BROKEN" not in _section(_render(clean), _BUDGET)
+    dirty = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 2}, extra_deaths=1)
+    out = _section(_render(dirty), _BUDGET)
+    assert "DEATH IDENTITY BROKEN" in out and "aa11" in out.split("DEATH IDENTITY BROKEN")[1], out
+
+
+def test_a_death_exit_is_EXPECTED_to_carry_one_unearned_death():
+    """The mirror: on a `death_*` outcome the unearned death is the terminal one and is correct, so the check must
+    not fire. A rule that flagged every death exit would be a rule nobody could leave switched on."""
+    ok = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 2},
+                 outcome="death_no_new_cause", extra_deaths=1)
+    out = _section(_render(ok), _BUDGET)
+    assert "DEATH IDENTITY BROKEN" not in out, out
+    assert "death_no_new_cause" in out, out
+
+
+def test_the_retired_GAME_OVER_literal_is_REFUSED_by_the_printer():
+    """A capture from before the split still carries the pooled name. The printer must say the name covered three
+    conditions and may not be read as any one of them -- not quietly tabulate it beside the new literals."""
+    out = _section(_render(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), outcome="GAME_OVER")), _BUDGET)
+    assert "RETIRED literal" in out, out
+    assert "may not be read as any one of the three" in out, out

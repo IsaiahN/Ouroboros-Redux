@@ -77,7 +77,17 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
                 # §XIX: retry ONLY if the reset is EARNED (death taught a NEW avoidable cause)
                 earned, why = pol.reset_earned()
                 if not can_retry or not earned or retries >= retry_cap:
-                    outcome = "GAME_OVER"; log.append("no RESET (earned=%s): %s" % (earned, why)); break
+                    # ★ THE SAME DEFECT ONE LINE DOWN. `GAME_OVER` was ONE literal covering THREE conditions --
+                    # a session that cannot restart at all, a death that taught no NEW avoidable cause, and a
+                    # run that exhausted `retry_cap`. Those are different findings about the agent: the middle
+                    # one says the death memory already held this cause (the agent learned and then stopped),
+                    # the last says the harness cut it off. Arm K's three short games all report GAME_OVER and
+                    # nothing on the receipt said which of the three ended them. Each condition names itself
+                    # now, in the order it is TESTED, so the name is the branch and not a summary of them.
+                    outcome = ("death_no_reset_support" if not can_retry      # SAME ORDER as the `or` chain above:
+                               else "death_no_new_cause" if not earned       # a later condition may also hold, and
+                               else "death_retry_cap")                       # the FIRST one is the one that fired.
+                    log.append("no RESET (%s, earned=%s): %s" % (outcome, earned, why)); break
                 retries += 1; steps += 1
                 log.append("EARNED RESET #%d @%d: %s" % (retries, steps, why))
                 snap = session.reset_after_death(reasoning={"why": why, "reset_earned": True})

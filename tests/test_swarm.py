@@ -287,3 +287,80 @@ def test_the_swarm_carries_the_denominator_across_the_process_boundary():
     assert res["max_actions"] == 9 and res["wall_cap_s"] == 8.0
     assert res["results"]["ls20-a"]["steps"] == 9
     assert res["results"]["ls20-a"]["outcome"] == "action_cap"
+
+
+# ---- ★ THE DEATH EXIT, SPLIT INTO THE THREE CONDITIONS IT COVERED -------------------------------------------
+# `GAME_OVER` was ONE literal at ONE `break` guarded by `not can_retry or not earned or retries >= retry_cap`.
+# Those are three different findings about the agent -- the harness cannot restart, the death memory ALREADY held
+# this cause, or the harness cut the run off -- and arm K's three short games all reported the single name.
+class _Still:
+    """A board that never changes, so every death repeats the same (board, action) cause once the action does."""
+    def __init__(self):
+        self.t = 0
+    def frame(self):
+        g = np.zeros((20, 20), dtype=int); g[2:4, 2:4] = 3; g[10, 10] = 9
+        return g
+    def step_val(self, v, data=None):
+        self.t += 1
+
+
+class _DyingNoResetSession(FakeSession):
+    """Dies and offers NO `reset_after_death`, which is how `_play_policy` learns a session cannot restart. It is a
+    separate class rather than a flag because `can_retry` is `hasattr`, and a flag would still have the method."""
+    def __init__(self, world, avail, die_every):
+        super().__init__(world, avail)
+        self.die_every = die_every; self._dead = False
+    def step(self, val, data=None):
+        self.world.step_val(val, data); self.steps += 1
+        self._dead = (self.steps % self.die_every == 0)
+        return self._snap()
+    def _snap(self):
+        return dict(grid=self.world.frame(), available=self.avail, levels_completed=0,
+                    state=("GAME_OVER" if self._dead else "NOT_FINISHED"), done=self._dead)
+
+
+def test_a_death_that_teaches_nothing_new_names_itself():
+    """The condition arm K's three short games were almost certainly in -- s5i5, vc33 and su15 each carried one
+    more death than retry -- and which the old single literal could not distinguish from the retry cap."""
+    s = _DyingSession(_Still(), [1], die_every=1)
+    r = _play_policy(s, Blackboard(), "m0r0-x", max_actions=40, wall_cap_s=30)
+    assert r["outcome"] == "death_no_new_cause", r["outcome"]
+    assert r["retries"] < 6                                     # not the cap; the cause repeated
+
+
+def test_an_exhausted_retry_cap_names_the_CAP_and_not_the_agent():
+    """The opposite finding on the same exit: the board keeps teaching new causes and the HARNESS stops the run.
+    Reading this as `death_no_new_cause` would credit the agent's memory for a limit the builder chose."""
+    s = _DyingSession(_Maze(), [1, 2, 3, 4, 5], die_every=1)
+    r = _play_policy(s, Blackboard(), "m0r0-x", max_actions=60, wall_cap_s=30)
+    assert r["outcome"] == "death_retry_cap", r["outcome"]
+    assert r["retries"] == 6
+
+
+def test_a_session_that_cannot_restart_says_so_rather_than_blaming_the_death():
+    s = _DyingNoResetSession(_Maze(), [1, 2, 3, 4, 5], die_every=4)
+    r = _play_policy(s, Blackboard(), "m0r0-x", max_actions=40, wall_cap_s=30)
+    assert r["outcome"] == "death_no_reset_support", r["outcome"]
+    assert r["retries"] == 0
+
+
+def test_the_death_identity_one_unearned_death_on_a_death_exit_and_none_otherwise():
+    """★ THE SECOND IDENTITY, FREE ON THE SAME RECEIPT. `deaths` counts observed GAME_OVERs, `retries` counts the
+    ones that earned a restart, so a run ending on a death carries exactly ONE unearned death -- the terminal
+    one -- and a run ending any other way carries NONE."""
+    died = _play_policy(_DyingSession(_Still(), [1], die_every=1), Blackboard(), "m0r0-x",
+                        max_actions=40, wall_cap_s=30)
+    assert died["outcome"].startswith("death_") and died["deaths"] - died["retries"] == 1, died
+    lived = _play_policy(_DyingSession(_Maze(), [1, 2, 3, 4, 5], die_every=9), Blackboard(), "m0r0-x",
+                         max_actions=40, wall_cap_s=30)
+    assert not lived["outcome"].startswith("death_") and lived["deaths"] - lived["retries"] == 0, lived
+
+
+def test_the_retired_GAME_OVER_literal_is_gone_from_the_exit():
+    """No path may still produce the pooled name. If one does, the split is incomplete and the receipt is back to
+    summarising three conditions under one word."""
+    for s in (_DyingSession(_Still(), [1], die_every=1),
+              _DyingSession(_Maze(), [1, 2, 3, 4, 5], die_every=1),
+              _DyingNoResetSession(_Maze(), [1, 2, 3, 4, 5], die_every=4)):
+        r = _play_policy(s, Blackboard(), "m0r0-x", max_actions=60, wall_cap_s=30)
+        assert r["outcome"] != "GAME_OVER", r["outcome"]
