@@ -187,3 +187,103 @@ def test_pooled_distribution_takes_the_deepest_stall_not_the_average():
     assert d["worst_stage"] == "MINT_UNFIRED" and d["indicts"] == "gate/implementation"
     assert d["stalls"] == 4 and d["advances"] == 2 and d["games_reporting"] == 2
     assert d["counts"] == {"DIED_PRE_DIFF": 3, "MINT_UNFIRED": 1}
+
+
+# ---- ★ THE ACTION BUDGET IDENTITY ---------------------------------------------------------------------------
+# `decide_calls` reproduced at 2943 on eleven consecutive sweeps and was read as "the ACTION budget binds". It is
+# not the budget. `_play_policy` increments `steps` at TWO sites -- after a `pol.choose()` (which produces exactly
+# one `decide()` exit) and at the EARNED RESET (which produces none) -- so, exactly and always:
+#
+#       decide_exits(game) == steps(game) - retries(game)
+#
+# These tests pin that identity against a REAL `_play_policy` run, and pin the two fall-through exits to their own
+# literals. Before this beat a single literal, pre-set BEFORE the loop, named the action cap for BOTH of them.
+class _Maze:
+    """A directional world whose marker moves every step, so no two boards repeat. That matters: a reset is EARNED
+    only when the death taught a NEW (board, action) cause, so a static world would die repeatedly on one cause and
+    never exercise the reset site this identity is about."""
+    def __init__(self):
+        self.t = 0
+    def frame(self):
+        g = np.zeros((20, 20), dtype=int); g[2:4, 2:4] = 3
+        g[self.t % 20, (self.t * 7) % 20] = 9
+        return g
+    def step_val(self, v, data=None):
+        self.t += 1
+
+
+class _DyingSession(FakeSession):
+    """Reports GAME_OVER every `die_every` steps and can be restarted. The restart is the ONE site in
+    `_play_policy` that spends an action WITHOUT a `decide()` call, which is the whole point of the identity.
+
+    `step_calls` counts calls to `session.step`, and every such call follows exactly one `pol.choose()` -- so
+    `step_calls` IS the decide-exit count, measured at the collaborator rather than inferred from the policy."""
+    def __init__(self, world, avail, die_every):
+        super().__init__(world, avail)
+        self.die_every = die_every; self.resets = 0; self.step_calls = 0; self._dead = False
+    def step(self, val, data=None):
+        self.step_calls += 1
+        self.world.step_val(val, data); self.steps += 1
+        self._dead = (self.steps % self.die_every == 0)
+        return self._snap()
+    def reset_after_death(self, reasoning=None):
+        self.resets += 1; self._dead = False; self.world.t += 3
+        return self._snap()
+    def _snap(self):
+        return dict(grid=self.world.frame(), available=self.avail, levels_completed=0,
+                    state=("GAME_OVER" if self._dead else "NOT_FINISHED"), done=self._dead)
+
+
+def test_the_action_budget_identity_decide_exits_equals_steps_minus_retries():
+    """The identity, measured -- not asserted from the source. `step_calls` is counted inside the session, on the
+    other side of the call boundary from the counter under test."""
+    s = _DyingSession(_Maze(), [1, 2, 3, 4, 5], die_every=9)
+    r = _play_policy(s, Blackboard(), "m0r0-x", max_actions=40, wall_cap_s=30)
+    assert r["retries"] >= 1, r                             # the reset site actually ran; without it this is vacuous
+    assert s.step_calls == r["steps"] - r["retries"], (s.step_calls, r["steps"], r["retries"])
+    assert s.resets == r["retries"], (s.resets, r["retries"])
+
+
+def test_a_run_with_no_deaths_spends_every_step_on_a_decision():
+    """The control for the test above: with no reset site firing, `retries` is 0 and `steps` IS the decide count.
+    A version of the identity that only held when retries were nonzero would not be an identity."""
+    s = _DyingSession(_Maze(), [1, 2, 3, 4, 5], die_every=10 ** 6)
+    r = _play_policy(s, Blackboard(), "m0r0-x", max_actions=12, wall_cap_s=30)
+    assert r["retries"] == 0 and s.step_calls == r["steps"] == 12
+
+
+def test_the_wall_clock_exit_no_longer_reports_the_action_cap():
+    """★ THE MIS-NAMED EXIT. `outcome` was pre-set to `"action_cap"` before a loop with TWO fall-through exit
+    conditions, so a wall-clock stop printed the action cap's name. Every "no sweep was wall-clock bound" reading
+    ever taken off this field came from a name nobody chose at the exit that produced it."""
+    r = _play_policy(FakeSession(_Dir(), [1, 2, 3, 4, 5]), Blackboard(), "m0r0-x",
+                     max_actions=10 ** 6, wall_cap_s=0.5)
+    assert r["outcome"] == "wall_cap", r["outcome"]
+    assert r["steps"] < 10 ** 6
+
+
+def test_the_action_cap_exit_names_the_action_cap():
+    r = _play_policy(FakeSession(_Dir(), [1, 2, 3, 4, 5]), Blackboard(), "m0r0-x",
+                     max_actions=12, wall_cap_s=60)
+    assert r["outcome"] == "action_cap" and r["steps"] == 12
+
+
+def test_no_exit_is_left_unattributed():
+    """`loop_exit_unattributed` is the literal that fires when the post-loop re-test finds NEITHER condition true,
+    which cannot happen. It exists so that if the guard is ever wrong it says so by name instead of borrowing a
+    neighbour's label -- and no ordinary run may produce it."""
+    for kw in (dict(max_actions=8, wall_cap_s=60), dict(max_actions=10 ** 6, wall_cap_s=0.4)):
+        r = _play_policy(FakeSession(_Dir(), [1, 2, 3, 4, 5]), Blackboard(), "m0r0-x", **kw)
+        assert r["outcome"] != "loop_exit_unattributed", (kw, r["outcome"])
+
+
+def test_the_swarm_carries_the_denominator_across_the_process_boundary():
+    """A count that crosses a boundary without its denominator cannot be read. `steps` crossed alone until this
+    beat, so a printer could not tell an action-capped game from one that stopped twenty short."""
+    def factory(gid, scorecard_id=None, limiter=None):
+        return FakeSession(_Dir(), [1, 2, 3, 4, 5])
+    res = run_swarm(["ls20-a"], max_actions=9, wall_cap_s=8, rpm=6000,
+                    session_factory=factory, start_stagger_s=0.0, open_backoff=0.0)
+    assert res["max_actions"] == 9 and res["wall_cap_s"] == 8.0
+    assert res["results"]["ls20-a"]["steps"] == 9
+    assert res["results"]["ls20-a"]["outcome"] == "action_cap"

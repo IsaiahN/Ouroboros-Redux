@@ -52,6 +52,104 @@ def main() -> None:
 _MIN_ACT_N = 5
 
 
+def decide_exits_by_game(res: dict) -> dict:
+    """Per-game count of `decide()` exits, read off the SAME per-game carry the click section reads, so this can
+    never drift from the pooled funnel. A top-level literal carries `exits`; the `name|ACTION` and
+    `name|ACTION@rNcM` sub-keys are act/region breakdowns of an exit already counted and must NOT be re-added."""
+    fbg = (res.get("tether_chain") or {}).get("echo", {}).get("decide_funnel_by_game") or {}
+    return {g: sum(int(v["exits"]) for k, v in xs.items() if "|" not in k and isinstance(v, dict) and "exits" in v)
+            for g, xs in fbg.items()}
+
+
+def budget_section(res: dict) -> None:
+    """★ WHAT ACTUALLY SPENT THE ACTION BUDGET -- and the identity nobody could check for twelve sweeps.
+
+    `decide_calls` reproduced at 2943 on eleven consecutive sweeps and was read as "the ACTION budget binds". It is
+    not the budget. `_play_policy` increments `steps` at TWO sites: after a `pol.choose()` (exactly one `decide()`
+    exit) and at the EARNED RESET (no `decide()` at all). So, exactly and always:
+
+        decide_exits(game) == steps(game) - retries(game)
+
+    Neither `steps` nor `retries` has ever been printed, though `_play_policy` has returned both all along -- so a
+    move in `decide_calls` could not be told apart from a move in the number of post-death resets. This section
+    prints all three and CHECKS the identity per game. A nonzero residue means the accounting above is wrong, not
+    that the agent did something interesting, and it says so by name.
+
+    It also prints `outcome`, which until this beat was pre-set to the literal `action_cap` BEFORE the loop and so
+    named the action budget even when the wall clock was what ended the run. Any game whose `steps` is below
+    `max_actions` and whose outcome still reads `action_cap` is a mis-labelled receipt; the split lives at the exit
+    now, and the old value can no longer be produced by a wall-clock exit.
+
+    ★ A MISSING `steps` IS NOT A ZERO. A result dict that never carried `steps`/`retries` -- an offline fixture, a
+    result from before this instrument existed, a game that died in `open()` -- is printed `n/a` and EXCLUDED from
+    the residue. Defaulting it to 0 would manufacture a residue equal to that game's whole decide count and read as
+    a broken identity, which is the "field never COMPUTED, printed as a zero" defect wearing the opposite sign."""
+    results = res.get("results") or {}
+    if not results:
+        return
+    dec = decide_exits_by_game(res)
+    print("\n=== THE ACTION BUDGET, AND WHAT SPENT IT (identity: decide_exits == steps - retries) ===")
+    print("  %-18s %6s %7s %8s %7s %7s  %s" % ("game", "steps", "decide", "retries", "deaths", "resid", "outcome"))
+    t_steps = t_dec = t_ret = t_res = t_games = 0
+    outcomes: dict = {}
+    unattributed = []
+    unpriced = []
+    for gid in sorted(results):
+        r = results[gid]
+        d = dec.get(gid)
+        out = str(r.get("outcome"))
+        outcomes[out] = outcomes.get(out, 0) + 1
+        if "steps" not in r or "retries" not in r:           # never carried the budget; do NOT read it as zero
+            unpriced.append(gid)
+            print("  %-18s %6s %7s %8s %7s %7s  %s"
+                  % (gid, "n/a", ("--" if d is None else d), "n/a", r.get("deaths"), "n/a", out))
+            continue
+        steps = int(r.get("steps") or 0)
+        rets = int(r.get("retries") or 0)
+        if d is None:                                        # game never reported a funnel (error/open_error)
+            print("  %-18s %6d %7s %8d %7s %7s  %s"
+                  % (gid, steps, "--", rets, r.get("deaths"), "--", out))
+            continue
+        resid = d - (steps - rets)
+        t_steps += steps; t_dec += d; t_ret += rets; t_res += abs(resid); t_games += 1
+        print("  %-18s %6d %7d %8d %7s %7d  %s%s"
+              % (gid, steps, d, rets, r.get("deaths"), resid, out, "   ★ IDENTITY BROKEN" if resid else ""))
+        if out == "action_cap" and steps < int(res.get("max_actions") or 0):
+            unattributed.append(gid)
+    print("  TOTAL steps=%d decide=%d retries=%d | BUDGET RESIDUE=%d" % (t_steps, t_dec, t_ret, t_res))
+    if unpriced:
+        print("  %d game(s) carried NO budget fields and are excluded from the residue (not scored as zero): %s"
+              % (len(unpriced), ", ".join(unpriced)))
+    if t_res:
+        print("  ★ THE BUDGET DOES NOT CLOSE. `decide_calls` may not be cited as the action budget, or as anything"
+              " else, until this is zero -- the two counters are counting different things.")
+    elif not t_games:
+        print("  ⇒ NO GAME CARRIED BOTH A BUDGET AND A FUNNEL, so the identity was not checked here. This is not a"
+              " pass; it is an ABSENCE, and it may not be cited as one.")
+    else:
+        print("  ⇒ The budget closes on every reporting game. A move in `decide_calls` between two sweeps is a move"
+              " in `steps` or in `retries` and in nothing else, and this table says which.")
+    print("  OUTCOME (one literal per exit, chosen AT the exit that produced it):")
+    for k, n in sorted(outcomes.items(), key=lambda kv: (-kv[1], kv[0])):
+        print("    %-28s %4d games" % (k, n))
+    if unattributed:
+        print("  ★ %d game(s) report `action_cap` below the action budget, which cannot happen: %s"
+              % (len(unattributed), ", ".join(unattributed)))
+    # ★ WHICH GAMES. Every pooled headline below is scoped to the roster printed here and to no other. Two sweeps
+    # whose rosters differ are not comparable pooled, however identical the commit -- `tn36` returned 400 on RESET
+    # in both arms of the 07-31 pair and recovered in only one, which silently moved a pooled denominator by 119
+    # decide calls. The digest is printed so the check is mechanical rather than remembered.
+    reporting = sorted(g for g in results if dec.get(g))
+    errored = sorted(g for g in results if not dec.get(g))
+    import hashlib
+    digest = hashlib.sha256(("|".join(reporting)).encode()).hexdigest()[:12]
+    print("  GAME SET: %d reporting, %d with no funnel | roster digest %s" % (len(reporting), len(errored), digest))
+    if errored:
+        print("    no funnel: %s" % ", ".join("%s(%s)" % (g, results[g].get("outcome")) for g in errored))
+    print("    ⇒ EVERY POOLED NUMBER BELOW IS SCOPED TO THIS ROSTER. A sweep with a different digest may not be"
+          " compared to this one pooled; recompute on the intersection or do not compare.")
+
+
 def report(res: dict) -> None:
     """Render one sweep's result dict. SEPARATE FROM `main` on purpose: a printer bug in this file has twice been
     discovered only after a live sweep had already been spent on it, and a printer that can only be exercised by
@@ -71,6 +169,7 @@ def report(res: dict) -> None:
         print("%-18s %-14s %5s %6s %6s %6s %6s %6s  %s"
               % (gid, r.get("family"), r.get("levels"), ts.get("stalls"), ts.get("advances"),
                  ec.get("residual_nonempty"), ec.get("minted"), ec.get("fired"), ts.get("furthest_stage")))
+    budget_section(res)
     print("\n=== POOLED TETHER-STAGE DISTRIBUTION ===")
     print(json.dumps(res.get("tether_chain"), indent=2, sort_keys=True))
 

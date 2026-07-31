@@ -496,3 +496,91 @@ def test_the_reserve_identity_is_CHECKED_by_the_printer_not_assumed():
     p.receipts[-1].decide_click_pool["reserve_admitted"] = 10 ** 4
     out = _section(_render(summary([p.receipts[-1]]) and _res(cl11=p)), "=== THE CLICK BRANCH")
     assert "RESERVE IDENTITY BROKEN" in out, out
+
+
+# ---- ★ THE ACTION BUDGET SECTION ----------------------------------------------------------------------------
+def _priced(res, retries=None, max_actions=200, outcome="action_cap"):
+    """Give a real `_res(...)` the budget fields a live `_play_policy` now returns, DERIVED from the funnel the
+    printer will read rather than hand-set beside it: `steps = decide_exits + retries` is the identity, so a
+    fixture built this way is consistent by construction and any residue the printer finds is the printer's."""
+    import sweep_chain
+    dec = sweep_chain.decide_exits_by_game(res)
+    retries = retries or {}
+    for gid, r in res["results"].items():
+        rets = int(retries.get(gid, 0))
+        r["retries"] = rets
+        r["steps"] = int(dec.get(gid, 0)) + rets
+        r["deaths"] = rets
+        r["outcome"] = outcome
+    res["max_actions"] = max_actions
+    res["wall_cap_s"] = 200.0
+    return res
+
+
+_BUDGET = "=== THE ACTION BUDGET"
+
+
+def test_the_budget_section_renders_and_the_identity_CLOSES():
+    """The floor: on a fixture built from the identity, the printer must find zero residue and SAY so. A section
+    that only prints the three columns and leaves the reader to subtract is not checking anything."""
+    out = _section(_render(_priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 3})), _BUDGET)
+    assert "BUDGET RESIDUE=0" in out, out
+    assert "The budget closes on every reporting game" in out, out
+    for col in ("steps", "decide", "retries", "outcome"):
+        assert col in out, (col, out)
+    assert "retries=3" in out, out                      # the term `decide_calls` was missing all along
+
+
+def test_a_perturbed_retry_count_BREAKS_the_identity_by_name():
+    """The test that makes the one above mean something. Move `retries` without moving `steps` and the printer must
+    refuse the row AND refuse the headline -- not print a quietly wrong residue."""
+    res = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), retries={"aa11": 3})
+    res["results"]["aa11"]["retries"] = 11              # steps no longer accounts for it
+    out = _section(_render(res), _BUDGET)
+    assert "★ IDENTITY BROKEN" in out, out
+    assert "THE BUDGET DOES NOT CLOSE" in out, out
+    assert "may not be cited as the action budget" in out, out
+
+
+def test_a_result_with_NO_budget_fields_is_n_a_and_not_a_zero():
+    """★ A MISSING FIELD IS NOT A ZERO. Defaulting an absent `steps` to 0 would manufacture a residue equal to that
+    game's whole decide count and read as a broken identity -- the "never COMPUTED, printed as a zero" defect
+    wearing the opposite sign. The row must say `n/a`, stay out of the residue, and be named in a roster line."""
+    res = _res(aa11=_run("aa11-aaaa", _N, ("A1",)))     # untouched: no `steps`, no `retries`
+    out = _section(_render(res), _BUDGET)
+    assert "n/a" in out, out
+    assert "IDENTITY BROKEN" not in out, out
+    assert "carried NO budget fields and are excluded from the residue" in out, out
+    assert "NO GAME CARRIED BOTH A BUDGET AND A FUNNEL" in out, out
+    assert "it is an ABSENCE, and it may not be cited as one" in out, out
+
+
+def test_an_action_cap_below_the_action_budget_is_called_impossible():
+    """The mis-named exit, caught at the printer as well as fixed at the exit. `outcome` was pre-set to
+    `action_cap` before a loop with two fall-through conditions; a game that stops short of the budget and still
+    claims the budget stopped it is a mis-labelled receipt, and the printer must name the game."""
+    res = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), max_actions=10 ** 6)
+    out = _section(_render(res), _BUDGET)
+    assert "report `action_cap` below the action budget, which cannot happen" in out, out
+    assert "aa11" in out.split("which cannot happen")[1], out
+
+
+def test_the_wall_cap_outcome_is_reported_under_its_own_name():
+    res = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))), outcome="wall_cap", max_actions=10 ** 6)
+    out = _section(_render(res), _BUDGET)
+    assert "wall_cap" in out and "which cannot happen" not in out, out
+
+
+def test_the_roster_digest_moves_when_the_GAME_SET_moves():
+    """★ A POOLED NUMBER OFFERED AS EVIDENCE ABOUT A SUBSET. Two sweeps whose rosters differ are not comparable
+    pooled however identical the commit -- `tn36` returned 400 on RESET in both arms of the 07-31 pair, recovered
+    in only one, and silently moved a pooled denominator by 119 decide calls. The digest makes that check
+    mechanical instead of remembered, so it must actually depend on the roster."""
+    two = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",)), bb22=_run("bb22-bbbb", _N, ("A1",))))
+    one = _priced(_res(aa11=_run("aa11-aaaa", _N, ("A1",))))
+    out2, out1 = _section(_render(two), _BUDGET), _section(_render(one), _BUDGET)
+    d2 = [l for l in out2.splitlines() if "roster digest" in l][0]
+    d1 = [l for l in out1.splitlines() if "roster digest" in l][0]
+    assert "2 reporting" in d2 and "1 reporting" in d1, (d2, d1)
+    assert d2.split("roster digest")[1] != d1.split("roster digest")[1], (d2, d1)
+    assert "may not be compared to this one pooled" in out2, out2

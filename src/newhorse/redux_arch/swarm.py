@@ -62,7 +62,13 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)
         can_retry = hasattr(session, "reset_after_death")   # live sessions retry after death; simple fakes may not
         retry_cap = 6
-        best = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = "action_cap"; retries = 0
+        # ★ `outcome` USED TO BE PRE-SET TO "action_cap" HERE, BEFORE THE LOOP. The loop has TWO fall-through exit
+        # conditions -- the action budget and the wall clock -- and that one literal named ONE of them for BOTH.
+        # Every "no sweep was wall-clock bound" reading ever taken off this field rests on a name nobody chose at
+        # the exit that produced it. It is now `None` until an exit sets it, and the fall-through case is decided
+        # AFTER the loop by re-testing both conditions, each with its own literal. `WIN`/`GAME_OVER` already set
+        # theirs at their own `break` and are unchanged.
+        best = snap["levels_completed"]; t0 = time.time(); steps = 0; outcome = None; retries = 0
         while steps < max_actions and (time.time() - t0) < wall_cap_s:
             pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap.get("state"))
             if snap["done"]:
@@ -83,6 +89,18 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
             if snap["levels_completed"] > prev:
                 log.append("LEVEL UP %d->%d @%d" % (prev, snap["levels_completed"], steps))
             best = max(best, snap["levels_completed"]); steps += 1
+        if outcome is None:                                  # fell out of the loop; no `break` named this exit
+            _hit_cap = steps >= max_actions
+            _hit_wall = (time.time() - t0) >= wall_cap_s
+            outcome = ("action_and_wall_cap" if (_hit_cap and _hit_wall)
+                       else "action_cap" if _hit_cap
+                       else "wall_cap" if _hit_wall
+                       else "loop_exit_unattributed")        # cannot happen; if it prints, the guard above is wrong
+        # ★ THE BUDGET IDENTITY. `steps` is the ACTION budget counter and it is incremented at TWO sites: after a
+        # `pol.choose()` (which produces exactly one `decide()` exit) and at the EARNED RESET above (which produces
+        # NONE). So for every game, exactly:  decide_exits == steps - retries.  `decide_calls` is therefore NOT the
+        # action budget -- it is the budget minus a term that no receipt has ever printed. Both terms are returned
+        # here so the printer can check the identity instead of a reader inferring it.
         # TETHER-STAGE: the swarm is where MOST play happens and it reported no stage code at all, so the measured
         # stall distribution was blind to nearly every stall the build has ever produced. Close the last segment and
         # report what the chain actually reached -- per stall, not per run.
@@ -166,7 +184,11 @@ def run_swarm(game_ids: List[str], max_actions: int = 60, wall_cap_s: float = 15
             pass
 
     families = {g: r.get("family") for g, r in results.items()}
+    # ★ THE DENOMINATOR CROSSES WITH THE COUNT. `steps` is meaningless without the budget it was spent against, and
+    # until now only `steps` crossed this boundary -- so a printer could not tell an action-capped game from one
+    # that stopped 20 short. Both caps ride along now.
     return dict(view_url=view_url, scorecard_id=card_id, results=results, families=families,
+                max_actions=int(max_actions), wall_cap_s=float(wall_cap_s),
                 blackboard_prefixes=sorted({g.split("-")[0] for g in results}),
                 total_levels=sum(int(r.get("levels", 0)) for r in results.values()),
                 tether_chain=tether_distribution(results))
