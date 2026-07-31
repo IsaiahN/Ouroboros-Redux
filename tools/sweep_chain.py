@@ -288,6 +288,15 @@ def report(res: dict) -> None:
               % (_cpr, _ctp, _cts, _ctt, _ctt / float(max(1, _cpr)), _pres))
         print("       refresh: %d calls admitted %d further targets (%.2f per call). The construction pool is"
               " drained FIRST -- refresh arrivals sit at the end of `targets`." % (_rfc, _rfa, _rfa / float(max(1, _rfc))))
+        # ★ THE DRAIN, on the ADMISSIONS denominator. The branch rows above are a rate over STEPS and a rate can be
+        # right about the size of a cost while being silent about its CAUSE (PATTERN 07-30g). These two rates are
+        # the ordering claim itself: if `choose` really drains `targets` in admission order, then the construction
+        # admissions must be spent MUCH more completely than the refresh admissions, because the latter can only be
+        # reached after the former is exhausted. Same sweep, different denominator, so it can disagree.
+        _ctor_steps = _u_perc + _u_swp
+        print("       DRAIN (steps taken per target ADMITTED): construction %d/%d = %.1f%% | refresh %d/%d = %.1f%%"
+              % (_ctor_steps, _ctt, 100.0 * _ctor_steps / float(max(1, _ctt)),
+                 _u_ref, _rfa, 100.0 * _u_ref / float(max(1, _rfa))))
         if _pres:
             print("  ★ THE POOL DOES NOT CLOSE: the two origins do not sum to the targets admitted. Do not read"
                   " the untried rows -- a target was admitted without an origin.")
@@ -297,18 +306,49 @@ def report(res: dict) -> None:
     # the mis-labelled-receipt defect one level up (RANKING 5). The per-game carry already exists as a sibling of
     # `decide_funnel`; this reads it rather than adding a second traversal that could drift from the pooler.
     _fbg = (res.get("tether_chain") or {}).get("echo", {}).get("decide_funnel_by_game") or {}
+    _PL_NAMED = ("ctor_probers", "ctor_perceptual", "ctor_sweep", "ctor_targets",
+                 "refresh_calls", "refresh_admitted")
     _rows = []
     for _g, _xs in sorted(_fbg.items()):
         _r = {k: int((_xs.get(k) or {}).get("click_branch", 0)) for k in _CB_NAMED}
-        if sum(_r.values()):
-            _rows.append((_g, _r))
+        _p = {k: int((_xs.get(k) or {}).get("click_pool", 0)) for k in _PL_NAMED}
+        if sum(_r.values()) or sum(_p.values()):
+            _rows.append((_g, _r, _p))
     if _rows:
         print("  PER GAME (%d of %d games took a click step):" % (len(_rows), len(_fbg)))
-        for _g, _r in _rows:
+        for _g, _r, _p in _rows:
             _tot = sum(_r.values())
             print("    %-18s steps %5d | perc %4d  sweep %4d  refresh %4d  exploit %4d  nomove %4d  notgt %4d"
                   % (_g, _tot, _r["untried_perceptual"], _r["untried_sweep"], _r["untried_refresh"],
                      _r["exploit_scored"], _r["nothing_moved_least_tried"], _r["no_targets"]))
+        # ★ WHICH MEMBERS, ON THE ADMISSIONS DENOMINATOR. The pooled drain above is exactly the pooled-number defect
+        # if it is offered as evidence about the ORDERING, because one game that never spent its pool and one game
+        # that spent it twice average to something that describes neither. A game at 100% construction drain is a
+        # DIRECT observation that every admitted construction target was clicked before any refresh arrival was
+        # reached; that is the ordering claim, per game, with nothing pooled.
+        print("  PER GAME, THE POOL (admissions, NOT steps -- `full` = the construction pool was spent to the last"
+              " target before any refresh arrival was reachable):")
+        _full = 0
+        for _g, _r, _p in _rows:
+            _t, _pr = _p["ctor_targets"], _p["ctor_probers"]
+            _cs = _r["untried_perceptual"] + _r["untried_sweep"]
+            _dr = 100.0 * _cs / float(max(1, _t))
+            if _t and _cs >= _t:
+                _full += 1
+            print("    %-18s probers %2d | ctor perc %4d + sweep %4d = %5d (%5.1f/prober) | refresh %4d calls"
+                  " admitted %4d | DRAIN ctor %5.1f%% refresh %5.1f%%%s"
+                  % (_g, _pr, _p["ctor_perceptual"], _p["ctor_sweep"], _t, _t / float(max(1, _pr)),
+                     _p["refresh_calls"], _p["refresh_admitted"], _dr,
+                     100.0 * _r["untried_refresh"] / float(max(1, _p["refresh_admitted"])),
+                     "  full" if (_t and _cs >= _t) else ""))
+        if _full:
+            print("  ⇒ %d of %d games spent their ENTIRE construction pool. In each of those the lattice was"
+                  " enumerated to exhaustion before a single refresh arrival could be chosen -- the ordering,"
+                  " OBSERVED per game, not inferred from a pooled rate." % (_full, len(_rows)))
+        else:
+            print("  ⇒ NO game spent its entire construction pool, so this sweep cannot observe the ordering"
+                  " directly: every game died with lattice points still untried. The branch rows above are a rate"
+                  " over steps and remain untested at the mechanism (PATTERN 07-30g).")
     if _cres:
         print("  ★ THE CLICK BRANCH DOES NOT SUM TO THE CLICK EXITS. Do not read any row above until the residue"
               " is named. Every return of `choose` produces a click, so a non-zero residue means a return was"

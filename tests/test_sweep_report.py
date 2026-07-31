@@ -316,6 +316,41 @@ def test_the_click_branch_block_EVALUATES_the_pre_registered_prediction():
         or ("MIXED" in out) or ("NOTHING IT CLICKED EVER MOVED" in out) or ("PERCEPTION OFFERED NOTHING" in out), out
 
 
+def test_the_pool_is_reported_on_the_ADMISSIONS_denominator_and_per_GAME():
+    """The branch rows are a rate over STEPS. A rate over steps can be right about the SIZE of a cost and silent
+    about its CAUSE, which is exactly the defect PATTERN 07-30g names. The ordering claim -- construction targets
+    are reachable before refresh arrivals -- lives on the ADMISSIONS denominator, so the drain must be printed
+    there, per game, where one game that never spent its pool cannot be averaged with one that spent it twice."""
+    out = _section(_render(_res(cl11=_click_game("cl11-cccc", _N))), "=== THE CLICK BRANCH")
+    assert "DRAIN (steps taken per target ADMITTED)" in out, out
+    assert "PER GAME, THE POOL" in out, out
+    per = [l for l in out.splitlines() if "probers" in l and "DRAIN ctor" in l]
+    assert len(per) == 1, out                              # one row per game that built a prober
+    assert "ctor perc" in per[0] and "sweep" in per[0], per[0]
+
+
+def test_a_sweep_that_never_EXHAUSTS_a_pool_is_refused_the_ordering_reading():
+    """The failure the row exists to catch. If no game spent its construction pool to the last target, then no
+    game ever reached the point where a refresh arrival BECOMES choosable, and the sweep has not observed the
+    ordering at all -- it has only observed that the lattice is big. The printer must say so in words rather than
+    let the pooled branch split stand in for a mechanism it did not test."""
+    out = _section(_render(_res(cl11=_click_game("cl11-cccc", 6))), "=== THE CLICK BRANCH")
+    assert "NO game spent its entire construction pool" in out, out
+    assert "untested at the mechanism" in out, out
+
+
+def test_a_game_that_DOES_exhaust_its_pool_is_marked_and_counted():
+    """The other side of the same instrument, so the row above cannot be one that only ever reads one way. Run the
+    same click game long enough to spend every admitted construction target and the game must be marked `full` and
+    counted into the ordering sentence. If both this and the test above ever pass on the same input, the marker is
+    not measuring anything."""
+    out = _section(_render(_res(cl11=_click_game("cl11-cccc", 90))), "=== THE CLICK BRANCH")
+    assert "  full" in out, out
+    assert "spent their ENTIRE construction pool" in out, out
+    assert "OBSERVED per game" in out, out
+    assert "NO game spent its entire construction pool" not in out, out
+
+
 def test_the_click_region_gives_the_self_motion_control_a_row_where_it_had_none():
     """The blind spot and its repair, in one report. Every click carries label `A6`, so the ACTION split has one
     row on a click game and prints MUTE; the REGION split of the same steps must have more than one and must
