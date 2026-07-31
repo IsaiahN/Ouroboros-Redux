@@ -209,3 +209,57 @@ def test_the_printer_reports_a_missing_instrument_as_an_absence(capsys):
     board_section({"results": {"aa11-1": {"family": "effect", "steps": 5, "retries": 0}}})
     out = capsys.readouterr().out
     assert "ABSENCE" in out
+
+
+# ---- the escalation organ: which games can even reach it -------------------------------------------------------
+class _FrozenWorld:
+    """Nothing the agent does changes anything, ever. The purest case for the organ that exists to refuse a null
+    intervention: if it cannot fire here, it cannot fire."""
+
+    def __init__(self, H=16, W=16):
+        self.g = np.zeros((H, W), dtype=int)
+
+    def frame(self):
+        return self.g.copy()
+
+    def step(self, _label):
+        return self.frame()
+
+
+def _play_frozen(avail, family=None, n=60):
+    p = ReduxPolicy(game_id="frozen-x", blackboard=Blackboard(), warmup_cap=2)
+    if family is not None:
+        p.family = family                                   # as a game WITH directional actions would have routed
+    w = _FrozenWorld()
+    grid = w.frame()
+    for _ in range(n):
+        p.observe(grid, list(avail))
+        lbl, _ = p.choose()
+        grid = w.step(lbl)
+    return p
+
+
+def test_a_natively_click_routed_game_never_reaches_the_escalation_organ_at_all():
+    """THE GUARD, AS A RECEIPT INSTEAD OF A CODE READING. `_decide` returns at the `click_native` exit BEFORE
+    `_modality_escalate` is called, so on a game whose action set carries no directional actions the organ built to
+    break "one label forever" is never consulted -- however frozen the board and however many untried actions are
+    available. The control below is the same board and the same action set routed to another organ.
+
+    NOTE WHAT THIS DOES *NOT* SAY. On a game that advertises action 6 ALONE the point is moot: there is no other
+    action to escalate to and the single label is the action set, not a pathology. The guard only bites where an
+    alternative EXISTS, which is why this test gives the game two."""
+    p = _play_frozen([6, 7])
+    assert p.family == "click" and p._pre_esc_family is None      # natively routed, never escalated into
+    assert p.n_modality_escalations == 0
+    assert set((p.engage_report()["meter"]["labels"] or {})) == {"A6"}   # A7 was never once emitted
+    # ...and it is not that there was nothing to escalate TO: the organ, asked directly, hands back A7.
+    assert p.engage.frozen() is True
+    assert p.engage.escalate(["A6", "A7"]) == "A7"
+
+
+def test_the_same_frozen_board_routed_to_another_organ_does_escalate():
+    """The control that makes the guard the explanation rather than a coincidence: identical board, identical
+    action set, one branch different."""
+    p = _play_frozen([6, 7], family="effect")
+    assert p.n_modality_escalations >= 1
+    assert set((p.engage_report()["meter"]["labels"] or {})) == {"A6", "A7"}
