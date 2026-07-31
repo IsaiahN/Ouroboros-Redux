@@ -293,6 +293,29 @@ class ChainLedger:
     # that promoted anything and shows only the `0` key made every offer before its first promotion.
     _seg_gamma: Counter = field(default_factory=Counter)
     gamma_at_offer: Counter = field(default_factory=Counter)
+    # ★ THE INERTNESS RECEIPT. Everything above prices the agent's REASONING chain. Nothing anywhere priced the
+    # cheaper question underneath it: WHEN THE AGENT ACTS, DOES THE BOARD MOVE AT ALL? CLASSIFIER 13 rests on a
+    # change-map a human looked at, and `tools/death_depth.py`'s `replay` verdict cannot be read until inertness is
+    # a printed number -- two deaths on a pixel-identical board mean the agent walked back to the same place if it
+    # was moving, and mean nothing at all if it was not. RUN-LEVEL, never reset by `end_segment`: this is a
+    # property of the whole episode's play, not of one span between break events, and scoping it per segment would
+    # make it unreadable next to the per-game `steps` it must be compared with.
+    #
+    # THREE DICTS, THREE DENOMINATORS, kept apart for the reason `phi_kind` is kept out of `no_eligible_phi`:
+    #   `board_steps` -- one row per observed frame whose predecessor exists AND whose label is an action the agent
+    #                    chose. Literals partition it: still / band_only / sub_floor / live / reshape.
+    #   `board_skip`  -- one row per observed frame that is NOT such a transition, named by WHY, so the identity
+    #                    sum(board_steps) + sum(board_skip) == frames observed can actually fail.
+    #   `board_band`  -- SAME denominator as `board_steps`, answering a different question: was a monotone
+    #                    budget/timer band masked AT THAT STEP? The mask is recomputed from a sliding window, so a
+    #                    band found at the end of the run is not evidence it was found at the start -- and a run
+    #                    whose restarts REFILL the bar breaks the ratchet the mask needs. That is measurable here
+    #                    and nowhere else.
+    board_steps: Counter = field(default_factory=Counter)
+    board_skip: Counter = field(default_factory=Counter)
+    board_band: Counter = field(default_factory=Counter)
+    _board_cells: int = 0                              # masked changed cells summed over steps that HAVE a count
+    _board_cells_n: int = 0                            # ...and its own denominator (a reshape contributes neither)
 
     @property
     def steps_in_segment(self) -> int:
@@ -405,6 +428,61 @@ class ChainLedger:
     def note_transfer_clear(self) -> None:
         """Acting on a TRANSFERRED operator cleared a break. Callers must never pass a raw level advance here."""
         self._sig.cleared = True
+
+    # ---- the inertness receipt -------------------------------------------------------------------------------
+    def note_board(self, kind: str, cells: Optional[int] = None, banded: Optional[bool] = None) -> None:
+        """ONE agent-chosen action's frame, charged to exactly ONE literal by the site that read the two boards.
+
+        The literals, in the order the reader should think about them:
+          `still`     -- the new frame is PIXEL-IDENTICAL to the one before it. The action did nothing, anywhere,
+                         including to any timer. This is inertness in its strongest form.
+          `band_only` -- something changed, and ALL of it was inside the monotone budget/timer band. The clock
+                         ticked; the puzzle did not. A raw change-rate reads this as a responsive board, which is
+                         exactly the proxy `engagement.py` exists to refuse.
+          `sub_floor` -- something changed outside the band, but fewer cells than the smallness floor (a cursor
+                         blink / heartbeat). Named, not silently pooled with either neighbour.
+          `live`      -- the board answered outside the band, at or above the floor.
+          `reshape`   -- the board changed SHAPE. An answer by any reading, with no cell count comparable to the
+                         others, so it contributes to no mean -- a fabricated count here would be the
+                         field-never-computed-printed-as-a-number defect in a column that gets averaged.
+        `cells` is the MASKED changed-cell count and is None exactly for `reshape`. `banded` is whether a monotone
+        band was masked at this step; it is passed from the same read that produced `cells` so the two can never
+        disagree, and it is None only when the caller could not compute a mask at all."""
+        self.board_steps[str(kind)] += 1
+        if cells is not None:
+            self._board_cells += int(cells)
+            self._board_cells_n += 1
+        if banded is not None:
+            self.board_band["banded" if banded else "unbanded"] += 1
+
+    def note_board_skip(self, kind: str) -> None:
+        """An observed frame that is NOT an agent-chosen transition, charged to its own literal at its own return:
+        `no_predecessor` (the first frame of the run), `label_reset` (the frame a restart produced), `label_none` /
+        `label_unknown` (no action name was carried). These are excluded from the inertness rates BY NAME rather
+        than by being dropped, because a rate whose denominator silently omits rows cannot be checked."""
+        self.board_skip[str(kind)] += 1
+
+    def board_report(self) -> Dict[str, object]:
+        """The per-game inertness receipt. Publishes both denominators and the identity that ties them to the
+        frames the policy actually observed, so a missing charge is a number that fails rather than a silence."""
+        steps = int(sum(self.board_steps.values()))
+        skipped = int(sum(self.board_skip.values()))
+        moved = steps - int(self.board_steps.get("still", 0))
+        outside = int(self.board_steps.get("sub_floor", 0)) + int(self.board_steps.get("live", 0)) \
+            + int(self.board_steps.get("reshape", 0))
+        return {
+            "steps": steps,
+            "skipped": skipped,
+            "frames": steps + skipped,
+            "split": {k: int(n) for k, n in sorted(self.board_steps.items())},
+            "skip_split": {k: int(n) for k, n in sorted(self.board_skip.items())},
+            "band_at_step": {k: int(n) for k, n in sorted(self.board_band.items())},
+            "moved_any": moved,                        # differs from its predecessor in >=1 cell, band included
+            "moved_outside_band": outside,             # ...and at least one of those cells was NOT in the band
+            "live": int(self.board_steps.get("live", 0)),
+            "mean_masked_cells": (float(self._board_cells) / self._board_cells_n) if self._board_cells_n else None,
+            "cells_n": int(self._board_cells_n),
+        }
 
     def end_segment(self, reason: str) -> Optional[Stage]:
         """Close the current segment and open a fresh one. Returns the stage if this was a scored STALL, or None if

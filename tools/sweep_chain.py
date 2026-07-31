@@ -249,6 +249,91 @@ def deaths_section(res: dict) -> None:
               " evidence that nothing died -- the OUTCOME roll-up above is what answers that.")
 
 
+def board_section(res: dict) -> None:
+    """★ THE INERTNESS RECEIPT, PER GAME. The decide funnel below already prints an `answered` rate per EXIT, pooled
+    over every game -- and a pooled rate cannot say WHICH members it is about, which is the whole question here.
+    This is the same reading charged per FRAME, per game, at the observe site.
+
+    Read the columns as a partition of the agent's own actions, not as four independent rates: `still` is the board
+    pixel-identical to the frame before it; `band` is a change confined to the monotone budget/timer band, i.e. the
+    clock ticked and the puzzle did not; `sub` is a change outside the band below the smallness floor; `live` is a
+    real answer. `skip` counts frames that were NOT the agent's doing (the opening frame, the frame a restart
+    produced) and is excluded from the rates by name, never dropped.
+
+    THE IDENTITY, published so it can fail: the agent's actions on a game are `steps - retries` (CLASSIFIER 11), and
+    every one of them produces exactly one observed frame with an action label, so `charged` must equal it. A
+    non-zero residue means a frame was observed with no action behind it, or an action produced no frame -- either
+    is a defect in this instrument, and the reader must be able to see it rather than trust it.
+
+    WHAT IT MAY NOT BE READ AS. A `still` step is not a wasted step by the agent's own lights -- a game can require
+    a key press that only takes effect later. It IS a step from which no residual can be built, because R_τ = 0 has
+    no gradient. And `band=0` does NOT mean the game has no timer bar: the mask needs a non-decreasing ratchet over
+    a window, and a restart that REFILLS the bar breaks it, so an unbanded column on a game that plainly has a bar
+    is a statement about the MASK, not about the game."""
+    results = res.get("results") or {}
+    rows = [(gid, results[gid]) for gid in sorted(results) if (results[gid].get("engage") or {}).get("board")]
+    print("\n=== BOARD RESPONSE PER GAME (charged once per observed frame, at the observe site) ===")
+    if not rows:
+        print("  (no game carried an `engage` receipt: the instrument is not wired in this run. This is an ABSENCE"
+              " and may not be read as an inert -- or a responsive -- agent.)")
+        return
+    print("  %-18s %-13s %7s %7s %6s %6s %6s %7s %6s %6s %7s %s"
+          % ("game", "family", "charged", "resid", "still", "band", "sub", "live", "live%", "skip", "banded",
+             "frozen/esc"))
+    tot = {"charged": 0, "still": 0, "band_only": 0, "sub_floor": 0, "live": 0, "reshape": 0, "skip": 0}
+    n_resid = 0
+    for gid, r in rows:
+        e = r["engage"]
+        b, m = e["board"], (e.get("meter") or {})
+        sp = b.get("split") or {}
+        charged = int(b.get("steps", 0))
+        # CLASSIFIER 11's identity is the control on this column, not a decoration: `steps - retries` is the number
+        # of actions the agent emitted, computed from counters incremented at two different sites in `swarm.py`.
+        acts = None
+        if r.get("steps") is not None and r.get("retries") is not None:
+            acts = int(r["steps"]) - int(r["retries"])
+        resid = "n/a" if acts is None else str(charged - acts)
+        if resid not in ("n/a", "0"):
+            n_resid += 1
+        live = int(sp.get("live", 0))
+        banded = int((b.get("band_at_step") or {}).get("banded", 0))
+        print("  %-18s %-13s %7d %7s %6d %6d %6d %7d %5.0f%% %6d %7d %s/%s"
+              % (gid, str(e.get("family"))[:13], charged, resid, int(sp.get("still", 0)),
+                 int(sp.get("band_only", 0)), int(sp.get("sub_floor", 0)), live,
+                 (100.0 * live / charged) if charged else 0.0, int(b.get("skipped", 0)), banded,
+                 "Y" if m.get("frozen") else "n", e.get("escalations")))
+        tot["charged"] += charged
+        tot["skip"] += int(b.get("skipped", 0))
+        for k in ("still", "band_only", "sub_floor", "live", "reshape"):
+            tot[k] += int(sp.get(k, 0))
+    print("  %-18s %-13s %7d %7s %6d %6d %6d %7d %5.0f%% %6d"
+          % ("TOTAL", "", tot["charged"], "", tot["still"], tot["band_only"], tot["sub_floor"], tot["live"],
+             (100.0 * tot["live"] / tot["charged"]) if tot["charged"] else 0.0, tot["skip"]))
+    if tot["reshape"]:
+        print("  (%d reshape step(s) are charged but carry no cell count and are in none of the four columns.)"
+              % tot["reshape"])
+    if n_resid:
+        print("  ★ %d game(s) have a NON-ZERO residue against `steps - retries`. The charge and the action budget"
+              " disagree, so no rate in this table may be cited until that is explained." % n_resid)
+    # THE PER-ACTION TABLE, only for the games where it says something the row above cannot: the ones the agent
+    # spent on ONE label. A game played with one action for its whole budget is the pathology `engagement.py` was
+    # built to break, and if the meter is not reporting `frozen` on such a game that is a finding about the METER.
+    print("\n  --- games the agent spent on ONE action label (meter's own per-action table) ---")
+    n_one = 0
+    for gid, r in rows:
+        m = (r["engage"].get("meter") or {})
+        labs = m.get("labels") or {}
+        if len(labs) != 1:
+            continue
+        n_one += 1
+        (lbl, st), = labs.items()
+        print("    %-18s %-4s n=%-5d mean=%6.2f best=%7.1f  frozen=%-5s resp_frac=%.2f  band_cells=%s/%s"
+              % (gid, lbl, int(st["n"]), float(st["mean"]), float(st["best"]), m.get("frozen"),
+                 float(m.get("responsive_fraction") or 0.0), m.get("band_cells"), m.get("board_cells")))
+    if not n_one:
+        print("    (none: every game observed at least two distinct action labels)")
+
+
 def report(res: dict) -> None:
     """Render one sweep's result dict. SEPARATE FROM `main` on purpose: a printer bug in this file has twice been
     discovered only after a live sweep had already been spent on it, and a printer that can only be exercised by
@@ -270,6 +355,7 @@ def report(res: dict) -> None:
                  ec.get("residual_nonempty"), ec.get("minted"), ec.get("fired"), ts.get("furthest_stage")))
     budget_section(res)
     deaths_section(res)
+    board_section(res)
     print("\n=== POOLED TETHER-STAGE DISTRIBUTION ===")
     print(json.dumps(res.get("tether_chain"), indent=2, sort_keys=True))
 

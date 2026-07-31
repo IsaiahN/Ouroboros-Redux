@@ -150,6 +150,7 @@ def _play_policy(session, blackboard: Blackboard, game_id: str, max_actions: int
                     view_url=getattr(session, "view_url", None), log=log, causes=pol.deaths.distinct_causes,
                     deaths=pol.n_deaths, retries=retries, vetoes=pol.n_vetoes,
                     tether_stage=pol.chain_report(), echo=pol.echo_report(),
+                    engage=pol.engage_report(),
                     firings=pol.firing_receipts())
     except Exception as e:                                   # one game's failure must not sink the swarm
         return dict(game=game_id, family="error", levels=0, steps=0, outcome="error:%s" % type(e).__name__,

@@ -510,6 +510,7 @@ class ReduxPolicy:
         self.tracker.observe(self.frames[-1])           # maintain persistent object identity across the frame
         # board-response: how much did the board ANSWER the action that produced this frame (budget bands masked)?
         self.engage.observe(self.frames[-1], self.acts[-1] if self.acts else None)
+        self._note_board_response()                     # ...and the SAME reading charged per FRAME, not per exit
         self._price_pending_exit()                      # did the board ANSWER the exit that chose the last action?
         if len(self.frames) >= 2:                       # Tier-1 affordance: accumulate per-action effect from R_τ
             two_ago = self.frames[-3] if len(self.frames) >= 3 else None
@@ -680,6 +681,46 @@ class ReduxPolicy:
         self._pend_exit = where                          # carried exactly one step, to the `observe` that answers it
         self._pend_vetoed = False
         return out
+
+    def _note_board_response(self) -> None:
+        """THE INERTNESS RECEIPT, charged once per OBSERVED FRAME from the site that observes it.
+
+        Why it is not the priced column one method down. `_price_pending_exit` answers 'did the board answer THIS
+        EXIT', keyed by exit, and it drops on purpose every frame that no exit chose -- the veto's steps go to the
+        veto's bucket, the restart frame goes nowhere. Those exclusions are right for pricing an exit and wrong for
+        the question CLASSIFIER 13 leaves open, which is about the AGENT and its whole episode: of the actions this
+        agent took on this game, how many moved anything at all? Summing the exit buckets would answer it with a
+        pooled number over a subset -- the exact defect the discipline names -- so the charge is taken here, once,
+        against a denominator that is the frame count itself.
+
+        Every observed frame lands in exactly one literal, including the ones that are NOT the agent's doing; those
+        are excluded from the rates by name (`note_board_skip`) rather than by being skipped, so the identity
+        sum(board_steps) + sum(board_skip) == frames is able to fail. The reading is `_change_reading` -- the SAME
+        implementation the priced column uses, not a second one that could drift from it."""
+        n = len(self.frames)
+        if n < 2:
+            self.chain.note_board_skip("no_predecessor")
+            return
+        lbl = self.acts[-1] if self.acts else None
+        if lbl in (None, "RESET", "?"):
+            self.chain.note_board_skip("label_reset" if lbl == "RESET"
+                                       else "label_none" if lbl is None else "label_unknown")
+            return
+        prev, cur = self.frames[-2], self.frames[-1]
+        if prev.shape != cur.shape:
+            self.chain.note_board("reshape")
+            return
+        raw, _masked, cells = self._change_reading(prev, cur)
+        banded = None
+        try:
+            m = self.engage.mask()
+            banded = bool(m.shape == cur.shape and m.any())
+        except Exception:
+            banded = None
+        kind = ("still" if not raw else
+                "band_only" if cells == 0 else
+                "sub_floor" if cells < MIN_CELLS else "live")
+        self.chain.note_board(kind, cells, banded)
 
     def _price_pending_exit(self) -> None:
         """PRICE the exit that chose the action which produced the frame just observed. Called once per observed
@@ -1274,6 +1315,24 @@ class ReduxPolicy:
         """Rendered-ready dicts for every FIRING. Empty list is the honest report that nothing fired -- no receipt,
         no firing, and no prose is permitted to bridge that gap."""
         return [e.to_dict() for e in self.receipts if e.fired]
+
+    def engage_report(self) -> Dict[str, Any]:
+        """THE BOARD-RESPONSE RECEIPT for this game: the per-frame inertness charge (from `ChainLedger`, where it was
+        written at the observe site) beside the state the `EngagementMeter` has always held and never printed.
+
+        The two halves are kept in named sub-dicts rather than flattened, because they have DIFFERENT denominators
+        and different lifetimes: `board` counts every frame this policy observed, `meter` counts only the frames the
+        meter accepted (it skips shape changes and unlabelled frames on its own terms) and its window fields
+        describe the tail of the run, not the run. Flattening them would let a reader divide one by the other."""
+        return {
+            "board": self.chain.board_report(),
+            "meter": self.engage.report(),
+            "escalations": int(self.n_modality_escalations),
+            "reverts": int(getattr(self, "n_modality_reverts", 0)),
+            "esc_branch": {k: int(v) for k, v in sorted(self._esc_branch.items())},
+            "escalated_at_end": self._escalated,
+            "family": self.family,
+        }
 
     def chain_report(self) -> Dict[str, Any]:
         """The measured stage distribution. This REPLACES the old per-run `_tether_stage` proxy, which inferred

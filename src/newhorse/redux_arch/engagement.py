@@ -167,6 +167,32 @@ class EngagementMeter:
             return 0.0
         return sum(1 for c in self._recent if c >= self.min_cells) / float(len(self._recent))
 
+    # ---- the readout ---------------------------------------------------------------------------------------------
+    def report(self) -> Dict[str, object]:
+        """Everything this organ ALREADY holds, printed. It held all of it from the day it shipped and no receipt
+        ever showed a single field, so an organ built to detect a frozen board could be silent on a game the agent
+        never moved and nothing would say so. This method computes NOTHING new -- it is a readout, not a measurement,
+        which is why it can be added while the detector taxonomy is frozen.
+
+        Two fields carry a caveat that must travel with them. `band_cells` is the mask AS OF THE LAST OBSERVED
+        FRAME, recomputed from a sliding window of the most recent `keep` frames: it is not evidence about the mask
+        that priced step 7, and a run whose restart REFILLS the timer bar breaks the non-decreasing ratchet the mask
+        requires, so a game that plainly has a bar can report `band_cells=0` here. The per-step record of whether a
+        band was masked lives in `ChainLedger.board_band`, charged at the step. `recent_window` is the tail only."""
+        m = self.mask() if self._frames else None
+        return {
+            "n_steps": int(self.n_steps),
+            "labels": {k: {"n": int(v.n), "mean": (v.total / v.n) if v.n else 0.0, "best": float(v.best)}
+                       for k, v in sorted(self._resp.items())},
+            "frozen": bool(self.frozen()),
+            "responsive_fraction": float(self.responsive_fraction()),
+            "recent_window": [int(c) for c in self._recent],
+            "band_cells": int(m.sum()) if m is not None else None,
+            "board_cells": int(m.size) if m is not None else None,
+            "min_cells": int(self.min_cells),
+            "window": int(self.window),
+        }
+
     # ---- the lever -----------------------------------------------------------------------------------------------
     def escalate(self, labels: List[str]) -> Optional[str]:
         """When the board is FROZEN under everything tried, hand back the least-observed AVAILABLE action -- switch
