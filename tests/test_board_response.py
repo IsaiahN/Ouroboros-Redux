@@ -16,7 +16,7 @@ import sys, os
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
-from newhorse.redux_arch.abort_code import ChainLedger
+from newhorse.redux_arch.abort_code import ChainLedger, LIVE_REDRAW_FRAC
 from newhorse.redux_arch.engagement import MIN_CELLS
 from newhorse.redux_arch.policy import ReduxPolicy, Blackboard
 from newhorse.redux_arch import policy as policy_mod
@@ -64,15 +64,99 @@ def test_the_cell_histogram_is_exact_and_shares_the_mean_s_denominator():
 
 
 def test_the_histogram_is_a_readout_and_no_decision_reads_it():
-    """An instrument that feeds a decision is not an instrument. `board_cells_hist` and `_board_cells_kind` are
-    written at exactly one site and read only by `board_report` and the sweep printer; if a decision path ever
-    imports them this fails, which is the notice that the freeze in HEARTBEAT item 4 has been crossed."""
+    """An instrument that feeds a decision is not an instrument. `board_cells_hist`, `_board_cells_kind` and -- since
+    2026-08-01 -- `board_live_hist` / `LIVE_REDRAW_FRAC` / `live_split` are written at exactly one site and read only
+    by `board_report` and the sweep printer; if a decision path ever imports them this fails, which is the notice
+    that the freeze in HEARTBEAT item 4 has been crossed.
+
+    The `live` split is the reason this test is EXTENDED rather than duplicated: a second copy of this pin would let
+    the two drift, and the whole claim is that ONE list of names is confined to ONE file."""
     import subprocess
-    out = subprocess.run(["grep", "-rn", "board_cells_hist\\|_board_cells_kind\\|cells_by_kind",
+    out = subprocess.run(["grep", "-rn",
+                          "board_cells_hist\\|_board_cells_kind\\|cells_by_kind"
+                          "\\|board_live_hist\\|_board_live_unsized\\|LIVE_REDRAW_FRAC\\|LIVE_FRAC_MARKS"
+                          "\\|live_split\\|live_at_frac\\|live_max_frac\\|live_hist",
                           os.path.join(os.path.dirname(__file__), "..", "src")],
                          capture_output=True, text=True).stdout
     files = {ln.split(":")[0].rsplit("/", 1)[-1] for ln in out.splitlines() if ln.strip()}
     assert files <= {"abort_code.py"}, files
+
+
+# ---- the `live` split: a partition of a literal that pooled two populations ------------------------------------
+def test_the_live_split_is_a_partition_of_the_coarse_live_total_and_names_the_unsized():
+    """WHICH MEMBERS, one level below `live`. The coarse column stays; this must sum back to it or fail. A `live`
+    step that arrives with no board area is charged `live_unsized` at its own name rather than dropped, for the same
+    reason `note_board_skip` exists: a split whose denominator silently omits rows cannot be checked."""
+    c = ChainLedger()
+    for cells, area in ((2, 100), (4, 100), (60, 100), (99, 100)):
+        c.note_board("live", cells, True, area=area)
+    c.note_board("live", 7, True)                          # no area reached the ledger
+    c.note_board("sub_floor", 2, True, area=100)           # NOT live: contributes to neither side of the split
+    c.note_board("still", 0, True, area=100)
+    r = c.board_report()
+    ls = r["live_split"]
+    assert r["live"] == 5
+    assert sum(ls.values()) == r["live"]                   # the identity, published so it can fail
+    assert ls == {"live_local": 2, "live_redraw": 2, "live_unsized": 1}
+    assert r["live_hist_n"] == 4                           # the unsized step is in the split, NOT in the joint hist
+    assert "2/100" in r["live_hist"] and "7/100" not in r["live_hist"]
+
+
+def test_the_live_split_is_recomputable_at_any_edge_from_the_banked_joint():
+    """THE EDGE IS AN AUTHOR'S CHOICE, so the record must not depend on it. The joint (cells, area) distribution is
+    exact and un-bucketed, which is what makes the printed split a VIEW rather than the measurement -- anybody who
+    prefers another fraction recomputes it from this dict without spending a sweep."""
+    c = ChainLedger()
+    for cells in (1, 5, 40, 51, 80):
+        c.note_board("live", cells, False, area=100)
+    r = c.board_report()
+    assert r["live_hist"] == {"1/100": 1, "5/100": 1, "40/100": 1, "51/100": 1, "80/100": 1}
+    assert r["live_at_frac"] == {"0.25": 3, "0.50": 2, "0.75": 1}
+    assert abs(float(r["live_max_frac"]) - 0.8) < 1e-9
+    # the same reading, recomputed from the banked joint at an edge the ledger never printed
+    at_third = sum(n for k, n in r["live_hist"].items()
+                   if (int(k.split("/")[0]) / int(k.split("/")[1])) >= 1 / 3.0)
+    assert at_third == 3                                   # 40, 51 and 80 all clear a third; 1 and 5 do not
+    assert r["live_redraw_frac"] == LIVE_REDRAW_FRAC       # the edge that WAS applied is on the receipt
+
+
+def test_two_boards_of_different_size_are_not_pooled_by_the_split():
+    """The defect being repaired is a count read without its denominator. 40 changed cells is most of a 64-cell
+    board and a corner of a 4096-cell one; if the area were dropped at the write site the split would re-commit the
+    error one level down."""
+    c = ChainLedger()
+    c.note_board("live", 40, False, area=64)               # 62% of the board: the screen was replaced
+    c.note_board("live", 40, False, area=4096)             # 1% of the board: something answered
+    r = c.board_report()
+    assert r["live_split"] == {"live_local": 1, "live_redraw": 1, "live_unsized": 0}
+    assert r["live_hist"] == {"40/64": 1, "40/4096": 1}
+
+
+def test_a_live_answer_that_replaces_the_whole_board_is_charged_live_and_ALSO_redraw():
+    """WHAT THE SPLIT DOES NOT LICENSE. It is a readout: the step is still `live`, the `live` column still counts it,
+    the smallness floor is untouched, and nothing about what counts as answered has moved. If a future edit makes
+    `note_board` route a large answer somewhere other than `live`, this fails."""
+    c = ChainLedger()
+    c.note_board("live", 4096, False, area=4096)
+    r = c.board_report()
+    assert r["split"] == {"live": 1} and r["live"] == 1
+    assert r["moved_outside_band"] == 1
+    assert r["cells_by_kind"]["live"] == {"n": 1, "mean": 4096.0, "max": 4096}
+    assert r["live_split"]["live_redraw"] == 1
+
+
+def test_the_area_reaches_the_ledger_from_the_live_observe_site_end_to_end():
+    """A field never COMPUTED and printed as a zero is a mis-labelled receipt. This drives the real policy over a
+    real board and asserts the area actually crossed the call site -- no `live` step may be `unsized` on a run where
+    every frame had a shape."""
+    w = _BigAnswerWorld()
+    p = _play(w, n=14, avail=(1, 2, 3, 4, 5), gid="board-live")
+    r = p.engage_report()["board"]
+    assert r["live"] > 0, r["split"]
+    assert r["live_split"]["live_unsized"] == 0            # the area crossed the site on every live step
+    assert sum(r["live_split"].values()) == r["live"]
+    assert r["live_split"]["live_redraw"] > 0              # the world replaces most of the board on purpose
+    assert all(k.endswith("/%d" % (w.g.shape[0] * w.g.shape[1])) for k in r["live_hist"])
 
 
 def test_the_board_charge_is_run_level_and_a_segment_close_does_not_reset_it():
@@ -102,6 +186,23 @@ class _TimerOnlyWorld:
         if self.k < self.g.shape[1]:
             self.g[-1, self.k] = 4
             self.k += 1
+        return self.frame()
+
+
+class _BigAnswerWorld:
+    """Every action repaints most of the board -- the purest form of the thing `live` was pooling: an answer so
+    large it cannot be a puzzle responding to one action. Names no game and is pixel-fit to none."""
+
+    def __init__(self, H=16, W=16):
+        self.g = np.zeros((H, W), dtype=int)
+        self.k = 0
+
+    def frame(self):
+        return self.g.copy()
+
+    def step(self, _label):
+        self.k += 1
+        self.g[:, :] = (self.k % 5) + 1                    # the whole screen is replaced, every step
         return self.frame()
 
 
@@ -196,6 +297,47 @@ def test_the_printer_stars_a_residue_instead_of_absorbing_it(capsys):
     board_section(_res(charged=7))                          # steps-retries == 10, charge == 7
     out = capsys.readouterr().out
     assert "NON-ZERO residue" in out
+
+
+def _res_split(local=7, redraw=3, unsized=0, live=10, area=400):
+    r = _res(charged=20, steps=21, retries=1, live=live)
+    b = r["results"]["aa11-1"]["engage"]["board"]
+    b["live_split"] = {"live_local": local, "live_redraw": redraw, "live_unsized": unsized}
+    b["live_hist"] = {"3/%d" % area: local, "%d/%d" % (area // 2, area): redraw}
+    b["live_hist_n"] = local + redraw
+    b["live_at_frac"] = {"0.25": redraw, "0.50": redraw, "0.75": 0}
+    b["live_max_frac"] = 0.5
+    b["live_redraw_frac"] = 0.5
+    return r
+
+
+def test_the_printer_splits_live_beside_the_coarse_column_and_keeps_both(capsys):
+    from sweep_chain import board_section
+    board_section(_res_split())
+    out = capsys.readouterr().out
+    assert "BOARD RESPONSE PER GAME" in out                # the coarse table is still printed...
+    assert "the `live` column split by SIZE" in out        # ...and the finer reading sits beside it
+    assert "READOUT ONLY" in out
+    assert "NON-ZERO residue against the coarse `live` total" not in out
+
+
+def test_the_printer_stars_a_split_that_does_not_sum_back_to_live(capsys):
+    """The identity is only worth publishing if it can fail. 7 + 2 + 0 != 10."""
+    from sweep_chain import board_section
+    board_section(_res_split(local=7, redraw=2, unsized=0, live=10))
+    out = capsys.readouterr().out
+    assert "NON-ZERO residue against the coarse `live` total" in out
+    assert "★-1" in out
+
+
+def test_the_printer_reports_an_absent_split_as_an_absence_not_a_zero(capsys):
+    """A run that predates the split carries no `live_split`, and a printer that rendered that as `local=0,
+    redraw=0` would be the field-never-computed-printed-as-a-zero defect in a new column."""
+    from sweep_chain import board_section
+    board_section(_res())                                  # the pre-split receipt shape
+    out = capsys.readouterr().out
+    assert "the `live` column split by SIZE" in out
+    assert "This is an ABSENCE and prices nothing" in out
 
 
 # ---- the tail: the one action whose frame nobody observed -----------------------------------------------------

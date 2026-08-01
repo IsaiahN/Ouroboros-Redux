@@ -732,7 +732,10 @@ class ReduxPolicy:
         kind = ("still" if not raw else
                 "band_only" if cells == 0 else
                 "sub_floor" if cells < MIN_CELLS else "live")
-        self.chain.note_board(kind, cells, banded)
+        # The board's own cell count, taken from the SAME pair of frames the reading came from -- so a `live` answer
+        # can be priced against the board it happened on, and "the puzzle answered" stops being pooled with "the
+        # screen was replaced". READOUT ONLY: the kind above is unchanged by it, and no decision reads it.
+        self.chain.note_board(kind, cells, banded, area=int(cur.shape[0]) * int(cur.shape[1]))
 
     def _price_pending_exit(self) -> None:
         """PRICE the exit that chose the action which produced the frame just observed. Called once per observed

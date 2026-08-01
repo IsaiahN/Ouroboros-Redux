@@ -417,6 +417,7 @@ def board_section(res: dict) -> None:
     if n_resid:
         print("  ★ %d game(s) have a NON-ZERO residue against `steps - retries - tail`. The charge and the action"
               " budget disagree, so no rate in this table may be cited until that is explained." % n_resid)
+    live_size_block(rows)
     # THE PER-ACTION TABLE, only for the games where it says something the row above cannot: the ones the agent
     # spent on ONE label. A game played with one action for its whole budget is the pathology `engagement.py` was
     # built to break, and if the meter is not reporting `frozen` on such a game that is a finding about the METER.
@@ -434,6 +435,73 @@ def board_section(res: dict) -> None:
                  float(m.get("responsive_fraction") or 0.0), m.get("band_cells"), m.get("board_cells")))
     if not n_one:
         print("    (none: every game observed at least two distinct action labels)")
+
+
+def live_size_block(rows) -> None:
+    """★ THE `live` COLUMN, SPLIT BY SIZE. A READOUT, AND ONLY A READOUT.
+
+    `live` means the board answered outside the monotone band at or above the smallness floor. On a 4096-cell board
+    the `live` MAXIMA observed in arm O were 1409, 2518 and 2708 masked cells -- a third to two thirds of every cell
+    on the screen. That is not a puzzle answering a click; it is a level redraw, a restart, or a menu opening. The
+    literal therefore pools two populations, and every rate built on it -- including `live%`, which HEARTBEAT already
+    forbids reading as competence -- inherits the pooling. This block asks WHICH MEMBERS.
+
+    THE COARSE READING IS KEPT. The `live` column in the table above is unchanged and is still the number to cite
+    when citing `live`; this is the finer reading printed BESIDE it, as a partition, with the residue published so
+    the two must sum back or star. `local + redraw + unsized == live`, per game and in total.
+
+    THE EDGE IS AN AUTHOR'S CHOICE AND IS PRINTED AS ONE. `LIVE_REDRAW_FRAC` is one number somebody picked, so the
+    three `@` columns count the same steps at three fractions -- COUNTED, NOT APPLIED, exactly as `floor_section`
+    counts the cells just below the smallness floor without proposing to move it. `maxfrac` is the largest single
+    answer as a fraction of its board. Nothing here is read by any decision, no detector is added, and what counts
+    as `live` is NOT changed by this block or by anything it prints."""
+    from newhorse.redux_arch.abort_code import LIVE_REDRAW_FRAC, LIVE_FRAC_MARKS
+    have = [(gid, r) for gid, r in rows if isinstance((r["engage"]["board"] or {}).get("live_split"), dict)]
+    print("\n  --- the `live` column split by SIZE (redraw edge = %.0f%% of the board; READOUT ONLY) ---"
+          % (100.0 * LIVE_REDRAW_FRAC))
+    if not have:
+        print("    (no game carried a `live_split`: this run predates the split, or no board area reached the"
+              " ledger. This is an ABSENCE and prices nothing -- the `live` column above is the only reading.)")
+        return
+    marks = ["%.2f" % f for f in LIVE_FRAC_MARKS]
+    print("    %-18s %7s %7s %7s %8s %8s %8s  %s"
+          % ("game", "live", "local", "redraw", "unsized", "resid", "maxfrac",
+             " ".join(">=%2.0f%%" % (100.0 * f) for f in LIVE_FRAC_MARKS)))
+    t = {"live": 0, "live_local": 0, "live_redraw": 0, "live_unsized": 0}
+    tm = {k: 0 for k in marks}
+    n_bad = 0
+    for gid, r in have:
+        b = r["engage"]["board"]
+        sp = b.get("split") or {}
+        ls = b["live_split"]
+        live = int(sp.get("live", 0))
+        parts = {k: int(ls.get(k, 0)) for k in ("live_local", "live_redraw", "live_unsized")}
+        resid = sum(parts.values()) - live
+        if resid:
+            n_bad += 1
+        at = b.get("live_at_frac") or {}
+        mf = b.get("live_max_frac")
+        t["live"] += live
+        for k, v in parts.items():
+            t[k] += v
+        for k in marks:
+            tm[k] += int(at.get(k, 0))
+        print("    %-18s %7d %7d %7d %8d %8s %7s%%  %s"
+              % (gid, live, parts["live_local"], parts["live_redraw"], parts["live_unsized"],
+                 ("★%+d" % resid) if resid else "0",
+                 ("%6.1f" % (100.0 * float(mf))) if mf is not None else "     -",
+                 " ".join("%5d" % int(at.get(k, 0)) for k in marks)))
+    print("    %-18s %7d %7d %7d %8d %8s %7s   %s"
+          % ("TOTAL", t["live"], t["live_local"], t["live_redraw"], t["live_unsized"],
+             ("★%+d" % (t["live_local"] + t["live_redraw"] + t["live_unsized"] - t["live"]))
+             if (t["live_local"] + t["live_redraw"] + t["live_unsized"]) != t["live"] else "0",
+             "", " ".join("%5d" % tm[k] for k in marks)))
+    if n_bad:
+        print("    ★ %d game(s) have a NON-ZERO residue against the coarse `live` total. The split and the column it"
+              " partitions disagree, so NEITHER may be cited until that is explained." % n_bad)
+    print("    (`local` / `redraw` partition `live` at ONE author-chosen edge; the `>=` columns count the same steps"
+          " at three edges and apply none of them. `unsized` is a `live` step that reached the ledger with no board"
+          " area -- named, not dropped. This block changes nothing about what counts as `live`.)")
 
 
 def floor_section(res: dict) -> None:

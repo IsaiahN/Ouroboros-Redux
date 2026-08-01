@@ -97,6 +97,20 @@ REUSE_BRANCHES: tuple = (
     "dir_no_evaluable", "dir_no_endorsement", "dir_tie", "dir_acted",
 )
 
+# ★ THE FRACTION AT WHICH A `live` STEP IS READ AS THE SCREEN BEING REPLACED RATHER THAN THE PUZZLE ANSWERING.
+# `live` means "the board answered outside the band, at or above the smallness floor" -- and on a 4096-cell board a
+# `live` MAXIMUM of 1409 / 2518 / 2708 masked cells is not a puzzle answering, it is a level redraw, a restart or a
+# menu. Pooling those with a two-cell answer makes every rate built on `live` (including `live%`, which HEARTBEAT
+# already forbids reading as competence) a POOLED number offered as evidence about a SUBSET.
+#
+# THE NUMBER BELOW IS AN AUTHOR'S CHOICE AND IS TREATED AS ONE. A bucket edge picked by the author is a second floor
+# smuggled in beside the one under test, so the ledger ALSO banks the EXACT (cells, area) joint distribution of every
+# `live` step: any threshold anybody later prefers is recomputable from the record without re-running a sweep, and the
+# printer publishes the count at three fractions so the reading's sensitivity to this choice is visible rather than
+# argued. READOUT ONLY -- no decision anywhere reads it, and it does NOT change what counts as answered.
+LIVE_REDRAW_FRAC: float = 0.5
+LIVE_FRAC_MARKS: tuple = (0.25, 0.5, 0.75)
+
 _BRANCH_INDICTS: Dict[str, str] = {
     # the offer site
     "explains_no_exceptions":         "bookkeeping",     # the residual was empty; no offer was really made
@@ -325,6 +339,14 @@ class ChainLedger:
     # every number published about it so far has been a mean. READOUT ONLY: nothing here is read by any decision.
     board_cells_hist: Counter = field(default_factory=Counter)
     _board_cells_kind: Dict[str, List[int]] = field(default_factory=dict)
+    # ★ WHICH MEMBERS, one level further down. `live` is itself a pooled literal: it holds "two cells changed where
+    # the agent clicked" together with "the whole screen was replaced". This is the EXACT joint distribution of the
+    # `live` steps only, keyed `"<masked cells>/<board area>"` -- never a bucket, so ANY fraction can be recomputed
+    # from it offline. The area is charged from the SAME read that produced the cells, so the two cannot disagree.
+    # A `live` step whose caller could not supply an area is NOT dropped: it is counted here and lands in the report
+    # under its own name (`live_unsized`), because a split whose denominator silently omits rows cannot be checked.
+    board_live_hist: Counter = field(default_factory=Counter)
+    _board_live_unsized: int = 0
 
     @property
     def steps_in_segment(self) -> int:
@@ -439,7 +461,8 @@ class ChainLedger:
         self._sig.cleared = True
 
     # ---- the inertness receipt -------------------------------------------------------------------------------
-    def note_board(self, kind: str, cells: Optional[int] = None, banded: Optional[bool] = None) -> None:
+    def note_board(self, kind: str, cells: Optional[int] = None, banded: Optional[bool] = None,
+                   area: Optional[int] = None) -> None:
         """ONE agent-chosen action's frame, charged to exactly ONE literal by the site that read the two boards.
 
         The literals, in the order the reader should think about them:
@@ -456,7 +479,14 @@ class ChainLedger:
                          field-never-computed-printed-as-a-number defect in a column that gets averaged.
         `cells` is the MASKED changed-cell count and is None exactly for `reshape`. `banded` is whether a monotone
         band was masked at this step; it is passed from the same read that produced `cells` so the two can never
-        disagree, and it is None only when the caller could not compute a mask at all."""
+        disagree, and it is None only when the caller could not compute a mask at all.
+
+        `area` is the BOARD's own cell count at this step, passed from the same read for the same reason, and used
+        for exactly one thing: banking the size of a `live` answer relative to the board it happened on, so the
+        literal that pools "the puzzle answered" with "the screen was replaced" can be split by a READER. It is
+        charged only on `live` (the other literals are at or below the floor by construction and a fraction of the
+        board would say nothing about them), and a `live` step that arrives without one is counted as unsized rather
+        than dropped."""
         self.board_steps[str(kind)] += 1
         if cells is not None:
             c = int(cells)
@@ -467,6 +497,11 @@ class ChainLedger:
             e[0] += c
             e[1] += 1
             e[2] = max(e[2], c)
+        if str(kind) == "live":
+            if cells is not None and area is not None and int(area) > 0:
+                self.board_live_hist["%d/%d" % (int(cells), int(area))] += 1
+            else:
+                self._board_live_unsized += 1          # excluded from the split BY NAME, never dropped
         if banded is not None:
             self.board_band["banded" if banded else "unbanded"] += 1
 
@@ -503,7 +538,42 @@ class ChainLedger:
             "cells_hist_n": int(sum(self.board_cells_hist.values())),
             "cells_by_kind": {k: {"n": int(v[1]), "mean": (float(v[0]) / v[1]) if v[1] else None, "max": int(v[2])}
                               for k, v in sorted(self._board_cells_kind.items())},
+            # ★ THE `live` SPLIT. The COARSE reading (`live`, above) is kept under its own name and is not replaced;
+            # this is the finer one beside it, and `live_split` is published as a PARTITION of that same total so the
+            # two readings must sum back or fail. `live_hist` is the exact joint record the split is derived from,
+            # and `live_at_frac` counts the same steps at three fractions -- COUNTED, NOT APPLIED, so the reading's
+            # dependence on one author-chosen edge is visible in the receipt itself.
+            "live_hist": {k: int(n) for k, n in sorted(self.board_live_hist.items(),
+                                                       key=lambda kv: (int(kv[0].split("/")[1]),
+                                                                       int(kv[0].split("/")[0])))},
+            "live_hist_n": int(sum(self.board_live_hist.values())),
+            "live_redraw_frac": float(LIVE_REDRAW_FRAC),
+            "live_split": self._live_split(),
+            "live_at_frac": {("%.2f" % f): self._live_at_or_above(f) for f in LIVE_FRAC_MARKS},
+            "live_max_frac": self._live_max_frac(),
         }
+
+    # ---- the `live` split: three helpers, all pure reads of the one banked joint distribution ------------------
+    def _live_pairs(self):
+        for k, n in self.board_live_hist.items():
+            c, ar = k.split("/")
+            yield int(c), int(ar), int(n)
+
+    def _live_at_or_above(self, frac: float) -> int:
+        return int(sum(n for c, ar, n in self._live_pairs() if ar > 0 and (float(c) / ar) >= float(frac)))
+
+    def _live_max_frac(self) -> Optional[float]:
+        fr = [float(c) / ar for c, ar, _n in self._live_pairs() if ar > 0]
+        return max(fr) if fr else None
+
+    def _live_split(self) -> Dict[str, int]:
+        """A PARTITION of the same `live` total the coarse column prints, in three named parts. `live_redraw` is at
+        or above `LIVE_REDRAW_FRAC` of the board -- the screen being replaced. `live_local` is the rest of the sized
+        steps. `live_unsized` is every `live` step that reached the ledger without an area, named rather than
+        dropped so the identity `local + redraw + unsized == live` is able to fail."""
+        redraw = self._live_at_or_above(LIVE_REDRAW_FRAC)
+        sized = int(sum(self.board_live_hist.values()))
+        return {"live_local": sized - redraw, "live_redraw": redraw, "live_unsized": int(self._board_live_unsized)}
 
     def end_segment(self, reason: str) -> Optional[Stage]:
         """Close the current segment and open a fresh one. Returns the stage if this was a scored STALL, or None if
