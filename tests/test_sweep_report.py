@@ -194,6 +194,117 @@ def test_a_single_action_game_renders_MUTE_rather_than_a_verdict():
     assert "CONSISTENT WITH SELF-MOTION" not in out, out
 
 
+def _run_two_exits(gid, n, movers=("A1",)):
+    """★ CLASSIFIER 18's synthetic instance: ONE game whose two actions leave through TWO different exits.
+
+    This is `su15` on 2026-08-01 in miniature. There, A6 left through `family_click` and A7 through `escalate`
+    after the click exemption was narrowed, and the control -- which grouped by exit first -- saw two one-action
+    games and printed MUTE twice, throwing away the sharpest action contrast on the roster.
+
+    The board answers ONLY when the emitted action is in `movers`, so the per-GAME reading is knowable in advance:
+    one action at 100%, one at 0%, ACTION-CONDITIONAL by 100 points. The per-EXIT reading of the same steps can
+    only ever be MUTE, because each exit carries exactly one action. Any printer that reports only the per-exit
+    reading DELETES a 100-point finding, which is the failure direction that matters: it does not overstate, it
+    erases."""
+    p = _policy(gid)
+    labels = ["A1", "A2"]
+    exits = {"A1": "exit_alpha", "A2": "exit_beta"}
+
+    def _stub():
+        p._dec_calls += 1
+        lbl = labels[p.n_emitted % len(labels)]
+        return p._exit(exits[lbl], (lbl, None))
+
+    p._decide = _stub
+    g = np.zeros((20, 20), dtype=int)
+    g[3, 3], g[3, 4] = 4, 5
+    tick = 0
+    for _ in range(n):
+        p.observe(g.copy(), [1, 2, 3, 4], 0)
+        lbl, _d = p.choose()
+        if movers is None or lbl in movers:
+            tick += 1
+            g[9:11, 9:11] = tick % 5 + 1
+    p._close_segment("death")
+    return p
+
+
+def _grouped_by_game(out):
+    """The CLASSIFIER 18 sub-block only. Slicing it off matters: the per-exit rows are still printed above it by
+    design, so an assertion against the whole section would pass on the OLD printer for the wrong reason."""
+    sec = _section(out, "=== THE SELF-MOTION CONTROL")
+    i = next(k for k, l in enumerate(sec.splitlines()) if "GROUPED BY GAME FIRST" in l)
+    return "\n".join(sec.splitlines()[i:])
+
+
+def test_a_game_whose_two_actions_take_two_exits_is_NOT_MUTE_when_grouped_by_game():
+    """★ THE HEAD ITEM'S PIN (CLASSIFIER 18). The control's question -- did the AGENT move the board, or does the
+    board move anyway? -- has the GAME as its denominator. Group by exit first and a two-exit game reads as two
+    one-action games and the control goes MUTE on the one contrast it was built to find.
+
+    Both readings are asserted here, because keeping the coarse one under its own name is half the fix: the
+    per-exit rows must STILL be MUTE (they are honestly mute -- one action each) and the per-game row must NOT be.
+    A printer that fixed the grouping by deleting the per-exit rows would pass a weaker version of this test."""
+    out = _render(_res(dd44=_run_two_exits("dd44-dddd", _N)))
+    sec = _section(out, "=== THE SELF-MOTION CONTROL")
+    grouped = _grouped_by_game(out)
+
+    # the per-EXIT reading: two rows, each honestly MUTE, each kept
+    per_exit = sec[:sec.index("GROUPED BY GAME FIRST")]
+    assert "exit_alpha" in per_exit and "exit_beta" in per_exit, per_exit
+    assert per_exit.count("MUTE: one action only") == 2, per_exit
+    assert "ACTION-CONDITIONAL" not in per_exit, per_exit
+
+    # the per-GAME reading: the same steps, and the contrast is visible
+    assert "MUTE" not in grouped.split("->")[1].split("|")[0], grouped
+    assert "ACTION-CONDITIONAL" in grouped, grouped
+    assert "A1 100.0%" in grouped and "A2   0.0%" in grouped, grouped
+    assert "★ WIDENED" in grouped, grouped
+    assert "exit_alpha{A1}, exit_beta{A2}" in grouped, grouped
+
+
+def test_the_regrouping_sums_back_to_the_pooled_action_split():
+    """The regrouping is the SAME steps read a second way, so it must close against the pooled split exactly. A
+    residue would mean the two groupings are counting different steps, and then neither row is citable -- which
+    is what the printer must say, rather than rendering a discrepancy as silence."""
+    out = _render(_res(dd44=_run_two_exits("dd44-dddd", _N),
+                       aa11=_run("aa11-aaaa", _N, ("A1",)),
+                       bb22=_run("bb22-bbbb", _N, None)))
+    grouped = _grouped_by_game(out)
+    assert "RESIDUE=0" in grouped, grouped
+    assert "DOES NOT SUM" not in grouped, grouped
+    assert "games WIDENED by the regrouping=1" in grouped, grouped
+
+
+def test_the_regrouped_block_does_not_render_a_region_key_as_an_action():
+    """A field never COMPUTED, printed as a zero, IS a mis-labelled receipt. The per-game bag carries the click
+    REGION sub-keys (`<exit>|A6@r2c0`) alongside the action sub-keys, and they hold no `act_attr` at all -- so a
+    regrouping that did not drop them would print regions as actions at `nan%(n=0)`, and worse, a game with one
+    real action plus nine region keys would stop being MUTE for a reason that is pure rendering."""
+    out = _render(_res(cc33=_region_game("cc33-cccc", 40)))
+    grouped = _grouped_by_game(out)
+    assert "@r" not in grouped, grouped
+    assert "n=0" not in grouped, grouped
+
+
+def test_a_one_exit_one_action_game_stays_MUTE_after_the_regrouping():
+    """The fix must not manufacture a finding. A game that really does have one action is still MUTE when grouped
+    by game -- the regrouping changes the DENOMINATOR, never the classifier -- and the row must say so in the same
+    words, since a control that stops being able to refuse is not a control."""
+    p = _policy("ee55-eeee")
+    g = np.zeros((20, 20), dtype=int)
+    g[3, 3], g[3, 4] = 4, 5
+    for i in range(9):
+        p.observe(g.copy(), [1], 0)                   # ONE available action: every step is A1
+        p.choose()
+        g[9:11, 9:11] = i % 5 + 1
+    p._close_segment("death")
+    grouped = _grouped_by_game(_render(_res(ee55=p)))
+    assert "MUTE: one action only" in grouped, grouped
+    assert "★ WIDENED" not in grouped, grouped
+    assert "games WIDENED by the regrouping=0" in grouped, grouped
+
+
 def _relabel_to_lockin(p):
     """THE CLASSIFIER OUTLIVES THE STATE IT WAS BUILT FOR. No live policy can produce a `hold_answered`-dominated
     receipt any more: every answered label is handed back on its first answer, including A6, whose exception was

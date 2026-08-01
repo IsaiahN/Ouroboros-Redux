@@ -88,6 +88,29 @@ def main() -> None:
 _MIN_ACT_N = 5
 
 
+def _action_spread_verdict(rates: dict, ga: dict) -> str:
+    """THE self-motion classifier for ONE denominator's action split, in ONE place.
+
+    It is called from two sites below -- the per-EXIT reading and the per-GAME reading -- because those two
+    readings are the same steps grouped two ways, and a classifier copied into both sites is a classifier that
+    will eventually disagree with itself about the same sweep. `rates` is action -> masked %, `ga` is action ->
+    priced steps. Returns the verdict TEXT; the caller prints it and owns the row above it."""
+    solid = {a: r for a, r in rates.items() if ga[a] >= _MIN_ACT_N}
+    if len(rates) < 2:
+        return "MUTE: one action only -- the split cannot vary, so it rules nothing out"
+    if len(solid) < 2:
+        return ("MUTE: fewer than two actions reached %d priced steps (%s) -- too thin to support"
+                % (_MIN_ACT_N, ", ".join("%s n=%d" % (a, ga[a]) for a in sorted(ga))))
+    _lo, _hi = min(solid.values()), max(solid.values())
+    if _hi - _lo >= 10.0:
+        return ("ACTION-CONDITIONAL by %.1f pts (%.1f%%-%.1f%%) -- the change tracks WHICH action, so it is the"
+                " agent's" % (_hi - _lo, _lo, _hi))
+    if _hi >= 90.0:
+        return ("UNIFORM and HIGH (%.1f%%-%.1f%%) -- CONSISTENT WITH SELF-MOTION; this game's rate may not be"
+                " cited as competence" % (_lo, _hi))
+    return "UNIFORM (%.1f%%-%.1f%%) but not high -- no self-motion signature" % (_lo, _hi)
+
+
 def decide_exits_by_game(res: dict) -> dict:
     """Per-game count of `decide()` exits, read off the SAME per-game carry the click section reads, so this can
     never drift from the pooled funnel. A top-level literal carries `exits`; the `name|ACTION` and
@@ -1278,23 +1301,7 @@ def report(res: dict) -> None:
             # an ungated classifier reads "0.0%-100.0%, ACTION-CONDITIONAL" off four single steps and calls it a
             # finding. Actions below the floor are still PRINTED -- they are the evidence -- but they do not carry
             # a verdict, and a game with fewer than two actions above it is MUTE, published as mute.
-            solid = {a: r for a, r in rates.items() if ga[a] >= _MIN_ACT_N}
-            if len(rates) < 2:
-                verdict = "MUTE: one action only -- the split cannot vary, so it rules nothing out"
-            elif len(solid) < 2:
-                verdict = ("MUTE: fewer than two actions reached %d priced steps (%s) -- too thin to support"
-                           % (_MIN_ACT_N, ", ".join("%s n=%d" % (a, ga[a]) for a in sorted(ga))))
-            else:
-                rates = solid
-                _lo, _hi = min(rates.values()), max(rates.values())
-                if _hi - _lo >= 10.0:
-                    verdict = ("ACTION-CONDITIONAL by %.1f pts (%.1f%%-%.1f%%) -- the change tracks WHICH action,"
-                               " so it is the agent's" % (_hi - _lo, _lo, _hi))
-                elif _hi >= 90.0:
-                    verdict = ("UNIFORM and HIGH (%.1f%%-%.1f%%) -- CONSISTENT WITH SELF-MOTION; this game's rate"
-                               " may not be cited as competence" % (_lo, _hi))
-                else:
-                    verdict = "UNIFORM (%.1f%%-%.1f%%) but not high -- no self-motion signature" % (_lo, _hi)
+            verdict = _action_spread_verdict(rates, ga)
             if _va:
                 verdict += " | VETO CONTROL: %5.1f%% masked over %d replaced steps vs %5.1f%% for the exit's own" \
                            % (100.0 * _vm / _va, _va, _exit_rate)
@@ -1310,6 +1317,103 @@ def report(res: dict) -> None:
     print("  veto steps READ by the control=%d of %d replaced (%d had no result frame) | pooled veto masked=%s"
           % (_vres, sum(dfv.values()), sum(dfv.values()) - _vres,
              ("%5.1f%%" % (100.0 * sum(dvm.values()) / _vres)) if _vres else "-- (no veto steps priced)"))
+
+    # ★★★ CLASSIFIER 18 (08-01): THE SAME STEPS, GROUPED BY GAME BEFORE EXIT. ★★★
+    # The rows above key on the EXIT LITERAL first and the ACTION second. That was harmless while every game took
+    # one exit. It stopped being harmless the moment a game's actions arrived through two: on 08-01 `su15` sent A6
+    # through `family_click` (n=103) and A7 through `escalate` (n=12) -- the sharpest per-action contrast the
+    # roster has ever produced -- and the block above rendered it as TWO one-action games and printed
+    # `MUTE: one action only` TWICE, discarding the exact comparison it exists to make.
+    #
+    # The question this control asks is "did the AGENT move the board, or does the board move anyway?" and that
+    # question's denominator is the GAME: one board, one episode, the actions compared against each other on it.
+    # An exit is a fact about which code path chose the action, not about which board it was sent to. A per-exit
+    # number standing where the per-game number is what answers the question is the pooled/subset defect one level
+    # down (RANKING 5: ask WHICH MEMBERS), and it fails in the worse direction -- it does not overstate a finding,
+    # it DELETES one.
+    #
+    # ★ THE COARSE READING IS KEPT UNDER ITS OWN NAME. The per-exit rows above are not removed and not altered;
+    # they answer a different question (does one code path answer better than another on the same game?) and are
+    # still the only place a two-exit game's paths can be told apart. When a coarse reading is replaced by a finer
+    # one, both are printed and each is labelled with the question it answers.
+    #
+    # Nothing here is recomputed and no counter was added: this is the SAME per-game `act_*` bag the loop above
+    # reads, summed over exits instead of filtered to one, and the RESIDUE line below proves the two agree.
+    print("\n  --- THE SAME CONTROL, GROUPED BY GAME FIRST (CLASSIFIER 18 -- the question's own denominator) ---")
+    if not fbg:
+        print("      (no per-game funnel recorded -- the control can only be read per-exit above, and on any game"
+              " that took more than one exit that reading is a SUBSET, not an answer)")
+    _regrouped = _split_games = _widened_games = 0
+    for g, xs in sorted(fbg.items()):
+        ga, gm, gc, gcn, gx = {}, {}, {}, {}, {}
+        _va = _vm = _ea = _em = 0
+        for kk, vv in xs.items():
+            if not isinstance(vv, dict):
+                continue
+            x, _sep, a = kk.partition("|")
+            if _sep != "|":
+                # a top-level exit literal: its veto control and its own answered rate, pooled over the game
+                _va += int(vv.get("veto_attr", 0))
+                _vm += int(vv.get("veto_moved", 0))
+                _ea += int(vv.get("attr", 0))
+                _em += int(vv.get("moved", 0))
+                continue
+            # ★ DROP THE ZEROS, as the region block below already does. The per-game bag carries every sub-key
+            # this game recorded under ANY funnel field, so a REGION key `<exit>|A6@r2c0` arrives here with an
+            # `act_attr` of 0 and would render as an action named `A6@r2c0` at `nan%(n=0)` beside the real ones --
+            # a row that was never COMPUTED, printed as if it had been. It is the other instrument's key.
+            n_a = int(vv.get("act_attr", 0))
+            if not n_a:
+                continue
+            ga[a] = ga.get(a, 0) + n_a
+            gm[a] = gm.get(a, 0) + int(vv.get("act_moved", 0))
+            gc[a] = gc.get(a, 0) + float(vv.get("act_cells", 0))
+            gcn[a] = gcn.get(a, 0) + int(vv.get("act_cells_n", 0))
+            gx.setdefault(a, set()).add(x)
+        if not ga:
+            continue
+        _regrouped += sum(ga.values())
+        _exits = sorted(set().union(*gx.values()))
+        # ★ CROSSING EXITS IS NOT THE SAME AS WIDENING THE SPLIT, and conflating them would overstate this fix's
+        # reach. EVERY game crosses at least `warmup` -> its steady exit, so "took more than one exit" counts
+        # essentially the whole roster and says nothing. What the per-exit grouping actually DESTROYS is a
+        # comparison, and it only destroys one when the game's ACTION SET is wider than any single exit's -- that
+        # is `su15`'s A6-here / A7-there, and it is the number to cite. Both are printed; each is named.
+        _by_exit = {}
+        for a, xset in gx.items():
+            for x in xset:
+                _by_exit.setdefault(x, set()).add(a)
+        _widened = len(ga) > max(len(v) for v in _by_exit.values())
+        if len(_exits) > 1:
+            _split_games += 1
+        if _widened:
+            _widened_games += 1
+        rates = {a: 100.0 * gm.get(a, 0) / c for a, c in ga.items() if c}
+        cells = {a: gc.get(a, 0) / gcn[a] for a in ga if gcn.get(a)}
+        row = "  ".join("%s %5.1f%%(n=%d,cells%5.1f)" % (a, rates.get(a, float("nan")), ga[a],
+                                                         cells.get(a, float("nan")))
+                        for a in sorted(ga))
+        print("      %-18s %s" % (g, row))
+        print("          over %d exit(s): %s%s" % (
+            len(_exits), ", ".join("%s{%s}" % (x, ",".join(sorted(_by_exit[x]))) for x in _exits),
+            ("  ★ WIDENED -- this game's %d actions never met inside ONE exit, so EVERY per-exit row above is a"
+             " subset and the verdict here is the only one that answers the control's question" % len(ga))
+            if _widened else ""))
+        verdict = _action_spread_verdict(rates, ga)
+        if _va:
+            _exit_rate = (100.0 * _em / _ea) if _ea else float("nan")
+            verdict += " | VETO CONTROL: %5.1f%% masked over %d replaced steps vs %5.1f%% for the game's own" \
+                       % (100.0 * _vm / _va, _va, _exit_rate)
+        else:
+            verdict += " | VETO CONTROL MUTE (no replaced steps on this game)"
+        print("          -> %s" % verdict)
+    _pooled_act = sum(int(v) for v in daa.values())
+    print("      regrouped priced steps=%d | pooled action split=%d | RESIDUE=%d | games that crossed >1 exit"
+          "=%d | games WIDENED by the regrouping=%d"
+          % (_regrouped, _pooled_act, _regrouped - _pooled_act, _split_games, _widened_games))
+    if _regrouped - _pooled_act:
+        print("      ★ THE PER-GAME REGROUPING DOES NOT SUM TO THE POOLED ACTION SPLIT. These are meant to be the"
+              " same steps read twice -- cite NEITHER until the difference is named.")
 
     # ★★★ THE CLICK REGION -- THE CONTROL THE SELF-MOTION SPLIT COULD NOT HAVE. ★★★
     # The block above conditions on the EMITTED LABEL, and every click carries the same label `A6`. So on click
