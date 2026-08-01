@@ -195,11 +195,11 @@ def test_a_single_action_game_renders_MUTE_rather_than_a_verdict():
 
 
 def _relabel_to_lockin(p):
-    """THE CLASSIFIER OUTLIVES THE STATE IT WAS BUILT FOR. The release shipped this beat means no live policy can
-    produce a `hold_answered`-dominated receipt any more -- the directional case is handed back on its first
-    answer and A6 is caught by the click exit. That is exactly why the LOCK-IN verdict must STAY in the printer:
-    it is the guard that would catch the state coming back by some other path, and a guard is worth nothing if
-    nothing ever tests it.
+    """THE CLASSIFIER OUTLIVES THE STATE IT WAS BUILT FOR. No live policy can produce a `hold_answered`-dominated
+    receipt any more: every answered label is handed back on its first answer, including A6, whose exception was
+    retired on 2026-08-01 when the click exemption was narrowed. That is exactly why the LOCK-IN verdict must STAY
+    in the printer: it is the guard that would catch the state coming back by some other path, and a guard is
+    worth nothing if nothing ever tests it.
 
     So the state is now built where it honestly belongs -- on the RECEIPT, by relabelling counted steps, not by
     inventing them. The step totals and the escalate exits are untouched, so the identity still closes; only the
@@ -243,8 +243,12 @@ def test_the_escalation_branch_block_renders_and_CLOSES():
     out = _section(_render(_res(aa11=_escalating("aa11-aaaa", 20, 0))), "=== THE ESCALATION BRANCH")
     assert "RESIDUE=0" in out, out
     assert "DOES NOT SUM" not in out, out
-    for row in ("new", "hold_untried", "hold_answered"):
+    for row in ("new", "hold_untried"):
         assert row in out, out
+    # ★ `hold_answered` was RETIRED on 2026-08-01. A retired branch must not print a zero -- a field never
+    # computed, rendered as a 0, is a mis-labelled receipt and reads as evidence that the state was measured and
+    # found absent. It renders ONLY when something charges it, and then as a defect (below).
+    assert "hold_answered" not in out, out
 
 
 def test_a_fair_trial_wait_and_a_LOCK_IN_render_as_DIFFERENT_verdicts():
@@ -760,3 +764,30 @@ def test_the_EXCEPTION_TEXT_of_a_game_that_never_opened_is_printed_beside_its_cl
     out = _section(_render(res), _BUDGET)
     assert "HTTP 400 on RESET" in out, out
     assert "NO EXCEPTION TEXT ON THE RECEIPT" in out and "r11l" in out, out
+
+
+# ---- the roster filter: a subset sweep must SAY it is a subset ------------------------------------------------
+def test_the_roster_filter_keeps_by_prefix_and_reports_what_it_dropped():
+    """`select` exists so a two-arm A/B can run on the cheapest instance instead of the whole roster. The
+    danger it introduces is not cost, it is ATTRIBUTION: a pooled number from a filtered sweep read as if it
+    were the roster's. So the contract under test is that the filter reports its own drop count, and that an
+    empty filter is the identity -- a launcher that silently narrows the set is the same defect as a printer
+    that silently absorbs a residue."""
+    from sweep_chain import select
+
+    roster = ["aa11-1111", "bb22-2222", "cc33-3333"]
+    kept, dropped, unmatched = select(roster, "")
+    assert kept == roster and dropped == 0 and unmatched == []
+    kept, dropped, unmatched = select(roster, "aa11, cc33")
+    assert kept == ["aa11-1111", "cc33-3333"], kept
+    assert dropped == 1 and unmatched == [], (dropped, unmatched)
+
+
+def test_a_prefix_that_matches_nothing_is_RETURNED_not_ignored():
+    """Asking for a game the roster does not offer must be loud. If it were dropped silently the arm would run
+    over a smaller set than its pre-registration named, and every prediction scored against it would be scored
+    against the wrong denominator."""
+    from sweep_chain import select
+
+    kept, dropped, unmatched = select(["aa11-1111"], "zz99")
+    assert kept == [] and unmatched == ["zz99"], (kept, unmatched)

@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
 from newhorse.redux_arch.abort_code import ChainLedger
 from newhorse.redux_arch.engagement import MIN_CELLS
 from newhorse.redux_arch.policy import ReduxPolicy, Blackboard
+from newhorse.redux_arch import policy as policy_mod
 
 
 # ---- the ledger: one charge per frame, two denominators, an identity that can fail ----------------------------
@@ -271,15 +272,18 @@ def _play_frozen(avail, family=None, n=60):
     return p
 
 
-def test_a_natively_click_routed_game_never_reaches_the_escalation_organ_at_all():
-    """THE GUARD, AS A RECEIPT INSTEAD OF A CODE READING. `_decide` returns at the `click_native` exit BEFORE
+def test_broad_a_natively_click_routed_game_never_reaches_the_escalation_organ_at_all(monkeypatch):
+    """THE GUARD, AS A RECEIPT INSTEAD OF A CODE READING -- and, since 2026-08-01, THE CONTROL ARM RATHER THAN THE
+    LIVE BEHAVIOUR. Under the broad exemption `_decide` returns at the `click_native` exit BEFORE
     `_modality_escalate` is called, so on a game whose action set carries no directional actions the organ built to
     break "one label forever" is never consulted -- however frozen the board and however many untried actions are
     available. The control below is the same board and the same action set routed to another organ.
 
     NOTE WHAT THIS DOES *NOT* SAY. On a game that advertises action 6 ALONE the point is moot: there is no other
     action to escalate to and the single label is the action set, not a pathology. The guard only bites where an
-    alternative EXISTS, which is why this test gives the game two."""
+    alternative EXISTS, which is why this test gives the game two -- and that is precisely the case the narrowed
+    exemption now hands to the organ (see the twin below)."""
+    monkeypatch.setattr(policy_mod, "CLICK_EXEMPT", "broad")
     p = _play_frozen([6, 7])
     assert p.family == "click" and p._pre_esc_family is None      # natively routed, never escalated into
     assert p.n_modality_escalations == 0
@@ -287,6 +291,24 @@ def test_a_natively_click_routed_game_never_reaches_the_escalation_organ_at_all(
     # ...and it is not that there was nothing to escalate TO: the organ, asked directly, hands back A7.
     assert p.engage.frozen() is True
     assert p.engage.escalate(["A6", "A7"]) == "A7"
+
+
+def test_narrow_the_same_game_DOES_reach_the_organ_and_tries_the_untried_action(monkeypatch):
+    """The twin, and the whole of the 2026-08-01 change measured on the same board as its control. Same frozen
+    world, same action set, same 60 steps -- the only difference is which exemption predicate is in force. The
+    untried action is actually emitted, and the escalation is counted at the organ's own site.
+
+    A game advertising action 6 ALONE is unaffected by this, which is what protects a committed click organ: with
+    nothing to escalate TO, the narrowed predicate returns exactly what the broad one returned."""
+    monkeypatch.setattr(policy_mod, "CLICK_EXEMPT", "narrow")
+    p = _play_frozen([6, 7])
+    assert p.family == "click" and p._pre_esc_family is None
+    assert p.n_modality_escalations >= 1, p.n_modality_escalations
+    assert set((p.engage_report()["meter"]["labels"] or {})) == {"A6", "A7"}
+
+    q = _play_frozen([6])                                        # click-only action set: nothing to escalate to
+    assert q.n_modality_escalations == 0, q.n_modality_escalations
+    assert set((q.engage_report()["meter"]["labels"] or {})) == {"A6"}
 
 
 def test_the_same_frozen_board_routed_to_another_organ_does_escalate():

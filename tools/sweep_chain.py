@@ -8,7 +8,18 @@ It hardcodes NO game id -- the set comes from the API -- and it tunes nothing. I
 says, however low, and do not build the chain to make it read higher.
 
     export ARC_API_KEY=...            # env-only, never written to a file
-    PYTHONPATH=src python3.12 tools/sweep_chain.py [max_actions] [wall_cap_s]
+    PYTHONPATH=src python3.12 tools/sweep_chain.py [max_actions] [wall_cap_s] [only]
+
+`only` is an optional comma-separated list of game-id PREFIXES. It exists for one reason and it is not
+economy of tokens: the ranking says AIM THE FIRST FIRING AT THE CHEAPEST INSTANCE, and a two-arm A/B on a
+25-game roster costs sixteen minutes of wall clock to answer a question two games can answer. It is a
+ROSTER filter and nothing else -- it never touches what the agent may perceive or do, it is read here in
+the launcher and never inside the agent, and the games it selects are named ON THE COMMAND LINE by the
+person running the arm, so the selection is in the shell history and in the capture file's own header.
+
+★ A SUBSET SWEEP'S POOLED NUMBERS ARE NOT THE ROSTER'S POOLED NUMBERS. When `only` is in force the header
+says so and names every id it kept AND the count it dropped, because a pooled number offered as evidence
+about a set it was not measured over is the defect this whole instrument exists to catch.
 """
 from __future__ import annotations
 import json
@@ -34,13 +45,37 @@ def environment_ids():
     return sorted(set(out))
 
 
+def select(gids, only: str):
+    """Keep the roster entries matching any prefix in `only`; return (kept, dropped_count, unmatched_prefixes).
+
+    A prefix that matches NOTHING is returned rather than ignored: asking for a game the roster does not
+    offer and silently getting a smaller sweep is how an arm ends up measuring a different set than the
+    one its prereg named."""
+    pref = [p.strip() for p in (only or "").split(",") if p.strip()]
+    if not pref:
+        return list(gids), 0, []
+    kept = [g for g in gids if any(g.startswith(p) for p in pref)]
+    unmatched = [p for p in pref if not any(g.startswith(p) for g in gids)]
+    return kept, len(gids) - len(kept), unmatched
+
+
 def main() -> None:
     assert_online_sdk()
     if not os.environ.get("ARC_API_KEY"):
         raise SystemExit("ARC_API_KEY not set -- env-only")
     max_actions = int(sys.argv[1]) if len(sys.argv) > 1 else 120
     wall_cap_s = float(sys.argv[2]) if len(sys.argv) > 2 else 200.0
+    only = sys.argv[3] if len(sys.argv) > 3 else ""
     gids = environment_ids()
+    gids, dropped, unmatched = select(gids, only)
+    if unmatched:
+        raise SystemExit("no roster game starts with: %s -- refusing to run a sweep over a set the "
+                         "command line did not ask for" % ", ".join(unmatched))
+    if dropped:
+        print("★ SUBSET SWEEP -- only=%r kept %d and DROPPED %d roster games. Every pooled number below is "
+              "pooled over THESE games only: %s" % (only, len(gids), dropped, ", ".join(gids)))
+    if not gids:
+        raise SystemExit("empty roster after filtering")
     print("sweeping %d environments (max_actions=%d wall_cap=%.0fs)" % (len(gids), max_actions, wall_cap_s))
 
     res = run_swarm(gids, max_actions=max_actions, wall_cap_s=wall_cap_s, rpm=540, max_workers=8,
@@ -552,9 +587,12 @@ def report(res: dict) -> None:
     #   new           a genuine modality switch -- the lever firing, once per switch
     #   hold_untried  serving the SAME label again while its fair trial completes: the designed cost of a switch,
     #                 bounded by the engagement window
-    #   hold_answered serving the same label again AFTER it has answered at least once. Now reachable ONLY by A6
-    #                 on the step its click commit lands; every later A6 decision is caught by the natively-routed
-    #                 click exit. A DIRECTIONAL label that answers is RELEASED instead (below).
+    #   hold_answered RETIRED 2026-08-01, and printed below ONLY if something charges it. It served the same label
+    #                 again AFTER it had answered, and its last surviving case (A6 on the step its click commit
+    #                 lands) went away when the click exemption was narrowed: a committed click game now returns to
+    #                 this organ, so holding would have pinned `_escalated` at "A6" for the rest of the episode.
+    #                 EVERY answered label is released now. A row here means the branch came back -- read it as a
+    #                 defect, not as a statistic.
     #   released_answered  the label answered, so it is not a null intervention and there is nothing left to
     #                 refuse: `_escalated` is cleared and the game handed back to its family organ. This return
     #                 produces NO escalate step, so it is OUTSIDE the identity, printed separately, and its size
@@ -565,13 +603,16 @@ def report(res: dict) -> None:
     print("\n=== THE ESCALATION BRANCH (which return of _modality_escalate produced the step) ===")
     if not esb:
         print("  (no escalation branch recorded -- the organ never returned an action this sweep)")
-    for k in ("new", "hold_untried", "hold_answered"):
+    for k in ("new", "hold_untried"):
         _n = int(esb.get(k, 0))
         print("    %-14s steps %7d (%5.1f%% of escalate steps)"
               % (k, _n, 100.0 * _n / max(1, _esc_steps)))
     for k in _NOSTEP:
         print("    %-14s      %7d   (NO step: handed back to the family organ -- outside the identity below)"
               % (k, int(esb.get(k, 0))))
+    if int(esb.get("hold_answered", 0)):
+        print("    %-14s steps %7d   ★ RETIRED BRANCH CHARGED -- `hold_answered` was removed on 2026-08-01;"
+              " if it is counting again the release was undone" % ("hold_answered", int(esb["hold_answered"])))
     for k, n in sorted(esb.items()):
         if k not in ("new", "hold_untried", "hold_answered") + _NOSTEP:
             print("    %-14s steps %7d   ★ UNNAMED BRANCH -- added without a reading" % (k, int(n)))
@@ -598,7 +639,8 @@ def report(res: dict) -> None:
                       " steps-per-switch ratio is unavailable, the split below is not")
             _rel = int(esb.get("released_answered", 0))
             print("  released=%d hand-backs vs %d escalate steps -- %.2f hand-backs per escalate step. This is the"
-                  " lock-in's replacement: every one of these was a `hold_answered` step before the release."
+                  " lock-in's replacement: every one of these would have been a held step before the release, and"
+                  " since 2026-08-01 that includes the A6 case the release used to exempt."
                   % (_rel, _esc_steps, _rel / float(max(1, _esc_steps))))
             if _ha >= 0.5 * _esc_steps:
                 print("  VERDICT: LOCK-IN DOMINATES -- %.1f%% of escalate's steps re-serve a label that has"

@@ -18,6 +18,7 @@ structurally-similar one -- reclaim mechanisms, not answers, and let them compou
 """
 from __future__ import annotations
 from typing import List, Optional, Tuple, Dict, Any
+import os
 import threading
 import numpy as np
 from scipy import ndimage as _ndi
@@ -52,6 +53,14 @@ ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 # game families the router dispatches to
 PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE, MULTI_AVATAR = \
     "pending", "click", "two_body", "directional", "effect", "undrivable", "multi_avatar"
+
+# ★ HOW WIDE IS THE CLICK ORGAN'S EXEMPTION FROM MODALITY ESCALATION. Read ONCE, here, at import; never by a
+# decision function. `broad` restores the pre-2026-08-01 behaviour EXACTLY -- a natively-routed click game is
+# exempt outright, forever, however many untried actions it advertises. `narrow` (the default) holds the exemption
+# only while the game's ADVERTISED action set offers no non-click alternative. The difference is a statement about
+# AFFORDANCES, not about any game: a board that has been frozen for a full window while an action it offers has
+# never once been tried is not a board any organ can be said to own.
+CLICK_EXEMPT = (os.environ.get("NEWHORSE_CLICK_EXEMPT") or "narrow").strip().lower()
 
 # THE PERSISTENT RESIDUAL BANK, shared by every policy in the process and by every process through its files.
 # One instance, because the bank's whole purpose is to outlive the object that fills it: a per-policy bank would
@@ -815,6 +824,29 @@ class ReduxPolicy:
         cells = int((diff & ~m).sum())
         return bool(diff.any()), cells >= MIN_CELLS, cells
 
+    def _click_organ_exempt(self) -> bool:
+        """THE ONE definition of 'the committed click organ owns this game outright'.
+
+        It exists because the `click_native` early return in `_decide` and the first guard of `_modality_escalate`
+        were, until 2026-08-01, two COPIES of the same expression -- and the escalation reachability arm that sat at
+        the head of the NEXT list for two beats was a provable no-op precisely because of that duplication
+        (CLASSIFIER 16: the state the two copies read is absorbing). Copies drift and copies hide; one method cannot.
+
+        NARROW (default): the exemption holds only while the game ADVERTISES no non-click action. A game whose whole
+        action set is click is genuinely owned by the click organ -- there is nothing else to escalate TO, so this is
+        identical to the old behaviour on every such game, including the banked click win. A game that offers an
+        action it has never tried is not owned by anything, and the escalation organ is allowed to see it.
+
+        BROAD (`NEWHORSE_CLICK_EXEMPT=broad`): the pre-2026-08-01 predicate, EXACTLY, for the control arm.
+
+        Names no game and reads no pixels: the only thing it looks at is the action set the environment advertises.
+        """
+        if not (self.family == CLICK and self._pre_esc_family is None):
+            return False
+        if CLICK_EXEMPT == "broad":
+            return True
+        return not [a for a in self._avail if int(a) != 6]
+
     def _decide(self) -> Tuple[str, Optional[dict]]:
         self._dec_calls += 1                             # the funnel's denominator, incremented before any guard
         avail = self._avail
@@ -824,7 +856,7 @@ class ReduxPolicy:
         if self.family == PENDING and not dirs and 6 in avail:
             self.family = CLICK
             self.bb.post(_prefix(self.game_id), family=CLICK)
-        if self.family == CLICK and self._pre_esc_family is None:
+        if self._click_organ_exempt():
             return self._exit("click_native", self._act_click())   # natively-routed click game (committed click win)
         # minimal warmup: observe each directional action ~once (THINKING is free; ACTIONS are squared-costly).
         # Counted PER LEVEL (self._warm_start), so a re-derivation on a graduated level re-warms cleanly.
@@ -850,6 +882,13 @@ class ReduxPolicy:
             return self._act_directional(labels)
         if self.family == EFFECT:
             return self._exit("family_effect", self._act_effect(labels))
+        if self.family == CLICK:
+            # ★ A CLICK GAME THAT WAS NOT EXEMPT REACHED THE DISPATCH, AND BEFORE 2026-08-01 THERE WAS NO ARM HERE
+            # FOR IT. The `click_native` return above was not only a guard, it was the CLICK family's ONLY dispatch:
+            # narrowing that guard without this arm would have dropped a click game into `_act_fallback`, which is a
+            # far larger behaviour change than the one under test and would have been read as the exemption's doing.
+            # Its own literal, at its own return, so the funnel can say which of the two paths answered.
+            return self._exit("family_click", self._act_click())
         return self._exit("family_fallback", self._act_fallback(labels))
 
     def _modality_escalate(self, labels: List[str]) -> Optional[str]:
@@ -865,12 +904,13 @@ class ReduxPolicy:
         on the NEW modality uses `failed_trial`, not `is_null` -- EQUAL EVIDENCE before a verdict: the modality we
         escalated TO gets at least as many probes as the window that condemned the one it replaced. A modality that
         carries a coordinate misses for reasons of AIM, and a couple of misses must not be read as the modality being
-        dead. Conversely one real board response commits us to it. Committed
-        verified win organs (two-body, multi-avatar, and a natively-routed click game) are exempt outright, and
-        escalation cannot fire while the board is answering. General: names no game, reads no pixels."""
+        dead. Conversely one real board response commits us to it. Committed verified win organs (two-body and
+        multi-avatar) are exempt outright; the click organ's exemption is `_click_organ_exempt()` and since
+        2026-08-01 it holds only while the game advertises no non-click action. Escalation cannot fire while the
+        board is answering. General: names no game, reads no pixels."""
         if self.family in (TWO_BODY, MULTI_AVATAR):
             return None
-        if self.family == CLICK and self._pre_esc_family is None:
+        if self._click_organ_exempt():
             return None                                  # the committed click organ owns this game
         if self._escalated is not None and self._escalated in labels:
             if not self.engage.failed_trial(self._escalated):
@@ -885,13 +925,15 @@ class ReduxPolicy:
                     # a label that has answered is no longer null: the reason to hold it is gone, so the escalation
                     # is over and the game goes back to the organ that owns it.
                     #
-                    # A6 is the ONE case that still holds, and it holds for a different reason: the commit above has
-                    # just set `_pre_esc_family = None` while `family` is CLICK, so the game IS a click game now and
-                    # the click organ is where it already belongs. It is served here once and every later `_decide`
-                    # is caught by the natively-routed click exit before reaching this organ.
-                    if self._escalated == "A6" and self.family == CLICK:
-                        self._esc_branch["hold_answered"] = self._esc_branch.get("hold_answered", 0) + 1
-                        return self._escalated
+                    # ★ A6 USED TO BE THE ONE EXCEPTION, AND IT WAS RETIRED ON 2026-08-01 WITH THE SAME EDIT THAT
+                    # NARROWED THE CLICK EXEMPTION. Its `hold_answered` branch was only ever defensible because a
+                    # committed click game was then caught by the `click_native` exit before reaching this organ,
+                    # so the branch could be charged at most once. With the exemption narrowed, that game DOES come
+                    # back here, and holding would charge `hold_answered` every step and -- far worse -- leave
+                    # `_escalated` pinned at "A6" for the rest of the episode, which is a second absorbing state of
+                    # exactly the kind CLASSIFIER 16 was about. Releasing costs nothing: `_decide` falls through to
+                    # the CLICK dispatch and calls the SAME `_act_click()` the held return would have called, so
+                    # the action sequence is unchanged and only the literal that counts the step differs.
                     self._escalated = None
                     # ★ ITS OWN NAME AT ITS OWN RETURN. This return produces NO escalate step -- `_decide` falls
                     # through to the family dispatch -- so it is deliberately OUTSIDE the

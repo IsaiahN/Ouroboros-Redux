@@ -80,17 +80,24 @@ def test_a_frozen_board_escalates_and_the_branch_is_new_plus_hold_untried():
 
 
 def test_an_escalation_to_click_that_answers_is_RELEASED_by_the_commit():
-    """The safe half of the mechanism, and the reason the defect below is easy to miss. Drive a frozen board until
-    the organ escalates to A6, then let the board answer. `answered("A6")` clears `_pre_esc_family`, and the next
-    `_decide` is caught by the natively-routed click exit BEFORE this organ is reached -- so `hold_answered` is
-    charged at most once and the agent is not held. Nothing here is broken; it is the control for the next test."""
+    """Drive a frozen board until the organ escalates to A6, then let the board answer. `answered("A6")` clears
+    `_pre_esc_family` and the escalation is OVER: `_escalated` goes back to None and the game is handed to the
+    click organ, exactly as a directional label is handed back to its family organ.
+
+    THIS TEST CHANGED ON 2026-08-01 AND THE CHANGE IS THE POINT. It used to assert `hold_answered <= 1` and 20+
+    `click_native` exits, because a committed click game was then caught by the `click_native` exit before ever
+    reaching this organ -- so holding A6 was harmless. With the click exemption narrowed, the game DOES come back
+    here, and holding would pin `_escalated` at "A6" for the rest of the episode. The A6 exception is gone;
+    `hold_answered` is now charged by nothing at all, and the steps land on the click dispatch instead."""
     p = _policy("bb22-release")
     g = _board()
     _drive(p, g, 20, answer=False)                     # inside the A6 trial: it runs ~`window` steps then reverts
     assert p._escalated == "A6", (p._escalated, p._esc_branch)
     _drive(p, g, 40, answer=True)
-    assert p._esc_branch.get("hold_answered", 0) <= 1, p._esc_branch
-    assert p._dec_exits.get("click_native", 0) >= 20, p._dec_exits
+    assert p._esc_branch.get("hold_answered", 0) == 0, p._esc_branch
+    assert p._esc_branch.get("released_answered", 0) >= 1, p._esc_branch
+    assert p._escalated is None, p._escalated
+    assert p._dec_exits.get("family_click", 0) >= 20, p._dec_exits
 
 
 def test_a_DIRECTIONAL_escalation_that_answers_is_RELEASED_to_its_family_organ():
