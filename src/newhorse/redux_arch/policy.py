@@ -451,6 +451,19 @@ class ReduxPolicy:
         # It is not derived from the exit counts, the engagement meter, or any other organ. SEGMENT-scoped, and its
         # sum must equal `escalate` + `escalate_click` exactly -- published as a residue, never assumed.
         self._esc_branch: Dict[str, int] = {}
+        # ★ THE SELECTOR BRANCH. An exploratory pick passes through up to THREE layers -- the organ's own choice
+        # (curiosity / effect-model), then `_progress_reinforce`, then `_relation_reinforce` -- and the emitted label
+        # is whatever came out the far end. The action split can see WHICH label was emitted and the exit name can
+        # see which organ was asked, but NOTHING between them could say which layer actually decided, so a game that
+        # spends its whole budget on one label was unattributable: an organ that keeps re-picking and a reinforcer
+        # that overrides every pick look identical from outside. Each key here is a STRING LITERAL written at the
+        # return that produced it, inside the reinforcer that is the real call site; nothing is derived from the exit
+        # counts. Both reinforcers are entered EXACTLY ONCE per call, so the totals are pinned to independently
+        # maintained exit counters and the difference is published as a residue, never assumed:
+        #   prog_* total == exits[family_effect] + exits[dir_explore]      (`_act_effect` + both `_explore` returns)
+        #   rel_*  total == exits[family_effect]                           (`_act_effect` only)
+        # SEGMENT-scoped and rebound on close, like `_esc_branch`: no collaborator holds a reference to it.
+        self._sel_branch: Dict[str, int] = {}
 
     # ---- observation -------------------------------------------------------------------------------------------
     def observe(self, grid, available: List[int], levels_completed: int = 0, state: Optional[str] = None) -> None:
@@ -1301,6 +1314,7 @@ class ReduxPolicy:
             ev.decide_veto_attr, ev.decide_veto_moved = dict(self._dec_veto_attr), dict(self._dec_veto_moved)
             ev.decide_veto_moved_raw = dict(self._dec_veto_moved_raw)
             ev.decide_esc_branch = dict(self._esc_branch)
+            ev.decide_sel_branch = dict(self._sel_branch)
             ev.decide_click_branch = dict(self._click_branch)
             ev.decide_click_pool = dict(self._click_pool)
             ev.decide_click_reg_attr = dict(self._dec_click_reg_attr)
@@ -1331,6 +1345,7 @@ class ReduxPolicy:
         self._dec_act_cells = {}
         self._dec_act_cells_n = {}
         self._esc_branch = {}
+        self._sel_branch = {}
         # ★ CLEARED IN PLACE, NOT REBOUND. The ClickProber holds a REFERENCE to this dict and outlives the segment
         # (it is only rebuilt on a level change), so rebinding here would leave the prober writing into a dict
         # nobody reads and every segment after the first would report zero clicks -- a field never COMPUTED,
@@ -1798,14 +1813,20 @@ class ReduxPolicy:
         (directional curiosity / effect) -- committed organ plans (two-body BFS, reach-target, click coords) are
         untouched, so the wins are preserved. General: it ranks by measured progress-per-action, names no game."""
         if not self.progress.confident() or not self._prog_credit:
-            return lbl
+            self._sel_branch["prog_inactive"] = self._sel_branch.get("prog_inactive", 0) + 1
+            return lbl                                       # no confident gradient yet -> the organ's pick stands
         cand = [l for l in labels if l != "A6"]               # click coords aren't a per-label credit
         best = max(cand, key=lambda x: self._prog_credit.get(x, 0.0), default=None)
         if best is not None and self._prog_credit.get(best, 0.0) > self._prog_credit.get(lbl, 0.0) \
                 and self._prog_credit.get(best, 0.0) > 0.0 and best != lbl:
             self.n_prog_reinforce += 1
+            # ★ ITS OWN LITERAL AT ITS OWN RETURN. This is the branch that OVERRIDES the organ, and it is an
+            # unguarded argmax over a credit dict: while one label leads, this return fires at EVERY call and the
+            # organ's curiosity ordering never reaches the wire. Whether that is what happens is now a receipt.
+            self._sel_branch["prog_swap"] = self._sel_branch.get("prog_swap", 0) + 1
             return best
-        return lbl
+        self._sel_branch["prog_hold"] = self._sel_branch.get("prog_hold", 0) + 1
+        return lbl                                           # active, but the organ's pick was already the best
 
     def _relation_reinforce(self, lbl: str, labels: List[str]) -> str:
         """Brick 4b + probe: nudge an EXPLORATORY effect pick toward the action that has historically CLOSED the DRIVEN
@@ -1816,13 +1837,16 @@ class ReduxPolicy:
         Leaves click (A6) coords untouched so the click win is safe. Only swaps to a strictly-positive, better-credited
         action; else lbl stands -- so a probe with no gap-closing evidence yet changes nothing."""
         if self._probe_rel is None or not self._rel_credit:
-            return lbl
+            self._sel_branch["rel_inactive"] = self._sel_branch.get("rel_inactive", 0) + 1
+            return lbl                                       # no driven relation / no credit -> pick stands
         cand = [l for l in labels if l != "A6"]
         best = max(cand, key=lambda x: self._rel_credit.get(x, 0.0), default=None)
         if best is not None and self._rel_credit.get(best, 0.0) > self._rel_credit.get(lbl, 0.0) \
                 and self._rel_credit.get(best, 0.0) > 0.0 and best != lbl:
             self.n_rel_reinforce += 1
+            self._sel_branch["rel_swap"] = self._sel_branch.get("rel_swap", 0) + 1   # own literal, own return
             return best
+        self._sel_branch["rel_hold"] = self._sel_branch.get("rel_hold", 0) + 1
         return lbl
 
     def _act_effect(self, labels: List[str]) -> Tuple[str, Optional[dict]]:

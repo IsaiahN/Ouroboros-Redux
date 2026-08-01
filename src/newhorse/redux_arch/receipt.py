@@ -267,6 +267,9 @@ class ResidualEvent:
     decide_veto_moved: Dict[str, int] = field(default_factory=dict)
     decide_veto_moved_raw: Dict[str, int] = field(default_factory=dict)
     decide_esc_branch: Dict[str, int] = field(default_factory=dict)
+    # ★ THE SELECTOR BRANCH: which of the three layers an exploratory pick passes through actually decided the
+    # label. Written at the reinforcers' own returns; see `RichPolicy._sel_branch` for the two identities.
+    decide_sel_branch: Dict[str, int] = field(default_factory=dict)
     # ★ THE CLICK, ATTRIBUTED. `decide_click_branch` names which `return` of `ClickProber.choose` produced the
     # click (written at those returns); `decide_click_reg_*` is the outcome column keyed by the coarse REGION of
     # the coordinate actually emitted, which is the only thing the agent varies on a click game -- the action
@@ -558,6 +561,7 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
     dec_veto_moved: Dict[str, int] = {}
     dec_veto_moved_raw: Dict[str, int] = {}
     dec_esc_branch: Dict[str, int] = {}
+    dec_sel_branch: Dict[str, int] = {}
     dec_click_branch: Dict[str, int] = {}
     dec_click_pool: Dict[str, int] = {}
     dec_click_reg_attr: Dict[str, int] = {}
@@ -572,6 +576,7 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                          (dec_veto_attr, e.decide_veto_attr), (dec_veto_moved, e.decide_veto_moved),
                          (dec_veto_moved_raw, e.decide_veto_moved_raw),
                          (dec_esc_branch, e.decide_esc_branch),
+                         (dec_sel_branch, e.decide_sel_branch),
                          (dec_click_branch, e.decide_click_branch),
                          (dec_click_pool, e.decide_click_pool),
                          (dec_click_reg_attr, e.decide_click_reg_attr),
@@ -629,6 +634,21 @@ def summary(events: List[ResidualEvent]) -> Dict[str, Any]:
                                    # they are still published in `esc_branch` -- they are just excluded from the sum
                                    # BY NAME, so the identity stays falsifiable instead of being closed by adding a
                                    # term to both sides.
+                                   # ★ THE SELECTOR BRANCH. Which layer chose the label -- the organ, or one of the
+                                   # two reinforcers that may override it. Both reinforcers are entered exactly once
+                                   # per call from a single call site each, so the totals are pinned to exit counters
+                                   # maintained by a different mechanism, and the differences are published rather
+                                   # than assumed to be zero. A non-zero residue means a `return` was added without
+                                   # a literal, or a call site moved -- the same failure mode `esc_branch_residue`
+                                   # exists to catch.
+                                   sel_branch=dict(sorted(dec_sel_branch.items())),
+                                   sel_branch_prog_residue=(dec_exits.get("family_effect", 0)
+                                                            + dec_exits.get("dir_explore", 0)
+                                                            - sum(v for k, v in dec_sel_branch.items()
+                                                                  if k.startswith("prog_"))),
+                                   sel_branch_rel_residue=(dec_exits.get("family_effect", 0)
+                                                           - sum(v for k, v in dec_sel_branch.items()
+                                                                 if k.startswith("rel_"))),
                                    esc_branch=dict(sorted(dec_esc_branch.items())),
                                    esc_branch_residue=(dec_exits.get("escalate", 0)
                                                        + dec_exits.get("escalate_click", 0)

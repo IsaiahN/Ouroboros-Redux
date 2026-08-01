@@ -818,6 +818,79 @@ def report(res: dict) -> None:
             else:
                 print("  VERDICT: MIXED -- neither branch holds half the steps; both readings stay open.")
 
+    # ★★★ THE SELECTOR BRANCH -- WHICH LAYER ACTUALLY CHOSE THE LABEL. ★★★
+    # An exploratory pick passes through up to three layers: the organ's own choice (curiosity / the effect model),
+    # then `_progress_reinforce`, then `_relation_reinforce`. Only the last one's output reaches the wire. Until
+    # 2026-08-01 nothing between the exit name and the action split could say which layer decided, so a game that
+    # spent its whole budget on ONE label was unattributable -- an organ that keeps re-picking and a reinforcer that
+    # overrides every pick are indistinguishable from outside. Both reinforcers are unguarded `argmax`es over a
+    # credit dict: while one label leads, `*_swap` fires at EVERY call and the organ's ordering never reaches the
+    # wire, which is an absorbing selector of the same shape CLASSIFIER 16 was about. Read as:
+    #   prog_inactive / rel_inactive  the layer returned before looking (no confident gradient / no driven relation)
+    #   prog_hold     / rel_hold      the layer was ACTIVE and let the organ's pick stand
+    #   prog_swap     / rel_swap      the layer OVERRODE the organ's pick
+    # The totals are pinned to exit counters maintained by a different mechanism, and the differences are published.
+    slb = (dfn.get("sel_branch") or {})
+    print("\n=== THE SELECTOR BRANCH (which layer chose the label an exploratory pick emitted) ===")
+    # ★ ABSENT IS NOT ZERO. A capture taken BEFORE these literals existed carries no residue key at all, and
+    # `.get(k, 0)` would print a computed-looking 0 beside a non-zero exit count -- a field never COMPUTED, printed
+    # as a zero, which is a mis-labelled receipt (RANKING 5). This printer caught exactly that on its own first
+    # exercise against the banked arm-T sidecar, so the absence is NAMED and every verdict below is suppressed.
+    _absent = ("sel_branch" not in dfn)
+    _pres = None if "sel_branch_prog_residue" not in dfn else int(dfn["sel_branch_prog_residue"])
+    _rres = None if "sel_branch_rel_residue" not in dfn else int(dfn["sel_branch_rel_residue"])
+    if _absent:
+        print("  ★ NOT MEASURED IN THIS CAPTURE -- the selector-branch literals postdate it. Not zero: ABSENT."
+              " Nothing below may be read; re-run the sweep to price it.")
+    elif not any(int(v) for v in slb.values()):
+        print("  (no exploratory pick recorded this sweep -- neither reinforcer was entered)")
+    for pre, tot, res_ in (("prog", int(dfx.get("family_effect", 0)) + int(dfx.get("dir_explore", 0)), _pres),
+                           ("rel", int(dfx.get("family_effect", 0)), _rres)):
+        if _absent:
+            print("    %-5s ABSENT (its call sites took %d exits, so the split it would have carried is unknown)"
+                  % (pre, tot))
+            continue
+        _sw, _hd, _in = (int(slb.get(pre + "_swap", 0)), int(slb.get(pre + "_hold", 0)),
+                         int(slb.get(pre + "_inactive", 0)))
+        print("    %-5s swap %6d | hold %6d | inactive %6d   (calls=%d, exits=%d, RESIDUE=%s)"
+              % (pre, _sw, _hd, _in, _sw + _hd + _in, tot, "ABSENT" if res_ is None else res_))
+        if res_ is None:
+            print("      ★ RESIDUE NOT COMPUTED IN THIS CAPTURE -- the split above cannot be checked against its"
+                  " call sites, so it carries no finding.")
+        elif res_:
+            print("      ★ THE %s SPLIT DOES NOT SUM TO ITS CALL SITES' EXITS. A `return` was added without a"
+                  " literal, or a call site moved. Do not read the row above until the residue is named." % pre.upper())
+        elif not tot:
+            print("      VERDICT: MUTE -- this layer's call sites produced no steps this sweep.")
+        elif _sw >= 0.5 * tot:
+            print("      VERDICT: THE REINFORCER IS THE SELECTOR -- it overrode the organ on %.1f%% of its calls."
+                  " The organ's ordering did not reach the wire on those steps, so nothing about the emitted label"
+                  " may be read as the organ's behaviour." % (100.0 * _sw / tot))
+        elif _in >= 0.9 * tot:
+            print("      VERDICT: DORMANT -- the layer returned before looking on %.1f%% of its calls, so the"
+                  " emitted label is the organ's." % (100.0 * _in / tot))
+        else:
+            print("      VERDICT: MIXED -- neither dominance reading holds; the split stays open.")
+    # PER GAME, because a pooled split cannot say WHICH MEMBERS a swap-heavy total came from (RANKING 5). Read off
+    # the per-game funnel in `results`, which is the same carry the pooled dict was summed from.
+    _rows = []
+    for _g, _r in sorted((res.get("results") or {}).items()):
+        _f = ((_r or {}).get("echo") or {}).get("decide_funnel") or {}
+        _s = _f.get("sel_branch") or {}
+        if not any(int(v) for v in _s.values()):
+            continue
+        _rows.append((_g, _s, _f.get("act_attr") or {}))
+    if _rows:
+        print("  per game (only games whose exploratory layers were entered):")
+        for _g, _s, _aa in _rows:
+            _labs = sorted({k.split("|")[1] for k in _aa if "|" in k})
+            print("      %-18s prog swap/hold/inactive %4d/%4d/%4d | rel %4d/%4d/%4d | labels emitted: %s"
+                  % (_g, int(_s.get("prog_swap", 0)), int(_s.get("prog_hold", 0)), int(_s.get("prog_inactive", 0)),
+                     int(_s.get("rel_swap", 0)), int(_s.get("rel_hold", 0)), int(_s.get("rel_inactive", 0)),
+                     ",".join(_labs) or "(none)"))
+        print("  ★ A GAME WITH ONE EMITTED LABEL AND A HIGH `swap` COUNT IS A REINFORCER LOCK-IN; the same game"
+              " with `swap` at zero means the ORGAN re-picked, and the two have completely different fixes.")
+
     # ★★★ THE CLICK BRANCH -- WHY THIS CLICK. THE LARGEST UN-ATTRIBUTED THING THE AGENT DOES. ★★★
     # `click_native` alone took 45.4% of every decision last sweep, and it is ONE exit name over FOUR different
     # `return`s inside `ClickProber.choose`. An exit name covering more than one return is not an attribution
