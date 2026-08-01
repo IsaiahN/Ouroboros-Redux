@@ -22,9 +22,12 @@ says so and names every id it kept AND the count it dropped, because a pooled nu
 about a set it was not measured over is the defect this whole instrument exists to catch.
 """
 from __future__ import annotations
+import contextlib
+import io
 import json
 import os
 import sys
+import time
 from typing import Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
@@ -59,7 +62,49 @@ def select(gids, only: str):
     return kept, len(gids) - len(kept), unmatched
 
 
+def render_to_string(res: dict) -> str:
+    """`report(res)` into a string instead of onto stdout. Exists so a sweep can render TWICE -- once from the
+    dict it just measured and once from the JSON it just wrote -- and compare, which is the only way the sidecar
+    can be a receipt rather than a hope."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        report(res)
+    return buf.getvalue()
+
+
+def dump_res(res: dict, path: str) -> str:
+    """Write one sweep's result dict beside its capture. `default=str` is a LAST RESORT, not a convenience: any
+    value it touches is a value JSON could not carry, and the round-trip check in `main` is what catches it."""
+    with open(path, "w") as fh:
+        json.dump(res, fh, sort_keys=True, default=str)
+    return path
+
+
+def sidecar_path(argv_hint: str = "") -> str:
+    """Where the sidecar goes. Explicit `SWEEP_JSON` wins; otherwise a timestamped file under /tmp, named so a
+    capture and its sidecar can be paired by eye. Never inside the repo: `res` carries a scorecard id and this
+    file may not become a commit."""
+    return os.environ.get("SWEEP_JSON") or (argv_hint or "/tmp/sweep_res_%s.json" % time.strftime("%m%d_%H%M%S"))
+
+
+def render_from_json(path: str) -> None:
+    """THE POINT OF THE SIDECAR. A printer fix after this beat is exercised by re-rendering a banked sweep, not
+    by spending a new one. It takes no API key and opens no session -- deliberately, so a re-render can never be
+    confused for a measurement, and so the header below names the sweep the numbers came from."""
+    with open(path) as fh:
+        res = json.load(fh)
+    print("★ RE-RENDER of a BANKED sweep: %s" % path)
+    print("★ These numbers were MEASURED at the time that file was written and are being re-PRINTED now. Nothing"
+          " here contacted the API. The scorecard below is the ORIGINAL run's.")
+    report(res)
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "--render":
+        if len(sys.argv) < 3:
+            raise SystemExit("usage: sweep_chain.py --render <result.json>")
+        render_from_json(sys.argv[2])
+        return
     assert_online_sdk()
     if not os.environ.get("ARC_API_KEY"):
         raise SystemExit("ARC_API_KEY not set -- env-only")
@@ -80,7 +125,36 @@ def main() -> None:
 
     res = run_swarm(gids, max_actions=max_actions, wall_cap_s=wall_cap_s, rpm=540, max_workers=8,
                     tags=["redux-triality", "chain-sweep"])
-    report(res)
+
+    # ★ THE SIDECAR, AND WHY IT IS VERIFIED RATHER THAN JUST WRITTEN.
+    # Every capture before this one is rendered TEXT, and rendered text cannot be re-rendered: when a printer was
+    # found wrong, every historical reading taken through it had to be re-MEASURED at the cost of a live sweep.
+    # From here the measurement is banked as data, so a printer fix is a re-render.
+    # The render happens FIRST and into a string, so a failure anywhere in the sidecar path cannot cost the run its
+    # report; then the file is written, reloaded, and rendered AGAIN, and the two strings are compared. A sidecar
+    # that reloads to different numbers is worse than none -- it is a receipt that lies one file over -- so the
+    # comparison is printed as a verdict either way and never assumed.
+    live = render_to_string(res)
+    path = sidecar_path()
+    verdict = ""
+    try:
+        dump_res(res, path)
+        with open(path) as fh:
+            back = json.load(fh)
+        again = render_to_string(back)
+        if again == live:
+            verdict = ("★ RESULT SIDECAR: %s -- reload renders BYTE-IDENTICAL to this capture, so every number "
+                       "below can be re-rendered through a fixed printer without spending a sweep.\n"
+                       "   re-render with: PYTHONPATH=src python3.12 tools/sweep_chain.py --render %s" % (path, path))
+        else:
+            verdict = ("★ RESULT SIDECAR WRITTEN BUT LOSSY: %s -- the reload renders DIFFERENTLY from this capture."
+                       " The capture below is the MEASUREMENT; the file is NOT a substitute for it and may not be"
+                       " cited as one until the difference is found." % path)
+    except Exception as e:                                   # a sidecar failure must never eat the report
+        verdict = ("★ NO RESULT SIDECAR: %s: %s -- this capture is rendered text only, and any later printer fix"
+                   " costs a fresh sweep." % (type(e).__name__, e))
+    sys.stdout.write(live)
+    print("\n" + verdict)
 
 
 # The per-action floor the self-motion classifier requires before a spread counts as a finding. Set here, printed
