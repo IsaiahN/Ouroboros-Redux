@@ -23,16 +23,23 @@ _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 _SRC = os.path.join(_REPO, "src")
 
 
-def _live_run_module():
+def _mod(name: str):
     if _SRC not in sys.path:
         sys.path.insert(0, _SRC)
-    from newhorse import live_run          # kernel's real harness (relative imports resolve as a package)
-    return live_run
+    import importlib
+    return importlib.import_module(name)
 
 
 class LiveArcGround:
     """The live gate. `palette` is accepted for interface-parity with SyntheticGround, but the live
-    ground needs none -- the environment supplies frames at native resolution."""
+    ground needs none -- the environment supplies frames at native resolution.
+
+    IMPORTANT (reconciliation 2026-08-02): the play path is the kernel's FAMILY-DETECTING ReduxPolicy
+    (`redux_arch.live_goal_run.run_policy_live` / `redux_arch.swarm.run_swarm`), which routes click /
+    two-body / directional games itself and CAN act on click-only games (vc33, ft09, lp85, ...). The
+    earlier baseline mistakenly used the minimal mover-only `live_run.run_online_game`, which drops
+    action 6 (click) and so forfeited every click game at step 0. That was a wiring error in this
+    adapter, NOT a capability regression in the kernel."""
 
     def __init__(self, palette=None):
         self.palette = palette
@@ -40,15 +47,25 @@ class LiveArcGround:
     def has_key(self) -> bool:
         return bool(os.environ.get("ARC_API_KEY"))
 
-    def play(self, game_id: str, *, max_actions: int = 400, wall_cap_s: float = 90.0,
+    def play(self, game_id: str, *, max_actions: int = 120, wall_cap_s: float = 120.0,
              tags: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Play one live public-set game. Requires ARC_API_KEY in env and network. Returns the
-        kernel's result dict incl. `levels_completed` and `view_url` (the scorecard)."""
+        """Play one live game through the family-detecting ReduxPolicy (handles click). Returns the
+        kernel's rich result dict (levels_completed, family, view_url, tether_stage, probe, ...)."""
         if not self.has_key():
             raise RuntimeError("ARC_API_KEY not in env -- export it (env-only) before a live run.")
-        return _live_run_module().run_online_game(
+        return _mod("newhorse.redux_arch.live_goal_run").run_policy_live(
             game_id, max_actions=max_actions, wall_cap_s=wall_cap_s, tags=tags or ["nexus"])
 
+    def play_set(self, game_ids: List[str], *, max_actions: int = 120, wall_cap_s: float = 120.0,
+                 max_workers: int = 8, tags: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Play a roster concurrently under ONE scorecard via the kernel's swarm (family-detecting,
+        shared rate limiter + blackboard). Returns {view_url, results{game->dict}, families}."""
+        if not self.has_key():
+            raise RuntimeError("ARC_API_KEY not in env -- export it (env-only) before a live run.")
+        return _mod("newhorse.redux_arch.swarm").run_swarm(
+            game_ids, max_actions=max_actions, wall_cap_s=wall_cap_s, max_workers=max_workers,
+            tags=tags or ["nexus"])
+
     def run_offline(self, session, *, max_actions: int = 50, wall_cap_s: float = 30.0) -> Dict[str, Any]:
-        """Drive the kernel loop against a provided session object (for tests: a FakeSession). No key."""
-        return _live_run_module().run_live(session, max_actions=max_actions, wall_cap_s=wall_cap_s)
+        """Drive the kernel's brick-9 loop against a provided session (for tests: a FakeSession). No key."""
+        return _mod("newhorse.live_run").run_live(session, max_actions=max_actions, wall_cap_s=wall_cap_s)
