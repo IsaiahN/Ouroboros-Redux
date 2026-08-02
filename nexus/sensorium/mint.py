@@ -37,7 +37,7 @@ class SensorMint:
     enough labelled outcomes AND its values are informative about death (positive information gain)."""
 
     def __init__(self, min_evidence: int = 6, min_gain: float = 0.02, all_channels: Tuple[str, ...] =
-                 ("AVAILABLE", "SELF_LOCAL", "SELF_SHAPE", "GLOBAL_COL")):
+                 ("AVAILABLE", "SELF_FRAME", "SELF_MODEL", "GLOBAL_COL")):
         self.min_evidence = min_evidence
         self.min_gain = min_gain
         self.all_channels = all_channels

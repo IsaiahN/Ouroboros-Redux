@@ -97,7 +97,10 @@ class ForwardModel:
                 by_colour: Dict[int, set] = defaultdict(set)
                 for (r, c) in moved:
                     rr, cc = r + dr, c + dc
-                    if 0 <= rr < h and 0 <= cc < w and b[rr, cc] == a[r, c]:
+                    # a genuine rigid move VACATES the source AND FILLS a cell that was background.
+                    # Requiring the destination to have been background rejects the aliasing where a
+                    # retracting bar looks like a 1-cell shift (its 'destination' was already the colour).
+                    if 0 <= rr < h and 0 <= cc < w and b[rr, cc] == a[r, c] and a[rr, cc] == bg:
                         by_colour[int(a[r, c])].add((r, c))
                 if not by_colour:
                     continue

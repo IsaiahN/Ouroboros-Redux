@@ -160,7 +160,7 @@ class GenerationalRunner:
                                            "sig_refuted": len(circuit.sig_refuted)}
             if sensorium is not None:
                 try:
-                    led.data["sensorium"] = {"has_self": sensorium.fwd.has_self(),
+                    led.data["sensorium"] = {"self_model": sensorium.report(),
                                              "mint": sensorium.mint.report() if sensorium.mint else {},
                                              "active_channels": list(sensorium.mint.active_channels())
                                              if sensorium.mint else []}
@@ -174,12 +174,20 @@ class GenerationalRunner:
         return self._result(game_id, best, gen, total_steps, outcome, led, session)
 
     def run_online(self, game_id: str, **kw) -> Dict[str, Any]:
-        """Live entry: own scorecard per game (independent -- no shared swarm scorecard, so RESET is clean)."""
+        """Live entry: own scorecard per game (independent -- no shared swarm scorecard, so RESET is clean).
+
+        The sensorium is DEFAULT-ON for live play (the minted, self-relative perception is the intended
+        default sense; DESIGN_the_sensorium...). Pass sensorium=None to run the bare kernel, or your own
+        Sensorium to configure it. The deterministic offline tests call `run(...)` directly and pin the
+        core by not attaching one, so this default does not perturb them."""
         import os, sys
         src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
         if src not in sys.path:
             sys.path.insert(0, src)
         from newhorse.arc3_env import Arc3Session
+        if "sensorium" not in kw:
+            from .sensorium import build_sensorium
+            kw["sensorium"] = build_sensorium()
         session = Arc3Session(game_id, tags=["nexus", "generational", game_id])
         return self.run(session, game_id, **kw)
 

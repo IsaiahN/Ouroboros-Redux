@@ -12,11 +12,14 @@ vocabulary. Four organs:
 """
 from .forward import ForwardModel, as_grid2d, background_colour
 from .sensors import Sensorium, SensedState, register_channel
+from .self_family import (SelfModelFamily, TranslationSelf, GrowthEdgeSelf,
+                          ValueLatentSelf, RegionToggleSelf)
 from .mint import SensorMint
 
 
-def build_sensorium(window: int = 2, min_evidence: int = 6):
-    """Wire the four organs into a Sensorium with an attached mint. Returns the Sensorium; use
-    `sensorium.signature` as the runner's `signature_fn` and call `sensorium.observe(...)` per step."""
-    s = Sensorium(window=window, mint=SensorMint(min_evidence=min_evidence))
-    return s
+def build_sensorium(min_evidence: int = 6, unmodeled_threshold: float = 0.6):
+    """Wire the organs into a Sensorium: a non-simulable self-hypothesis family + the sensor mint.
+    Returns the Sensorium; use `sensorium.signature` as the runner's `signature_fn` and call
+    `sensorium.observe(...)` per step."""
+    return Sensorium(mint=SensorMint(min_evidence=min_evidence),
+                     unmodeled_threshold=unmodeled_threshold)
