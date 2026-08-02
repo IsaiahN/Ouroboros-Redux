@@ -52,7 +52,7 @@ class GenerationalRunner:
 
     def run(self, session, game_id: str, *, max_generations: int = 20, hard_cap: int = 500,
             stall_patience: int = 60, unearned_patience: int = 3, wall_cap_s: float = 3600.0,
-            blackboard=None, run_tag: str = "", now=time.time) -> Dict[str, Any]:
+            blackboard=None, run_tag: str = "", signature_fn=None, now=time.time) -> Dict[str, Any]:
         import sys, os
         src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
         if src not in sys.path:
@@ -97,10 +97,11 @@ class GenerationalRunner:
                         break
                     lbl, data = pol.choose()
                     cur_board = _board_hash(snap["grid"])
-                    # CLOSED LOOP: shape this proposal from ALL prior ground verdicts -- refute vetoes,
-                    # mute routes to empowerment, confirm is preferred. Sync pol._pending on override so
-                    # the policy attributes the next frame to what was actually emitted.
-                    lbl, data, shaped = circuit.shape(cur_board, lbl, data, snap.get("available", []))
+                    sig = signature_fn(snap["grid"], snap.get("available", [])) if signature_fn else None
+                    # CLOSED LOOP: shape this proposal from ALL prior ground verdicts -- refute vetoes
+                    # (exact + ground-verified generalization), mute routes to empowerment. Sync pol._pending
+                    # on override so the policy attributes the next frame to what was actually emitted.
+                    lbl, data, shaped = circuit.shape(cur_board, lbl, data, snap.get("available", []), signature=sig)
                     if shaped is not None:
                         try:
                             pol._pending = lbl; pol._pending_rc = None
@@ -108,7 +109,7 @@ class GenerationalRunner:
                             pass
                     payload = decision_reasoning(pol, lbl, data, total_steps, gen)
                     if shaped is not None:
-                        payload["shaped"] = shaped                # e.g. "veto:refuted->A1" / "empower:mute->A2"
+                        payload["shaped"] = shaped                # veto:refuted / veto:general / empower:mute
                     prev = snap.get("levels_completed", 0)
                     snap = session.step(int(lbl[1:]), data=data,
                                         reasoning={"why": compact_why(payload), **payload})  # rich reasoning to the API
@@ -116,7 +117,7 @@ class GenerationalRunner:
                     after_board = _board_hash(snap["grid"])
                     verdict = classify(cur_board, after_board, lv - prev,
                                        bool(snap.get("done")), snap.get("state"))
-                    circuit.record(cur_board, lbl, data, verdict)  # <- the price feeds back into generation
+                    circuit.record(cur_board, lbl, data, verdict, signature=sig)  # price feeds back into generation
                     payload["verdict"] = verdict
                     led.record_action(gen, total_steps, lbl, data, payload, lv)
                     led.record_verdict(verdict)
@@ -141,6 +142,8 @@ class GenerationalRunner:
                     reasoning={"why": "generational reset (%s)" % reason, "generation": gen})
                 pol.note_reset()
         finally:
+            led.data["verdict_circuit"] = {"sig_confirmed": len(circuit.sig_confirmed),
+                                           "sig_refuted": len(circuit.sig_refuted)}
             led.flush()
             try:
                 session.close()
