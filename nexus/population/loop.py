@@ -40,8 +40,9 @@ def run_curriculum(curriculum: List[Level], proposer, use_db: bool = True,
                     proposers_of[key].add(role.name); redundancy[key] += 1
             total_proposals += len(proposals)
             solved_here = False
+            scores = []
             for key, p in proposals.items():
-                s = ground.score(p)
+                s = ground.score(p); scores.append(s)
                 if use_db:
                     db.vote(key, s, redundancy[key], len(ROLES))
                 if ground.solved(p):
@@ -49,8 +50,10 @@ def run_curriculum(curriculum: List[Level], proposer, use_db: bool = True,
                     cum_verified[key] |= proposers_of[key]      # accumulate cross-role echo over rounds
                     for rn in proposers_of[key]:
                         proposer.remember(rn, p)
-            if use_db:                                           # promote whatever now has >=2-role echo
-                for key in echo_promote(cum_verified, seen_items):
+            if use_db:
+                db.tick()                                        # clock decay: standing fades if not renewed
+                db.note_round(max(scores) if scores else 0.0)    # CUSUM regime trigger on the success stream
+                for key in echo_promote(cum_verified, seen_items):  # promote whatever now has >=2-role echo
                     db.promote(key, seen_items[key])
             if solved_here and solved_round is None:
                 solved_round = rnd
@@ -62,4 +65,5 @@ def run_curriculum(curriculum: List[Level], proposer, use_db: bool = True,
     return {"results": results, "gamma": sorted(db.shared_gamma().keys()),
             "total_proposals": total_proposals,
             "solved": sum(1 for r in results if r["solved_round"] is not None),
-            "first_exposure": sum(1 for r in results if r["first_exposure"])}
+            "first_exposure": sum(1 for r in results if r["first_exposure"]),
+            "regime_changes": db.regime_changes}   # CUSUM change-points detected from the success stream
