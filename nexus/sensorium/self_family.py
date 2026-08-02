@@ -116,19 +116,26 @@ class ValueLatentSelf(SelfHypothesis):
     monotonically. This is the member ls20 needs -- colour 11 (the retracting bar) depletes each
     step. There is no self-cell to point at; the self IS the value."""
     name = "value"
-    def __init__(self, K: int = 8, bucket: int = 8):
-        self.K = K; self.bucket = bucket
+    def __init__(self, K: int = 8, bucket: int = 8, alpha: float = 0.3):
+        self.K = K; self.bucket = bucket; self.alpha = alpha
         self.hist = defaultdict(lambda: deque(maxlen=K))
         self.colour = None; self._n = 0
+        self.act_delta = {}                               # action -> EWMA change in the tracked resource
     def observe(self, before, action, after) -> float:
         b = as_grid2d(after)
         if b.size == 0:
             return 1.0
         self._n += 1
+        prev = dict(self.hist[self.colour]) if False else None
+        prev_col_count = self.hist[self.colour][-1] if (self.colour is not None and self.hist[self.colour]) else None
         cts = _counts(b)
         bg = background_colour(b)                          # the background is the frame, not the self
         for col in range(len(cts)):
             self.hist[col].append(int(cts[col]))
+        # attribute the resource change under THIS action, so "preserve the resource" is actionable
+        if self.colour is not None and prev_col_count is not None:
+            delta = float(cts[self.colour]) - float(prev_col_count)
+            self.act_delta[action] = (1 - self.alpha) * self.act_delta.get(action, 0.0) + self.alpha * delta
         best_col, best_mono = None, 0.0
         for col, series in self.hist.items():
             if col == bg or len(series) < 3:
@@ -159,6 +166,26 @@ class ValueLatentSelf(SelfHypothesis):
     def self_frame(self, grid, available) -> Tuple:
         cur = self.hist[self.colour][-1] if self.colour is not None and self.hist[self.colour] else 0
         return ("val", self.colour, cur // self.bucket)
+
+    # ---- the resource, made actionable (for the self-composed objective) --------------------------
+    def level(self) -> Optional[int]:
+        return self.hist[self.colour][-1] if (self.colour is not None and self.hist[self.colour]) else None
+
+    def trend(self) -> int:
+        """+1 growing, -1 depleting, 0 flat -- the sign of the resource's recent motion."""
+        if self.colour is None:
+            return 0
+        s = self.hist[self.colour]
+        diffs = [s[i + 1] - s[i] for i in range(len(s) - 1)]
+        nz = [d for d in diffs if d != 0]
+        return int(np.sign(sum(nz))) if nz else 0
+
+    def action_delta(self, action: str) -> float:
+        """The learned change in the resource under an action (>0 refills, <0 depletes)."""
+        return self.act_delta.get(action, 0.0)
+
+    def action_deltas(self) -> dict:
+        return {a: round(v, 3) for a, v in self.act_delta.items()}
 
 
 class RegionToggleSelf(SelfHypothesis):
@@ -232,6 +259,10 @@ class SelfModelFamily:
 
     def report(self) -> dict:
         m = self.selected()
-        return {"selected": m.name if m else None,
-                "self_unmodeled": self.self_unmodeled(),
-                "residuals": {k: round(v, 3) for k, v in self.ewma.items()}}
+        rep = {"selected": m.name if m else None,
+               "self_unmodeled": self.self_unmodeled(),
+               "residuals": {k: round(v, 3) for k, v in self.ewma.items()}}
+        if m is not None and m.name == "value":            # surface the resource mechanics the ground taught
+            rep["resource"] = {"colour": m.colour, "level": m.level(), "trend": m.trend(),
+                               "action_deltas": m.action_deltas()}
+        return rep

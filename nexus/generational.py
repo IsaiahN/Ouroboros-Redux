@@ -63,8 +63,11 @@ class GenerationalRunner:
         # The sensorium (if attached) IS the signature source: its self-relative, minted danger
         # descriptor replaces any fixed signature_fn, and every grounded step is fed back into it so
         # perception is priced by the ground (DESIGN_the_sensorium_composition_as_minted_perception).
+        self_objective = None
         if sensorium is not None:
             signature_fn = sensorium.signature
+            from .sensorium.objective import SelfObjective
+            self_objective = SelfObjective()
 
         led = RunLedger(game_id, self.run_dir, run_tag=run_tag)
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)  # ONE agent across generations
@@ -104,6 +107,21 @@ class GenerationalRunner:
                         break
                     lbl, data = pol.choose()
                     grid_before = snap["grid"]; avail_before = snap.get("available", [])
+                    # GENERATIVE PERCEPTION: the self-percept composes a POSITIVE objective and may
+                    # propose a different mover BEFORE the veto runs (DESIGN §7.5). The veto still fires
+                    # after, so an objective can never propose into a known death. Sync pol._pending.
+                    objective_note = None
+                    if sensorium is not None and self_objective is not None and not data:
+                        try:
+                            o_lbl, o_note = self_objective.propose(lbl, avail_before, sensorium.selfmodel)
+                        except Exception:
+                            o_lbl, o_note = None, None
+                        if o_lbl and o_lbl != lbl:
+                            lbl, data, objective_note = o_lbl, None, o_note
+                            try:
+                                pol._pending = lbl; pol._pending_rc = None
+                            except Exception:
+                                pass
                     cur_board = _board_hash(snap["grid"])
                     sig = signature_fn(snap["grid"], snap.get("available", [])) if signature_fn else None
                     # CLOSED LOOP: shape this proposal from ALL prior ground verdicts -- refute vetoes
@@ -116,6 +134,8 @@ class GenerationalRunner:
                         except Exception:
                             pass
                     payload = decision_reasoning(pol, lbl, data, total_steps, gen)
+                    if objective_note is not None:
+                        payload["objective"] = objective_note     # the self-composed positive goal
                     if shaped is not None:
                         payload["shaped"] = shaped                # veto:refuted / veto:general / empower:mute
                     prev = snap.get("levels_completed", 0)
