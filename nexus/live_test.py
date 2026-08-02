@@ -1,38 +1,47 @@
-"""nexus.live_test -- the actual validation: play ARC-AGI-3 LIVE public-set games.
+"""nexus.live_test -- play ARC-AGI-3 LIVE public-set games with the GENERATIONAL runner.
 
-This is the "then we test against the ARC live public set" step. It requires ARC_API_KEY in the
-environment (env-only, never written to disk) and network access, so it is NOT run by the offline
-test suite. It reaches the live gate through the kernel's own harness via LiveArcGround.
+Each game gets its OWN independent run (own scorecard) and lives across many lifetimes: play until
+GAME_OVER, RESET into the next generation, carrying the ledger's refuted set so nothing dead is
+re-spent. This is the fusion (economy of thought within a lifetime + economy of agents across
+lifetimes) over a run-local JSON ledger -- the offline stand-in for v4's generations/database.
 
-Usage:
-    export ARC_API_KEY="..."         # env-only
-    python3.12 -m nexus.live_test GAME_ID [GAME_ID ...]
+Swarm here means PARALLELISM across games (one dedicated agent per game), NOT cross-game transfer.
 
-The gate metric is levels_completed per game (paper §16.7). A single run is never a verdict -- its
-job is to teach (kernel RULE 0.7). No result is fabricated; whatever the environment returns is what
-is reported, including the scorecard view_url.
+Usage (requires ARC_API_KEY in env):
+    python3.12 -m nexus.live_test GAME_ID [GAME_ID ...] [--generations N] [--actions M] [--wall S]
+
+Reports only what the ground returns (best_level per game) + the ledger path per game.
 """
 from __future__ import annotations
-import sys
-from .ground.live_arc import LiveArcGround
+import os, sys
+from .generational import GenerationalRunner
 
 
 def main(argv):
-    if not argv:
-        print("usage: python3.12 -m nexus.live_test GAME_ID [GAME_ID ...]")
-        print("       (requires ARC_API_KEY in env)")
+    games = [a for a in argv if not a.startswith("--")]
+    def opt(name, default):
+        if name in argv:
+            return type(default)(argv[argv.index(name) + 1])
+        return default
+    if not games:
+        print("usage: python3.12 -m nexus.live_test GAME_ID [...] [--generations N] [--actions M] [--wall S]")
         return 2
-    g = LiveArcGround()
-    if not g.has_key():
+    if not os.environ.get("ARC_API_KEY"):
         print("ARC_API_KEY not set -- export it (env-only) and retry.")
         return 1
+
+    gens = opt("--generations", 20)
+    acts = opt("--actions", 120)
+    wall = opt("--wall", 3600.0)
+    runner = GenerationalRunner()
     total = 0
-    for gid in argv:
-        r = g.play(gid)
-        lv = r.get("levels_completed", 0)
-        total += lv
-        print(f"{gid:16s} levels_completed={lv}  outcome={r.get('outcome')}  scorecard={r.get('view_url')}")
-    print(f"\nTOTAL levels_completed across {len(argv)} game(s): {total}")
+    for gid in games:
+        r = runner.run_online(gid, max_generations=gens, max_actions_per_life=acts, wall_cap_s=wall)
+        total += r.get("best_level", 0) or 0
+        print(f"{gid:16s} best_level={r.get('best_level')} gens={r.get('generations')} "
+              f"steps={r.get('steps')} outcome={r.get('outcome')} scorecard={r.get('view_url')}")
+        print(f"                 ledger={r.get('ledger')}  refuted={len(r.get('summary',{}).get('refuted',[]))}")
+    print(f"\nTOTAL best_level across {len(games)} game(s) = {total}")
     return 0
 
 
