@@ -27,13 +27,31 @@ def _board_hash(grid) -> int:
         return hash(str(grid))
 
 
+def apply_fatal_veto(cur_board, lbl, data, available, fatal_moves):
+    """The learned-fatal veto ACROSS resets (the 'return-to-start apply the veto' primitive ls20 asked
+    for). If the policy is about to repeat a (board, action) a past lifetime recorded as fatal, and a
+    non-fatal directional alternative exists, override to it. Returns (lbl, data, avoided_or_None).
+
+    Scoped to no-data (directional) actions: a click's fatal unit is (board, coord), and picking an
+    alternative coordinate is the policy's job, so click fatals are recorded but not overridden here."""
+    if data:
+        return lbl, data, None
+    if (cur_board, lbl) not in fatal_moves:
+        return lbl, data, None
+    alts = ["A%d" % v for v in available if int(v) != 6]
+    fresh = [a for a in alts if a != lbl and (cur_board, a) not in fatal_moves]
+    if fresh:
+        return fresh[0], None, lbl        # vetoed lbl -> a non-fatal alternative
+    return lbl, data, None                # every alternative is also fatal / none available -> forced
+
+
 class GenerationalRunner:
     def __init__(self, run_dir: str = "/tmp/nexus_runs"):
         self.run_dir = run_dir
 
     def run(self, session, game_id: str, *, max_generations: int = 20, hard_cap: int = 500,
-            stall_patience: int = 60, wall_cap_s: float = 3600.0, blackboard=None, run_tag: str = "",
-            now=time.time) -> Dict[str, Any]:
+            stall_patience: int = 60, unearned_patience: int = 3, wall_cap_s: float = 3600.0,
+            blackboard=None, run_tag: str = "", now=time.time) -> Dict[str, Any]:
         import sys, os
         src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
         if src not in sys.path:
@@ -46,6 +64,8 @@ class GenerationalRunner:
         snap = session.open()
         best = snap.get("levels_completed", 0)
         t0 = now(); total_steps = 0; outcome = "budget"; gen = 0; payload = None
+        fatal_moves = set()                 # (board_hash, action) proved fatal -- carried ACROSS lifetimes
+        consecutive_unearned = 0            # deaths that taught nothing new (kernel §XIX)
         try:
             for gen in range(max_generations):
                 led.start_generation(gen)
@@ -63,14 +83,36 @@ class GenerationalRunner:
                             earned, why = pol.reset_earned()      # GAME_OVER: what killed us (a receipt)
                             led.record_death(gen, total_steps, why)
                             if why:
-                                led.record_refuted(why)           # never re-spend this across generations
+                                led.record_refuted(why)
+                            # FIX 1 (§XIX): an unearned death taught nothing new; do not reset-and-repeat
+                            # into the same trap. Stop the game once the agent is provably stuck.
+                            consecutive_unearned = 0 if earned else consecutive_unearned + 1
+                            if consecutive_unearned >= unearned_patience:
+                                outcome = "stuck"
+                                led.record_generation_end(gen, "stuck", life_steps,
+                                                          {"consecutive_unearned": consecutive_unearned})
+                                led.flush()
+                                return self._result(game_id, best, gen, total_steps, outcome, led, session)
                         break
                     lbl, data = pol.choose()
+                    cur_board = _board_hash(snap["grid"])
+                    # FIX 2: apply the learned-fatal veto across resets (sync pol._pending so the policy
+                    # attributes the NEXT frame to what was actually emitted, not its original pick).
+                    lbl, data, avoided = apply_fatal_veto(cur_board, lbl, data, snap.get("available", []), fatal_moves)
+                    if avoided is not None:
+                        try:
+                            pol._pending = lbl; pol._pending_rc = None
+                        except Exception:
+                            pass
                     payload = decision_reasoning(pol, lbl, data, total_steps, gen)
+                    if avoided is not None:
+                        payload["veto"] = {"avoided": avoided, "chose": lbl, "reason": "recorded fatal at this board"}
                     prev = snap.get("levels_completed", 0)
                     snap = session.step(int(lbl[1:]), data=data,
                                         reasoning={"why": compact_why(payload), **payload})  # rich reasoning to the API
                     lv = snap.get("levels_completed", 0)
+                    if snap.get("done") and snap.get("state") != "WIN":
+                        fatal_moves.add((cur_board, lbl))         # this (board, action) just ended the run
                     led.record_action(gen, total_steps, lbl, data, payload, lv)
                     h = _board_hash(snap["grid"]); novel = h not in seen; seen.add(h)
                     if lv > prev:
