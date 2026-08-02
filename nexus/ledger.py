@@ -27,6 +27,7 @@ class RunLedger:
             "level_ups": [],          # {gen, step, from, to}
             "hypothesis_snapshots": [],  # {gen, hypotheses:[...], abduced:[...]}
             "generation_ends": [],    # {gen, reason: death|stall|cap|budget, life_steps, adjustment}
+            "verdicts": {},           # ground verdict tally: confirm|refute|mute|moved -> count
         }
 
     # ---- writes (receipts) ------------------------------------------------------------------------
@@ -57,6 +58,10 @@ class RunLedger:
         self.data["generation_ends"].append({"gen": gen, "reason": reason, "life_steps": life_steps,
                                               "adjustment": adjustment})
 
+    def record_verdict(self, verdict: str) -> None:
+        """Tally a ground verdict (confirm/refute/mute/moved) -- the distillation loop's telemetry."""
+        self.data["verdicts"][verdict] = self.data["verdicts"].get(verdict, 0) + 1
+
     # ---- self-reference (queries the agent uses across lifetimes) ---------------------------------
     def is_refuted(self, cause: str) -> bool:
         return cause in self.data["refuted"]
@@ -66,6 +71,7 @@ class RunLedger:
         return {"best_level": self.data["best_level"], "generations": self.data["generations"],
                 "refuted": list(self.data["refuted"]),
                 "n_deaths": len(self.data["deaths"]),
+                "verdicts": dict(self.data["verdicts"]),
                 "death_causes": sorted({d["cause"] for d in self.data["deaths"] if d["cause"]})}
 
     def flush(self) -> str:

@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional
 from .ledger import RunLedger
 from .reasoning import decision_reasoning, compact_why
 from .reset_policy import ResetPolicy
+from .verdict import VerdictCircuit, classify
 
 
 def _board_hash(grid) -> int:
@@ -64,7 +65,7 @@ class GenerationalRunner:
         snap = session.open()
         best = snap.get("levels_completed", 0)
         t0 = now(); total_steps = 0; outcome = "budget"; gen = 0; payload = None
-        fatal_moves = set()                 # (board_hash, action) proved fatal -- carried ACROSS lifetimes
+        circuit = VerdictCircuit()          # the closed price->generation loop, carried ACROSS lifetimes
         consecutive_unearned = 0            # deaths that taught nothing new (kernel §XIX)
         try:
             for gen in range(max_generations):
@@ -96,25 +97,30 @@ class GenerationalRunner:
                         break
                     lbl, data = pol.choose()
                     cur_board = _board_hash(snap["grid"])
-                    # FIX 2: apply the learned-fatal veto across resets (sync pol._pending so the policy
-                    # attributes the NEXT frame to what was actually emitted, not its original pick).
-                    lbl, data, avoided = apply_fatal_veto(cur_board, lbl, data, snap.get("available", []), fatal_moves)
-                    if avoided is not None:
+                    # CLOSED LOOP: shape this proposal from ALL prior ground verdicts -- refute vetoes,
+                    # mute routes to empowerment, confirm is preferred. Sync pol._pending on override so
+                    # the policy attributes the next frame to what was actually emitted.
+                    lbl, data, shaped = circuit.shape(cur_board, lbl, data, snap.get("available", []))
+                    if shaped is not None:
                         try:
                             pol._pending = lbl; pol._pending_rc = None
                         except Exception:
                             pass
                     payload = decision_reasoning(pol, lbl, data, total_steps, gen)
-                    if avoided is not None:
-                        payload["veto"] = {"avoided": avoided, "chose": lbl, "reason": "recorded fatal at this board"}
+                    if shaped is not None:
+                        payload["shaped"] = shaped                # e.g. "veto:refuted->A1" / "empower:mute->A2"
                     prev = snap.get("levels_completed", 0)
                     snap = session.step(int(lbl[1:]), data=data,
                                         reasoning={"why": compact_why(payload), **payload})  # rich reasoning to the API
                     lv = snap.get("levels_completed", 0)
-                    if snap.get("done") and snap.get("state") != "WIN":
-                        fatal_moves.add((cur_board, lbl))         # this (board, action) just ended the run
+                    after_board = _board_hash(snap["grid"])
+                    verdict = classify(cur_board, after_board, lv - prev,
+                                       bool(snap.get("done")), snap.get("state"))
+                    circuit.record(cur_board, lbl, data, verdict)  # <- the price feeds back into generation
+                    payload["verdict"] = verdict
                     led.record_action(gen, total_steps, lbl, data, payload, lv)
-                    h = _board_hash(snap["grid"]); novel = h not in seen; seen.add(h)
+                    led.record_verdict(verdict)
+                    novel = after_board not in seen; seen.add(after_board)
                     if lv > prev:
                         led.record_level_up(gen, total_steps, prev, lv); best = max(best, lv); since_progress = 0
                     elif novel:
