@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 from .ledger import RunLedger
 from .reasoning import decision_reasoning, compact_why
 from .reset_policy import ResetPolicy
-from .verdict import VerdictCircuit, classify
+from .verdict import VerdictCircuit, classify, Verdict
 
 
 def _board_hash(grid) -> int:
@@ -52,12 +52,19 @@ class GenerationalRunner:
 
     def run(self, session, game_id: str, *, max_generations: int = 20, hard_cap: int = 500,
             stall_patience: int = 60, unearned_patience: int = 3, wall_cap_s: float = 3600.0,
-            blackboard=None, run_tag: str = "", signature_fn=None, now=time.time) -> Dict[str, Any]:
+            blackboard=None, run_tag: str = "", signature_fn=None, sensorium=None,
+            now=time.time) -> Dict[str, Any]:
         import sys, os
         src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
         if src not in sys.path:
             sys.path.insert(0, src)
         from newhorse.redux_arch.policy import ReduxPolicy
+
+        # The sensorium (if attached) IS the signature source: its self-relative, minted danger
+        # descriptor replaces any fixed signature_fn, and every grounded step is fed back into it so
+        # perception is priced by the ground (DESIGN_the_sensorium_composition_as_minted_perception).
+        if sensorium is not None:
+            signature_fn = sensorium.signature
 
         led = RunLedger(game_id, self.run_dir, run_tag=run_tag)
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)  # ONE agent across generations
@@ -96,6 +103,7 @@ class GenerationalRunner:
                                 return self._result(game_id, best, gen, total_steps, outcome, led, session)
                         break
                     lbl, data = pol.choose()
+                    grid_before = snap["grid"]; avail_before = snap.get("available", [])
                     cur_board = _board_hash(snap["grid"])
                     sig = signature_fn(snap["grid"], snap.get("available", [])) if signature_fn else None
                     # CLOSED LOOP: shape this proposal from ALL prior ground verdicts -- refute vetoes
@@ -118,6 +126,12 @@ class GenerationalRunner:
                     verdict = classify(cur_board, after_board, lv - prev,
                                        bool(snap.get("done")), snap.get("state"))
                     circuit.record(cur_board, lbl, data, verdict, signature=sig)  # price feeds back into generation
+                    if sensorium is not None:                 # feed the grounded step back into perception
+                        try:
+                            sensorium.observe(grid_before, lbl, snap["grid"],
+                                              fatal=(verdict == Verdict.REFUTE), available=avail_before)
+                        except Exception:
+                            pass
                     payload["verdict"] = verdict
                     led.record_action(gen, total_steps, lbl, data, payload, lv)
                     led.record_verdict(verdict)
@@ -144,6 +158,14 @@ class GenerationalRunner:
         finally:
             led.data["verdict_circuit"] = {"sig_confirmed": len(circuit.sig_confirmed),
                                            "sig_refuted": len(circuit.sig_refuted)}
+            if sensorium is not None:
+                try:
+                    led.data["sensorium"] = {"has_self": sensorium.fwd.has_self(),
+                                             "mint": sensorium.mint.report() if sensorium.mint else {},
+                                             "active_channels": list(sensorium.mint.active_channels())
+                                             if sensorium.mint else []}
+                except Exception:
+                    pass
             led.flush()
             try:
                 session.close()
