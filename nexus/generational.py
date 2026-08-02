@@ -17,14 +17,23 @@ import time
 from typing import Any, Dict, Optional
 from .ledger import RunLedger
 from .reasoning import decision_reasoning, compact_why
+from .reset_policy import ResetPolicy
+
+
+def _board_hash(grid) -> int:
+    try:
+        return hash(grid.tobytes())
+    except Exception:
+        return hash(str(grid))
 
 
 class GenerationalRunner:
     def __init__(self, run_dir: str = "/tmp/nexus_runs"):
         self.run_dir = run_dir
 
-    def run(self, session, game_id: str, *, max_generations: int = 20, max_actions_per_life: int = 120,
-            wall_cap_s: float = 3600.0, blackboard=None, run_tag: str = "", now=time.time) -> Dict[str, Any]:
+    def run(self, session, game_id: str, *, max_generations: int = 20, hard_cap: int = 500,
+            stall_patience: int = 60, wall_cap_s: float = 3600.0, blackboard=None, run_tag: str = "",
+            now=time.time) -> Dict[str, Any]:
         import sys, os
         src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
         if src not in sys.path:
@@ -33,26 +42,29 @@ class GenerationalRunner:
 
         led = RunLedger(game_id, self.run_dir, run_tag=run_tag)
         pol = ReduxPolicy(game_id=game_id, blackboard=blackboard, warmup_cap=8)  # ONE agent across generations
+        rp = ResetPolicy(base_patience=stall_patience, hard_cap=hard_cap)         # reset boundary is game-natural
         snap = session.open()
         best = snap.get("levels_completed", 0)
-        t0 = now(); total_steps = 0; outcome = "budget"; gen = 0
+        t0 = now(); total_steps = 0; outcome = "budget"; gen = 0; payload = None
         try:
             for gen in range(max_generations):
                 led.start_generation(gen)
-                life_steps = 0
-                while life_steps < max_actions_per_life and (now() - t0) < wall_cap_s:
+                seen = set(); life_steps = 0; since_progress = 0; prev_best = best; reason = None
+                while (now() - t0) < wall_cap_s:
                     pol.observe(snap["grid"], snap["available"], snap.get("levels_completed", 0),
                                 state=snap.get("state"))
-                    if snap.get("done"):
-                        if snap.get("state") == "WIN":
-                            outcome = "WIN"
-                            led.flush()
-                            return self._result(game_id, best, gen, total_steps, outcome, led, session)
-                        earned, why = pol.reset_earned()          # GAME_OVER: what killed us (a receipt)
-                        led.record_death(gen, total_steps, why)
-                        if why:
-                            led.record_refuted(why)               # never re-spend this across generations
-                        break                                      # end lifetime -> reset into next generation
+                    reason = rp.lifetime_over(done=bool(snap.get("done")), state=snap.get("state"),
+                                              steps_in_life=life_steps, steps_since_progress=since_progress)
+                    if reason == "win":
+                        outcome = "WIN"; led.flush()
+                        return self._result(game_id, best, gen, total_steps, outcome, led, session)
+                    if reason:                                    # death / stall / cap -> end this lifetime
+                        if reason == "death":
+                            earned, why = pol.reset_earned()      # GAME_OVER: what killed us (a receipt)
+                            led.record_death(gen, total_steps, why)
+                            if why:
+                                led.record_refuted(why)           # never re-spend this across generations
+                        break
                     lbl, data = pol.choose()
                     payload = decision_reasoning(pol, lbl, data, total_steps, gen)
                     prev = snap.get("levels_completed", 0)
@@ -60,16 +72,25 @@ class GenerationalRunner:
                                         reasoning={"why": compact_why(payload), **payload})  # rich reasoning to the API
                     lv = snap.get("levels_completed", 0)
                     led.record_action(gen, total_steps, lbl, data, payload, lv)
+                    h = _board_hash(snap["grid"]); novel = h not in seen; seen.add(h)
                     if lv > prev:
-                        led.record_level_up(gen, total_steps, prev, lv); best = max(best, lv)
+                        led.record_level_up(gen, total_steps, prev, lv); best = max(best, lv); since_progress = 0
+                    elif novel:
+                        since_progress = 0                        # reaching a NEW board state = still revealing
+                    else:
+                        since_progress += 1                       # cycling/static = stalling
                     life_steps += 1; total_steps += 1
                     if total_steps % 20 == 0:
                         led.flush()
-                # snapshot this generation's live hypotheses, then reset into the next
+                # generation ended: let the society tune the reset threshold, record the receipt
+                gained = best > prev_best
+                adj = rp.adapt(reason or "budget", gained)
+                led.record_generation_end(gen, reason or "budget", life_steps, adj)
                 led.snapshot_hypotheses(gen, payload_hyps(payload), abduced_list(payload))
                 if (now() - t0) >= wall_cap_s:
                     outcome = "wall_cap"; break
-                snap = session.reset_after_death(reasoning={"why": "generational reset", "generation": gen})
+                snap = session.reset_after_death(
+                    reasoning={"why": "generational reset (%s)" % reason, "generation": gen})
                 pol.note_reset()
         finally:
             led.flush()

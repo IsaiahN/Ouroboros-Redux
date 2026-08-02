@@ -31,12 +31,13 @@ def main(argv):
         return 1
 
     gens = opt("--generations", 20)
-    acts = opt("--actions", 120)
+    cap = opt("--cap", 500)            # hard ceiling per lifetime (infinite games); death/stall reset earlier
+    stall = opt("--stall", 60)         # reset after this many steps with no new board state and no level
     wall = opt("--wall", 3600.0)
     runner = GenerationalRunner()
     total = 0
     for gid in games:
-        r = runner.run_online(gid, max_generations=gens, max_actions_per_life=acts, wall_cap_s=wall)
+        r = runner.run_online(gid, max_generations=gens, hard_cap=cap, stall_patience=stall, wall_cap_s=wall)
         total += r.get("best_level", 0) or 0
         print(f"{gid:16s} best_level={r.get('best_level')} gens={r.get('generations')} "
               f"steps={r.get('steps')} outcome={r.get('outcome')} scorecard={r.get('view_url')}")

@@ -36,7 +36,7 @@ class FakeSession:
 
 def test_generational_loop_compounds_across_lifetimes(tmp_path):
     r = GenerationalRunner(run_dir=str(tmp_path)).run(
-        FakeSession(), "faketest", max_generations=6, max_actions_per_life=12, wall_cap_s=60)
+        FakeSession(), "faketest", max_generations=6, hard_cap=12, wall_cap_s=60)
 
     assert r["outcome"] == "WIN"
     assert r["generations"] >= 2                # it took more than one lifetime
@@ -56,6 +56,6 @@ def test_generational_loop_compounds_across_lifetimes(tmp_path):
 
 def test_ledger_summary_is_self_referenceable(tmp_path):
     r = GenerationalRunner(run_dir=str(tmp_path)).run(
-        FakeSession(), "faketest2", max_generations=4, max_actions_per_life=12, wall_cap_s=60)
+        FakeSession(), "faketest2", max_generations=4, hard_cap=12, wall_cap_s=60)
     s = r["summary"]                            # the compact view a new lifetime would read first
     assert set(("best_level", "generations", "refuted", "death_causes")).issubset(s.keys())

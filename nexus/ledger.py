@@ -26,6 +26,7 @@ class RunLedger:
             "deaths": [],             # {gen, step, cause}
             "level_ups": [],          # {gen, step, from, to}
             "hypothesis_snapshots": [],  # {gen, hypotheses:[...], abduced:[...]}
+            "generation_ends": [],    # {gen, reason: death|stall|cap|budget, life_steps, adjustment}
         }
 
     # ---- writes (receipts) ------------------------------------------------------------------------
@@ -50,6 +51,11 @@ class RunLedger:
 
     def snapshot_hypotheses(self, gen: int, hypotheses: List[str], abduced: List[str]) -> None:
         self.data["hypothesis_snapshots"].append({"gen": gen, "hypotheses": hypotheses, "abduced": abduced})
+
+    def record_generation_end(self, gen: int, reason: str, life_steps: int, adjustment: dict) -> None:
+        """Why a generation ended (death/stall/cap/win/budget) + how the society retuned the reset."""
+        self.data["generation_ends"].append({"gen": gen, "reason": reason, "life_steps": life_steps,
+                                              "adjustment": adjustment})
 
     # ---- self-reference (queries the agent uses across lifetimes) ---------------------------------
     def is_refuted(self, cause: str) -> bool:
