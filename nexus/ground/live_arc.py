@@ -66,6 +66,42 @@ class LiveArcGround:
             game_ids, max_actions=max_actions, wall_cap_s=wall_cap_s, max_workers=max_workers,
             tags=tags or ["nexus"])
 
+    def play_set_generational(self, game_ids: List[str], *, max_generations: int = 4, hard_cap: int = 200,
+                              wall_cap_s: float = 120.0, stall_patience: int = 60, unearned_patience: int = 3,
+                              max_workers: int = 4, run_tag: str = "", tags: Optional[List[str]] = None
+                              ) -> Dict[str, Any]:
+        """Swarm the DEEP generational Nexus agent across a roster concurrently: one
+        `GenerationalRunner.run_online` per game (sensorium default-on + generations + verdict circuit),
+        each with its OWN scorecard (clean RESET, no shared-scorecard contention). Bounded for a
+        heartbeat slice; keep max_workers low so the concurrent agents respect the shared RPM cap.
+        Returns {results{game->result}, levels{game->best_level}}. The only metric read is best_level."""
+        if not self.has_key():
+            raise RuntimeError("ARC_API_KEY not in env -- export it (env-only) before a live run.")
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        if _SRC not in sys.path:
+            sys.path.insert(0, _SRC)
+        if _REPO not in sys.path:
+            sys.path.insert(0, _REPO)
+        from nexus.generational import GenerationalRunner
+
+        def _one(gid: str):
+            try:
+                return gid, GenerationalRunner().run_online(
+                    gid, max_generations=max_generations, hard_cap=hard_cap, wall_cap_s=wall_cap_s,
+                    stall_patience=stall_patience, unearned_patience=unearned_patience,
+                    run_tag=run_tag or ("gen_%s" % gid.split("-")[0]))
+            except Exception as e:                            # one game's failure must not sink the swarm
+                return gid, {"game": gid, "best_level": 0, "outcome": "error:%s" % type(e).__name__}
+
+        results: Dict[str, Any] = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futs = [ex.submit(_one, g) for g in game_ids]
+            for f in as_completed(futs):
+                gid, r = f.result()
+                results[gid] = r
+        return {"results": results,
+                "levels": {g: r.get("best_level", 0) for g, r in results.items()}}
+
     def run_offline(self, session, *, max_actions: int = 50, wall_cap_s: float = 30.0) -> Dict[str, Any]:
         """Drive the kernel's brick-9 loop against a provided session (for tests: a FakeSession). No key."""
         return _mod("newhorse.live_run").run_live(session, max_actions=max_actions, wall_cap_s=wall_cap_s)
