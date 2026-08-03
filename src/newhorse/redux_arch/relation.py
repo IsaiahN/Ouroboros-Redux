@@ -22,6 +22,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from .referent import Referent
+from .operator_effect import OperatorEffectLearner
+from .operator_planner import OperatorPlanner
+import os
 
 
 @dataclass
@@ -317,6 +320,11 @@ class RelationBank:
         self._region_sub: Dict[Tuple[int, int, int, int], np.ndarray] = {}     # panel bbox -> latest sub-grid
         self._roles: Optional[Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int]]] = None   # (ws_bbox, ref_bbox)
         self._role_win = 8
+        # --- B2 MATCH drive (Locksmith L2/L3), FLAG-GATED (default OFF -> zero runtime change / no regression) ---
+        self._match_drive = bool(os.environ.get("OURO_MATCH_DRIVE"))
+        self._op = OperatorEffectLearner()     # learns site->effect-on-workspace by intervention (L2)
+        self._planner = OperatorPlanner()      # residual + operator map + sites -> next drive target (L3)
+        self._prev_ws = None                   # previous workspace sub-grid (to attribute its change to a contact)
 
     def _resolve_reach_goal(self, g: np.ndarray, refs: List[Referent], ctx: RelationCtx):
         """Pin the REACH goal ACROSS frames: keep tracking the same goal region (the referent that still overlaps the
@@ -398,7 +406,29 @@ class RelationBank:
             self.hist[r.name].append(None if d is None else float(d))
             self.last_target[r.name] = t
             self.target_hist[r.name].append(t)
+        if self._match_drive and self._roles is not None:      # B2: compute the MATCH drive target (flag-gated)
+            try:
+                self._drive_match(g, refs, ctx)
+            except Exception:
+                pass                                            # a relation/drive must never crash the policy
         self.n += 1
+
+    def _drive_match(self, g: np.ndarray, refs: List[Referent], ctx: RelationCtx) -> None:
+        """Turn the MATCH residual into a drive target (Locksmith L2+L3). Feeds the operator-effect learner the
+        workspace change attributed to the site the body last contacted, then asks the planner which site to
+        contact next to reduce the residual. Sets last_target['MATCH'] so drive_target can pursue it. Directional
+        modality (a routed body); click-modality is a later brick."""
+        ws_bbox, ref_bbox = self._roles
+        ws_sub = self._region_sub.get(ws_bbox)
+        body = _centroid_colour(g, ctx.cursor) if ctx.cursor is not None else None
+        sites = [(r.bbox, r.bbox) for r in refs if r.bbox not in (ws_bbox, ref_bbox)]   # operator sites = non-role objects
+        if self._prev_ws is not None and ws_sub is not None:
+            self._op.step(body, sites, self._prev_ws, ws_sub)  # intervention: credit the ws change to the contacted site
+        self._prev_ws = ws_sub
+        residual = self._rel("MATCH").residual(g, refs, ctx)   # the transform still to null
+        target, _ = self._planner.plan(residual, self._op.operators(), sites, ws_bbox)
+        if target is not None:
+            self.last_target["MATCH"] = (int(target[0]), int(target[1]))
 
     def _target_stable(self, name: str) -> bool:
         """Precision gate: a relation is trusted only if its DRIVE-TARGET is COHERENT across the recent window -- a real
@@ -450,7 +480,8 @@ class RelationBank:
         the first DRIVABLE relation (REACH, then CONNECT) that currently proposes a target -- an initial hypothesis to
         test by seeing whether driving it shrinks its discrepancy. None if nothing drivable applies."""
         sel = self.selected()
-        if sel is not None and self._rel(sel).drivable and self.last_target.get(sel) is not None:
+        if sel is not None and self.last_target.get(sel) is not None and \
+                (self._rel(sel).drivable or (sel == "MATCH" and self._match_drive)):   # B2: MATCH drivable when flagged
             return self.last_target[sel]
         for name in ("REACH", "CONNECT"):
             if self.last_target.get(name) is not None:
