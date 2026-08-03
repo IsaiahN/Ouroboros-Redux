@@ -68,13 +68,13 @@ class LiveArcGround:
 
     def play_set_generational(self, game_ids: List[str], *, max_generations: int = 4, hard_cap: int = 200,
                               wall_cap_s: float = 120.0, stall_patience: int = 60, unearned_patience: int = 3,
-                              max_workers: int = 4, run_tag: str = "", tags: Optional[List[str]] = None
-                              ) -> Dict[str, Any]:
-        """Swarm the DEEP generational Nexus agent across a roster concurrently: one
-        `GenerationalRunner.run_online` per game (sensorium default-on + generations + verdict circuit),
-        each with its OWN scorecard (clean RESET, no shared-scorecard contention). Bounded for a
-        heartbeat slice; keep max_workers low so the concurrent agents respect the shared RPM cap.
-        Returns {results{game->result}, levels{game->best_level}}. The only metric read is best_level."""
+                              max_workers: int = 6, rpm: int = 540, run_tag: str = "",
+                              tags: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Swarm the DEEP generational Nexus agent across a roster concurrently: one GenerationalRunner
+        per game (sensorium default-on + generations + verdict circuit), each with its OWN scorecard
+        (clean RESET). ALL agents share ONE global RateLimiter so the aggregate stays under the ARC
+        600-RPM/key cap (the same spacer swarm.py uses) -- without it, N concurrent agents trip 429s and
+        corrupt the data. Returns {results{game->result}, levels{game->best_level}}. Metric = best_level."""
         if not self.has_key():
             raise RuntimeError("ARC_API_KEY not in env -- export it (env-only) before a live run.")
         from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -83,13 +83,19 @@ class LiveArcGround:
         if _REPO not in sys.path:
             sys.path.insert(0, _REPO)
         from nexus.generational import GenerationalRunner
+        from nexus.sensorium import build_sensorium
+        from newhorse.redux_arch.swarm import RateLimiter
+        from newhorse.arc3_env import Arc3Session
+
+        limiter = RateLimiter(rpm)                            # ONE global spacer shared across all agents
 
         def _one(gid: str):
             try:
-                return gid, GenerationalRunner().run_online(
-                    gid, max_generations=max_generations, hard_cap=hard_cap, wall_cap_s=wall_cap_s,
+                session = Arc3Session(gid, tags=(tags or ["nexus", "generational"]) + [gid], limiter=limiter)
+                return gid, GenerationalRunner().run(
+                    session, gid, max_generations=max_generations, hard_cap=hard_cap, wall_cap_s=wall_cap_s,
                     stall_patience=stall_patience, unearned_patience=unearned_patience,
-                    run_tag=run_tag or ("gen_%s" % gid.split("-")[0]))
+                    sensorium=build_sensorium(), run_tag=run_tag or ("gen_%s" % gid.split("-")[0]))
             except Exception as e:                            # one game's failure must not sink the swarm
                 return gid, {"game": gid, "best_level": 0, "outcome": "error:%s" % type(e).__name__}
 
