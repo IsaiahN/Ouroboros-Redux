@@ -222,6 +222,10 @@ def run_policy_live(game_id: str, max_actions: int = 80, wall_cap_s: float = 200
                     rel_reinforce=pol.n_rel_reinforce,
                     multi_avatar_drive=pol.n_multi_avatar_drive,
                     match_roles_assigned=(pol.relations.role_bboxes() is not None),
+                    roles_resolved_steps=pol.relations.n_roles_resolved,
+                    match_target_steps=pol.relations.n_match_target,
+                    panels_max=pol.relations.n_panels_max,
+                    role_debug=pol.relations.role_debug(),
                     match_discrepancy=pol.relations.discrepancies().get("MATCH"),
                     order_discrepancy=pol.relations.discrepancies().get("ORDER"),
                     tether_stage=_tether_stage(pol))

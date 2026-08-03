@@ -325,6 +325,10 @@ class RelationBank:
         self._op = OperatorEffectLearner()     # learns site->effect-on-workspace by intervention (L2)
         self._planner = OperatorPlanner()      # residual + operator map + sites -> next drive target (L3)
         self._prev_ws = None                   # previous workspace sub-grid (to attribute its change to a contact)
+        # diagnostic counters (telemetry only; no behaviour) -- answer the B2 gate "do roles resolve, is a target set"
+        self.n_roles_resolved = 0              # observe steps where WORKSPACE/REFERENCE roles were assigned
+        self.n_match_target = 0                # steps where _drive_match produced a MATCH drive target
+        self.n_panels_max = 0                  # max panel-kind referents seen in any single frame
 
     def _resolve_reach_goal(self, g: np.ndarray, refs: List[Referent], ctx: RelationCtx):
         """Pin the REACH goal ACROSS frames: keep tracking the same goal region (the referent that still overlaps the
@@ -388,12 +392,26 @@ class RelationBank:
         (which watches the WORKSPACE and attributes its changes to the agent's contacts)."""
         return self._roles
 
+    def role_debug(self):
+        """Telemetry ONLY (no behaviour): why did roles (not) resolve? Per tracked panel region, its shape and how many
+        DISTINCT content-hashes it accumulated (1 = invariant, >1 = mutated). Reveals whether a mutated panel and a
+        same-shape invariant panel co-exist at all -- the precondition _resolve_roles needs. Answers the B2 gate."""
+        out = []
+        for b, hs in self._region_hash.items():
+            sub = self._region_sub.get(b)
+            shape = tuple(sub.shape) if sub is not None else None
+            out.append({"bbox": [int(x) for x in b], "shape": list(shape) if shape else None,
+                        "obs": len(hs), "distinct": len(set(hs))})
+        return out
+
     def observe(self, frame, refs: List[Referent], ctx: RelationCtx) -> None:
         g = np.asarray(frame)
         self._shape = (int(g.shape[0]), int(g.shape[1]))
         self._last = (g, list(refs), ctx)
         self._resolve_roles(g, refs)
+        self.n_panels_max = max(self.n_panels_max, sum(1 for r in refs if r.kind == "panel"))
         if self._roles is not None:
+            self.n_roles_resolved += 1
             ws, ref = self._roles
             ctx.match_roles = (self._region_sub[ws], self._region_sub[ref])
         ctx.reach_goal = self._resolve_reach_goal(g, refs, ctx)   # pin the goal so REACH's discrepancy is comparable
@@ -428,6 +446,7 @@ class RelationBank:
         residual = self._rel("MATCH").residual(g, refs, ctx)   # the transform still to null
         target, _ = self._planner.plan(residual, self._op.operators(), sites, ws_bbox)
         if target is not None:
+            self.n_match_target += 1
             self.last_target["MATCH"] = (int(target[0]), int(target[1]))
 
     def _target_stable(self, name: str) -> bool:
