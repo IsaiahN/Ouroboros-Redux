@@ -15,7 +15,16 @@ prime AND over Relation atoms) -- the smallest composition that lets an MDL spli
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Tuple, Optional, FrozenSet, Iterable
-import itertools
+import itertools, os
+
+# ★ VOCABULARY GROWTH (blend M2, flag-gated). The relational atoms below are geometry-only {NEAR,TOUCH,SAME_ROW/
+# COL,ACTS_TOWARD} -- a navigation-only objective vocabulary (the B-VOCAB gap: the composer is on-path for
+# navigation games, off-path for MATCH/ORDER/REFLECT). SAME_COLOUR grounds the grammar's MATCH = SAME(ATTR,ATTR)
+# molecule as an EVALUABLE before-state predicate over the shared Γ, so BOTH the live composer (pose_goal /
+# two_part_mdl) AND the nexus proposer gain it. It is always in the REGISTRY (make_atom works), but only enters
+# `atom_universe` (the enumerated search space) when OURO_VOCAB_MATCH is set -- default OFF keeps every existing
+# MDL decision, and the suite, byte-for-byte unchanged; ON is A/B-able.
+_VOCAB_MATCH = os.environ.get("OURO_VOCAB_MATCH", "") not in ("", "0", "false", "False", "off")
 
 # ---- types (a tiny type system so pruning is real, not decorative) -----------------------------------------
 OBJ, COLOUR, VEC, BOOL = "OBJ", "COLOUR", "VEC", "BOOL"
@@ -32,6 +41,8 @@ class Context:
     action_vec: Tuple[int, int]                          # focus displacement under the action (0,0 if none/blocked)
     intended_free: bool = True                           # is the cell the focus would enter background/free?
     intended_colour: Optional[int] = None                # colour occupying that cell (None if unknown/edge)
+    target_colour: Optional[int] = None                  # the TARGET object's colour (for MATCH = SAME(ATTR,ATTR));
+    #                                                      None where unsupplied -> SAME_COLOUR is simply never true
 
     def _dist(self) -> int:
         return abs(self.focus_rc[0] - self.target_rc[0]) + abs(self.focus_rc[1] - self.target_rc[1])
@@ -75,6 +86,11 @@ def _acts_toward() -> Atom:
         return d_after < d_before
     return Atom("ACTS_TOWARD(focus,target)", 2, f, kind="ACTS_TOWARD")
 
+def _same_colour() -> Atom:                              # MATCH = SAME(ATTR,ATTR): focus attr equals target attr
+    return Atom("SAME_COLOUR(focus,target)", 2,
+                lambda ctx: ctx.target_colour is not None and ctx.focus_colour == ctx.target_colour,
+                kind="SAME_COLOUR")
+
 def _intended_free() -> Atom:                            # affordance: is the cell I'd enter free? (CAN move)
     return Atom("INTENDED_FREE", 2, lambda ctx: bool(ctx.intended_free), kind="INTENDED_FREE")
 
@@ -89,6 +105,7 @@ _ATOM_TYPES: Dict[str, Tuple[Tuple[str, ...], Callable[..., Atom]]] = {
     "TOUCH":           ((), _touch),
     "SAME_ROW":        ((), _align_row),
     "SAME_COL":        ((), _align_col),
+    "SAME_COLOUR":     ((), _same_colour),               # MATCH-by-attribute (grammar SAME molecule, grounded)
     "ACTS_TOWARD":     ((), _acts_toward),
     "INTENDED_FREE":   ((), _intended_free),             # the occupancy vocabulary (not the answer) for affordances
     "INTENDED_COLOUR": ((COLOUR,), _intended_colour),
@@ -102,7 +119,7 @@ _ATOM_TYPES: Dict[str, Tuple[Tuple[str, ...], Callable[..., Atom]]] = {
 # can be charged to a family AT THE POINT OF REJECTION -- it is a bookkeeping split of the existing vocabulary,
 # not a new detector, not a new atom, and not a gate: nothing in the search or the MDL score reads it.
 COLOUR_ATOM_KINDS = frozenset({"HAS_COLOUR", "INTENDED_COLOUR"})
-RELATIONAL_ATOM_KINDS = frozenset({"NEAR", "TOUCH", "SAME_ROW", "SAME_COL", "ACTS_TOWARD", "INTENDED_FREE"})
+RELATIONAL_ATOM_KINDS = frozenset({"NEAR", "TOUCH", "SAME_ROW", "SAME_COL", "SAME_COLOUR", "ACTS_TOWARD", "INTENDED_FREE"})
 assert COLOUR_ATOM_KINDS | RELATIONAL_ATOM_KINDS == frozenset(_ATOM_TYPES)   # exhaustive over the registry
 assert not (COLOUR_ATOM_KINDS & RELATIONAL_ATOM_KINDS)                       # and exclusive
 
@@ -162,7 +179,8 @@ class Predicate:
 
 def atom_universe(colours: Iterable[int]) -> List[Atom]:
     """All well-typed atoms given the COLOUR domain present in the scene (type-directed instantiation)."""
-    atoms: List[Atom] = [make_atom(k) for k, (argt, _) in _ATOM_TYPES.items() if not argt]
+    atoms: List[Atom] = [make_atom(k) for k, (argt, _) in _ATOM_TYPES.items()
+                         if not argt and (k != "SAME_COLOUR" or _VOCAB_MATCH)]   # MATCH atom gated (blend M2)
     for c in sorted(set(int(x) for x in colours)):
         atoms.append(make_atom("HAS_COLOUR", c))
         atoms.append(make_atom("INTENDED_COLOUR", c))

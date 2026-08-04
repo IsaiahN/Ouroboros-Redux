@@ -80,7 +80,8 @@ def pose_goal(steps: List[GoalStep], avatar_colour: int = 0, max_size: int = 1) 
             if cid not in cmap:
                 continue
             exc.append((Context(focus_rc=avatar, focus_colour=int(avatar_colour),
-                                 target_rc=cmap[cid], action_vec=avec), bool(prog)))
+                                 target_rc=cmap[cid], action_vec=avec,
+                                 target_colour=(int(cid) if isinstance(cid, int) else None)), bool(prog)))
         if len(exc) < 2:
             continue
         m = two_part_mdl(exc, max_size=max_size)         # searches ACTS_TOWARD, NEAR, TOUCH, SAME_ROW/COL ...
