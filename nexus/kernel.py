@@ -11,22 +11,35 @@ the kernel's own code -- the same code the mint search uses. That is the point o
 the population never gets its own private notion of what a predicate is or whether it holds.
 """
 from __future__ import annotations
-import importlib.util, os, sys
+import os, sys
 from typing import List
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SRC = os.path.join(_REPO, "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
 
-def _load(mod_name: str, rel_path: str):
-    spec = importlib.util.spec_from_file_location(mod_name, os.path.join(_SRC, rel_path))
-    m = importlib.util.module_from_spec(spec)
-    sys.modules[mod_name] = m
-    spec.loader.exec_module(m)
-    return m
-
-# the kernel's evaluable predicate DSL Γ (redux_arch/dsl.py) and the objective grammar
-DSL = _load("nexus_kernel_dsl", os.path.join("newhorse", "redux_arch", "dsl.py"))
-GRAMMAR = _load("nexus_kernel_grammar", os.path.join("newhorse", "grammar.py"))
+# THE KERNEL IMPORTS Γ. IT DOES NOT LOAD A SECOND COPY OF IT.
+#
+# Until 2026-08-04 these two lines were `importlib.util.spec_from_file_location(...)` calls that read
+# `redux_arch/dsl.py` and `grammar.py` off disk and registered them under private names (`nexus_kernel_dsl`,
+# `nexus_kernel_grammar`). Same source text, DIFFERENT module objects -- and therefore different classes.
+# Measured, not argued: with both halves imported in one process,
+#
+#     newhorse.redux_arch.dsl.Predicate is nexus.kernel.Predicate   ->  False
+#     isinstance(<a Predicate the live agent built>, kernel.Predicate) -> False
+#     dsl._ATOM_TYPES is kernel._ATOM_TYPES                          ->  False
+#
+# So the docstring's claim -- "the population never gets its own private notion of what a predicate is" -- was
+# true of the SOURCE and false of the RUNTIME. It is the mechanical reason the objective composer could never be
+# routed through the proposer: the two halves cannot hand each other a predicate, because a predicate built on
+# one side is not an instance of the other side's type, and the atom-type registry each side consults is a
+# different dict. A double-loaded module is a reinvention that no grep can see.
+#
+# A plain import fixes it: one module object, one Γ, one registry. Nothing under `src/` imports `nexus`, so the
+# live agent's behaviour cannot move -- and that asymmetry is what makes this edit provable rather than risky.
+from newhorse.redux_arch import dsl as DSL                    # noqa: E402  (path set immediately above)
+from newhorse import grammar as GRAMMAR                       # noqa: E402
 
 Context   = DSL.Context
 Atom      = DSL.Atom
