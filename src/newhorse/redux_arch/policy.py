@@ -23,7 +23,8 @@ import threading
 import numpy as np
 from scipy import ndimage as _ndi
 from .replay import learn_basis, learn_basis_trailaware
-from .goal import salient_targets, approachable_component_centroid, pose_goal, GoalStep, PosedGoal
+from .goal import (salient_targets, approachable_component_centroid, pose_goal, score_goals,
+                   GoalStep, PosedGoal)
 from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer, DirectedExplorer
 from .coupled import coupled_goal_mint
@@ -55,6 +56,14 @@ ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 # -- and averaging it into a centroid would invent a self where there is none. Shares salient_targets' max_frac
 # reasoning: an object occupying more than a small fraction of the board is a field, not a figure.
 LOCUS_MAX_FRAC = 0.15
+
+# ★ THE MARGIN A CHALLENGER MUST CLEAR TO UNSEAT THE POSED OBJECTIVE (`_commit_goal`). Set above 1.0 because the
+# question "what is this game about?" is not re-decidable every twelve steps on a hair's-breadth of bits: an
+# objective that is displaced by any marginal improvement is not an objective, it is a running argmax. 1.25 says
+# a challenger must compress the agent's own progress stream a QUARTER better PER STEP OF SUPPORT -- enough that
+# the switch is evidence rather than noise, low enough that a genuinely wrong incumbent is still displaced within
+# a couple of windows. Not tuned per game; one number, applied to every family.
+POSE_COMMIT_MARGIN = 1.25
 
 # game families the router dispatches to
 PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE, MULTI_AVATAR = \
@@ -322,6 +331,10 @@ class ReduxPolicy:
         # DIRECTIONAL-only entry gate for an A/B; ON by default because "the self translates" was a smuggled
         # assumption, not an architectural claim.
         self._anyfam = os.environ.get("OURO_POSE_ANYFAM", "1") not in ("0", "", "false", "False", "off")
+        # ★ THE COMPOSER DEFENDS ITS OBJECTIVE (cycle 21 stage 2a). See `_commit_goal`. OURO_POSE_COMMIT=0 restores
+        # the unconditional `self._posed_goal = posed` for an A/B.
+        self._commit_on = os.environ.get("OURO_POSE_COMMIT", "1") not in ("0", "", "false", "False", "off")
+        self.n_defended = 0                              # times the incumbent objective held off a challenger
         self._eff_locus: Optional[Tuple[int, int]] = None  # last legible support of MY OWN effect (residual centroid)
         self._locus_kind: Optional[str] = None            # which self-hypothesis posed: minted / cursor / effect
         self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
@@ -666,18 +679,68 @@ class ReduxPolicy:
             window = self._goal_steps[-120:]
             progs = [p for _, _, _, p in window]
             if any(progs) and not all(progs):            # progress must VARY for a split to compress it
-                posed = pose_goal(window, avatar_colour=int(acolour))
+                scores = score_goals(window, avatar_colour=int(acolour))
+                posed = None
+                for _c, _pg in scores.items():           # the argmax, exactly as `pose_goal` picks it
+                    if posed is None or _pg.saved_bits > posed.saved_bits:
+                        posed = _pg
+                defended = None
+                if posed is not None:
+                    posed, defended = self._commit_goal(posed, scores)
                 if posed is not None:
                     changed = (self._posed_goal is None or posed.target != self._posed_goal.target
                                or str(posed.mint.predicate) != str(self._posed_goal.mint.predicate))
                     self._posed_goal = posed
                     if changed:
                         self.n_posed += 1
-                        self.abduced.append(dict(from_level=self.level, source="pose_goal",
-                                                 target=posed.target, name=str(posed.mint.predicate),
-                                                 saved_bits=float(posed.saved_bits), acted=True,
-                                                 locus=kind,       # WHICH self-hypothesis posed it (explainability)
-                                                 predicate=posed.mint.predicate))
+                        rec = dict(from_level=self.level, source="pose_goal",
+                                   target=posed.target, name=str(posed.mint.predicate),
+                                   saved_bits=float(posed.saved_bits), acted=True,
+                                   density=round(float(posed.density), 4),
+                                   locus=kind,           # WHICH self-hypothesis posed it (explainability)
+                                   predicate=posed.mint.predicate)
+                        if defended is not None:
+                            rec["defended_over"] = defended   # the challenger this incumbent held off, and by what
+                        self.abduced.append(rec)
+
+    # ★ THE COMPOSER MUST DEFEND ITS OBJECTIVE (cycle 21, stage 2a). A second smuggled presupposition, one layer up
+    # from the self: `self._posed_goal = posed` was UNCONDITIONAL, so the newest window's argmax always won. That
+    # quietly assumes "the most recent reading is the better reading," which is false for the number being read.
+    # Measured on the public set at equal budget: the agent poses target 14, then 8, then 14, then 8 -- eleven
+    # times on one game, four on another, alternating -- with `saved_bits` climbing monotonically the whole way.
+    # It climbs because `saved_bits` is an ABSOLUTE bit count over a window that is still filling, so a later pose
+    # is scored on more data than the incumbent ever was. The agent was not changing its mind about the game; it
+    # was comparing two numbers that were never comparable, and calling the arithmetic an objective.
+    #
+    # An agent whose answer to "what is this game about?" is re-decided every twelve steps HAS no objective, and
+    # every downstream consumer inherits the thrash. Two corrections, both general:
+    #   (1) the comparand is DENSITY -- bits per step of SUPPORT (see PosedGoal.density) -- which divides out the
+    #       window-length confound, and also the candidate-presence confound INSIDE one window (a candidate absent
+    #       from some steps is scored on fewer of them);
+    #   (2) the incumbent is RE-SCORED ON THE CURRENT WINDOW before the comparison, so challenger and incumbent
+    #       are read off the same steps and the same progress labels. Comparing a fresh score against a stale one
+    #       is the same category error as (1), just displaced in time.
+    # The incumbent then holds unless beaten by POSE_COMMIT_MARGIN. What it does NOT defend is its PREDICATE: if
+    # the same target now compresses better under a different relation, that is the objective being REFINED, not
+    # abandoned, and refusing the refinement would freeze a worse reading of a target we still believe in.
+    def _commit_goal(self, posed: PosedGoal, scores: Dict[Any, PosedGoal]) -> Tuple[PosedGoal, Optional[dict]]:
+        """(objective to adopt, defence record or None). The defence record is what the agent SAYS when it keeps
+        an objective a newer window argued against -- both densities and the challenger it declined."""
+        inc = self._posed_goal
+        if not self._commit_on or inc is None or posed.target == inc.target:
+            return posed, None
+        cur = scores.get(inc.target)
+        if cur is None:
+            return posed, None                           # the incumbent target is not in this window at all -- it
+                                                         # left the board or left salience. Nothing to defend WITH:
+                                                         # an objective with no current evidence cannot outvote one
+                                                         # that has some. The challenger takes over unopposed.
+        if posed.density >= POSE_COMMIT_MARGIN * cur.density:
+            return posed, None                           # earned the switch on the same stream, by the margin
+        self.n_defended += 1
+        return cur, dict(over=posed.target,              # HELD. `cur`, not `inc`: the incumbent TARGET survives but
+                         over_density=round(float(posed.density), 4),   # its predicate is refreshed to this
+                         held_density=round(float(cur.density), 4))     # window's best reading of that target.
 
     # ★ THE SELF, FAMILY-GENERALLY -- removing the presupposition the composer was built on (cycle 21).
     # `_pose_goal_step` used to return at its FIRST line unless `cursor`+`vecs` existed, and those are assigned in

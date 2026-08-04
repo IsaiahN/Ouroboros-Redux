@@ -61,19 +61,36 @@ class PosedGoal:
     target: Hashable                                     # which candidate the reward tracks (the discovery)
     mint: Mint                                           # the winning predicate over (avatar, target)
     saved_bits: float
+    support: int = 0                                     # HOW MANY steps of the window this candidate was present for
     def __str__(self) -> str:
         return "GOAL: %s over (avatar, target=%r)  [%.1f bits]" % (self.mint.predicate, self.target, self.saved_bits)
 
+    @property
+    def density(self) -> float:
+        """★ BITS PER STEP OF SUPPORT -- the only comparand that survives a change of window.
 
-def pose_goal(steps: List[GoalStep], avatar_colour: int = 0, max_size: int = 1) -> Optional[PosedGoal]:
-    """Pose the game's goal by MDL over the progress residual: for each candidate target, score the best
-    before-state predicate `R(avatar, candidate)` that compresses the progress stream; return the candidate whose
-    predicate compresses it most. None if no candidate's relation compresses progress (SUPPORT/orthogonality
-    guard -- the reward has no structure a single relation captures)."""
+        `saved_bits` is an ABSOLUTE bit count over whatever stream was fed in, so it grows with the stream. Two
+        numbers produced from windows of different length (or from candidates present for different fractions of
+        the SAME window -- `pose_goal` skips a step where a candidate is absent, so support genuinely varies
+        candidate-to-candidate) are not comparable: the longer-supported one wins on sample size alone. Measured
+        on the public set, this is exactly what a live composer's `saved_bits` does -- it climbs monotonically as
+        the window fills, so "the newest score is bigger" carries no information about the objective at all.
+        Density divides that confound out. Zero support -> zero density (no evidence, no claim)."""
+        return (self.saved_bits / self.support) if self.support else 0.0
+
+
+def score_goals(steps: List[GoalStep], avatar_colour: int = 0, max_size: int = 1) -> Dict[Hashable, PosedGoal]:
+    """EVERY candidate's best compressing relation, keyed by candidate -- the full ranking, not just its argmax.
+
+    `pose_goal` is the argmax of this; it is kept as the selection so nothing downstream changes. The map exists
+    because an agent that can only see the winner cannot DEFEND an objective: to ask "is my incumbent still the
+    best reading of what this game is about?" the caller must be able to re-score the incumbent ON THE CURRENT
+    WINDOW, which is the only apples-to-apples comparison available (same steps, same progress labels). Returning
+    the map also makes the runners-up legible, which is what lets the agent say why it did NOT switch."""
     cands = set()
     for _, _, cmap, _ in steps:
         cands.update(cmap.keys())
-    best: Optional[PosedGoal] = None
+    out: Dict[Hashable, PosedGoal] = {}
     for cid in sorted(cands, key=lambda x: str(x)):
         exc = []
         for avatar, avec, cmap, prog in steps:
@@ -87,8 +104,19 @@ def pose_goal(steps: List[GoalStep], avatar_colour: int = 0, max_size: int = 1) 
         m = two_part_mdl(exc, max_size=max_size)         # searches ACTS_TOWARD, NEAR, TOUCH, SAME_ROW/COL ...
         if m is None:
             continue
-        if best is None or m.saved_bits > best.saved_bits:
-            best = PosedGoal(target=cid, mint=m, saved_bits=m.saved_bits)
+        out[cid] = PosedGoal(target=cid, mint=m, saved_bits=m.saved_bits, support=len(exc))
+    return out
+
+
+def pose_goal(steps: List[GoalStep], avatar_colour: int = 0, max_size: int = 1) -> Optional[PosedGoal]:
+    """Pose the game's goal by MDL over the progress residual: for each candidate target, score the best
+    before-state predicate `R(avatar, candidate)` that compresses the progress stream; return the candidate whose
+    predicate compresses it most. None if no candidate's relation compresses progress (SUPPORT/orthogonality
+    guard -- the reward has no structure a single relation captures)."""
+    best: Optional[PosedGoal] = None
+    for cid, pg in score_goals(steps, avatar_colour=avatar_colour, max_size=max_size).items():
+        if best is None or pg.saved_bits > best.saved_bits:
+            best = pg
     return best
 
 
