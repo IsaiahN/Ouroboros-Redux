@@ -130,7 +130,7 @@ def atom_family(atom: Atom) -> str:
     wiring fault silently counted as 'relational' is exactly the mis-labelled receipt this file exists to avoid."""
     if atom.kind in COLOUR_ATOM_KINDS:
         return "colour"
-    if atom.kind in RELATIONAL_ATOM_KINDS:
+    if atom.kind in RELATIONAL_ATOM_KINDS or atom.kind.startswith("COMPOSED:"):   # composed relations are relational
         return "relational"
     return "unregistered"
 
@@ -177,13 +177,68 @@ class Predicate:
         return " ∧ ".join(sorted(a.name for a in self.atoms)) or "TRUE"
 
 
+# ═══ THE SENSOR BASIS -- the invention loop, Half A (flag OURO_COMPOSE) ══════════════════════════════════════
+# Relational atoms are not a hand-list; they are COMPOSITIONS of typed before-state EXTRACTORS (what the agent can
+# read of focus/target) under comparison PRIMES. {SAME_ROW,SAME_COL,SAME_COLOUR} = EQ over extractor pairs
+# (re-DERIVED, not hand-written); LT over a position axis INVENTS an ORDER/directional relation with no ORDER atom
+# ever written. The composer enumerates these; the GROUND (MDL over the progress residual) keeps the ones that
+# pay and biodegrades the rest. This is the agent composing the relation it needs from a basis, per
+# DESIGN_the_invention_loop_compose_dont_hand_add. Default OFF (OURO_COMPOSE unset) -> universe unchanged.
+_COMPOSE = os.environ.get("OURO_COMPOSE", "") not in ("", "0", "false", "False", "off")
+
+# name -> (value TYPE, before-state extractor). A None read makes any comparison False (honest abstain, no smuggle).
+_EXTRACTORS: Dict[str, Tuple[str, Callable[["Context"], Optional[int]]]] = {
+    "focus.colour":  ("COLOUR", lambda c: c.focus_colour),
+    "target.colour": ("COLOUR", lambda c: c.target_colour),
+    "focus.row":     ("COORD",  lambda c: c.focus_rc[0]),
+    "focus.col":     ("COORD",  lambda c: c.focus_rc[1]),
+    "target.row":    ("COORD",  lambda c: c.target_rc[0]),
+    "target.col":    ("COORD",  lambda c: c.target_rc[1]),
+}
+# comparison primes: symbol, fn, symmetric?  EQ symmetric (one atom/unordered pair); LT directional (both orders).
+_COMPARE_PRIMES: Dict[str, Tuple[str, Callable[[int, int], bool], bool]] = {
+    "EQ": ("=", lambda a, b: a == b, True),
+    "LT": ("<", lambda a, b: a < b, False),
+}
+
+def _compose_atom(prime: str, ea: str, eb: str) -> Atom:
+    """One composed evaluable relation: prime(extractor_a, extractor_b), a before-state function -> bool."""
+    sym, fn, _sym = _COMPARE_PRIMES[prime]
+    _ta, fa = _EXTRACTORS[ea]; _tb, fb = _EXTRACTORS[eb]
+    def _eval(ctx: "Context") -> bool:
+        va, vb = fa(ctx), fb(ctx)
+        return va is not None and vb is not None and fn(va, vb)
+    return Atom("%s%s%s" % (ea, sym, eb), 2, _eval, kind="COMPOSED:%s" % prime)
+
+def composed_relational_atoms() -> List[Atom]:
+    """The GENERATED relational vocabulary: every type-valid EXTRACTOR pair under every comparison PRIME. EQ
+    re-derives SAME_ROW/SAME_COL/SAME_COLOUR; LT invents the ordering/directional relations -- none hand-written."""
+    out: List[Atom] = []
+    names = list(_EXTRACTORS)
+    for prime, (_symb, _fn, symmetric) in _COMPARE_PRIMES.items():
+        for i, ea in enumerate(names):
+            for j, eb in enumerate(names):
+                if ea == eb:
+                    continue
+                if symmetric and j <= i:                       # unordered pairs for a symmetric prime
+                    continue
+                if _EXTRACTORS[ea][0] != _EXTRACTORS[eb][0]:    # type-valid: colour~colour, coord~coord
+                    continue
+                out.append(_compose_atom(prime, ea, eb))
+    return out
+
+
 def atom_universe(colours: Iterable[int]) -> List[Atom]:
-    """All well-typed atoms given the COLOUR domain present in the scene (type-directed instantiation)."""
+    """All well-typed atoms given the COLOUR domain present in the scene (type-directed instantiation).
+    With OURO_COMPOSE the relational vocabulary becomes GENERATIVE (composed_relational_atoms), so the composer
+    can select relations -- e.g. an ORDER (LT) relation -- that were never hand-written."""
     atoms: List[Atom] = [make_atom(k) for k, (argt, _) in _ATOM_TYPES.items()
                          if not argt and (k != "SAME_COLOUR" or _VOCAB_MATCH)]   # MATCH atom gated (blend M2)
     for c in sorted(set(int(x) for x in colours)):
         atoms.append(make_atom("HAS_COLOUR", c))
         atoms.append(make_atom("INTENDED_COLOUR", c))
+    if _COMPOSE:
+        atoms.extend(composed_relational_atoms())              # invention loop: the generated relation basis
     return atoms
 
 
