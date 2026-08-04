@@ -13,7 +13,7 @@ Pure over the session interface (open/step/reset_after_death/close), so it runs 
 FakeSession with no key or network. `run_online(game_id, ...)` is the thin live entry.
 """
 from __future__ import annotations
-import time
+import os, time
 from typing import Any, Dict, Optional
 from .ledger import RunLedger
 from .reasoning import decision_reasoning, compact_why
@@ -82,6 +82,17 @@ class GenerationalRunner:
                 led.start_generation(gen)
                 seen = set(); life_steps = 0; since_progress = 0; prev_best = best; reason = None
                 while (now() - t0) < wall_cap_s:
+                    # ★ GENERATIVE SENSORIUM (blend M3, flag-gated OURO_SELF_FOCUS): hand the MINTED self-centroid
+                    # of the ground-selected self-hypothesis to the composer BEFORE observe(), so pose_goal frames
+                    # its objective on the grounded self, not the cursor colour-heuristic (sensorium INTO composer).
+                    if sensorium is not None and os.environ.get("OURO_SELF_FOCUS"):
+                        try:
+                            _m = sensorium.selfmodel.selected()
+                            _fwd = getattr(_m, "fwd", None)
+                            _c = _fwd.self_centroid() if _fwd is not None else None
+                            pol._self_focus = (int(_c[0]), int(_c[1])) if _c is not None else None
+                        except Exception:
+                            pol._self_focus = None
                     pol.observe(snap["grid"], snap["available"], snap.get("levels_completed", 0),
                                 state=snap.get("state"))
                     reason = rp.lifetime_over(done=bool(snap.get("done")), state=snap.get("state"),

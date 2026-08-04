@@ -307,6 +307,11 @@ class ReduxPolicy:
         self._posed_goal: Optional[PosedGoal] = None     # the current MDL-posed objective the drive pursues
         self._pose_every = int(os.environ.get("OURO_POSE_EVERY", "12") or "12")
         self.n_posed = 0                                 # times a fresh objective was posed (telemetry, not a metric)
+        # ★ GENERATIVE SENSORIUM (blend M3, flag-gated OURO_SELF_FOCUS). When the GenerationalRunner's sensorium
+        # has a ground-SELECTED self-hypothesis, it sets this to the MINTED self-centroid before observe(), so the
+        # composer poses objectives over the grounded self (DESIGN §7.5 step 3: sensorium INTO the composer),
+        # not the `cursor` colour-heuristic. None -> fall back to the heuristic (default; zero behaviour change).
+        self._self_focus: Optional[Tuple[int, int]] = None
         self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
         self.n_rel_reinforce = 0                          # times an effect pick was biased toward closing the relation
         self.n_multi_avatar_drive = 0                     # G5: times two independent avatars were routed to their goals
@@ -614,10 +619,14 @@ class ReduxPolicy:
         if self.cursor is None or not self.vecs or len(self.frames) < 2:
             return
         grid = self.frames[-1]
-        cur = _px_centroid(grid, self.cursor)
-        if cur is None:
-            return
-        avatar = (int(round(cur[0])), int(round(cur[1])))
+        sf = self._self_focus                            # M3: prefer the sensorium's MINTED self over the heuristic
+        if sf is not None:
+            avatar = (int(sf[0]), int(sf[1]))
+        else:
+            cur = _px_centroid(grid, self.cursor)
+            if cur is None:
+                return
+            avatar = (int(round(cur[0])), int(round(cur[1])))
         avec = self.vecs.get(self.acts[-1], (0, 0)) if self.acts else (0, 0)
         cmap: Dict[Any, Tuple[int, int]] = {}
         for c in salient_targets(self.frames[-8:], avatar_colour=self.cursor, exclude=set(self.passable), top=3):
