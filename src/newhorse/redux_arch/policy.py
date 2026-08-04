@@ -50,6 +50,12 @@ from .live_goal_run import _learn_passable, _two_bodies
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 
+# ★ How much of the frame may change and still count as MY OWN EFFECT (the self-locus bound, `_effect_locus`).
+# Above this the change is a redraw / an animated field / a scroll -- something the world did, not something I did
+# -- and averaging it into a centroid would invent a self where there is none. Shares salient_targets' max_frac
+# reasoning: an object occupying more than a small fraction of the board is a field, not a figure.
+LOCUS_MAX_FRAC = 0.15
+
 # game families the router dispatches to
 PENDING, CLICK, TWO_BODY, DIRECTIONAL, EFFECT, UNDRIVABLE, MULTI_AVATAR = \
     "pending", "click", "two_body", "directional", "effect", "undrivable", "multi_avatar"
@@ -312,6 +318,12 @@ class ReduxPolicy:
         # composer poses objectives over the grounded self (DESIGN §7.5 step 3: sensorium INTO the composer),
         # not the `cursor` colour-heuristic. None -> fall back to the heuristic (default; zero behaviour change).
         self._self_focus: Optional[Tuple[int, int]] = None
+        # ★ THE SELF, FAMILY-GENERALLY (cycle 21). See `_self_locus`. OURO_POSE_ANYFAM=0 restores the old
+        # DIRECTIONAL-only entry gate for an A/B; ON by default because "the self translates" was a smuggled
+        # assumption, not an architectural claim.
+        self._anyfam = os.environ.get("OURO_POSE_ANYFAM", "1") not in ("0", "", "false", "False", "off")
+        self._eff_locus: Optional[Tuple[int, int]] = None  # last legible support of MY OWN effect (residual centroid)
+        self._locus_kind: Optional[str] = None            # which self-hypothesis posed: minted / cursor / effect
         self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
         self.n_rel_reinforce = 0                          # times an effect pick was biased toward closing the relation
         self.n_multi_avatar_drive = 0                     # G5: times two independent avatars were routed to their goals
@@ -616,20 +628,32 @@ class ReduxPolicy:
         design-law: posing from an existing atom is the CORRECT outcome). Legible: the posed goal is recorded in
         self.abduced so the agent can EXPLAIN how/why. If progress has no structure a single relation captures,
         pose_goal returns None and nothing is posed (SUPPORT guard -- honest, not a bug)."""
-        if self.cursor is None or not self.vecs or len(self.frames) < 2:
+        if len(self.frames) < 2:
             return
+        if not self._anyfam and (self.cursor is None or not self.vecs):
+            return                                       # A/B arm: the old DIRECTIONAL-only entry gate
         grid = self.frames[-1]
-        sf = self._self_focus                            # M3: prefer the sensorium's MINTED self over the heuristic
-        if sf is not None:
-            avatar = (int(sf[0]), int(sf[1]))
+        loc = self._self_locus(grid)
+        if loc is None:
+            return
+        avatar, acolour, kind = loc
+        if self._locus_kind is not None and kind != self._locus_kind:
+            # THE SELF CHANGED HYPOTHESIS (warmup's effect-locus -> a translator the router has since learned, or
+            # the sensorium's minted self arriving). One objective CANNOT be composed across two different selves:
+            # R(avatar, target) would silently mean two things inside one window, and the MDL score would be read
+            # off a stream that is not about one thing. Drop the accumulated stream and re-accumulate under the new
+            # self. Cheap, and it keeps the posed objective legible -- the agent can say which self it reasoned from.
+            self._goal_steps = []
+        self._locus_kind = kind
+        if self.vecs:
+            avec = self.vecs.get(self.acts[-1], (0, 0)) if self.acts else (0, 0)
         else:
-            cur = _px_centroid(grid, self.cursor)
-            if cur is None:
-                return
-            avatar = (int(round(cur[0])), int(round(cur[1])))
-        avec = self.vecs.get(self.acts[-1], (0, 0)) if self.acts else (0, 0)
+            # No learned action->displacement basis (no translator). The honest general reading of "what my last
+            # action did" is the OBSERVED displacement of my own effect-locus -- measured, not looked up.
+            prev = self._goal_steps[-1][0] if self._goal_steps else None
+            avec = (avatar[0] - prev[0], avatar[1] - prev[1]) if prev is not None else (0, 0)
         cmap: Dict[Any, Tuple[int, int]] = {}
-        for c in salient_targets(self.frames[-8:], avatar_colour=self.cursor, exclude=set(self.passable), top=3):
+        for c in salient_targets(self.frames[-8:], avatar_colour=acolour, exclude=set(self.passable), top=3):
             cell = approachable_component_centroid(grid, int(c), self.passable)
             if cell is not None:
                 cmap[int(c)] = (int(round(cell[0])), int(round(cell[1])))
@@ -642,7 +666,7 @@ class ReduxPolicy:
             window = self._goal_steps[-120:]
             progs = [p for _, _, _, p in window]
             if any(progs) and not all(progs):            # progress must VARY for a split to compress it
-                posed = pose_goal(window, avatar_colour=int(self.cursor))
+                posed = pose_goal(window, avatar_colour=int(acolour))
                 if posed is not None:
                     changed = (self._posed_goal is None or posed.target != self._posed_goal.target
                                or str(posed.mint.predicate) != str(self._posed_goal.mint.predicate))
@@ -652,7 +676,82 @@ class ReduxPolicy:
                         self.abduced.append(dict(from_level=self.level, source="pose_goal",
                                                  target=posed.target, name=str(posed.mint.predicate),
                                                  saved_bits=float(posed.saved_bits), acted=True,
+                                                 locus=kind,       # WHICH self-hypothesis posed it (explainability)
                                                  predicate=posed.mint.predicate))
+
+    # ★ THE SELF, FAMILY-GENERALLY -- removing the presupposition the composer was built on (cycle 21).
+    # `_pose_goal_step` used to return at its FIRST line unless `cursor`+`vecs` existed, and those are assigned in
+    # exactly ONE place: the DIRECTIONAL branch of `_settle_family`. So the objective composer -- Fig-1's "compose
+    # the objective from the progress residual" organ -- did not merely perform badly outside that one family, it
+    # did not EXIST there. Measured across all 25 at equal budget (cycle 20): 12 games never accumulated a single
+    # GoalStep, and all three games we currently win are among them -- i.e. every level earned today is earned with
+    # the composer OFF. That is the LOAD-BEARING LENS exactly: the kernel had smuggled an environmental assumption
+    # into what should be invariant -- "the self is a colour-blob that TRANSLATES under actions." A click game's
+    # self does not translate; an effect game's self may have no sprite at all. The fix is to REMOVE the
+    # presupposition, not to add a per-family branch (which would just relocate the smuggle).
+    #
+    # The invariant replacement is the architecture's own object: THE SELF IS THE SPATIAL SUPPORT OF MY OWN EFFECT
+    # -- where the residual R = |Γ(b,a) − o′| lands. For a translator that support IS the moved sprite, so the
+    # cursor path below is tried FIRST and DIRECTIONAL behaviour is preserved unchanged; for a click game it is
+    # the region the click changed; for an effect game it is whatever the action moved. Names no game, no family.
+    def _self_locus(self, grid) -> Optional[Tuple[Tuple[int, int], int, str]]:
+        """(cell, colour_at_cell, hypothesis_kind), ordered by how well-GROUNDED the self-hypothesis is:
+        `minted` (the sensorium's ground-selected self) > `cursor` (the learned translator) > `effect` (the
+        residual's spatial support). None when the agent has produced no legible effect yet -- honest, not a bug.
+        The kind is recorded on the posed objective so the agent can say WHICH self it reasoned from."""
+        sf = self._self_focus                            # M3: the sensorium's MINTED self outranks every heuristic
+        if sf is not None:
+            r, c = int(sf[0]), int(sf[1])
+            if 0 <= r < grid.shape[0] and 0 <= c < grid.shape[1]:
+                return (r, c), int(grid[r, c]), "minted"
+        if self.cursor is not None:                      # the learned translator (the pre-cycle-21 path, unchanged)
+            cur = _px_centroid(grid, self.cursor)
+            if cur is None:
+                return None
+            return (int(round(cur[0])), int(round(cur[1]))), int(self.cursor), "cursor"
+        cell = self._effect_locus()
+        if cell is None:
+            return None
+        r = max(0, min(grid.shape[0] - 1, cell[0])); c = max(0, min(grid.shape[1] - 1, cell[1]))
+        return (r, c), int(grid[r, c]), "effect"
+
+    def _effect_locus(self) -> Optional[Tuple[int, int]]:
+        """The residual's SPATIAL SUPPORT: the connected region that changed between the last two frames and is
+        most plausibly MINE. Bounded by LOCUS_MAX_FRAC so a full redraw or an animated field is REJECTED rather
+        than averaged into a meaningless centre-of-board. The last legible locus persists, so a no-op step does
+        not blank the self (an actor that did nothing this step still exists).
+
+        THE GOODHART GUARD (self_locus.py's warning, borrowed): "it moved when I acted" admits spurious
+        correlates -- an autonomous mover would be mis-claimed as self. Contingency, not correlation, is the
+        test. Where the action CARRIED a coordinate (`click_rc[-1]`, already recorded at emission) the
+        contingency is known by construction -- I chose that cell -- so the component nearest it wins. Where it
+        did not, we fall back to the largest changed component and mark nothing as certain; the ground still
+        prices whatever objective gets posed on top of it."""
+        if len(self.frames) < 2:
+            return self._eff_locus
+        b = np.asarray(self.frames[-2]); a = np.asarray(self.frames[-1])
+        if b.shape != a.shape:
+            return self._eff_locus
+        ch = (b != a)
+        n = int(ch.sum())
+        if n == 0 or n > LOCUS_MAX_FRAC * ch.size:
+            return self._eff_locus                       # nothing changed, or the world redrew -> not my effect
+        lab, k = _ndi.label(ch)
+        if k <= 0:
+            return self._eff_locus
+        rc = self.click_rc[-1] if self.click_rc else None
+        best = None
+        for i in range(1, k + 1):
+            ys, xs = np.where(lab == i)
+            cen = (float(ys.mean()), float(xs.mean()))
+            if rc is not None:                           # contingent by construction: I named this cell
+                key = (-(abs(cen[0] - rc[0]) + abs(cen[1] - rc[1])), len(ys))
+            else:
+                key = (0, len(ys))                       # no coordinate carried -> prominence only
+            if best is None or key > best[0]:
+                best = (key, cen)
+        self._eff_locus = (int(round(best[1][0])), int(round(best[1][1])))
+        return self._eff_locus
 
     def _labels(self, avail: List[int]) -> List[str]:
         return ["A%d" % v for v in avail]
@@ -1599,6 +1698,7 @@ class ReduxPolicy:
         self.cursor = None; self.vecs = {}; self.passable = set(); self.target_colour = None
         self.tb_colour = None; self.ag = None; self.tb_pass = [set(), set()]
         self.prober = None; self.explorer = None
+        self._eff_locus = None                                   # the self must be re-established on a new layout
 
     # ---- organ dispatch ----------------------------------------------------------------------------------------
     def _new_prober(self, grid) -> ClickProber:
