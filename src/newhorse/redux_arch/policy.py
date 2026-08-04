@@ -23,7 +23,7 @@ import threading
 import numpy as np
 from scipy import ndimage as _ndi
 from .replay import learn_basis, learn_basis_trailaware
-from .goal import salient_targets, approachable_component_centroid
+from .goal import salient_targets, approachable_component_centroid, pose_goal, GoalStep, PosedGoal
 from .planner import plan_action, bfs_path_action
 from .explore import CuriosityExplorer, DirectedExplorer
 from .coupled import coupled_goal_mint
@@ -294,6 +294,19 @@ class ReduxPolicy:
         self._probe_rel: Optional[str] = None            # the relation the effect tier drives: selected, else largest measured gap
         self._relation_kinds_seen: set = set()           # union of relations ever selected this episode (telemetry)
         self.n_relation_drive = 0                        # times a directional move was steered toward a relation target
+        # ★ POSE-GOAL (flag-gated, OURO_POSE_GOAL). Wire the GENERAL objective-composer goal.pose_goal into the
+        # per-step loop so a candidate OBJECTIVE is COMPOSED from the dense progress residual on ANY game -- not
+        # only the reward-gated, two-body coupled_goal_mint that fires solely in _on_level_change (mute on every
+        # game that never advances -> the empty `abduced` M1 root). This is the dashed Fig-1 box made live:
+        # perceive -> pose R(avatar,target) by MDL over progress -> drive toward it -> explain it (self.abduced).
+        # Uniform: NO family/reward/level-advance gate, and NO mint_gate (goal.py design-law: posing a goal from an
+        # EXISTING atom is the CORRECT outcome, not a novelty event). ON BY DEFAULT -- this IS the architecture
+        # (Fig-1 objective-composition), not an experiment. Set OURO_POSE_GOAL=0 to disable for an A/B.
+        self._pose_on = os.environ.get("OURO_POSE_GOAL", "1") not in ("0", "", "false", "False", "off")
+        self._goal_steps: List[GoalStep] = []            # accumulated (avatar, avec, {cand: cell}, progressed?) stream
+        self._posed_goal: Optional[PosedGoal] = None     # the current MDL-posed objective the drive pursues
+        self._pose_every = int(os.environ.get("OURO_POSE_EVERY", "12") or "12")
+        self.n_posed = 0                                 # times a fresh objective was posed (telemetry, not a metric)
         self._rel_credit: Dict[str, float] = {}          # Brick 4b: action -> EMA of the SELECTED relation's gap-drop
         self.n_rel_reinforce = 0                          # times an effect pick was biased toward closing the relation
         self.n_multi_avatar_drive = 0                     # G5: times two independent avatars were routed to their goals
@@ -568,6 +581,7 @@ class ReduxPolicy:
         # gap is the spec's "act to test drivability" (§3.5 probe-to-isolate): general, names no game, credits only real
         # drops. Committed win plans (two-body, click) never consult this, so the wins are untouched.
         self._probe_rel = self._relation_selected or self.relations.max_measured()
+        prog_flag = int(levels_completed) > self.level   # ★ dense progress label for pose-goal: advance OR gap-drop
         if self._probe_rel is not None:
             # Brick 4b + probe: credit the last action with the DROP it produced in the driven relation's discrepancy
             # (EMA) -- the dense reward the effect tier reinforces on so no-cursor games still follow the gap the env
@@ -577,11 +591,59 @@ class ReduxPolicy:
                 if a not in ("RESET", "?", None):
                     d = self.relations.delta(self._probe_rel)
                     self._rel_credit[a] = 0.6 * self._rel_credit.get(a, 0.0) + 0.4 * d
+                    if d > 0:
+                        prog_flag = True                  # a driven relation's discrepancy dropped -> progress
+        # ★ POSE-GOAL: accumulate this step + periodically compose the objective (flag-gated; the dashed Fig-1 box).
+        if self._pose_on:
+            self._pose_goal_step(bool(prog_flag))
         if int(levels_completed) > self.level:
             if self._probe is not None and not self._probe.locked:
                 self._probe.lock()                          # the active hypothesis paid off -> it IS the objective
             self._on_level_change(int(levels_completed), old_avail, prev_ids)
         self.level = int(levels_completed)
+
+    def _pose_goal_step(self, progressed: bool) -> None:
+        """★ POSE-GOAL (flag-gated). Accumulate one GoalStep from the CURRENT frame and, every `_pose_every`
+        steps, run the GENERAL MDL objective-poser (goal.pose_goal) over the accumulated progress residual: for
+        each salient candidate, score the before-state relation R(avatar, candidate) that COMPRESSES the progress
+        stream; the winner is the posed objective the drive then pursues. This is Fig-1's 'compose the objective
+        from the residual' organ, wired UNIFORMLY -- no family/reward/level-advance gate, no mint_gate (goal.py
+        design-law: posing from an existing atom is the CORRECT outcome). Legible: the posed goal is recorded in
+        self.abduced so the agent can EXPLAIN how/why. If progress has no structure a single relation captures,
+        pose_goal returns None and nothing is posed (SUPPORT guard -- honest, not a bug)."""
+        if self.cursor is None or not self.vecs or len(self.frames) < 2:
+            return
+        grid = self.frames[-1]
+        cur = _px_centroid(grid, self.cursor)
+        if cur is None:
+            return
+        avatar = (int(round(cur[0])), int(round(cur[1])))
+        avec = self.vecs.get(self.acts[-1], (0, 0)) if self.acts else (0, 0)
+        cmap: Dict[Any, Tuple[int, int]] = {}
+        for c in salient_targets(self.frames[-8:], avatar_colour=self.cursor, exclude=set(self.passable), top=3):
+            cell = approachable_component_centroid(grid, int(c), self.passable)
+            if cell is not None:
+                cmap[int(c)] = (int(round(cell[0])), int(round(cell[1])))
+        if not cmap:
+            return
+        self._goal_steps.append((avatar, avec, cmap, bool(progressed)))
+        if len(self._goal_steps) > 240:                  # bounded window (the poser only reads a recent slice)
+            self._goal_steps = self._goal_steps[-240:]
+        if len(self._goal_steps) >= 6 and (len(self._goal_steps) % self._pose_every == 0):
+            window = self._goal_steps[-120:]
+            progs = [p for _, _, _, p in window]
+            if any(progs) and not all(progs):            # progress must VARY for a split to compress it
+                posed = pose_goal(window, avatar_colour=int(self.cursor))
+                if posed is not None:
+                    changed = (self._posed_goal is None or posed.target != self._posed_goal.target
+                               or str(posed.mint.predicate) != str(self._posed_goal.mint.predicate))
+                    self._posed_goal = posed
+                    if changed:
+                        self.n_posed += 1
+                        self.abduced.append(dict(from_level=self.level, source="pose_goal",
+                                                 target=posed.target, name=str(posed.mint.predicate),
+                                                 saved_bits=float(posed.saved_bits), acted=True,
+                                                 predicate=posed.mint.predicate))
 
     def _labels(self, avail: List[int]) -> List[str]:
         return ["A%d" % v for v in avail]
@@ -1663,6 +1725,19 @@ class ReduxPolicy:
             r, c = dest
             return 0 <= r < _h and 0 <= c < _w and int(_g[r, c]) in _p
         avatar = (int(round(cur[0])), int(round(cur[1])))
+        # ★ POSE-GOAL drive (flag-gated): pursue the MDL-COMPOSED objective FIRST -- steer toward the candidate whose
+        # relation compresses the progress residual, via the DISCOVERED relation predicate (not the salience-prior
+        # landmark + assumed ACTS_TOWARD). This is the composed subgoal the agent can EXPLAIN (self.abduced). Falls
+        # through to the existing relation/target-colour/Γ/explore chain if the posed target can't be resolved/planned.
+        if self._pose_on and self._posed_goal is not None:
+            tcell = approachable_component_centroid(grid, int(self._posed_goal.target), self.passable)
+            if tcell is not None:
+                target = (max(0, min(h - 1, int(round(tcell[0])))), max(0, min(w - 1, int(round(tcell[1])))))
+                lbl = (bfs_path_action(grid, avatar, target, self.vecs, self.passable, self.stride)
+                       or plan_action(avatar, target, self.vecs, self._posed_goal.mint.predicate, passable_px))
+                if lbl:
+                    self.n_relation_drive += 1
+                    return self._exit("dir_posed_goal", (lbl, None))
         # Brick 3: steer toward the relation the env is REWARDING -- but only once EARNED. A relation drives the target
         # ONLY when the tester has CONFIDENTLY selected it (its discrepancy is measurably shrinking under play). Before
         # that, exploration is left untouched, so curiosity still gathers affordance/effect evidence (the earlier organs
