@@ -52,11 +52,19 @@ class Arc3Session:
 
     def __init__(self, game_id: str, *, tags: Optional[List[str]] = None, save_recording: bool = True,
                  min_interval: float = 0.13, logger=None, scorecard_id: Optional[str] = None, limiter=None):
-        key = os.environ.get("ARC_API_KEY", "")
-        if not key:
-            raise RuntimeError("ARC_API_KEY not set -- the key is env-only, never written to disk")
         self.game_id = game_id
-        self._arc = arc_agi.Arcade(operation_mode=OperationMode.ONLINE, arc_api_key=key, logger=logger)
+        # OFFLINE mode (OURO_OFFLINE=1): run the LOCAL engine against the public game files in OURO_ENV_DIR
+        # (default /tmp/environment_files) -- NO API, NO rate limit, ~100x faster. Same game-ids + obs interface
+        # as online, so every harness runs offline unchanged. Online stays the default (scorecards + replays).
+        self._offline = bool(os.environ.get("OURO_OFFLINE"))
+        if self._offline:
+            env_dir = os.environ.get("OURO_ENV_DIR", "/tmp/environment_files")
+            self._arc = arc_agi.Arcade(operation_mode=OperationMode.OFFLINE, environments_dir=env_dir, logger=logger)
+        else:
+            key = os.environ.get("ARC_API_KEY", "")
+            if not key:
+                raise RuntimeError("ARC_API_KEY not set -- the key is env-only, never written to disk")
+            self._arc = arc_agi.Arcade(operation_mode=OperationMode.ONLINE, arc_api_key=key, logger=logger)
         if scorecard_id:                                    # SWARM: many games share ONE scorecard (we don't own it)
             self.scorecard_id = scorecard_id
             self._owns_card = False
@@ -71,6 +79,8 @@ class Arc3Session:
         self._limiter = limiter                             # shared global RPM cap across all swarm threads
 
     def _throttle(self):
+        if getattr(self, "_offline", False):                # OFFLINE local engine: no wire, no rate limit -> no throttle
+            return
         if self._limiter is not None:                       # global rate limit (600 RPM shared per key) wins
             self._limiter.acquire()
             self._last = time.time()
