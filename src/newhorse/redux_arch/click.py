@@ -45,7 +45,7 @@ change before it "says" a target is productive.
 """
 from __future__ import annotations
 import os
-from typing import List, Optional, Tuple, Dict, Set
+from typing import Iterable, List, Optional, Tuple, Dict, Set
 from .survival import board_fingerprint
 import numpy as np
 from scipy import ndimage as _ndi
@@ -165,6 +165,9 @@ class ClickProber:
         self.novel: Dict[Tuple[int, int], int] = {t: 0 for t in self.targets}   # clicks that reached an UNSEEN board
         self._seen: Set[int] = set()                        # board-state fingerprints ever observed
         self._last: Optional[Tuple[int, int]] = None
+        # ★ THE CELLS THE AGENT'S OWN POSED OBJECTIVE NAMES (see `prioritize`). Empty until the composer poses
+        # something, which is the honest default: with no objective there is nothing to order curiosity BY.
+        self._priority: Set[Tuple[int, int]] = set()
         # ★ THE CLICK BRANCH. `click_native` is 45.4% of every decision the agent makes and it is a SINGLE exit
         # name covering FOUR different reasons to click, because every click carries the same label `A6`. An exit
         # name that covers more than one `return` is not an attribution (RANKING 5). This dict is that attribution
@@ -223,6 +226,41 @@ class ClickProber:
         self._p("reserve_admitted", added)
         return added
 
+    def prioritize(self, cells: Iterable[Tuple[int, int]]) -> int:
+        """★ THE COMPOSED OBJECTIVE ENTERS THE CLICK DRIVE (cycle 21, stage 2b). Admit `cells` if new, and mark
+        them as the points the agent's own posed objective says the game is ABOUT. Returns how many were admitted.
+
+        WHAT THIS DELIBERATELY DOES NOT DO is override the exploit ranking. The posed goal is a PRIOR -- an MDL
+        reading of a progress stream, composed from a window that may be short and may be wrong. `novel`/`changed`
+        are EVIDENCE: cells this agent has actually clicked and watched. A prior orders a search; evidence decides
+        one. So priority speaks in exactly the three places where the ranking has nothing better: it drains first
+        among the UNTRIED, it breaks ties in the exploit key BELOW `novel`/`changed` and ABOVE `-tries`, and it
+        picks first in the nothing-ever-moved fallback. It never outranks a cell that measurably moved the board.
+        That is also why this cannot regress a click game that already wins without a composer: at worst the same
+        pool is drained in a different order.
+
+        Priority is REPLACED, not accumulated -- it is the marking of the objective the agent holds NOW, so
+        re-posing the same objective is idempotent and a changed one RETRACTS the cells it no longer names. The
+        first sweep of this wiring unioned instead, and one game finished with 258 cells marked out of a pool of
+        its own size: a priority that only ever grows is not a priority. It is also the exact failure the stage-2a
+        commitment machinery exists to prevent, one layer down -- an agent that can adopt a new reading of the
+        game but never withdraw the old one is not changing its mind, it is accumulating minds. Cells ADMITTED by
+        a retracted objective stay in the pool: they were legitimate click candidates once proposed, and removing
+        them would throw away the evidence the drive has since gathered on them."""
+        self._priority = set(tuple(c) for c in cells)
+        added = 0
+        for rc in self._priority:
+            if rc not in self.tries:
+                self.targets.append(rc)
+                self.origin[rc] = "posed"
+                self.tries[rc] = 0
+                self.changed[rc] = 0
+                self.novel[rc] = 0
+                added += 1
+        self._p("posed_calls", 1)
+        self._p("posed_admitted", added)
+        return added
+
     def choose(self) -> Optional[Tuple[int, int]]:
         """Pick the next (row, col) to click. None only if there are no candidates at all."""
         if not self.targets:
@@ -230,6 +268,16 @@ class ClickProber:
             return None
         untried = [t for t in self.targets if self.tries[t] == 0]
         if untried:
+            # ★ THE POSED OBJECTIVE ORDERS CURIOSITY. Among points nobody has clicked yet there is no evidence to
+            # rank by, so the ordering was pure admission accident (perceptual salience, then a blind lattice).
+            # Where the composer HAS posed an objective, its cells are the first thing to try -- that is what it
+            # means for the agent to act on what it thinks the game is about, rather than merely to record it.
+            posed_untried = [t for t in untried if t in self._priority]
+            if posed_untried:
+                pick = posed_untried[0]
+                self._b("untried_posed")
+                self._last = pick
+                return pick
             pick = untried[0]                                   # sweep every candidate at least once first
             self._last = pick
             # ★ `untried_first` WAS ITSELF AN EXIT NAME OVER MORE THAN ONE CAUSE, and it carried 96.3% of every
@@ -260,7 +308,22 @@ class ClickProber:
         # exploit: prefer targets that reach NOVEL board states -- a cell that merely TOGGLES (reverts to an
         # already-seen state) scores changed>0 forever but adds no new territory, so it must not out-rank a
         # target still discovering unseen configurations. Novelty first, then raw change, then least-tried.
-        pick = max(self.targets, key=lambda t: (self.novel[t], self.changed[t], -self.tries[t]))
+        #
+        # ★ THE POSED OBJECTIVE SITS BETWEEN THE EVIDENCE AND THE TIE-BREAK (cycle 21, stage 2b). Priority was at
+        # first given to the untried queue ALONE, and measured on the public set that turned out to be a voice
+        # with nothing to say: a click game drains its pool in the first few dozen steps, while the composer needs
+        # a filled window before it can pose anything at all, so by the time an objective existed every cell it
+        # named had already been clicked and the drive was permanently in this branch. An objective the drive can
+        # only hear during a phase that is already over is not wired in.
+        #
+        # It ranks BELOW `novel` and `changed` because those are things this agent watched happen and the posed
+        # goal is an MDL reading of a short window that may be wrong -- evidence must not be overridden by a
+        # prior. It ranks ABOVE `-tries` because least-tried is not evidence at all, it is what the ranking falls
+        # back on when it has nothing: and the whole point of composing an objective is to have something to say
+        # exactly there. In a click game most cells sit at (0,0) forever, so this is where the objective actually
+        # speaks.
+        pick = max(self.targets, key=lambda t: (self.novel[t], self.changed[t],
+                                                1 if t in self._priority else 0, -self.tries[t]))
         if self.novel[pick] == 0 and self.changed[pick] == 0:   # nothing ever moved
             # CONDITION (2), and it is the class docstring's own sentence: "falling back to a coarse grid sweep if
             # nothing perceptual ever moved". Every perceptual (and refresh-perceived) target has now been clicked
@@ -269,6 +332,14 @@ class ClickProber:
             if self._promote_reserve("inert"):
                 pick = next((t for t in self.targets if self.tries[t] == 0), pick)
                 self._b("untried_reserve")
+                self._last = pick
+                return pick
+            # Same reasoning as the exploit key: with no empowerment evidence anywhere, "least tried" is the
+            # ranking admitting it has nothing, and a posed objective is precisely something. Posed cells first,
+            # then least-tried within each group -- so the fallback still sweeps rather than fixating.
+            if any(t in self._priority for t in self.targets):
+                pick = min(self.targets, key=lambda t: (0 if t in self._priority else 1, self.tries[t]))
+                self._b("nothing_moved_posed")
                 self._last = pick
                 return pick
             pick = min(self.targets, key=lambda t: self.tries[t])

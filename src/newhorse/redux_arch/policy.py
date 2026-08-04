@@ -46,7 +46,7 @@ from .consolidate import Consolidator
 from .minting import two_part_mdl, _entropy_bits
 from .receipt import ResidualEvent, task_id as _task_id, echo_kind as _echo_kind, summary as _receipt_summary
 from .residual_bank import ResidualBank
-from .dsl import Predicate, make_atom
+from .dsl import Context, Predicate, make_atom, reads_motion
 from .live_goal_run import _learn_passable, _two_bodies
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
@@ -334,6 +334,9 @@ class ReduxPolicy:
         # ★ THE COMPOSER DEFENDS ITS OBJECTIVE (cycle 21 stage 2a). See `_commit_goal`. OURO_POSE_COMMIT=0 restores
         # the unconditional `self._posed_goal = posed` for an A/B.
         self._commit_on = os.environ.get("OURO_POSE_COMMIT", "1") not in ("0", "", "false", "False", "off")
+        # ★ THE CLICK DRIVE CONSUMES THE POSED OBJECTIVE (cycle 21 stage 2b). See `_click_posed_cells`.
+        # OURO_POSE_CONSUME=0 leaves the composer posing and the click drive ignoring it, for an A/B.
+        self._consume_on = os.environ.get("OURO_POSE_CONSUME", "1") not in ("0", "", "false", "False", "off")
         self.n_defended = 0                              # times the incumbent objective held off a challenger
         self._eff_locus: Optional[Tuple[int, int]] = None  # last legible support of MY OWN effect (residual centroid)
         self._locus_kind: Optional[str] = None            # which self-hypothesis posed: minted / cursor / effect
@@ -1785,11 +1788,97 @@ class ReduxPolicy:
         elif len(self.frames) >= 2:
             self.prober.observe(self.frames[-2], self.frames[-1])   # credit the previous click
             self.prober.refresh(click_targets(grid))
+        # ★ THE CLICK DRIVE CONSUMES THE COMPOSED OBJECTIVE (cycle 21, stage 2b). Stage 1 gave the composer a self
+        # in every family, so it now POSES on 25/25 games; but `_posed_goal` had exactly ONE consumer in the whole
+        # agent -- `_act_directional` -- so on the largest family the agent composed an objective and then acted as
+        # if it had not. An objective nothing consumes is not an objective; it is a log line. That gap is family
+        # fragmentation in its purest form: the organ is general, the WIRING was not.
+        #
+        # The translation is the same sentence read in this family's terms. The posed relation is R(self, target),
+        # and here the self is the effect-locus: WHERE MY CLICK LANDS IS WHERE MY EFFECT IS. So "make R(self,
+        # target) hold" reads, without any game knowledge, as "click the target's cells." Nothing is looked up and
+        # nothing is keyed to a game -- the colour comes from the agent's own MDL reading of its own progress.
+        #
+        # It is fed as PRIORITY, not as a command (see ClickProber.prioritize): the posed goal orders the untried
+        # queue, and measured empowerment still decides once evidence exists. A prior that outranked evidence would
+        # let one short, possibly-wrong window capture the drive for the rest of the game.
+        self._click_posed_cells(grid)
         tgt = self.prober.choose()
         if tgt is None:
             return "A6", {"x": 0, "y": 0}
         r, c = tgt
         return "A6", {"x": int(c), "y": int(r)}
+
+    def _click_posed_cells(self, grid) -> int:
+        """Mark the click cells that WOULD SATISFY THE POSED PREDICATE, and hand them to the prober as priority.
+
+        This is the same object the directional drive consumes, read in this family's terms. There, `plan_action`
+        picks the step that makes `R(avatar, target)` hold; here the drive picks the CELL that makes it hold,
+        because a click game's self is the effect-locus and the effect-locus is wherever the click lands. The
+        predicate is evaluated -- `Predicate.holds(Context(...))`, the agent's own DSL -- not approximated by
+        "click the target." A composer that could only ever say "click the thing" would be a colour-picker; what
+        makes it an objective is that ACTS_TOWARD, SAME_ROW and TOUCH each name a DIFFERENT set of cells over the
+        same target, and the drive can tell them apart.
+
+        The candidate pool is the prober's own targets plus the referent's component centroids (a referent nobody
+        proposed as a click point must still be clickable). Capped: a colour that shatters into hundreds of specks
+        is a texture, not a referent, and flooding the queue with it would be the composer starving curiosity
+        rather than directing it.
+
+        Returns HOW MANY CELLS THE OBJECTIVE NAMED, not how many were newly admitted to the pool. The two differ
+        whenever the drive had already proposed those cells itself, and it is the first number that says whether
+        the objective spoke at all -- the second would print 0 for a perfectly-consumed objective whose cells
+        perception had also found, which is the silence-printed-as-a-measured-zero shape this instrument keeps
+        finding elsewhere. Admissions are still counted, on the prober's own `posed_admitted` pool counter."""
+        if not (self._pose_on and self._consume_on) or self._posed_goal is None or self.prober is None:
+            return 0
+        try:
+            colour = int(self._posed_goal.target)
+        except (TypeError, ValueError):
+            return 0                                     # a non-colour candidate id: nothing to resolve on a grid
+        # ★ MARKING IS A REPLACEMENT, SO "NAMES NOTHING" MUST BE SAID OUT LOUD RATHER THAN BY RETURNING EARLY.
+        # `prioritize` sets the priority to exactly what the current objective names; every path below that finds
+        # no usable cell therefore marks the EMPTY set, retracting the previous objective's cells. An early return
+        # would leave a dead objective steering the drive -- the stale-incumbent failure of stage 2a, one layer
+        # down. The three guards ABOVE this line are different in kind: they are "there is no objective", not
+        # "the objective names nothing", and they must leave the drive exactly as it was.
+        def _mark(cells):
+            self.prober.prioritize(cells)
+            return len(cells)
+        F = np.asarray(grid)
+        h, w = F.shape
+        lab, k = _ndi.label(F == colour)
+        if k <= 0 or k > 64:                             # the referent is off the board, or shattered into texture
+            return _mark([])
+        refs = []
+        for i in range(1, k + 1):
+            ys, xs = np.where(lab == i)
+            refs.append((int(round(ys.mean())), int(round(xs.mean()))))
+        pred = self._posed_goal.mint.predicate
+        # WHERE THE EFFECT WAS LAST: the displacement a candidate click implies is measured from there, which is
+        # what makes `action_vec` -- and so ACTS_TOWARD -- mean anything at all in a family with no translator.
+        # ★ AND IF THERE IS NO SELF YET, A MOTION RELATION MUST ABSTAIN, NOT EVALUATE. Feeding `action_vec=(0,0)`
+        # makes ACTS_TOWARD uniformly false, so the drive would report "the objective named no cells" for what is
+        # really "I have no self to measure a displacement from" -- two different findings printed as one zero.
+        prev = self._eff_locus
+        if prev is None and reads_motion(pred):
+            return _mark([])
+        cands = list(dict.fromkeys(list(self.prober.targets) + refs))
+        hits = []
+        for cell in cands:
+            r, c = int(cell[0]), int(cell[1])
+            if not (0 <= r < h and 0 <= c < w):
+                continue
+            avec = (r - prev[0], c - prev[1]) if prev is not None else (0, 0)   # unread by a motion-free relation
+            for t in refs:
+                ctx = Context(focus_rc=(r, c), focus_colour=int(F[r, c]), target_rc=t,
+                              action_vec=avec, target_colour=colour)
+                if pred.holds(ctx):
+                    hits.append((r, c))
+                    break
+        if not hits or len(hits) > 96:                   # nothing satisfies it, or it is satisfied so widely that
+            return _mark([])                             # "priority" would mean the whole board -- no information
+        return _mark(hits)
 
     def _act_two_body(self, labels: List[str]) -> Tuple[str, Optional[dict]]:
         grid = self.frames[-1]; h, w = grid.shape

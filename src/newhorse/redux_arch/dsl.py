@@ -124,6 +124,24 @@ assert COLOUR_ATOM_KINDS | RELATIONAL_ATOM_KINDS == frozenset(_ATOM_TYPES)   # e
 assert not (COLOUR_ATOM_KINDS & RELATIONAL_ATOM_KINDS)                       # and exclusive
 
 
+# ---- the second partition: which atoms read the agent's OWN MOTION -------------------------------------------
+# `action_vec` is the one field of `Context` that is not a fact about the board -- it is a fact about the AGENT,
+# the displacement its own action produces. An atom that reads it cannot be evaluated by a drive that has not yet
+# established a self, and evaluating it anyway with `action_vec=(0,0)` is worse than abstaining: the predicate
+# comes back uniformly False while LOOKING like it was evaluated, which prints "the objective named nothing" for
+# what is really "I had nothing to evaluate it with". Declared here, beside the registry, so a future motion atom
+# is registered in one place rather than discovered by a caller that guessed wrong.
+MOTION_ATOM_KINDS = frozenset({"ACTS_TOWARD"})
+assert MOTION_ATOM_KINDS <= frozenset(_ATOM_TYPES)       # every motion kind is a real registered atom
+
+
+def reads_motion(pred: "Predicate") -> bool:
+    """Does this predicate's truth depend on the agent's own displacement? Composed atoms (`COMPOSED:`) are built
+    from before-state EXTRACTORS over focus/target only and never touch `action_vec`, so they are motion-free by
+    construction; the assert above is what keeps that claim honest for the hand-written half."""
+    return any(a.kind in MOTION_ATOM_KINDS for a in pred.atoms)
+
+
 def atom_family(atom: Atom) -> str:
     """Which vocabulary family an atom belongs to: 'colour', 'relational', or 'unregistered'. The last is named
     rather than folded into either side: an atom whose kind is not in the registry is a wiring fault, and a
