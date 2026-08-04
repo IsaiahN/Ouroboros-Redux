@@ -187,13 +187,18 @@ class Predicate:
 _COMPOSE = os.environ.get("OURO_COMPOSE", "") not in ("", "0", "false", "False", "off")
 
 # name -> (value TYPE, before-state extractor). A None read makes any comparison False (honest abstain, no smuggle).
+# Each extractor's value TYPE gates which pairs compose. ROW and COL are DISTINCT types (not a shared COORD):
+# the 25-sweep with OURO_COMPOSE on showed cross-axis comparisons (focus.row<target.col, focus.col=target.row)
+# are semantically meaningless yet SPURIOUSLY compress a short progress residual -- on wa30 a row-vs-col relation
+# scored 13.4 bits and OUTSCORED the real objective. The ground did NOT prune them; strict typing prevents them
+# at construction (row~row, col~col, colour~colour only), which is the honest type-directed pruning, not a patch.
 _EXTRACTORS: Dict[str, Tuple[str, Callable[["Context"], Optional[int]]]] = {
     "focus.colour":  ("COLOUR", lambda c: c.focus_colour),
     "target.colour": ("COLOUR", lambda c: c.target_colour),
-    "focus.row":     ("COORD",  lambda c: c.focus_rc[0]),
-    "focus.col":     ("COORD",  lambda c: c.focus_rc[1]),
-    "target.row":    ("COORD",  lambda c: c.target_rc[0]),
-    "target.col":    ("COORD",  lambda c: c.target_rc[1]),
+    "focus.row":     ("ROW",    lambda c: c.focus_rc[0]),
+    "focus.col":     ("COL",    lambda c: c.focus_rc[1]),
+    "target.row":    ("ROW",    lambda c: c.target_rc[0]),
+    "target.col":    ("COL",    lambda c: c.target_rc[1]),
 }
 # comparison primes: symbol, fn, symmetric?  EQ symmetric (one atom/unordered pair); LT directional (both orders).
 _COMPARE_PRIMES: Dict[str, Tuple[str, Callable[[int, int], bool], bool]] = {
