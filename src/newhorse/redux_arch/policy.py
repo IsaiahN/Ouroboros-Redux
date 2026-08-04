@@ -19,6 +19,7 @@ structurally-similar one -- reclaim mechanisms, not answers, and let them compou
 from __future__ import annotations
 from typing import List, Optional, Tuple, Dict, Any
 import os
+import time
 import threading
 import numpy as np
 from scipy import ndimage as _ndi
@@ -46,8 +47,14 @@ from .consolidate import Consolidator
 from .minting import two_part_mdl, _entropy_bits
 from .receipt import ResidualEvent, task_id as _task_id, echo_kind as _echo_kind, summary as _receipt_summary
 from .residual_bank import ResidualBank
-from .dsl import Context, Predicate, make_atom, reads_motion
+from .dsl import Context, Predicate, make_atom, reads_motion, LIB_ATOM_KIND
 from .live_goal_run import _learn_passable, _two_bodies
+
+# ★ C21.15 STAGE 0. The SHADOW mint (a second, discarded enumeration that admits promoted φ as
+# conjuncts) is flag-gated and DEFAULT OFF, so the committed default behaviour -- and every number
+# already on the record -- is unchanged byte-for-byte. ON costs one extra enumeration per residual
+# pass and writes only `shadow_*` receipt fields, which nothing reads back.
+_LIB_SHADOW = os.environ.get("OURO_LIB_SHADOW", "") not in ("", "0", "false", "False", "off")
 
 ACTS_TOWARD = Predicate(frozenset({make_atom("ACTS_TOWARD")}))
 
@@ -1423,6 +1430,32 @@ class ReduxPolicy:
         ev.n_constructed = int(rep.get("n_constructed", 0))
         ev.n_eligible = int(rep.get("n_eligible", 0))
         ev.selection_cost_bits = float(rep.get("selection_cost_bits", 0.0))
+        # ★ C21.15 STAGE 0 -- THE SHADOW MINT. The same fresh residual, scored a SECOND time over the enlarged
+        # universe that admits the promoted φ this game did NOT mint as single conjuncts, and then THROWN AWAY.
+        # `mint` above is untouched; nothing below reads a shadow field. The point is to find out whether the
+        # library would ever have entered an argmax BEFORE any decision depends on it -- the two previous
+        # pre-registered tests in this line had outcomes entailed by their own wiring, and a discarded
+        # measurement is the only kind that cannot be entailed by the thing it is measuring.
+        # `foreign`, not `library`: a φ this game minted itself and then "composed with" is memory, not transfer.
+        if _LIB_SHADOW:
+            try:
+                _t0 = time.perf_counter()
+                _lib = self.echo.foreign(self.game_id)
+                srep: Dict[str, Any] = {}
+                smint = two_part_mdl(exc, max_size=2, report=srep, library=_lib)
+                ev.shadow_ran = True
+                ev.shadow_ms = (time.perf_counter() - _t0) * 1000.0
+                ev.shadow_lib_n = len(_lib)
+                ev.shadow_n_eligible = int(srep.get("n_eligible", 0))
+                ev.shadow_lib_admitted = int(srep.get("n_library_admitted", 0))
+                ev.shadow_lib_eligible = int(srep.get("n_eligible_library", 0))
+                if smint is not None:
+                    ev.shadow_phi = str(smint.predicate)
+                    ev.shadow_bits = float(getattr(smint, "saved_bits", 0.0))
+                    ev.shadow_lib_in_argmax = any(a.kind == LIB_ATOM_KIND for a in smint.predicate.atoms)
+                ev.shadow_differs = (ev.shadow_phi or "") != (str(mint.predicate) if mint is not None else "")
+            except Exception:
+                pass                                             # a shadow that raises must never sink a run
         # (d) BANK THE FRESH RESIDUAL -- unconditionally, and AFTER it has been scored on its own. §3.5
         # ACCUMULATE: "deferred residual accumulates across boundaries". This is the line that removes the
         # discard: until now `exc` died here with the segment. Evidence only; no verdict is written.

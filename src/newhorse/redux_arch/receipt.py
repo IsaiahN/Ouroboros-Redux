@@ -221,6 +221,24 @@ class ResidualEvent:
     minted_from_pool: bool = False
     pool_n_eligible: int = 0
     pool_selection_cost_bits: float = 0.0
+    # ★ C21.15 STAGE 0 -- THE SHADOW. A SECOND, DISCARDED enumeration run beside the live one, with the promoted
+    # φ this game did NOT mint (`echo.foreign`) admitted as single conjuncts. It changes NOTHING: the live mint
+    # above is the only one that reaches `observe_mint`, and the pre-registered validity gate for the beat is
+    # that `seq_sha` is IDENTICAL on all 25 games. These fields exist so the question "would composing WITH the
+    # library have changed the argmax?" is answered by a MEASUREMENT rather than by the argument that it should.
+    # `shadow_lib_n` is the denominator: with it at 0 every other field below is trivially 0 and says nothing.
+    shadow_ran: bool = False
+    shadow_lib_n: int = 0                 # |echo.foreign(game_id)| -- library φ offered to the shadow universe
+    shadow_n_eligible: int = 0            # eligible candidates in the ENLARGED space (>= n_eligible)
+    shadow_lib_admitted: int = 0          # library φ that actually ENTERED the universe (the rest were dropped
+    #                                       by the duplicate guard -- without this, `shadow_lib_eligible = 0`
+    #                                       cannot be told apart from "the wire never delivered anything")
+    shadow_lib_eligible: int = 0          # ...of which at least one conjunct was a LIBRARY atom
+    shadow_lib_in_argmax: bool = False    # THE LADDER'S TOP RUNG: the shadow's winner used a library atom
+    shadow_phi: Optional[str] = None      # what the shadow would have minted (None = it would have minted nothing)
+    shadow_bits: float = 0.0
+    shadow_differs: bool = False          # shadow argmax != live argmax (incl. one minting where the other did not)
+    shadow_ms: float = 0.0                # wall cost of the extra enumeration -- a big Γ buys CPU, not bits
     promoted: bool = False                # this mint pushed φ over the echo threshold into Γ
     echo_count: int = 0                   # distinct tasks φ has now been minted on
     key: Optional[str] = None

@@ -55,6 +55,9 @@ class Atom:
     cost: int                                            # description-length weight (bits), used by the MDL score
     _eval: Callable[[Context], bool]
     kind: str = ""                                       # the REGISTRY KIND, written by the builder that made it
+    source: Optional["Predicate"] = None                 # for a LIBRARY atom: the promoted φ it wraps. A RECORD,
+    #                                                      not a name to parse -- family and motion are READ off
+    #                                                      this, so a wrapped φ can never be mis-charged.
     def holds(self, ctx: Context) -> bool:
         return self._eval(ctx)
 
@@ -134,12 +137,28 @@ assert not (COLOUR_ATOM_KINDS & RELATIONAL_ATOM_KINDS)                       # a
 MOTION_ATOM_KINDS = frozenset({"ACTS_TOWARD"})
 assert MOTION_ATOM_KINDS <= frozenset(_ATOM_TYPES)       # every motion kind is a real registered atom
 
+# The prefix a LIBRARY atom (a promoted φ wrapped as a conjunct) carries in `kind`. It is a TAG, never parsed for
+# meaning: everything a caller needs about a library atom is read from `Atom.source`, the predicate itself.
+LIB_ATOM_KIND = "LIB"
+
+
+def atom_reads_motion(atom: Atom) -> bool:
+    """Does this ONE atom's truth depend on the agent's own displacement? A library atom INHERITS the answer from
+    the φ it wraps -- a wrapper that reported motion-free while wrapping ACTS_TOWARD would let a motion-reading
+    predicate through a motion-free gate, which is the one failure this partition exists to prevent."""
+    if atom.kind in MOTION_ATOM_KINDS:
+        return True
+    if atom.source is not None:
+        return reads_motion(atom.source)
+    return False
+
 
 def reads_motion(pred: "Predicate") -> bool:
     """Does this predicate's truth depend on the agent's own displacement? Composed atoms (`COMPOSED:`) are built
     from before-state EXTRACTORS over focus/target only and never touch `action_vec`, so they are motion-free by
-    construction; the assert above is what keeps that claim honest for the hand-written half."""
-    return any(a.kind in MOTION_ATOM_KINDS for a in pred.atoms)
+    construction; the assert above is what keeps that claim honest for the hand-written half. Library atoms
+    delegate to their source φ (recursion terminates: a source is always built from non-library atoms)."""
+    return any(atom_reads_motion(a) for a in pred.atoms)
 
 
 def atom_family(atom: Atom) -> str:
@@ -150,6 +169,8 @@ def atom_family(atom: Atom) -> str:
         return "colour"
     if atom.kind in RELATIONAL_ATOM_KINDS or atom.kind.startswith("COMPOSED:"):   # composed relations are relational
         return "relational"
+    if atom.source is not None:                          # a LIBRARY atom is charged to the family of the φ it wraps
+        return predicate_family(atom.source)             # -> may be 'colour', 'relational' OR 'both'
     return "unregistered"
 
 
@@ -167,7 +188,7 @@ def predicate_family(pred: "Predicate") -> str:
         return "colour"
     if fams == {"relational"}:
         return "relational"
-    return "both"
+    return "both"                                        # incl. a single LIBRARY atom whose own source is 'both'
 
 
 def make_atom(kind: str, *args) -> Atom:
@@ -251,10 +272,31 @@ def composed_relational_atoms() -> List[Atom]:
     return out
 
 
-def atom_universe(colours: Iterable[int]) -> List[Atom]:
+# ═══ THE LIBRARY AS VOCABULARY -- C21.15, Stage 0 ═══════════════════════════════════════════════════════════
+# Until now the search space was a pure function of the PALETTE: `atom_universe` read `colours` and nothing else,
+# so a φ promoted into Γ was TERMINAL -- applicable (via `explains_scored` / `directives`) but never EXTENDABLE.
+# Nothing the agent learned could become a CONJUNCT of something later. `library_atom` is the wire that closes
+# that: a promoted φ re-enters the universe as one atom, so the next mint can compose WITH it.
+# PRICE UNCHANGED, DELIBERATELY: a library atom costs exactly what its constituents cost. A re-use discount would
+# be a lowered promotion bar wearing a compression costume, and any win bought by it would be unattributable.
+
+def library_atom(pred: "Predicate") -> Atom:
+    """A promoted φ, wrapped so it can be a CONJUNCT of a larger predicate. Cost is its constituents' cost -- no
+    re-use discount. Family and motion are INHERITED from `source`, never re-derived from the name."""
+    if not pred.atoms:
+        raise TypeError("library_atom: the vacuous predicate is not a vocabulary item")
+    return Atom(str(pred), pred.cost(), pred.holds, kind=LIB_ATOM_KIND, source=pred)
+
+
+def atom_universe(colours: Iterable[int], library: Iterable["Predicate"] = ()) -> List[Atom]:
     """All well-typed atoms given the COLOUR domain present in the scene (type-directed instantiation).
     With OURO_COMPOSE the relational vocabulary becomes GENERATIVE (composed_relational_atoms), so the composer
-    can select relations -- e.g. an ORDER (LT) relation -- that were never hand-written."""
+    can select relations -- e.g. an ORDER (LT) relation -- that were never hand-written.
+    `library` (default EMPTY -> today's universe byte-for-byte) admits promoted φ as single atoms. A library φ
+    whose rendered name already names a base atom is DROPPED: re-offering an atom the universe already holds is
+    not composition, it is a duplicate with a different cost, and it would double-count in `selection_cost`.
+    NOTE the guard here is NAME-level only; full SUBSUMPTION (a φ whose atoms are a subset of another candidate's)
+    is Stage 1 and is gated on C21.11 -- Stage 0 is a shadow and decides nothing."""
     atoms: List[Atom] = [make_atom(k) for k, (argt, _) in _ATOM_TYPES.items()
                          if not argt and (k != "SAME_COLOUR" or _VOCAB_MATCH)]   # MATCH atom gated (blend M2)
     for c in sorted(set(int(x) for x in colours)):
@@ -262,12 +304,24 @@ def atom_universe(colours: Iterable[int]) -> List[Atom]:
         atoms.append(make_atom("INTENDED_COLOUR", c))
     if _COMPOSE:
         atoms.extend(composed_relational_atoms())              # invention loop: the generated relation basis
+    if library:
+        seen = {a.name for a in atoms}
+        for pred in library:
+            if not pred.atoms:
+                continue
+            lib = library_atom(pred)
+            if lib.name in seen:
+                continue
+            seen.add(lib.name)
+            atoms.append(lib)
     return atoms
 
 
-def enumerate_predicates(colours: Iterable[int], max_size: int = 2) -> List[Predicate]:
-    """Every well-typed conjunction of 1..max_size distinct atoms -- the space the minter searches (bounded)."""
-    universe = atom_universe(colours)
+def enumerate_predicates(colours: Iterable[int], max_size: int = 2,
+                         library: Iterable["Predicate"] = ()) -> List[Predicate]:
+    """Every well-typed conjunction of 1..max_size distinct atoms -- the space the minter searches (bounded).
+    `library` empty (the default) reproduces the pre-C21.15 space exactly."""
+    universe = atom_universe(colours, library=library)
     preds: List[Predicate] = []
     for size in range(1, max_size + 1):
         for combo in itertools.combinations(universe, size):

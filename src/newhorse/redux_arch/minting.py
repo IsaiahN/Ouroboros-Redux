@@ -20,9 +20,9 @@ This module is the fast LOCAL mint (in-episode). The slow ECHO->PROMOTE consolid
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Iterable
 import math
-from .dsl import Context, Predicate, enumerate_predicates
+from .dsl import Context, Predicate, enumerate_predicates, LIB_ATOM_KIND
 
 Exception_ = Tuple[Context, bool]                        # (before-state, outcome the grammar mispredicted)
 
@@ -61,12 +61,18 @@ class Mint:
 
 
 def two_part_mdl(exceptions: List[Exception_], max_size: int = 2,
-                 report: Optional[dict] = None) -> Optional[Mint]:
+                 report: Optional[dict] = None, library: Iterable[Predicate] = ()) -> Optional[Mint]:
     """Search the DSL for the φ that best compresses the exception list by the two-part MDL code. Returns the
     accepted Mint (φ strictly beats the enumerated baseline) or None (nothing worth minting -- e.g. noise).
 
     `report`, if given, is filled in place with the candidate accounting (constructed / eligible / selection
-    cost / baseline) so a caller can SEE the gate rather than infer it. The return type is unchanged."""
+    cost / baseline) so a caller can SEE the gate rather than infer it. The return type is unchanged.
+
+    `library` (C21.15) admits ALREADY-PROMOTED φ into the atom universe as single conjuncts, so what the agent
+    learned can be BUILT ON rather than only re-applied. Default EMPTY -> the pre-C21.15 search space and the
+    pre-C21.15 score, exactly. There is NO price break for a library atom, so a library win is a real
+    compression win and not a lowered bar; and a bigger Γ raises `n_eligible`, which raises `selection_cost`,
+    so the library pays for its own size in the same currency as everything else."""
     n = len(exceptions)
     if n < 2:
         return None
@@ -83,7 +89,7 @@ def two_part_mdl(exceptions: List[Exception_], max_size: int = 2,
         colours.add(ctx.focus_colour)
         if ctx.intended_colour is not None:
             colours.add(ctx.intended_colour)             # so INTENDED_COLOUR atoms cover the occupying colours
-    preds = enumerate_predicates(colours, max_size=max_size)
+    preds = enumerate_predicates(colours, max_size=max_size, library=library)
     # ELIGIBILITY, computed from the BEFORE-STATE CONTEXTS ONLY (never the outcomes): a predicate that is
     # constant across this exception list partitions nothing and was structurally incapable of being selected
     # here, whatever the outcomes turn out to be. Such a candidate is not in the hypothesis class we actually
@@ -103,6 +109,20 @@ def two_part_mdl(exceptions: List[Exception_], max_size: int = 2,
     if report is not None:
         report.update(n_constructed=len(preds), n_eligible=len(eligible),
                       selection_cost_bits=selection_cost)
+        # THE LIBRARY'S OWN DENOMINATOR. `n_eligible` alone cannot say whether the library reached the contest:
+        # a Γ that is offered but whose every φ is constant across these contexts is filtered out by the
+        # eligibility test above and leaves no trace. Counted only when a library was actually passed, so the
+        # key's ABSENCE means "no library offered" and a 0 means "offered and none of it could split".
+        if library:
+            report["n_eligible_library"] = sum(
+                1 for pred, _h in eligible if any(a.kind == LIB_ATOM_KIND for a in pred.atoms))
+            # ...AND THE RUNG BELOW IT. `n_eligible_library = 0` has TWO causes that look identical from here:
+            # the library φ entered the universe and were CONSTANT across these contexts (a fact about the
+            # residual), or they never entered it at all because `atom_universe`'s duplicate guard dropped every
+            # one (a fact about the WIRING). Counted from the size-1 predicates, where each admitted library
+            # atom appears exactly once, so the two causes are separable on the record instead of by argument.
+            report["n_library_admitted"] = sum(
+                1 for p in preds if len(p.atoms) == 1 and next(iter(p.atoms)).kind == LIB_ATOM_KIND)
     best: Optional[Mint] = None
     best_total = baseline                                # total (incl. selection cost) must STRICTLY beat baseline
     for pred, holds in eligible:
