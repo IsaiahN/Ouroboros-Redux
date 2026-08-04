@@ -98,6 +98,11 @@ class Arm:
     on_step: Optional[Callable[[Any, dict, dict], None]] = None
     after_choose: Optional[Callable[[Any, str, Optional[dict], dict], None]] = None
     finish: Optional[Callable[[Any, dict], Dict[str, Any]]] = None
+    # THE ONE HOOK THAT IS NOT A RECORDER. `percept` rewrites the grid BETWEEN the environment and the policy --
+    # the environment never sees it, so the game's own dynamics are untouched and only the AGENT'S VIEW moves.
+    # It exists for the π-relabel control (C21.9) and for nothing else. It defaults to None, so no existing arm
+    # can be perturbed by its presence: with `percept is None` the loop is byte-identical to before it was added.
+    percept: Optional[Callable[[Any, dict], Any]] = None
 
 
 ARMS: Dict[str, Arm] = {}
@@ -123,7 +128,8 @@ def play(arm: Arm, gid: str, steps_cap: int, wall_cap: float) -> Dict[str, Any]:
     seq: List[list] = []
     best = int(snap.get("levels_completed", 0))
     while n_steps < steps_cap and (time.time() - t0) < wall_cap:
-        pol.observe(snap["grid"], snap["available"], snap["levels_completed"], state=snap["state"])
+        grid = snap["grid"] if arm.percept is None else arm.percept(snap["grid"], state)
+        pol.observe(grid, snap["available"], snap["levels_completed"], state=snap["state"])
         if snap.get("done"):                                   # lifetime over -> new generation, same policy
             snap = session.reset_after_death(reasoning={"why": arm.why + " reset"})
             pol.note_reset()
@@ -345,6 +351,76 @@ register(Arm(
     doc="""The control. Core fields only -- the digest, the levels, the pose count. Every A/B needs one arm that
     adds no instrumentation at all, so 'the recorder changed the run' has somewhere to show up.""",
     tag="base", why="base sweep"))
+
+
+# --------------------------------------------------------------------------------------------------------------
+# C21.9 -- THE π-RELABEL CONTROL. How much of the agent's behaviour is bound to the colour LEXICON?
+# --------------------------------------------------------------------------------------------------------------
+# π is a fixed permutation of the colour indices, applied to the grid the POLICY sees and to nothing else. The
+# environment keeps its own true colours and receives the agent's real actions, so the game's dynamics are
+# identical in both arms and every difference in the emitted sequence is attributable to the agent alone.
+#
+# WHAT THIS CAN DECIDE. Geometry is π-invariant: a permutation moves no cell. An agent that reasons about
+# STRUCTURE ("the region with three cells", "the colour the avatar is standing on") is π-invariant too, and must
+# emit the identical action sequence. Any movement in `seq_sha` is therefore the agent reading a colour INDEX --
+# a raw literal, a `min()`/`sorted()` tie-break, a salience prior keyed on the number itself.
+#
+# WHY IT IS RUN ON THE n_posed == 0 GAMES FIRST. Where the agent poses no objective, Γ contributes nothing to the
+# decision, so movement under π cannot be charged to the composed objective. It is NON-COMPOSITIONAL colour
+# dependence with no confound. The games that DO pose are run in the same sweep with `n_posed` recorded as a
+# covariate -- per the re-cut of this test, the posed atom is a covariate here, never the subject.
+#
+# PRE-REGISTERED GATE. With `OURO_PI=id` the permutation is the identity, and `seq_sha` must equal the `base`
+# arm's `seq_sha` on all 25 games. If it does not, the relabel PLUMBING moved the agent -- a numpy dtype round
+# trip, a copy where a view was expected -- and the beat is VOID before any π reading is taken.
+#
+# PRE-REGISTERED READING, both directions stated before the numbers exist:
+#   * 0 games move  -> the agent's behaviour is colour-lexicon-free at every site, and the systematicity problem
+#                      is entirely about ARITY (§2 of the pose-goal doc), not about binding.
+#   * k games move  -> k is the size of the non-compositional colour dependence, and it is an OOD liability: the
+#                      private test set will not honour this repo's colour conventions.
+# Neither outcome is the "good" one to be argued for afterwards. PUBLISH THE +0.
+_PI: Optional[Any] = None
+
+
+def _pi_lut():
+    """The permutation, built once per process and recorded in the header. Seeded, so the arm is reproducible."""
+    global _PI
+    if _PI is None:
+        import numpy as np
+        import random
+        idx = list(range(16))                                  # ARC colour indices
+        if os.environ.get("OURO_PI", "perm") != "id":
+            random.Random(int(os.environ.get("OURO_PI_SEED", "0"))).shuffle(idx)
+        _PI = np.asarray(idx, dtype=np.int8)
+    return _PI
+
+
+def _relabel(grid, state):
+    import numpy as np
+    g = np.asarray(grid)
+    if int(g.max(initial=0)) > 15:                             # never silently truncate an unexpected palette
+        raise ValueError("colour index outside 0..15: %d" % int(g.max()))
+    state["pi_colours"] = sorted({int(v) for v in np.unique(g)})
+    return _pi_lut()[g]
+
+
+def _relabel_finish(pol, state):
+    return {"pi": [int(v) for v in _pi_lut()],
+            "pi_is_identity": [int(v) for v in _pi_lut()] == list(range(16)),
+            "colours_seen": state.get("pi_colours", []),
+            "n_colours_seen": len(state.get("pi_colours", []))}
+
+
+register(Arm(
+    name="relabel",
+    doc="""C21.9 -- π-RELABEL. Permutes the colour indices the POLICY sees; the environment is untouched.
+
+    Run twice, sequentially, never in parallel (the wall cap is wall-clock):
+        OURO_PI=id                -> the control; seq_sha must match `base` on all 25 or the beat is void
+        OURO_PI=perm OURO_PI_SEED=1 -> the arm; every moved seq_sha is colour-index dependence""",
+    tag="relabel", why="pi relabel",
+    percept=_relabel, finish=_relabel_finish))
 
 
 if __name__ == "__main__":                                     # pragma: no cover -- builder-only instrument
