@@ -105,3 +105,22 @@ write back -> the next agent inherits a corrected market.
 **The stack, in Isaiah's terms:** allocentric evolution (stock v4, untouched) underneath;
 egocentric self + goal + memory above it; ideas now have authors, prices, reputations and
 graveyards. What is NOT yet real: population-scale circulation (3b) and any L2 (3c's number).
+
+---
+
+## ENTRY 6 - 2026-08-10 - 3b'S FALSIFIER FIRED, MECHANISM READ: the credit wire requires a self-centroid, and click games never have one. A real level-up was dropped. The click-side economy is the fix.
+
+> ## **L2 count: 0 (baseline 0). 3b verdict: circulation BROKEN at the mint - not in the fabric, in the credit gate.**
+
+The trial (12 agents, 3 gens, 5346 actions): the observer ran everywhere (514 [EGO] lines), a
+REAL level-up occurred on the cognitive path (click-only game, action 84) - and zero CONFIRM,
+zero MINT, no fabric dir (lazy: nothing ever appended). The credit branch is gated on the
+controllable's centroid; on click games the contingency test can never name a controllable
+(nothing moves WITH the choice), so the centroid is None forever and rewards are discarded.
+Movement-side economy: proven live in 3a. Click-side: does not exist. Most banked L1s are click
+games. Fix prereg'd: PREREG_PHASE3B2.md - credit at the ACTED-ON cell (the clicked cell when
+the rewarded action was a click), CLICK_AT ideas, click-drive under the identical wheel rule.
+
+Also measured from source this beat (PREREG_PHASE3C.md): replay episodes RETURN at replay
+completion - the remaining budget is discarded; stock v4's only reliable route to L2's doorstep
+ends the episode on arrival. The 3c handoff fixes that after 3b2 lands.
