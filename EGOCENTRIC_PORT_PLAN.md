@@ -66,3 +66,29 @@ before producers — build nothing until its consumer's case is measured.
 
 Scope: full spine (Phases 1–3) or belief-state/self-locus first and reassess? Phase 1 starts
 either way (everything sits on it) — say the word to start, or redirect.
+
+---
+
+## 6. THE TWO-TIMESCALE FUSION (Isaiah's frame, 2026-08-10 — supersedes §3's Phase 3 shape)
+
+v4 = allocentric evolution: variation by random allocation, selection by level-fitness, retention
+by banking. The egocentric layer runs THE SAME TRIAD inside one agent at action timescale:
+variation = hypothesis proposal from local Γ; selection = the residual settles every action
+(dense gradient, not per-life); retention = MDL-guarded MINT into local Γ. One agent's episode
+is itself a thousand generations of idea-evolution.
+
+The bank splits into two channels with different transfer laws:
+  * `winning_sequences` (playback) — stays; bootstraps every episode to the frontier. Playback
+    DOES NOT CROSS levels (the measured L2 wall) and never crosses upward.
+  * Γ-promote (generators) — minted φ that were VERIFIED + ECHOED (re-derived on a second
+    context) + COMPRESSED cross into the shared library; next generation SEEDS local Γ from it
+    as PRIORS (bias proposal order), never as replays.
+Bracket residual R_T gates the round trip both ways. Variation inside a generation, selection
+between: agents never copy each other's Γ mid-flight — sharing only through the promote gate.
+Ground stays pinned: hypotheses are priced against the WORLD's next frame only, never against
+each other (the anchor must not update).
+
+Build order follows the dependency chain's measured status (perception/persistent identity
+first; the mint fires last and is gated like everything else): Phase 1 self → Phase 2 goal
+spine → Phase 3a local ledger+mint → Phase 3b promote/seed channels through v4's existing
+transfer machinery → the L2 number against the cold baseline of zero.
