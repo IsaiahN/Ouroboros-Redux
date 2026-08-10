@@ -60,3 +60,25 @@ own pre-registered, gated change) or they are excluded from the port's scope.
 **Phase 1 verdict: both falsifiers resolved.** Containment 4/4 byte-identical; capability 4
 named of 5 non-vacuous. The loop now has eyes for its own body on every game where the loop
 itself survives.
+
+---
+
+## ENTRY 4 - 2026-08-10 - PHASE 2 v1 PASSES BOTH FALSIFIERS: the wheel exists, it is closed by default, and it steers when signal opens it.
+
+> ## **L2 count: 0 (baseline 0). Phases 1-2 complete; PHASE 3 (ledger + mint, then the L2 attack) is next.**
+
+**Containment 4/4:** every control sha byte-identical - without a confirmed reward the whole
+egocentric stack is provably inert (the wheel rule as a measured property, not a promise).
+
+**Consumption 3/4 (threshold >=2):** with the instrument-side forced confirm, `dc22` drove 23
+actions toward the market's winner, `m0r0` 15, `cd82` 3; `ka59` accepted the credit and refused
+to drive - no established action strictly helped, and the unhelpful-map rule held. The refusal
+is as load-bearing as the drives.
+
+**What exists now on v4-cold:** stock v4 (untouched behaviour, byte-verified twice) + an
+egocentric layer that knows WHICH body is its own (contingency, not correlation), learns WHICH
+action moves it WHERE (live, answer-free), proposes candidate goals from appearance
+(cue-proposes), and will steer toward one ONLY once a real level-up confirms it
+(reward-disposes). Next: Phase 3a - the falsified ledger + mint (hypotheses die by prediction
+error; knowledge compounds only under the MDL guard), then 3b promote/seed, then the L2 attack
+scored against the baseline of zero.
