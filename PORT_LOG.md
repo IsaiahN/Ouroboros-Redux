@@ -42,3 +42,21 @@ None frames); `ls20` is VACUOUS - and that vacuity is the beat's discovery:
 diagnosis; the `[OPEN]` question for Isaiah - whether to fix the stock `random`-shadow bug on
 v4-cold (it changes stock behaviour, which the baseline was measured on) or leave it and score
 capability only on non-vacuous games.
+
+---
+
+## ENTRY 3 - 2026-08-10 - PHASE 1 COMPLETE: capability CLEARS at 4 non-vacuous games. The crash census grows to 3 of 25.
+
+> ## **L2 count: 0 (baseline 0). Phase 1 fully passed; PHASE 2 (the goal spine) MAY OPEN.**
+
+**Capability, final:** `ka59` `dc22` `cd82` `m0r0` all name a stable controllable colour by the
+final third under pure action-contingency - the >=4 threshold is met. `su15` remains the one
+genuine non-namer (error-flapping; diagnosis queued, non-blocking). `ls20` `tu93` `tr87` are
+vacuous: **all three crash stock v4's cognitive loop every hermetic episode** (the PTMA
+`random`-shadow bug) and play on the fallback stack. The [OPEN] question for Isaiah stands and
+now matters more: Phase 2 cannot reach those three games until the one-line bug is fixed (as its
+own pre-registered, gated change) or they are excluded from the port's scope.
+
+**Phase 1 verdict: both falsifiers resolved.** Containment 4/4 byte-identical; capability 4
+named of 5 non-vacuous. The loop now has eyes for its own body on every game where the loop
+itself survives.
