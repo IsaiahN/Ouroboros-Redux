@@ -92,3 +92,17 @@ Build order follows the dependency chain's measured status (perception/persisten
 first; the mint fires last and is gated like everything else): Phase 1 self → Phase 2 goal
 spine → Phase 3a local ledger+mint → Phase 3b promote/seed channels through v4's existing
 transfer machinery → the L2 number against the cold baseline of zero.
+
+## 7. THE WHEEL RULE (Isaiah's ruling, 2026-08-10 — binding on every phase)
+
+**Blind explore is the incumbent.** The egocentric machinery takes the wheel only on measured
+signal, via either entry:
+  (a) **reward-grounded** — a level-up occurred while a candidate goal/hypothesis was active;
+      its price is confirmed positive; goal-directed play drives toward it;
+  (b) **salience-grounded** — a hypothesis has demonstrated positive informative salience
+      (predicting REAL change, verified against the world's next frame, repeatedly) — enough to
+      make informed plays/compositions rather than guesses.
+No signal → blind explore, full stop. The NOVEL-bin drive never takes the wheel from explore;
+at most it AIMS the probe (chooses where blind explore looks next) — proctor's interpretation,
+flagged for veto. The mint compounds nothing on silence: no support, no mint. This is the
+earned-override law generalised: the incumbent is random, and the burden of proof never flips.
