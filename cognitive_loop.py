@@ -923,6 +923,19 @@ class CognitiveLoop:
                     and self._stable_region_attempts < 2):
                 self._compute_stable_regions()
 
+        # ═══ PHASE 1 (EGO): read-only egocentric observation — feeds NOTHING ═══
+        # The observer senses (segment/track/contingency) but no decision code reads it.
+        try:
+            if getattr(self, "_ego_observer", None) is None:
+                from engines.egocentric.observer import EgoObserver
+                self._ego_observer = EgoObserver()
+            _ego_action = (getattr(self, "_last_action_info", None) or {}).get('type', 0)
+            info = self._ego_observer.observe(post_array, _ego_action)
+            if self._ego_observer.calls % 10 == 0:
+                print(f"[EGO] colour={info.get('colour')} objects={info.get('objects')}")
+        except Exception:
+            pass
+
         # ═══ GAP 4: Rich action outcome computation ═══
         self._compute_rich_outcome(cf, post_array)
 
