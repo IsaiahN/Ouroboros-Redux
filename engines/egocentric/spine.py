@@ -80,6 +80,25 @@ class GoalSpine:
         except Exception:
             self.errors += 1
 
+    def seed_confirmed(self, cell: Tuple[int, int], price: float) -> None:
+        """PHASE 3a: register a candidate at an INHERITED price (a prior from the fabric).
+        Writes the price only -- never touches manager.active. An inherited price
+        >= manager.confirm_bonus opens has_confirmed(); the CALLER decides the price."""
+        try:
+            self.manager.price[("BE_AT", (int(cell[0]), int(cell[1])))] = float(price)
+        except Exception:
+            self.errors += 1
+
+    def demote_inherited(self, cell: Tuple[int, int]) -> None:
+        """PHASE 3a: an inherited confirmation was falsified by live play -- drop that
+        key's price to min_price (well below confirm_bonus) so the gate closes back."""
+        try:
+            key = ("BE_AT", (int(cell[0]), int(cell[1])))
+            if key in self.manager.price:
+                self.manager.price[key] = self.manager.min_price
+        except Exception:
+            self.errors += 1
+
     def has_confirmed(self) -> bool:
         """True iff some candidate's price reached confirm_bonus -- i.e. a reward confirmed it."""
         try:

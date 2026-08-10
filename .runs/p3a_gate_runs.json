@@ -1,0 +1,48 @@
+{
+  "containment": {
+    "ls20": {
+      "sha": "1cc25f20985b641c",
+      "stored": "1cc25f20985b641c"
+    },
+    "su15": {
+      "sha": "1451221a997aeb16",
+      "stored": "1451221a997aeb16"
+    },
+    "ka59": {
+      "sha": "378a97a61f0cca97",
+      "stored": "378a97a61f0cca97"
+    },
+    "dc22": {
+      "sha": "ea0c4455f06c617d",
+      "stored": "ea0c4455f06c617d"
+    }
+  },
+  "consumption": {
+    "ka59": {
+      "sha": "b57089e346b842f6",
+      "control": "b57089e346b842f6",
+      "differs": false
+    },
+    "dc22": {
+      "sha": "90ecb76d3f91d833",
+      "control": "7d4e1566111320d6",
+      "differs": true
+    },
+    "cd82": {
+      "sha": "44914843bdec7b06",
+      "control": "6b5d9fb66cb8d26a",
+      "differs": true
+    },
+    "m0r0": {
+      "sha": "1a490d6ec685e72d",
+      "control": "1a490d6ec685e72d",
+      "differs": false
+    }
+  },
+  "pariah": {
+    "ka59": 1,
+    "dc22": 0,
+    "cd82": 0,
+    "m0r0": 1
+  }
+}

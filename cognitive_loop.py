@@ -846,6 +846,8 @@ class CognitiveLoop:
         # drive() is None unless a reward CONFIRMED a goal AND an established action helps;
         # None changes NOTHING, ever (the wheel rule, PREREG_PHASE2.md).
         try:
+            # PHASE 3a: remember the agent's identity for the knowledge fabric
+            self._ego_agent_id = str(agent_id) if agent_id else "agent"
             _spine = getattr(self, "_goal_spine", None)
             _cen = getattr(self, "_ego_prev_centroid", None)
             if _spine is not None and _cen is not None:
@@ -962,6 +964,37 @@ class CognitiveLoop:
                 from engines.egocentric.spine import GoalSpine
                 self._goal_spine = GoalSpine()
                 self._ego_prev_centroid = None
+                # ═══ PHASE 3a: the knowledge fabric — lazy init + SEED once per game ═══
+                # Root is the RELATIVE "ego_fabric" (cwd-scoped: hermetic boxes isolate
+                # naturally). Priors feed the spine at an INHERITED price: credibility>=1
+                # opens the gate (confirm_bonus exactly); below that, proposal-bias only.
+                try:
+                    from engines.egocentric.fabric import KnowledgeFabric
+                    self._ego_fabric = KnowledgeFabric(
+                        "ego_fabric",
+                        agent_id=str(getattr(self, "_ego_agent_id", "") or "agent"),
+                        kin_key="v4")
+                    self._ego_seeded = {}          # seeded cell -> prior idea id
+                    _gkey = str(getattr(self, "_game_id", "") or "game")
+                    _bonus = self._goal_spine.manager.confirm_bonus
+                    for _p in self._ego_fabric.priors(_gkey)[:3]:
+                        if _p.get("pariah"):
+                            continue
+                        _pi = _p.get("idea") or {}
+                        if _pi.get("kind") != "BE_AT":
+                            continue
+                        _pc = _pi.get("cell") or []
+                        if len(_pc) != 2:
+                            continue
+                        _pcell = (int(_pc[0]), int(_pc[1]))
+                        _price = _bonus if _p.get("credibility", 0) >= 1 else _bonus * 0.6
+                        self._goal_spine.seed_confirmed(_pcell, price=_price)
+                        self._ego_seeded[_pcell] = _p["id"]
+                    if self._ego_seeded:
+                        print(f"[EGO-SEED] n={len(self._ego_seeded)}")
+                except Exception:
+                    self._ego_fabric = None
+                    self._ego_seeded = {}
             _cen = info.get('centroid') if isinstance(info, dict) else None
             if _cen is not None and self._ego_prev_centroid is not None:
                 _delta = (int(round(_cen[0] - self._ego_prev_centroid[0])),
@@ -979,6 +1012,37 @@ class CognitiveLoop:
                 _cell = (int(round(_cen[0])), int(round(_cen[1])))
                 self._goal_spine.credit(_cell)
                 print(f"[EGO-GOAL] CONFIRM at {_cell} (level-up credits the market's winner)")
+                # ═══ PHASE 3a: MINT on credit — signal only (the wheel rule for memory) ═══
+                try:
+                    _fab = getattr(self, "_ego_fabric", None)
+                    if _fab is not None:
+                        _gkey = str(getattr(self, "_game_id", "") or "game")
+                        _mi = {"kind": "BE_AT", "cell": [_cell[0], _cell[1]]}
+                        _sig = {"type": "level_up"}
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        print(f"[EGO-MINT] {_id_p} {_id_c}")
+                        # a level-up at a SEEDED cell corroborates the inherited idea
+                        _pid = (getattr(self, "_ego_seeded", None) or {}).get(_cell)
+                        if _pid is not None:
+                            _fab.echo(_pid, by=_fab.agent_id)
+                except Exception:
+                    pass
+            # ═══ PHASE 3a: FALSIFY write-back — a seeded cell reached WITHOUT reward ═══
+            _seeded = getattr(self, "_ego_seeded", None)
+            if _seeded and not level_changed and _cen is not None:
+                _cur = (int(round(_cen[0])), int(round(_cen[1])))
+                _pid = _seeded.get(_cur)
+                if _pid is not None:
+                    try:
+                        _fab = getattr(self, "_ego_fabric", None)
+                        if _fab is not None:
+                            _fab.falsify(_pid, by=_fab.agent_id)
+                        self._goal_spine.demote_inherited(_cur)
+                        del _seeded[_cur]
+                        print("[EGO-GOAL] falsified inherited")
+                    except Exception:
+                        pass
             if self._ego_observer.calls % 25 == 0:
                 print(f"[EGO-GOAL] confirmed={self._goal_spine.has_confirmed()} "
                       f"candidates={len(self._goal_spine.manager.price)} "
