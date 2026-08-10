@@ -82,3 +82,26 @@ action moves it WHERE (live, answer-free), proposes candidate goals from appeara
 (reward-disposes). Next: Phase 3a - the falsified ledger + mint (hypotheses die by prediction
 error; knowledge compounds only under the MDL guard), then 3b promote/seed, then the L2 attack
 scored against the baseline of zero.
+
+---
+
+## ENTRY 5 - 2026-08-10 - PHASE 3a PASSES ALL THREE FALSIFIERS: the fabric is live, the mint is gated, and the pariah loop closed from real play.
+
+> ## **L2 count: 0 (baseline 0). Phases 1-3a complete. Next: 3b (population-scale promote/seed), then 3c - the L2 attack.**
+
+**What the falsifiers measured (re-derived from raw logs and session fabrics):**
+
+| | result |
+|---|---|
+| containment: empty fabric, 4 control shas | **byte-identical 4/4** - memory does nothing without signal |
+| consumption: pre-seeded corroborated ideas | **2/4 diverged** (dc22 drove 12 actions, cd82 3) - threshold met exactly |
+| the pariah loop closes from live play | **2 falsifications written back** (ka59, m0r0 reached seeded cells rewardless) |
+
+The refusals matter as much as the drives: ka59 loaded its seed, had no established action that
+helped, and refused the wheel (Phase-2 rule holding through Phase 3). The economy now runs
+end-to-end in real episodes: seed -> pursue-or-refuse -> confirm(echo)/refute(falsify) ->
+write back -> the next agent inherits a corrected market.
+
+**The stack, in Isaiah's terms:** allocentric evolution (stock v4, untouched) underneath;
+egocentric self + goal + memory above it; ideas now have authors, prices, reputations and
+graveyards. What is NOT yet real: population-scale circulation (3b) and any L2 (3c's number).
