@@ -1,0 +1,42 @@
+{
+  "containment": {
+    "ls20": {
+      "sha": "1cc25f20985b641c",
+      "stored": "1cc25f20985b641c"
+    },
+    "su15": {
+      "sha": "1451221a997aeb16",
+      "stored": "1451221a997aeb16"
+    },
+    "ka59": {
+      "sha": "378a97a61f0cca97",
+      "stored": "378a97a61f0cca97"
+    },
+    "dc22": {
+      "sha": "ea0c4455f06c617d",
+      "stored": "ea0c4455f06c617d"
+    }
+  },
+  "consumption": {
+    "ka59": {
+      "control": "b57089e346b842f6",
+      "forced": "b57089e346b842f6",
+      "differs": false
+    },
+    "dc22": {
+      "control": "7d4e1566111320d6",
+      "forced": "90ecb76d3f91d833",
+      "differs": true
+    },
+    "cd82": {
+      "control": "6b5d9fb66cb8d26a",
+      "forced": "44914843bdec7b06",
+      "differs": true
+    },
+    "m0r0": {
+      "control": "1a490d6ec685e72d",
+      "forced": "51a44dcd7d9d66a4",
+      "differs": true
+    }
+  }
+}

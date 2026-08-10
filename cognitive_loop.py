@@ -842,6 +842,23 @@ class CognitiveLoop:
             obs, agent_id, agent_role, w_A, w_B, cf, **extra_context,
         )
 
+        # ═══ PHASE 2 (EGO-GOAL): the ONE pre-empt site — a confirmed goal earns the wheel ═══
+        # drive() is None unless a reward CONFIRMED a goal AND an established action helps;
+        # None changes NOTHING, ever (the wheel rule, PREREG_PHASE2.md).
+        try:
+            _spine = getattr(self, "_goal_spine", None)
+            _cen = getattr(self, "_ego_prev_centroid", None)
+            if _spine is not None and _cen is not None:
+                _self_cell = (int(round(_cen[0])), int(round(_cen[1])))
+                _ego_drive = _spine.drive(_self_cell)
+                if _ego_drive is not None:
+                    action_num = int(_ego_drive)
+                    if action_num != 6:
+                        action_data = None   # a movement action carries no click coordinates
+                    print(f"[EGO-GOAL] DRIVE action={action_num} from={_self_cell}")
+        except Exception:
+            pass
+
         # Store frame and action info for next cycle
         frame_array = self._perceiver._to_numpy(frame)
         self._prev_frame = frame_array
@@ -933,6 +950,39 @@ class CognitiveLoop:
             info = self._ego_observer.observe(post_array, _ego_action)
             if self._ego_observer.calls % 10 == 0:
                 print(f"[EGO] colour={info.get('colour')} objects={info.get('objects')}")
+        except Exception:
+            pass
+
+        # ═══ PHASE 2 (EGO-GOAL): the goal spine — confirmed reward earns the wheel ═══
+        # Accrue the per-action centroid delta map (the means), propose candidate cells
+        # (cue-proposes), and on a level-up credit the controllable's cell (reward-disposes).
+        # Only spine.drive() — the ONE pre-empt site in cycle() — ever reads this back.
+        try:
+            if getattr(self, "_goal_spine", None) is None:
+                from engines.egocentric.spine import GoalSpine
+                self._goal_spine = GoalSpine()
+                self._ego_prev_centroid = None
+            _cen = info.get('centroid') if isinstance(info, dict) else None
+            if _cen is not None and self._ego_prev_centroid is not None:
+                _delta = (int(round(_cen[0] - self._ego_prev_centroid[0])),
+                          int(round(_cen[1] - self._ego_prev_centroid[1])))
+                self._goal_spine.note_move(str(_ego_action), _delta)
+            self._ego_prev_centroid = _cen
+            # Candidate target cells: non-self objects, smallest (most marker-like) first, cap 5
+            _colour = info.get('colour') if isinstance(info, dict) else None
+            _objs = list(getattr(self._ego_observer, "_prev_objs", None) or [])
+            _objs = [o for o in _objs if _colour is None or _colour not in o.colours]
+            _objs.sort(key=lambda o: o.size)
+            self._goal_spine.propose(
+                (int(round(o.centroid[0])), int(round(o.centroid[1]))) for o in _objs[:5])
+            if level_changed and _cen is not None:
+                _cell = (int(round(_cen[0])), int(round(_cen[1])))
+                self._goal_spine.credit(_cell)
+                print(f"[EGO-GOAL] CONFIRM at {_cell} (level-up credits the market's winner)")
+            if self._ego_observer.calls % 25 == 0:
+                print(f"[EGO-GOAL] confirmed={self._goal_spine.has_confirmed()} "
+                      f"candidates={len(self._goal_spine.manager.price)} "
+                      f"established={sorted(self._goal_spine.established())}")
         except Exception:
             pass
 
