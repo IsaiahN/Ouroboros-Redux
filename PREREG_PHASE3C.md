@@ -14,12 +14,13 @@ the reward happened.
 
 ## 2. THE CHANGE THAT WILL BE AUTHORISED (after 3b)
 
-> After a successful, non-terminal replay (levels_completed ≥ 1, state not WIN/GAME_OVER,
-> budget remaining): DO NOT return. Fire the reward into the egocentric layer (the replayed
-> level-up is THIS episode's real level-up: spine.credit at the current controllable cell +
-> fabric mint/echo, same code path as a live level-up), then hand control to the ordinary
-> cognitive play loop with the current observation and the REMAINING budget. No other change:
-> episodes without replays are untouched byte-for-byte.
+> v1 = THE PURE HANDOFF. After a successful, non-terminal replay (levels_completed ≥ 1, state
+> not WIN/GAME_OVER, budget remaining): DO NOT return — hand control to the ordinary cognitive
+> play loop with the current observation and the REMAINING budget. NO synthetic credit: the
+> wheel opens post-replay only via fabric priors (the inherited-price rule, veto-flagged) or a
+> live level-up during the continuation — the wheel rule stays untouched. An explicit
+> external-credit wire is 3c2 IF the scored run shows the gate never opening at the frontier.
+> No other change: episodes without replays are untouched byte-for-byte.
 
 ## 3. THE GATE — binding (finalised post-3b)
 

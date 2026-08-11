@@ -234,7 +234,31 @@ class CognitiveGamePlayer:
                 is_running_fn=is_running_fn,
             )
             if replay_result is not None:
-                return replay_result
+                # ═══ PHASE 3c: THE PURE HANDOFF ═══
+                # Terminal replays (win, game over, exhausted budget, or no
+                # observation to resume from) end the episode as before.
+                replay_obs = getattr(self, '_last_replay_obs', None)
+                remaining_budget = action_budget - replay_result.actions_taken
+                if (replay_result.is_win
+                        or replay_obs is None
+                        or replay_obs.state == GameState.GAME_OVER
+                        or remaining_budget <= 0):
+                    return replay_result
+                # Non-terminal replay with budget remaining: hand control to
+                # the ordinary cognitive loop from the post-replay board.
+                # No synthetic credit -- the wheel opens only via fabric
+                # priors or a live level-up during the continuation.
+                print(
+                    f"    [REPLAY-HANDOFF] Replay reached "
+                    f"{replay_result.levels_completed} levels in "
+                    f"{replay_result.actions_taken} actions -- continuing "
+                    f"cognitively ({remaining_budget} actions remaining)"
+                )
+                actions_taken = replay_result.actions_taken
+                last_obs = replay_obs
+                prev_levels = replay_result.levels_completed
+                prev_score = replay_result.score
+                # Fall through into the cognitive loop below.
             # If replay returned None (no sequences found), fall through
             # to normal cognitive loop.
 
@@ -1380,6 +1404,10 @@ class CognitiveGamePlayer:
         if self._verbose:
             status = "WIN" if is_win else f"{levels_completed}/{win_levels}"
             print(f"    [REPLAY-DONE] {status} score={score:.2f} actions={actions_taken}")
+
+        # Phase 3c: stash the final observation so play_game's handoff can
+        # continue the episode from the post-replay board.
+        self._last_replay_obs = last_obs
 
         return GameResult(
             game_id=game_id, agent_id=agent.agent_id, score=score,
