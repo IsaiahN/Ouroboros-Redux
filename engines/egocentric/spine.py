@@ -99,6 +99,56 @@ class GoalSpine:
         except Exception:
             self.errors += 1
 
+    # ── PHASE 3b2: the click-side economy — the same wheel rule on the acted-on cell ──
+
+    def credit_click(self, cell: Tuple[int, int]) -> None:
+        """A REAL reward followed a click at `cell` -- manager-credit on the CLICK_AT key
+        (price accumulates by confirm_bonus, as GoalManager.credit does). Never touches
+        manager.active -- BE_AT pursuit is undisturbed; drive_click() resolves independently."""
+        try:
+            key = ("CLICK_AT", (int(cell[0]), int(cell[1])))
+            self.manager.price[key] = self.manager.price.get(key, 0.0) + self.manager.confirm_bonus
+            self.confirmations += 1
+        except Exception:
+            self.errors += 1
+
+    def seed_confirmed_click(self, cell: Tuple[int, int], price: float) -> None:
+        """PHASE 3b2: register a CLICK_AT candidate at an INHERITED price (a prior from the
+        fabric) -- symmetric to seed_confirmed; writes the price only."""
+        try:
+            self.manager.price[("CLICK_AT", (int(cell[0]), int(cell[1])))] = float(price)
+        except Exception:
+            self.errors += 1
+
+    def demote_inherited_click(self, cell: Tuple[int, int]) -> None:
+        """PHASE 3b2: a confirmed CLICK_AT was clicked without reward -- drop that key's
+        price to min_price (well below confirm_bonus) so the gate closes back."""
+        try:
+            key = ("CLICK_AT", (int(cell[0]), int(cell[1])))
+            if key in self.manager.price:
+                self.manager.price[key] = self.manager.min_price
+        except Exception:
+            self.errors += 1
+
+    def drive_click(self) -> Optional[Tuple[int, int]]:
+        """The highest-priced CONFIRMED CLICK_AT cell (price >= confirm_bonus); ties broken
+        by the smallest cell tuple; None otherwise. INDEPENDENT of the movement delta map --
+        clicking needs no locomotion (and never consults manager.active)."""
+        try:
+            best: Optional[Tuple[float, Tuple[int, int]]] = None   # (-price, cell) -> min = best
+            for key, price in self.manager.price.items():
+                if not (isinstance(key, tuple) and len(key) == 2 and key[0] == "CLICK_AT"):
+                    continue
+                if price < self.manager.confirm_bonus:
+                    continue
+                cand = (-float(price), key[1])
+                if best is None or cand < best:
+                    best = cand
+            return best[1] if best is not None else None
+        except Exception:
+            self.errors += 1
+            return None
+
     def has_confirmed(self) -> bool:
         """True iff some candidate's price reached confirm_bonus -- i.e. a reward confirmed it."""
         try:

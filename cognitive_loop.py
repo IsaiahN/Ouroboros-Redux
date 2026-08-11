@@ -850,6 +850,7 @@ class CognitiveLoop:
             self._ego_agent_id = str(agent_id) if agent_id else "agent"
             _spine = getattr(self, "_goal_spine", None)
             _cen = getattr(self, "_ego_prev_centroid", None)
+            _ego_drive = None
             if _spine is not None and _cen is not None:
                 _self_cell = (int(round(_cen[0])), int(round(_cen[1])))
                 _ego_drive = _spine.drive(_self_cell)
@@ -858,6 +859,13 @@ class CognitiveLoop:
                     if action_num != 6:
                         action_data = None   # a movement action carries no click coordinates
                     print(f"[EGO-GOAL] DRIVE action={action_num} from={_self_cell}")
+            # ═══ PHASE 3b2: movement drive first, then click drive (needs no centroid) ═══
+            if _spine is not None and _ego_drive is None:
+                _click = _spine.drive_click()
+                if _click is not None:
+                    action_num = 6
+                    action_data = {'x': int(_click[0]), 'y': int(_click[1])}
+                    print(f"[EGO-GOAL] DRIVE-CLICK at {_click}")
         except Exception:
             pass
 
@@ -975,26 +983,36 @@ class CognitiveLoop:
                         agent_id=str(getattr(self, "_ego_agent_id", "") or "agent"),
                         kin_key="v4")
                     self._ego_seeded = {}          # seeded cell -> prior idea id
+                    self._ego_seeded_clicks = {}   # PHASE 3b2: seeded CLICK_AT cell -> prior id
+                    self._ego_self_clicks = set()  # PHASE 3b2: self-confirmed CLICK_AT cells
                     _gkey = str(getattr(self, "_game_id", "") or "game")
                     _bonus = self._goal_spine.manager.confirm_bonus
                     for _p in self._ego_fabric.priors(_gkey)[:3]:
                         if _p.get("pariah"):
                             continue
                         _pi = _p.get("idea") or {}
-                        if _pi.get("kind") != "BE_AT":
+                        _pk = _pi.get("kind")
+                        if _pk not in ("BE_AT", "CLICK_AT"):
                             continue
                         _pc = _pi.get("cell") or []
                         if len(_pc) != 2:
                             continue
                         _pcell = (int(_pc[0]), int(_pc[1]))
                         _price = _bonus if _p.get("credibility", 0) >= 1 else _bonus * 0.6
-                        self._goal_spine.seed_confirmed(_pcell, price=_price)
-                        self._ego_seeded[_pcell] = _p["id"]
-                    if self._ego_seeded:
-                        print(f"[EGO-SEED] n={len(self._ego_seeded)}")
+                        if _pk == "CLICK_AT":
+                            self._goal_spine.seed_confirmed_click(_pcell, price=_price)
+                            self._ego_seeded_clicks[_pcell] = _p["id"]
+                        else:
+                            self._goal_spine.seed_confirmed(_pcell, price=_price)
+                            self._ego_seeded[_pcell] = _p["id"]
+                    if self._ego_seeded or self._ego_seeded_clicks:
+                        print(f"[EGO-SEED] n="
+                              f"{len(self._ego_seeded) + len(self._ego_seeded_clicks)}")
                 except Exception:
                     self._ego_fabric = None
                     self._ego_seeded = {}
+                    self._ego_seeded_clicks = {}
+                    self._ego_self_clicks = set()
             _cen = info.get('centroid') if isinstance(info, dict) else None
             if _cen is not None and self._ego_prev_centroid is not None:
                 _delta = (int(round(_cen[0] - self._ego_prev_centroid[0])),
@@ -1008,6 +1026,8 @@ class CognitiveLoop:
             _objs.sort(key=lambda o: o.size)
             self._goal_spine.propose(
                 (int(round(o.centroid[0])), int(round(o.centroid[1]))) for o in _objs[:5])
+            _lai = getattr(self, "_last_action_info", None) or {}
+            _ax, _ay = _lai.get('x'), _lai.get('y')
             if level_changed and _cen is not None:
                 _cell = (int(round(_cen[0])), int(round(_cen[1])))
                 self._goal_spine.credit(_cell)
@@ -1028,6 +1048,28 @@ class CognitiveLoop:
                             _fab.echo(_pid, by=_fab.agent_id)
                 except Exception:
                     pass
+            # ═══ PHASE 3b2: credit the ACTED-ON cell — a click needs no centroid ═══
+            if level_changed and _ax is not None and _ay is not None:
+                _ccell = (int(_ax), int(_ay))
+                self._goal_spine.credit_click(_ccell)
+                getattr(self, "_ego_self_clicks", set()).add(_ccell)
+                print(f"[EGO-GOAL] CONFIRM-CLICK at {_ccell} (level-up credits the acted-on cell)")
+                # MINT on click-credit — same fabric guards as the BE_AT path
+                try:
+                    _fab = getattr(self, "_ego_fabric", None)
+                    if _fab is not None:
+                        _gkey = str(getattr(self, "_game_id", "") or "game")
+                        _mi = {"kind": "CLICK_AT", "cell": [_ccell[0], _ccell[1]]}
+                        _sig = {"type": "level_up"}
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        print(f"[EGO-MINT] {_id_p} {_id_c}")
+                        # a level-up at a SEEDED click cell corroborates the inherited idea
+                        _pid = (getattr(self, "_ego_seeded_clicks", None) or {}).get(_ccell)
+                        if _pid is not None:
+                            _fab.echo(_pid, by=_fab.agent_id)
+                except Exception:
+                    pass
             # ═══ PHASE 3a: FALSIFY write-back — a seeded cell reached WITHOUT reward ═══
             _seeded = getattr(self, "_ego_seeded", None)
             if _seeded and not level_changed and _cen is not None:
@@ -1043,6 +1085,25 @@ class CognitiveLoop:
                         print("[EGO-GOAL] falsified inherited")
                     except Exception:
                         pass
+            # ═══ PHASE 3b2: click falsify write-back — clicked WITHOUT reward closes it ═══
+            if not level_changed and _ax is not None and _ay is not None:
+                _ccell = (int(_ax), int(_ay))
+                _sclk = getattr(self, "_ego_seeded_clicks", None)
+                if _sclk and _ccell in _sclk:
+                    try:
+                        _fab = getattr(self, "_ego_fabric", None)
+                        if _fab is not None:
+                            _fab.falsify(_sclk[_ccell], by=_fab.agent_id)
+                        self._goal_spine.demote_inherited_click(_ccell)
+                        del _sclk[_ccell]
+                        print("[EGO-GOAL] falsified inherited click")
+                    except Exception:
+                        pass
+                elif _ccell in (getattr(self, "_ego_self_clicks", None) or set()):
+                    # a SELF-confirmed click that failed on re-click: demote, don't falsify
+                    self._goal_spine.demote_inherited_click(_ccell)
+                    self._ego_self_clicks.discard(_ccell)
+                    print("[EGO-GOAL] demoted self-confirmed click (no reward)")
             if self._ego_observer.calls % 25 == 0:
                 print(f"[EGO-GOAL] confirmed={self._goal_spine.has_confirmed()} "
                       f"candidates={len(self._goal_spine.manager.price)} "
