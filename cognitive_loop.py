@@ -899,6 +899,38 @@ class CognitiveLoop:
 
         return action_num, action_data, cf
 
+    def _ego_feed(self, frame, action):
+        """Observe-only feed for replayed steps: replayed actions TEACH, never SIGNAL.
+
+        Feeds the egocentric observer and accrues the per-action centroid delta
+        map on the goal spine (the same sensing path record_result uses), so a
+        post-replay handoff arrives with a named body and an established
+        move-map instead of frontier amnesia. Pure by construction: no fabric,
+        no seeding, and absolutely no synthetic reward from replayed steps
+        (the wheel rule).
+        """
+        try:
+            if getattr(self, "_ego_observer", None) is None:
+                from engines.egocentric.observer import EgoObserver
+                self._ego_observer = EgoObserver()
+            if getattr(self, "_goal_spine", None) is None:
+                from engines.egocentric.spine import GoalSpine
+                self._goal_spine = GoalSpine()
+                self._ego_prev_centroid = None
+                self._ego_last_known_cen = None
+            info = self._ego_observer.observe(np.asarray(frame), action)
+            _cen = info.get('centroid') if isinstance(info, dict) else None
+            if _cen is not None:
+                self._ego_last_known_cen = _cen
+            if _cen is not None and self._ego_prev_centroid is not None:
+                _dr = _cen[0] - self._ego_prev_centroid[0]
+                _dc = _cen[1] - self._ego_prev_centroid[1]
+                self._goal_spine.note_move(
+                    str(action), (int(round(_dr)), int(round(_dc))))
+            self._ego_prev_centroid = _cen
+        except Exception:
+            self._ego_feed_errors = getattr(self, "_ego_feed_errors", 0) + 1
+
     def record_result(
         self,
         post_frame: Any,
@@ -973,10 +1005,14 @@ class CognitiveLoop:
                 self._goal_spine = GoalSpine()
                 self._ego_prev_centroid = None
                 self._ego_last_known_cen = None  # AMENDMENT 3b3: survives None steps
-                # ═══ PHASE 3a: the knowledge fabric — lazy init + SEED once per game ═══
-                # Root is the RELATIVE "ego_fabric" (cwd-scoped: hermetic boxes isolate
-                # naturally). Priors feed the spine at an INHERITED price: credibility>=1
-                # opens the gate (confirm_bonus exactly); below that, proposal-bias only.
+            # ═══ PHASE 3a: the knowledge fabric — lazy init + SEED once per game ═══
+            # Root is the RELATIVE "ego_fabric" (cwd-scoped: hermetic boxes isolate
+            # naturally). Priors feed the spine at an INHERITED price: credibility>=1
+            # opens the gate (confirm_bonus exactly); below that, proposal-bias only.
+            # DECOUPLED from the spine guard above (init-once flag): replay-fed
+            # episodes arrive with the spine pre-inited by _ego_feed and must
+            # still get fabric init + prior seeding.
+            if not getattr(self, "_ego_fabric_inited", False):
                 try:
                     from engines.egocentric.fabric import KnowledgeFabric
                     self._ego_fabric = KnowledgeFabric(
@@ -1014,6 +1050,7 @@ class CognitiveLoop:
                     self._ego_seeded = {}
                     self._ego_seeded_clicks = {}
                     self._ego_self_clicks = set()
+                self._ego_fabric_inited = True  # once per game, success or fail
             _cen = info.get('centroid') if isinstance(info, dict) else None
             if _cen is not None:
                 # AMENDMENT 3b3: retain the most recent non-None centroid — the level-up

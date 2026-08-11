@@ -104,6 +104,9 @@ class CognitiveGamePlayer:
             db=self._gp.db,
             verbose=self._verbose,
         )
+        # Stash for _replay_winning_sequences: the replay feed teaches the SAME
+        # loop instance this episode's continuation will use (observe-only).
+        self._cognitive_loop = loop
 
         # Set up environment (reuse GamePlayer's setup)
         scorecard_id = self._gp._get_or_create_scorecard(agent, game_id)
@@ -1367,6 +1370,18 @@ class CognitiveGamePlayer:
 
                 actions_taken += 1
                 last_obs = new_obs
+
+                # THE REPLAY OBSERVATION FEED: teach the episode's cognitive
+                # loop observe-only (body naming + move-map). No credit, no
+                # mint -- replayed steps teach, never signal.
+                try:
+                    _loop = getattr(self, '_cognitive_loop', None)
+                    if _loop is not None:
+                        _frame = self._get_frame_array(new_obs)
+                        if _frame is not None:
+                            _loop._ego_feed(_frame, action_num)
+                except Exception:
+                    pass
 
                 if self._verbose and actions_taken % 10 == 0:
                     state_str = str(new_obs.state).replace('GameState.', '')

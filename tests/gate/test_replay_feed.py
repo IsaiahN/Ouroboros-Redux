@@ -69,3 +69,16 @@ class TestTheFeed:
         assert "_ego_feed" in body, (
             "_replay_winning_sequences never feeds the ego machinery -- replayed actions "
             "still teach nothing (starvation)")
+
+
+class TestTheFabricSurvivesTheFeed:
+
+    def test_fabric_init_is_not_nested_in_the_spine_guard(self):
+        """A replay-fed episode pre-inits the spine; the fabric/seed block must still run in
+        record_result -- else handoff episodes (the ones that matter most) lose seeding and
+        minting entirely."""
+        src = open(os.path.join(REPO, "cognitive_loop.py"), encoding="utf-8",
+                   errors="replace").read()
+        assert "_ego_fabric_inited" in src, (
+            "the fabric lazy-init is still guarded by the spine's existence -- replay-fed "
+            "episodes get no fabric, no seeds, no mints (the builder-flagged regression)")
