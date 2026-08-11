@@ -24,3 +24,13 @@ produced zero mints because credit requires a self-centroid that click games nev
 
 ## THE UNDO
 `git revert` of the 3b2 commit(s).
+
+## AMENDMENT 3b3 (2026-08-10, after the second live-wire firing)
+
+Mechanism read from pop3b3: the level-up step carries the NEW level's first frame; the
+controllable pick fails exactly then (colour was named 4 lines earlier; the transition board
+broke it). The credit gate is amended to be NON-DROPPABLE, in strict fallback order:
+click coords → current centroid → LAST-KNOWN centroid (the body's cell BEFORE the transition —
+the correct attribution anyway) → a bare {"kind": "LEVEL", "action": <id>} mint with no spine
+credit. A real level-up must never again leave zero trace in the fabric. Falsifier unchanged
+(conditional live-wire, rerun until precondition); containment unchanged (4 shas).
