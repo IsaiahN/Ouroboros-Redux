@@ -222,3 +222,31 @@ deficit the sealed run's logs named is gone from the logs. Economy healthy (37 m
 seed-loads, 40 drives in part 1). The healed trio plays the cognitive loop (30-42 episodes
 each) but holds no L1 yet - empty banks, as every game once had. Part 2 runs; level-scoped
 ideas queued behind its verdict to keep one code state per run pair.
+
+---
+
+## ENTRY 13 - 2026-08-11 - RESCORE COMPLETE: ZERO L2 in the post-fix era too (0 of 1800). The remaining obstacle is ARITHMETIC, and v3 already drew the blueprint.
+
+> ## **L2 count: 0 (sealed baseline 0/1800; sealed port 0/1800; post-fix 0/1800). Three swings, every named obstacle removed, door still shut. Said plainly.**
+
+What the fixes bought (measured): L2 attempts went 0 -> 38 per run; agents arrive with
+established move-maps; 34 mints; 214 drives. What remains is TICKET ARITHMETIC: level 1 falls
+at ~6 games per 1800 blind episodes because EVERY episode buys an L1 ticket. Level 2 gets ~38
+short-budget tickets per run (replay fires at p=0.2), each starting its frontier exploration
+FROM SCRATCH - nothing L2-side ever accumulates, because under the wheel rule nothing confirms
+until the first L2 win. The bootstrap problem evolution solved for L1 with mass parallelism is
+unsolved at L2 by orders of magnitude.
+
+**The three levers, all preregable, in cost order:**
+1. **Handoff rate** - replay probability 0.2 means banked games spend 80% of episodes blindly
+   rediscovering L1 instead of standing at L2. Raising it for banked games is a pure ticket
+   multiplier (needs care: replays also serve validation/prestige).
+2. **Frontier checkpoints on the live path** - v3's own blueprint (recovered doc, FULLY WIRED
+   on the abandoned stack): bank the prefix that reached L2 when the episode dies there; replay
+   it; divergence-detect staleness; explore from the doorstep. With the fabric as the store,
+   L2 attempts finally COMPOUND across episodes and agents.
+3. **Level-scoped ideas** - stop L1 goals polluting L2 priors (smaller effect; the falsify loop
+   already prunes them, at the cost of wasted clicks).
+
+Also noted: `[RESONANCE-ERR]` signature drift crashes resonance detection in population runs -
+the silent-failure class again; queued.
