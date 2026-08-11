@@ -210,3 +210,15 @@ arrives at the frontier with a named body and an established move-map instead of
 not one unit of synthetic credit (scanned by gate). The rescore run judges: (1) the feed's
 capability falsifier - post-handoff `established` non-empty on >=3 handoff episodes; (2) the
 first L2 anywhere, reported on the post-fix line; (3) the healed trio's side-scoreboard.
+
+---
+
+## ENTRY 12 - 2026-08-11 - THE FEED'S CAPABILITY FALSIFIER PASSES: 17 post-handoff episodes with established move-maps (sealed run: zero). Rescore part 2 launched.
+
+> ## **L2 count (post-fix line): 0 of 900 so far. Feed capability: PASSED (threshold >=3, measured 17 of 29 handoffs).**
+
+Agents now demonstrably arrive at the frontier knowing their bodies and controls - the exact
+deficit the sealed run's logs named is gone from the logs. Economy healthy (37 mints, 87
+seed-loads, 40 drives in part 1). The healed trio plays the cognitive loop (30-42 episodes
+each) but holds no L1 yet - empty banks, as every game once had. Part 2 runs; level-scoped
+ideas queued behind its verdict to keep one code state per run pair.
