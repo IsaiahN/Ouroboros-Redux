@@ -327,3 +327,28 @@ constants never): the Win Condition Classifier (portable ONLY if it classifies w
 TYPE from observation generically), mastery-gated replay (earn the right to replay), and the
 proactive level-reset lifeline. The 50% replay-rate precedent stands as a calibration point
 (a hyperparameter, not an answer). Harvest judge still running.
+
+---
+
+## ENTRY 19 - 2026-08-11 - THE INSPECTION VERDICTS: the "classifier" was a lookup table in disguise (Isaiah's filter was exactly right); mastery-gating and proactive reset are pure mechanics and PORT.
+
+> ## **L2 count: 0 (harvest judge still running). Three verdicts, answer-firewall held.**
+
+1. **Win Condition Classifier: ANSWER-ENCODED at its core** - it "classifies" by recognising
+   memorised per-game identifiers; a never-seen game falls to `unknown`. OOD-worthless, exactly
+   as Isaiah predicted. Portable remnant (~150 lines re-grounded): the win-type TAXONOMY, the
+   feasibility gate, and the probe-prune-enumerate pattern (probe cells, prune no-ops, enumerate
+   small subsets smallest-first) - re-groundable on observations. PORT-PARTIALLY, later (needs
+   design work: white-box probing must become real-env probing).
+2. **Mastery-gated replay: GENERIC THROUGHOUT (~400-line core). PORT NEXT.** Scores each
+   game-level 0-100 from evidence (strategy diversity by edit-distance, ablation robustness,
+   cross-agent consistency, efficiency trend); the score sets replay probability (0-95%), with
+   tier decay on failing ablations. This SUPERSEDES the 0.8 constant we just shipped: replay
+   rate becomes EARNED per game-level - the wheel-rule philosophy applied to replay itself.
+3. **Proactive reset: GENERIC. PORT** (after mastery) - the four-cascade decision (learned HUD
+   meaning; learned budget stats; stuck detection; coverage-without-progress) that resets BEFORE
+   imminent death so the harvest survives. Synergy with 3d-ii is direct: every rescued frontier
+   attempt is a bigger harvest.
+
+Queue: mastery-gating prereg next beat; proactive reset behind it; probe-prune-enumerate behind
+the classifier re-grounding design. Level-scoped ideas, RESONANCE-ERR, su15 remain.
