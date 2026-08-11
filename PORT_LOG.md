@@ -280,3 +280,15 @@ never signal - the wheel rule untouched. Gate 73/73; containment 6/6 (seventh co
 The 3d-i capability run (in flight, pre-3d-ii code) judges the fatal-veto loop; the NEXT
 population run judges the harvest loop (records with non-empty dead/effects; untried remaps;
 monotonic coverage growth re-derived from the fabric).
+
+---
+
+## ENTRY 16 - 2026-08-11 - 3d-i CAPABILITY PASSES: 25 fatal openings banked, 435 vetoes fired, and r11l's L2 minefield is being MAPPED death by death. Harvest judge launches.
+
+> ## **L2 count: 0 (still; 900 more episodes). The subtractive loop is proven live: records AND vetoes on 3 games (threshold 2).**
+
+The fabric now holds a charted danger zone for r11l level 1's frontier (19 distinct fatal cells,
+clustered rows 51-53 x cols 11-15) plus cd82 (5) and ar25 (1) - exactly the death-by-death
+population mapping 3d-i promised. 435 [EGO-FRONTIER] avoid vetoes across 42 handoffs consumed
+it. Next box runs the post-3d-ii code: the harvest loop's falsifier (non-empty dead/effects
+harvests, untried remaps, monotonic coverage growth) plus the standing L2 watch.
