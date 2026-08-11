@@ -878,13 +878,28 @@ class CognitiveLoop:
                     and action_data and action_data.get('x') is not None
                     and action_data.get('y') is not None):
                 _fcell = (int(action_data['x']), int(action_data['y']))
-                _avoid = _book.avoid_set(
-                    str(getattr(self, "_game_id", "") or "game"), self._ego_level)
-                if _fcell in _avoid:
-                    _re = _spine.remap_avoided(_fcell, _avoid, _shape)
-                    action_data = {'x': int(_re[0]), 'y': int(_re[1])}
-                    print(f"[EGO-FRONTIER] avoid {_fcell} -> {_re} "
-                          f"(level={self._ego_level} banked={len(_avoid)})")
+                _h = (getattr(self, "_ego_harvest_cache", None)
+                      or {}).get(self._ego_level)
+                if _h is not None:
+                    # 3d-ii: the harvest veto — a fatal or merged-dead cell is
+                    # remapped to the nearest UNTRIED cell (one cumulative sweep)
+                    if _fcell in _h["fatal"] or _fcell in _h["dead"]:
+                        _re = _spine.remap_to_untried(
+                            _fcell, _h["tried"], _h["fatal"], _shape)
+                        action_data = {'x': int(_re[0]), 'y': int(_re[1])}
+                        print(f"[EGO-FRONTIER] avoid {_fcell} -> {_re} "
+                              f"(level={self._ego_level} "
+                              f"tried={len(_h['tried'])})")
+                else:
+                    # 3d-i fallback: no harvest loaded yet — the fatal-opening ban
+                    _avoid = _book.avoid_set(
+                        str(getattr(self, "_game_id", "") or "game"),
+                        self._ego_level)
+                    if _fcell in _avoid:
+                        _re = _spine.remap_avoided(_fcell, _avoid, _shape)
+                        action_data = {'x': int(_re[0]), 'y': int(_re[1])}
+                        print(f"[EGO-FRONTIER] avoid {_fcell} -> {_re} "
+                              f"(level={self._ego_level} banked={len(_avoid)})")
         except Exception:
             pass
 
@@ -1214,6 +1229,9 @@ class CognitiveLoop:
                         FrontierBook(_fab) if _fab is not None else None)
                 except Exception:
                     self._ego_frontier_book = None
+                # 3d-ii: per-episode harvest material (banked at episode end)
+                self._ego_frontier_dead = []      # frontier clicks with NO effect
+                self._ego_frontier_effects = []   # frontier clicks that changed the frame
             if post_array is not None:
                 self._ego_frame_shape = post_array.shape[:2]
             self._ego_level = int(getattr(self, "_ego_level", 0) or 0)
@@ -1228,6 +1246,33 @@ class CognitiveLoop:
                     and getattr(self, "_ego_first_frontier_click", None) is None
                     and _ax is not None and _ay is not None):
                 self._ego_first_frontier_click = (int(_ax), int(_ay))
+            # ═══ 3d-ii (EGO-FRONTIER): accrue the harvest material ═══
+            # Every frontier click is an OBSERVATION — effectful or dead — banked
+            # at episode end. A level-up step's click belongs to the level below,
+            # so it is skipped (the same convention as the first-frontier click).
+            if (not level_changed and self._ego_level >= 1
+                    and _ax is not None and _ay is not None):
+                (self._ego_frontier_effects if frame_changed
+                 else self._ego_frontier_dead).append((int(_ax), int(_ay)))
+            # ═══ 3d-ii (EGO-FRONTIER): consume the population harvest, ONCE per level ═══
+            # deltas pre-establish the spine's move-map (means, not signal — drive still
+            # requires a confirmed goal); dead/fatal/tried feed the pre-empt veto.
+            if self._ego_frontier_book is not None and self._ego_level >= 1:
+                if not hasattr(self, "_ego_harvest_cache"):
+                    self._ego_harvest_cache = {}
+                if self._ego_level not in self._ego_harvest_cache:
+                    _h = self._ego_frontier_book.load_harvest(
+                        str(getattr(self, "_game_id", "") or "game"),
+                        self._ego_level)
+                    self._ego_harvest_cache[self._ego_level] = _h
+                    for _ha, _hd in _h["deltas"].items():
+                        for _ in range(self._goal_spine.min_evidence):
+                            self._goal_spine.note_move(str(_ha), _hd)
+                    print(f"[EGO-FRONTIER] harvest loaded level={self._ego_level} "
+                          f"dead={len(_h['dead'])} effects={len(_h['effects'])} "
+                          f"fatal={len(_h['fatal'])} tried={len(_h['tried'])} "
+                          f"deltas={len(_h['deltas'])}")
+                self._ego_harvest = self._ego_harvest_cache[self._ego_level]
             if self._ego_observer.calls % 25 == 0:
                 print(f"[EGO-GOAL] confirmed={self._goal_spine.has_confirmed()} "
                       f"candidates={len(self._goal_spine.manager.price)} "

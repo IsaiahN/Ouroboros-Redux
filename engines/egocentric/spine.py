@@ -186,6 +186,37 @@ class GoalSpine:
             self.errors += 1
             return cell
 
+    # ── 3d-ii: the harvest remap — coverage becomes one cumulative sweep ──────
+
+    def remap_to_untried(self, cell: Tuple[int, int], tried, avoid,
+                         shape: Tuple[int, int]) -> Tuple[int, int]:
+        """The nearest in-bounds cell NOT in tried|avoid, by the same Chebyshev
+        ring scan as remap_avoided (r=0.., ties: ascending (dy, dx)) -- N
+        episodes stop being N independent blind draws. If every in-range cell
+        was tried, retry preferring merely not-avoided (fatal cells must still
+        be escaped); if that too exhausts, the original stands. Deterministic."""
+        try:
+            x, y = int(cell[0]), int(cell[1])
+            h, w = int(shape[0]), int(shape[1])
+            for banned in (set(tried) | set(avoid), set(avoid)):
+                if (x, y) not in banned:
+                    return (x, y)
+                for r in range(1, max(h, w) + 1):
+                    for dy in range(-r, r + 1):
+                        for dx in range(-r, r + 1):
+                            if max(abs(dy), abs(dx)) != r:
+                                continue     # interior of the ring: already scanned
+                            nx, ny = x + dx, y + dy
+                            if not (0 <= nx < w and 0 <= ny < h):
+                                continue
+                            if (nx, ny) in banned:
+                                continue
+                            return (nx, ny)
+            return (x, y)                    # everything banned: the original stands
+        except Exception:
+            self.errors += 1
+            return cell
+
     # ── the wheel: only signal AND means together drive ───────────────────────
 
     def drive(self, self_cell: Tuple[int, int]) -> Optional[str]:

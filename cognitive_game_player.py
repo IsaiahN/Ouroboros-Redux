@@ -645,6 +645,32 @@ class CognitiveGamePlayer:
                 ))
                 break
 
+        # ═══ 3d-ii (EGO-FRONTIER): harvest the episode's exploration ═══
+        # BOTH end kinds land here (GAME_OVER break above AND budget/loop
+        # expiry): bank the dead/effect cells and the established action->delta
+        # map — observations, never signal (PREREG_FRONTIER_HARVEST.md).
+        try:
+            _book = getattr(loop, '_ego_frontier_book', None)
+            _hdead = list(getattr(loop, '_ego_frontier_dead', None) or [])
+            _heff = list(getattr(loop, '_ego_frontier_effects', None) or [])
+            _died = bool(last_obs and last_obs.state == GameState.GAME_OVER)
+            _hfatal = (getattr(loop, '_ego_first_frontier_click', None)
+                       if _died else None)
+            _hlevel = max(int(getattr(loop, '_ego_level', 0) or 0),
+                          int(current_levels))
+            if (_book is not None and _hlevel >= 1
+                    and (_hdead or _heff or _hfatal is not None)):
+                _spine = getattr(loop, '_goal_spine', None)
+                _hdeltas = dict(_spine.established()) if _spine is not None else {}
+                _book.record_harvest(
+                    str(getattr(loop, '_game_id', '') or game_id), _hlevel,
+                    dead=_hdead, effects=_heff, fatal=_hfatal, deltas=_hdeltas)
+                print(f"    [EGO-FRONTIER] harvested level={_hlevel} "
+                      f"dead={len(_hdead)} effects={len(_heff)} "
+                      f"fatal={_hfatal} deltas={len(_hdeltas)}")
+        except Exception:
+            pass
+
         # End game and get replay
         replay = loop.end_game()
         self._last_replay = replay
