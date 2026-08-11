@@ -124,3 +124,22 @@ the rewarded action was a click), CLICK_AT ideas, click-drive under the identica
 Also measured from source this beat (PREREG_PHASE3C.md): replay episodes RETURN at replay
 completion - the remaining budget is discarded; stock v4's only reliable route to L2's doorstep
 ends the episode on arrival. The 3c handoff fixes that after 3b2 lands.
+
+---
+
+## ENTRY 7 - 2026-08-10 - CREDIT MADE NON-DROPPABLE AFTER TWO LIVE FIRINGS READ TWO REAL MECHANISMS. THE SCORED RUN LAUNCHES.
+
+> ## **L2 count: 0 (baseline 0). Every phase landed (1, 2, 3a, 3b2, 3b3, 3c). THE SCORED RUN IS IN FLIGHT.**
+
+The live-wire falsifier fired twice and each firing read a real mechanism from logs, never
+inferred: (1) click games have no self-centroid -> click rewards dropped -> 3b2 credits the
+ACTED-ON cell; (2) the level-up step carries the NEW level's first frame and the controllable
+pick breaks exactly then (colour named 4 lines earlier!) -> movement rewards dropped -> 3b3
+completes the attribution: click coords -> centroid -> LAST-KNOWN centroid -> bare LEVEL mint.
+A real level-up can no longer leave zero trace. Gate 48/48; containment 4/4 after every change
+(five consecutive byte-identity verdicts across the whole port).
+
+**THE SCORED RUN (part 1 of 2) is running:** production shape, exact baseline mirror (stock
+defaults, fresh box, 10+10 generations). ONE sealed number: any `level_completions >= 2`
+against the baseline's ZERO in 1800 episodes. The same run judges the 3b live-wire (a level-up
+must mint) and the 3c handoff (post-replay cognitive actions on banked games).
