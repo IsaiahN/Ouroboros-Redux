@@ -143,3 +143,22 @@ A real level-up can no longer leave zero trace. Gate 48/48; containment 4/4 afte
 defaults, fresh box, 10+10 generations). ONE sealed number: any `level_completions >= 2`
 against the baseline's ZERO in 1800 episodes. The same run judges the 3b live-wire (a level-up
 must mint) and the 3c handoff (post-replay cognitive actions on banked games).
+
+---
+
+## ENTRY 8 - 2026-08-11 - PART 1 OF THE SCORED RUN: ALL THREE LIVE FALSIFIERS PASS. The economy runs in production. No L2 yet (900 eps; the sealed 20-gen window is half open).
+
+> ## **L2 count: 0 of part 1 (baseline 0). Part 2 (gens 10-19) launched on the same box.**
+
+**The live-wire, third firing: PASSED.** 35 level-ups -> 35 CONFIRM -> 35 [EGO-MINT] (zero
+dropped rewards after 3b3's non-droppable chain). The fabric materialised: 35 collective ideas
+by 18 distinct agents, 46 echo/falsify events, 72 [EGO-SEED] loads by later agents - the
+circulation Isaiah asked for, measured live.
+
+**The handoff: PASSED.** 23 [REPLAY-HANDOFF] lines - budget spent standing at level 2's
+doorstep for the first time in v4's history ("93 actions replayed - continuing cognitively, 57
+remaining"). 51 drive actions steered on confirmed/inherited goals.
+
+**Standing decisions executed:** inheritance = steer-defeasibly (charter, veto cleared); the
+crash fix is Isaiah-approved and pre-registered (PREREG_CRASHFIX.md), build held until the
+sealed 20 completes; the three healed games will be scored on their own line.
