@@ -198,3 +198,15 @@ One deleted line; three games join the cognitive loop for the first time in v4's
 crashes, full reasoning). Controls updated. The frontier-amnesia fix (PREREG_REPLAY_FEED.md)
 builds next: replay frames/actions feed the ego machinery observe-only, so handoff episodes
 arrive at level 2 with a named body and an established move-map instead of amnesia.
+
+---
+
+## ENTRY 11 - 2026-08-11 - THE REPLAY FEED LANDS (gate 53/53, containment 6/6). THE RESCORE RUN LAUNCHES: feed live, crash fix live, healed trio side-scored.
+
+> ## **L2 count: 0 (sealed baseline 0 of 1800, sealed port run 0 of 1800). The post-fix era gets its own line.**
+
+Replayed actions now teach the exact loop instance that plays the continuation - the agent
+arrives at the frontier with a named body and an established move-map instead of amnesia, and
+not one unit of synthetic credit (scanned by gate). The rescore run judges: (1) the feed's
+capability falsifier - post-handoff `established` non-empty on >=3 handoff episodes; (2) the
+first L2 anywhere, reported on the post-fix line; (3) the healed trio's side-scoreboard.
