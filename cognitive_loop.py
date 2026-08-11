@@ -972,6 +972,7 @@ class CognitiveLoop:
                 from engines.egocentric.spine import GoalSpine
                 self._goal_spine = GoalSpine()
                 self._ego_prev_centroid = None
+                self._ego_last_known_cen = None  # AMENDMENT 3b3: survives None steps
                 # ═══ PHASE 3a: the knowledge fabric — lazy init + SEED once per game ═══
                 # Root is the RELATIVE "ego_fabric" (cwd-scoped: hermetic boxes isolate
                 # naturally). Priors feed the spine at an INHERITED price: credibility>=1
@@ -1014,6 +1015,11 @@ class CognitiveLoop:
                     self._ego_seeded_clicks = {}
                     self._ego_self_clicks = set()
             _cen = info.get('centroid') if isinstance(info, dict) else None
+            if _cen is not None:
+                # AMENDMENT 3b3: retain the most recent non-None centroid — the level-up
+                # step's frame breaks the pick exactly then; attribution needs the body's
+                # cell from BEFORE the transition.
+                self._ego_last_known_cen = _cen
             if _cen is not None and self._ego_prev_centroid is not None:
                 _delta = (int(round(_cen[0] - self._ego_prev_centroid[0])),
                           int(round(_cen[1] - self._ego_prev_centroid[1])))
@@ -1046,6 +1052,43 @@ class CognitiveLoop:
                         _pid = (getattr(self, "_ego_seeded", None) or {}).get(_cell)
                         if _pid is not None:
                             _fab.echo(_pid, by=_fab.agent_id)
+                except Exception:
+                    pass
+            # ═══ AMENDMENT 3b3: NON-DROPPABLE — fall back to the LAST-KNOWN centroid ═══
+            # (the body's cell BEFORE the transition — the correct attribution anyway)
+            elif level_changed and getattr(self, "_ego_last_known_cen", None) is not None:
+                _lkc = self._ego_last_known_cen
+                _cell = (int(round(_lkc[0])), int(round(_lkc[1])))
+                self._goal_spine.credit(_cell)
+                print(f"[EGO-GOAL] CONFIRM at {_cell} (level-up credits the last-known cell)")
+                try:
+                    _fab = getattr(self, "_ego_fabric", None)
+                    if _fab is not None:
+                        _gkey = str(getattr(self, "_game_id", "") or "game")
+                        _mi = {"kind": "BE_AT", "cell": [_cell[0], _cell[1]]}
+                        _sig = {"type": "level_up"}
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        print(f"[EGO-MINT] {_id_p} {_id_c}")
+                        # a level-up at a SEEDED cell corroborates the inherited idea
+                        _pid = (getattr(self, "_ego_seeded", None) or {}).get(_cell)
+                        if _pid is not None:
+                            _fab.echo(_pid, by=_fab.agent_id)
+                except Exception:
+                    pass
+            # ═══ AMENDMENT 3b3: last resort — a bare LEVEL mint, no spine credit ═══
+            # (only when NO cell is attributable at all: no centroid, no last-known,
+            #  no click coords — a real level-up must never leave zero trace)
+            elif level_changed and (_ax is None or _ay is None):
+                try:
+                    _fab = getattr(self, "_ego_fabric", None)
+                    if _fab is not None:
+                        _gkey = str(getattr(self, "_game_id", "") or "game")
+                        _mi = {"kind": "LEVEL", "action": int(_lai.get('type') or 0)}
+                        _sig = {"type": "level_up"}
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        print(f"[EGO-MINT] {_id_p} {_id_c}")
                 except Exception:
                     pass
             # ═══ PHASE 3b2: credit the ACTED-ON cell — a click needs no centroid ═══
