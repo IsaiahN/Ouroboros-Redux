@@ -263,3 +263,20 @@ avoid-sets between live and handoff pathways) was fixed same-hour with a gate te
 catch the old code. Capability falsifier runs next on a population box: fatal-opening records
 AND avoid vetoes must both appear, on >=2 games - records without vetoes or vetoes without
 records means the loop is open -> fix or revert.
+
+---
+
+## ENTRY 15 - 2026-08-11 - 3d-ii LANDS ON ISAIAH'S CORRECTION: bank the EXPERIENCE, not the death spot. Frontier exploration is now a cumulative population-wide sweep.
+
+> ## **L2 count: 0 (three sealed eras). The compounding is no longer one bit per death - it is the whole episode's experience.**
+
+Isaiah: "where the agent died isn't as important as what it learned about what it explored."
+Implemented: every frontier episode (death OR budget end) harvests dead cells, effect cells,
+the fatal click, and its established move-map into collective memory. Later agents: dead
+(conservatively merged: >=2 reports, never effectful - one positive observation outweighs
+silence) and fatal cells remap to the NEAREST UNTRIED cell; harvested deltas pre-establish the
+move-map. N frontier attempts stop being N blind draws and become one sweep. Observations,
+never signal - the wheel rule untouched. Gate 73/73; containment 6/6 (seventh consecutive).
+The 3d-i capability run (in flight, pre-3d-ii code) judges the fatal-veto loop; the NEXT
+population run judges the harvest loop (records with non-empty dead/effects; untried remaps;
+monotonic coverage growth re-derived from the fabric).
