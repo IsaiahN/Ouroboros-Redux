@@ -230,7 +230,14 @@ class CognitiveGamePlayer:
         # Every ~1-in-5 games, instead of cognitive loop, replay known winning
         # sequences from a clean board.  This validates stored sequences and
         # lets agents bank cheap level-ups to accumulate prestige.
-        if random.random() < 0.20:
+        # Bank-aware handoff rate: check for a banked L1 sequence BEFORE the
+        # draw so exactly ONE random draw happens either way (the RNG stream
+        # must not shift on fresh boxes).
+        try:
+            has_bank = bool(self._load_fallback_sequence(game_type, 1))
+        except Exception:
+            has_bank = False
+        if random.random() < self._replay_probability(has_bank):
             replay_result = self._replay_winning_sequences(
                 agent=agent, env=env, game_id=game_id, game_type=game_type,
                 win_levels=win_levels, current_generation=current_generation,
@@ -1295,6 +1302,11 @@ class CognitiveGamePlayer:
 
         except Exception:
             pass  # Never let snapshots crash the game loop
+
+    @staticmethod
+    def _replay_probability(has_bank) -> float:
+        """Bank-aware replay probability: 0.8 with a banked L1, 0.2 otherwise."""
+        return 0.8 if has_bank else 0.2
 
     def _load_fallback_sequence(self, game_type: str, level_number: int) -> List:
         """Load the best winning sequence for a specific game type and level.
