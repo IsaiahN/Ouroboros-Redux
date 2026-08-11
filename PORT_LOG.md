@@ -314,3 +314,16 @@ banked sequences means handoff+harvest at DEEP frontiers (L2-L6) immediately; ru
 not code-encoded answers; the wheel rule governs as always. (2) Port the Win Condition
 Classifier - their answer to "nothing knows what winning looks like", which is our conversion
 gap by its historical name.
+
+---
+
+## ENTRY 18 - 2026-08-11 - ISAIAH'S RULING: MECHANICS ONLY, NEVER ANSWERS. The seed-bank prereg is dead; the classifier inspection launches under an answer-firewall.
+
+> ## **L2 count: 0. Ruling recorded: banked sequences are answers; answers are garbage OOD; the FUNCTIONALITY is what transfers.**
+
+Killed: seeding the bank from competition artifacts (answers); the per-game puzzle solvers
+(answer-encoding in code form). Under inspection with a firewall brief (mechanisms reported,
+constants never): the Win Condition Classifier (portable ONLY if it classifies win-condition
+TYPE from observation generically), mastery-gated replay (earn the right to replay), and the
+proactive level-reset lifeline. The 50% replay-rate precedent stands as a calibration point
+(a hyperparameter, not an answer). Harvest judge still running.
