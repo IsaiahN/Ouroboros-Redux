@@ -187,3 +187,14 @@ decisions) delivers the agent to the frontier with a named body and an establish
 for free. Level-scoped ideas queued behind it.
 
 **The crash fix (Isaiah-approved) lands NOW** - the sealed window it waited for is closed.
+
+---
+
+## ENTRY 10 - 2026-08-11 - THE CRASH FIX HEALS THREE GAMES (falsifiers 3/3 + 3/3). Next: the replay observation feed.
+
+> ## **L2 count: 0 of the sealed 1800 (baseline 0). Side-scoreboard opened for the healed trio (ls20 tu93 tr87) per Isaiah's condition.**
+
+One deleted line; three games join the cognitive loop for the first time in v4's history (zero
+crashes, full reasoning). Controls updated. The frontier-amnesia fix (PREREG_REPLAY_FEED.md)
+builds next: replay frames/actions feed the ego machinery observe-only, so handoff episodes
+arrive at level 2 with a named body and an established move-map instead of amnesia.
