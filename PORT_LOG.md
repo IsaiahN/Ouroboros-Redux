@@ -292,3 +292,25 @@ clustered rows 51-53 x cols 11-15) plus cd82 (5) and ar25 (1) - exactly the deat
 population mapping 3d-i promised. 435 [EGO-FRONTIER] avoid vetoes across 42 handoffs consumed
 it. Next box runs the post-3d-ii code: the harvest loop's falsifier (non-empty dead/effects
 harvests, untried remaps, monotonic coverage growth) plus the standing L2 watch.
+
+---
+
+## ENTRY 17 - 2026-08-11 - THE ARCHAEOLOGY VERDICT: the full-game wins EXIST, committed on `competition/notebook-v2` (post-v4). Isaiah was right; my "never existed" is RETRACTED. And the winning configuration is the one we have been independently rebuilding.
+
+> ## **L2 count: 0 on v4-cold. On the competition branch: ft09 6/6, tr87 6/6, tu93 7/7, g50t 7/7 - full games, with banked artifacts (9 games of per-level winning sequences in committed JSON).**
+
+**The winning configuration (commit-cited by the archaeology agent):** PTMA + Win Condition
+Classifier & Analytical Solver + solver-seeded causal knowledge (H34 - bank effects once, reuse
+as priors: their version of our fabric/harvest) + **replay-to-cognitive handoff (H25) tuned to
+replay rate 50%** - their version of our 3c + rate lever. We have been re-deriving their winning
+stack from first principles without knowing it existed. Convergence is strong evidence both
+times; their tuning data (50% vs our 0.8) is a free calibration point for our capability run.
+
+**Also this beat:** the handoff-rate lever landed (057e3d3; gate 75/75; containment 8th
+consecutive). Harvest judge interim: 25 harvests, 26 loads - live.
+
+**Next (preregs to follow):** (1) SEED THE BANK from the competition artifacts - 9 games of
+banked sequences means handoff+harvest at DEEP frontiers (L2-L6) immediately; runtime knowledge,
+not code-encoded answers; the wheel rule governs as always. (2) Port the Win Condition
+Classifier - their answer to "nothing knows what winning looks like", which is our conversion
+gap by its historical name.
