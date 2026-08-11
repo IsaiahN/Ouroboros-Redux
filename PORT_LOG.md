@@ -162,3 +162,28 @@ remaining"). 51 drive actions steered on confirmed/inherited goals.
 **Standing decisions executed:** inheritance = steer-defeasibly (charter, veto cleared); the
 crash fix is Isaiah-approved and pre-registered (PREREG_CRASHFIX.md), build held until the
 sealed 20 completes; the three healed games will be scored on their own line.
+
+---
+
+## ENTRY 9 - 2026-08-11 - THE SEALED VERDICT: ZERO L2 IN 20 GENERATIONS (baseline equalled, not beaten). The mechanism is read: the agent arrives at the frontier blind and the wheel shut. Two fixes named.
+
+> ## **L2 count: 0 of 1800 (baseline 0 of 1800). The scored number DID NOT MOVE. Said plainly.**
+
+What DID change vs baseline: L2 attempts now EXIST (39 handoffs in part 2 alone spent budget at
+the frontier; the baseline spent zero), the economy ran throughout (77 collective ideas, 102
+events, 108 seed-loads in part 2), and six games hold L1 (sp80 in, ar25 out vs baseline's set -
+the lottery's usual churn).
+
+**Why the door stayed shut, read from post-handoff logs (never inferred):** every handoff shows
+`confirmed=False` + `established=[]` - (1) the 93 replayed actions BYPASS the loop, so the
+observer/delta-map arrive at L2 empty: the agent has amnesia about its own body at the exact
+moment it matters; (2) seeded L1 ideas carry credibility <1 -> sub-threshold price -> the wheel
+stays shut (correct per the rule - but it means frontier play is pure blind explore); (3) some
+L2 boards kill blind explorers fast (GAME_OVER at 15-60 post-handoff actions).
+
+**Next build (PREREG_REPLAY_FEED.md): the replay is an observation stream.** Frames and actions
+during replay are fully known; feeding them through the observer/spine (observe-only, no
+decisions) delivers the agent to the frontier with a named body and an established delta map,
+for free. Level-scoped ideas queued behind it.
+
+**The crash fix (Isaiah-approved) lands NOW** - the sealed window it waited for is closed.
