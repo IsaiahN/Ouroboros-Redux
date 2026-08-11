@@ -1,0 +1,4 @@
+{"id": "r11l-495a7899:personal:offspring_f9601dcc:1", "idea": {"kind": "CLICK_AT", "cell": [52, 12]}, "game": "r11l-495a7899", "by": "offspring_f9601dcc", "scope": "personal", "signal": {"type": "level_up"}, "seq": 1}
+{"id": "r11l-495a7899:personal:offspring_f9601dcc:2", "idea": {"kind": "CLICK_AT", "cell": [52, 15]}, "game": "r11l-495a7899", "by": "offspring_f9601dcc", "scope": "personal", "signal": {"type": "level_up"}, "seq": 2}
+{"id": "r11l-495a7899:personal:offspring_f9601dcc:3", "idea": {"kind": "CLICK_AT", "cell": [52, 15]}, "game": "r11l-495a7899", "by": "offspring_f9601dcc", "scope": "personal", "signal": {"type": "level_up"}, "seq": 3}
+{"id": "r11l-495a7899:personal:offspring_f9601dcc:4", "idea": {"kind": "CLICK_AT", "cell": [52, 15]}, "game": "r11l-495a7899", "by": "offspring_f9601dcc", "scope": "personal", "signal": {"type": "level_up"}, "seq": 4}

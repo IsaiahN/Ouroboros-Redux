@@ -107,3 +107,20 @@ class TestTheWiring:
         assert "record_fatal_opening" in src, (
             "nothing records fatal openings — the book exists and every death still teaches "
             "nothing (the compounding this build exists for)")
+
+    def test_the_level_convention_is_unified(self):
+        """_ego_level must NEVER be derived from record_result's new_level param — new_level
+        is levels_completed+1 while cycle()'s obs-based max uses levels_completed, so mixing
+        them splits the avoid-set key across pathways (partial compounding). Bare increment
+        only: one convention, one key."""
+        src = self._src()
+        i = src.find("def record_result")
+        assert i != -1
+        j = src.find("\n    def ", i + 1)
+        body = src[i:j if j != -1 else len(src)]
+        offenders = [ln.strip() for ln in body.splitlines()
+                     if "_ego_level" in ln and "new_level" in ln]
+        assert not offenders, (
+            "record_result derives _ego_level from new_level (%r) — the frontier level must "
+            "use the levels_completed convention (bare increment) so live and handoff "
+            "pathways share one avoid-set key" % offenders)

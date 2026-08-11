@@ -866,6 +866,25 @@ class CognitiveLoop:
                     action_num = 6
                     action_data = {'x': int(_click[0]), 'y': int(_click[1])}
                     print(f"[EGO-GOAL] DRIVE-CLICK at {_click}")
+            # ═══ 3d-i (EGO-FRONTIER): a banked fatal opening vetoes the final click ═══
+            # Handoff episodes learn the frontier from the observation (max seen);
+            # exploration ORDERING only — the remap never claims a goal.
+            self._ego_level = max(int(getattr(self, "_ego_level", 0) or 0),
+                                  int(getattr(obs, 'levels_completed', 0) or 0))
+            _book = getattr(self, "_ego_frontier_book", None)
+            _shape = getattr(self, "_ego_frame_shape", None)
+            if (_book is not None and _shape is not None and _spine is not None
+                    and self._ego_level >= 1 and int(action_num) == 6
+                    and action_data and action_data.get('x') is not None
+                    and action_data.get('y') is not None):
+                _fcell = (int(action_data['x']), int(action_data['y']))
+                _avoid = _book.avoid_set(
+                    str(getattr(self, "_game_id", "") or "game"), self._ego_level)
+                if _fcell in _avoid:
+                    _re = _spine.remap_avoided(_fcell, _avoid, _shape)
+                    action_data = {'x': int(_re[0]), 'y': int(_re[1])}
+                    print(f"[EGO-FRONTIER] avoid {_fcell} -> {_re} "
+                          f"(level={self._ego_level} banked={len(_avoid)})")
         except Exception:
             pass
 
@@ -1184,6 +1203,31 @@ class CognitiveLoop:
                     self._goal_spine.demote_inherited_click(_ccell)
                     self._ego_self_clicks.discard(_ccell)
                     print("[EGO-GOAL] demoted self-confirmed click (no reward)")
+            # ═══ 3d-i (EGO-FRONTIER): frontier level + first post-frontier click ═══
+            # Per-episode by construction (the loop instance is per-episode).
+            # The fatal-opening book rides the fabric (lazy, once per episode).
+            if not hasattr(self, "_ego_frontier_book"):
+                try:
+                    from engines.egocentric.frontier import FrontierBook
+                    _fab = getattr(self, "_ego_fabric", None)
+                    self._ego_frontier_book = (
+                        FrontierBook(_fab) if _fab is not None else None)
+                except Exception:
+                    self._ego_frontier_book = None
+            if post_array is not None:
+                self._ego_frame_shape = post_array.shape[:2]
+            self._ego_level = int(getattr(self, "_ego_level", 0) or 0)
+            if level_changed:
+                # Bare increment: the levels_completed convention, matching the
+                # obs-based max in cycle() — live and handoff pathways share one
+                # avoid-set key (cross-pathway compounding stays complete).
+                self._ego_level += 1
+            # The FIRST click made AT the frontier (not the one that opened it):
+            # a level-up step's click belongs to the level below, so it is skipped.
+            if (not level_changed and self._ego_level >= 1
+                    and getattr(self, "_ego_first_frontier_click", None) is None
+                    and _ax is not None and _ay is not None):
+                self._ego_first_frontier_click = (int(_ax), int(_ay))
             if self._ego_observer.calls % 25 == 0:
                 print(f"[EGO-GOAL] confirmed={self._goal_spine.has_confirmed()} "
                       f"candidates={len(self._goal_spine.manager.price)} "

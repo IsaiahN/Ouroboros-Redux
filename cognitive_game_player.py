@@ -621,6 +621,21 @@ class CognitiveGamePlayer:
                 )
                 if self._verbose:
                     print(f"    [GAME OVER] after {actions_taken} actions")
+                # ═══ 3d-i (EGO-FRONTIER): a frontier death banks its fatal opening ═══
+                # Reached a frontier (>=1 level, replayed or live) and died before
+                # budget: the first post-frontier click is recorded population-wide.
+                try:
+                    _book = getattr(loop, '_ego_frontier_book', None)
+                    _fclick = getattr(loop, '_ego_first_frontier_click', None)
+                    if current_levels >= 1 and _book is not None and _fclick is not None:
+                        _flevel = int(getattr(loop, '_ego_level', 0) or current_levels)
+                        _book.record_fatal_opening(
+                            str(getattr(loop, '_game_id', '') or game_id),
+                            _flevel, _fclick)
+                        print(f"    [EGO-FRONTIER] recorded fatal opening "
+                              f"{_fclick} (level={_flevel})")
+                except Exception:
+                    pass
                 from event_bus import EventType, make_event
                 self._gp.event_bus.publish(make_event(
                     EventType.GAME_OVER,

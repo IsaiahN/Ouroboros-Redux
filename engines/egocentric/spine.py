@@ -157,6 +157,35 @@ class GoalSpine:
             self.errors += 1
             return False
 
+    # ── 3d-i: frontier pariah remap — a banked fatal opening is stepped around ──
+
+    def remap_avoided(self, cell: Tuple[int, int], avoid,
+                      shape: Tuple[int, int]) -> Tuple[int, int]:
+        """Identity when `cell` is not in `avoid`; else the nearest non-avoided
+        in-bounds cell by Chebyshev ring scan r=1.. (ties: ascending (dy, dx)).
+        `shape` is (h, w) with cell=(x, y): 0 <= x < w and 0 <= y < h. If every
+        in-range cell is avoided, the original stands. Deterministic, no RNG."""
+        try:
+            x, y = int(cell[0]), int(cell[1])
+            if (x, y) not in avoid:
+                return (x, y)
+            h, w = int(shape[0]), int(shape[1])
+            for r in range(1, max(h, w) + 1):
+                for dy in range(-r, r + 1):
+                    for dx in range(-r, r + 1):
+                        if max(abs(dy), abs(dx)) != r:
+                            continue         # interior of the ring: already scanned
+                        nx, ny = x + dx, y + dy
+                        if not (0 <= nx < w and 0 <= ny < h):
+                            continue
+                        if (nx, ny) in avoid:
+                            continue
+                        return (nx, ny)
+            return (x, y)                    # everything avoided: the original stands
+        except Exception:
+            self.errors += 1
+            return cell
+
     # ── the wheel: only signal AND means together drive ───────────────────────
 
     def drive(self, self_cell: Tuple[int, int]) -> Optional[str]:
