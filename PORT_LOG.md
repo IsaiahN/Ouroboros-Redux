@@ -250,3 +250,16 @@ unsolved at L2 by orders of magnitude.
 
 Also noted: `[RESONANCE-ERR]` signature drift crashes resonance detection in population runs -
 the silent-failure class again; queued.
+
+---
+
+## ENTRY 14 - 2026-08-11 - 3d-i LANDS: frontier deaths now COMPOUND. Capability run launches.
+
+> ## **L2 count: 0 (three sealed eras, 5400 eps). The first subtractive-search lever is live: every frontier death permanently bans its fatal opening, population-wide via the fabric.**
+
+Gate 62/62 (8 shown failing first); containment 6/6 byte-identical - sixth consecutive clean
+containment across the whole port. The builder's own caveat (two level conventions splitting the
+avoid-sets between live and handoff pathways) was fixed same-hour with a gate test PROVEN to
+catch the old code. Capability falsifier runs next on a population box: fatal-opening records
+AND avoid vetoes must both appear, on >=2 games - records without vetoes or vetoes without
+records means the loop is open -> fix or revert.
