@@ -1,0 +1,17 @@
+{
+  "ls20": {
+    "sha": "6ee0ac89c2960d8d",
+    "ptma_err": 0,
+    "reasoning": 60
+  },
+  "tu93": {
+    "sha": "cc17e2d92cc0c247",
+    "ptma_err": 0,
+    "reasoning": 50
+  },
+  "tr87": {
+    "sha": "31da5b0a447b6146",
+    "ptma_err": 0,
+    "reasoning": 60
+  }
+}
