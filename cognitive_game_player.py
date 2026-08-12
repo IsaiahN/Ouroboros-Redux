@@ -233,7 +233,16 @@ class CognitiveGamePlayer:
         # Per-level action budget: starts at max_actions (150), extends
         # by actions_per_level on each level-up. Unused actions carry
         # forward as a speed bonus for fast solvers.
-        actions_per_level = self._gp.max_actions
+        # BUDGET RESTORATION (PREREG_BUDGET_RESTORATION.md): the allowance is
+        # role-scaled via the committed ROLE_BASE_ATP table -- pioneers get a
+        # bigger purse, exploiters a leaner one; unknown roles get 1.0.
+        try:
+            role_mult = self._role_allowance_multiplier(
+                getattr(agent, 'role', None)
+                or (agent.get('role') if isinstance(agent, dict) else None))
+        except Exception:
+            role_mult = 1.0
+        actions_per_level = int(self._gp.max_actions * role_mult)
         action_budget = actions_per_level
 
         game_type = game_id[:4] if len(game_id) >= 4 else game_id
@@ -273,6 +282,14 @@ class CognitiveGamePlayer:
                 # Terminal replays (win, game over, exhausted budget, or no
                 # observation to resume from) end the episode as before.
                 replay_obs = getattr(self, '_last_replay_obs', None)
+                # BUDGET RESTORATION (PREREG_BUDGET_RESTORATION.md): replayed
+                # levels fund like live levels -- the handoff budget is
+                # allowance x (1 + levels_replayed) - replay_cost, mirroring
+                # the live level-up grant exactly (owner directive overriding
+                # the 3c remainder-only conservatism).
+                action_budget = (action_budget
+                                 + int(replay_result.levels_completed)
+                                 * actions_per_level)
                 remaining_budget = action_budget - replay_result.actions_taken
                 if (replay_result.is_win
                         or replay_obs is None
@@ -287,7 +304,8 @@ class CognitiveGamePlayer:
                     f"    [REPLAY-HANDOFF] Replay reached "
                     f"{replay_result.levels_completed} levels in "
                     f"{replay_result.actions_taken} actions -- continuing "
-                    f"cognitively ({remaining_budget} actions remaining)"
+                    f"cognitively ({remaining_budget} actions remaining "
+                    f"of a {action_budget}-action funded budget)"
                 )
                 actions_taken = replay_result.actions_taken
                 last_obs = replay_obs
@@ -1327,6 +1345,24 @@ class CognitiveGamePlayer:
 
         except Exception:
             pass  # Never let snapshots crash the game loop
+
+    @staticmethod
+    def _role_allowance_multiplier(role) -> float:
+        """Role-scaled allowance multiplier (PREREG_BUDGET_RESTORATION.md).
+
+        Isaiah's committed ROLE_BASE_ATP table: pioneer 1.5 / generalist 1.2 /
+        optimizer 1.0 / exploiter 0.8. None or unknown roles get 1.0.
+        """
+        table = {
+            'pioneer': 1.5,
+            'generalist': 1.2,
+            'optimizer': 1.0,
+            'exploiter': 0.8,
+        }
+        try:
+            return table.get(str(role).strip().lower(), 1.0) if role else 1.0
+        except Exception:
+            return 1.0
 
     @staticmethod
     def _replay_probability(has_bank) -> float:
