@@ -12,8 +12,10 @@ Modules (ported byte-identical from Nexus:src/newhorse/, logic untouched):
   * fabric      -- KnowledgeFabric (scoped JSONL + the idea economy)           [Phase 3a]
   * falsified_ledger -- FalsifiedLedger (weighted, defeasible reject-memory)   [Phase 3a]
   * mastery     -- MasteryLite (replay probability earned from replay reliability)
+  * pricing     -- the iced marketplace core VERBATIM (informative_salience)      [C33 step 1]
+  * betting     -- BetBook (per-action bet commit/settle on the fabric)           [C33 step 1]
 """
-from engines.egocentric import agency, falsified_ledger, goal, navigation, perception, relations, self_locus  # noqa: F401
+from engines.egocentric import agency, betting, falsified_ledger, goal, navigation, perception, pricing, relations, self_locus  # noqa: F401
 from engines.egocentric.fabric import KnowledgeFabric  # noqa: F401
 from engines.egocentric.mastery import MasteryLite  # noqa: F401
 from engines.egocentric.observer import EgoObserver  # noqa: F401

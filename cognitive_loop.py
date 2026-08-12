@@ -900,6 +900,40 @@ class CognitiveLoop:
                         action_data = {'x': int(_re[0]), 'y': int(_re[1])}
                         print(f"[EGO-FRONTIER] avoid {_fcell} -> {_re} "
                               f"(level={self._ego_level} banked={len(_avoid)})")
+            # ═══ C33 STEP 1 (EGO-BET): every action carries a bet — commit at choice ═══
+            # A prediction family is committed on the FINAL action (after every
+            # pre-empt) and settled in record_result. NO CONSUMER in this step:
+            # nothing in _think/_act/pre-empt reads the book (containment).
+            try:
+                _fab = getattr(self, "_ego_fabric", None)
+                if _fab is not None:
+                    if getattr(self, "_bet_book", None) is None:
+                        from engines.egocentric.betting import BetBook
+                        self._bet_book = BetBook(
+                            _fab,
+                            agent_id=str(getattr(self, "_ego_agent_id", "") or "agent"),
+                            game=str(getattr(self, "_game_id", "") or "game"))
+                        self._bet_transitions = {}  # action -> (before, after) at settle
+                    _bframe = self._perceiver._to_numpy(frame)
+                    if _bframe is not None:
+                        _bact = int(action_num)
+                        # paste member: the current frame with the taken action's
+                        # LAST observed delta applied (the iced family's anchor)
+                        _paste = _bframe.copy()
+                        _btr = (getattr(self, "_bet_transitions", None) or {}).get(_bact)
+                        if _btr is not None:
+                            _lb, _la = _btr
+                            if (_lb is not None and _la is not None
+                                    and _lb.shape == _paste.shape
+                                    and _la.shape == _paste.shape):
+                                _dmask = (_la != _lb)
+                                _paste[_dmask] = _la[_dmask]
+                        # transform member: None until harvest v2 lands the
+                        # temporal-transform (the tests allow transform=None)
+                        self._bet_book.commit(action=_bact, before=_bframe,
+                                              paste=_paste, transform=None)
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -1325,6 +1359,28 @@ class CognitiveLoop:
                           f"fatal={len(_h['fatal'])} tried={len(_h['tried'])} "
                           f"deltas={len(_h['deltas'])}")
                 self._ego_harvest = self._ego_harvest_cache[self._ego_level]
+            # ═══ C33 STEP 1 (EGO-BET): settle the pending bet in the result path ═══
+            # Settled against the EXECUTED action's frame; committed != executed is
+            # VOID (nothing priced) but the executed transition is recorded either
+            # way — it feeds the NEXT commit's paste member, never a decision.
+            try:
+                _bb = getattr(self, "_bet_book", None)
+                if (_bb is not None and getattr(_bb, "pending", None) is not None
+                        and post_array is not None):
+                    _bb.level = int(getattr(self, "_ego_level", 0) or 0)
+                    _bexec = int((getattr(self, "_last_action_info", None)
+                                  or {}).get('type', 0) or 0)
+                    _bbefore = _bb.pending.get("before")
+                    _bout = _bb.settle(post=post_array, executed_action=_bexec)
+                    if _bout is not None and _bbefore is not None:
+                        if not hasattr(self, "_bet_transitions"):
+                            self._bet_transitions = {}
+                        self._bet_transitions[_bexec] = (_bbefore, post_array.copy())
+                    if _bout is not None and _bb.settled % 25 == 0:
+                        print(f"[BET] settles={_bb.settled} voids={_bb.voided} "
+                              f"actions={len(_bb.records)} errors={_bb.errors}")
+            except Exception:
+                pass
             if self._ego_observer.calls % 25 == 0:
                 print(f"[EGO-GOAL] confirmed={self._goal_spine.has_confirmed()} "
                       f"candidates={len(self._goal_spine.manager.price)} "
