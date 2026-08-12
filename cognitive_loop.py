@@ -900,6 +900,73 @@ class CognitiveLoop:
                         action_data = {'x': int(_re[0]), 'y': int(_re[1])}
                         print(f"[EGO-FRONTIER] avoid {_fcell} -> {_re} "
                               f"(level={self._ego_level} banked={len(_avoid)})")
+            # ═══ W4c (EGO-PLAN): the wheel rule in code — a plan DRIVES only on atoms
+            # salience-grounded by >= 2 TRANSFERRED settlements (self._atom_verified);
+            # anything less is shadow-narrated. A fresh box has no atoms: nothing drives. ═══
+            try:
+                _gm = getattr(self, "_gamma", None)
+                _rbind = getattr(self, "_role_binder", None)
+                _refsnap = getattr(self, "_reference_snapshot", None)
+                if (_gm is not None and _rbind is not None and _refsnap is not None
+                        and int(getattr(self, "_ego_level", 0) or 0) >= 1):
+                    # v1 trigger: a REFERENCE-bound class exists AND its region
+                    # snapshot is stored; if unavailable, log NOTHING.
+                    _ref_bound = any(
+                        (_rbind.binding(_kc) or {}).get("slot") == "REFERENCE"
+                        for _kc in list(getattr(_rbind, "_evidence", {}) or {}))
+                    _pframe = self._perceiver._to_numpy(frame)
+                    if (_ref_bound and _pframe is not None
+                            and _pframe.shape == _refsnap.shape):
+                        _atoms = _gm.fabric.query(
+                            "collective", "atoms",
+                            where=lambda r: r.get("game") == str(self._game_id))
+                        if _atoms:
+                            from engines.egocentric.discrepancy import compute_d
+                            from engines.egocentric.planner import plan_to_identity
+                            _d = compute_d(_pframe, _refsnap)
+                            _plan = plan_to_identity(
+                                _pframe, _refsnap, _gm,
+                                game=str(self._game_id),
+                                level=int(getattr(self, "_ego_level", 0) or 0) + 1,
+                                budget=float(max(
+                                    0, self._max_actions - self._actions_taken)),
+                                cost_per_action=1.0)
+                            if _plan is not None and _plan.get("steps"):
+                                _av = getattr(self, "_atom_verified", None) or {}
+                                # verified = every step atom carries >= 2 TRANSFERRED
+                                # settlements (the salience-grounding bar)
+                                _verified = all(int(_av.get(_sid, 0)) >= 2
+                                                for _sid in _plan["steps"])
+                                _site = None
+                                if _verified:
+                                    _a0 = _gm.get(_plan["steps"][0])
+                                    if _a0 is not None and _a0.get("kind") == "EFFECT":
+                                        _ctx0 = np.asarray(_a0["context"])
+                                        _ph0, _pw0 = _ctx0.shape
+                                        _bh0, _bw0 = _pframe.shape[:2]
+                                        for _r0 in range(_bh0 - _ph0 + 1):
+                                            for _c0 in range(_bw0 - _pw0 + 1):
+                                                if (_pframe[_r0:_r0 + _ph0,
+                                                            _c0:_c0 + _pw0]
+                                                        == _ctx0).all():
+                                                    _site = (_c0 + _pw0 // 2,
+                                                             _r0 + _ph0 // 2)
+                                                    break
+                                            if _site is not None:
+                                                break
+                                if _verified and _site is not None:
+                                    action_num = 6
+                                    action_data = {'x': int(_site[0]),
+                                                   'y': int(_site[1])}
+                                    print(f"[PLAN] DRIVE steps={len(_plan['steps'])} "
+                                          f"site={_site} d={_d.get('differing')}")
+                                else:
+                                    print(f"[PLAN] shadow steps={len(_plan['steps'])} "
+                                          f"feasible={_plan.get('feasible')} "
+                                          f"verified={_verified} "
+                                          f"d={_d.get('differing')}")
+            except Exception:
+                pass
             # ═══ C33 STEP 1 (EGO-BET): every action carries a bet — commit at choice ═══
             # A prediction family is committed on the FINAL action (after every
             # pre-empt) and settled in record_result. NO CONSUMER in this step:
@@ -932,6 +999,33 @@ class CognitiveLoop:
                         # temporal-transform (the tests allow transform=None)
                         self._bet_book.commit(action=_bact, before=_bframe,
                                               paste=_paste, transform=None)
+            except Exception:
+                pass
+            # ═══ W4c (EGO-BANK): every capable slot bets the FINAL settled action ═══
+            # Committed at choice; settled (and routed) in record_result.
+            try:
+                _pbk = getattr(self, "_predictor_bank", None)
+                if _pbk is not None:
+                    _cframe = self._perceiver._to_numpy(frame)
+                    if _cframe is not None:
+                        _slot_states = {"WORKSPACE": _cframe}
+                        # BODY: the ego centroid cell when the binder binds the
+                        # controllable's class to BODY — falling back to the mere
+                        # existence of a last-known centroid (v1 pragmatics).
+                        _cen_b = getattr(self, "_ego_last_known_cen", None)
+                        if _cen_b is not None:
+                            _slot_states["BODY"] = (int(round(_cen_b[0])),
+                                                    int(round(_cen_b[1])))
+                        _rb_b = getattr(self, "_role_binder", None)
+                        if _rb_b is not None and any(
+                                (_rb_b.binding(_kb) or {}).get("slot") == "REFERENCE"
+                                for _kb in list(getattr(_rb_b, "_evidence", {}) or {})):
+                            # v1: the REFERENCE "region" is still the full frame
+                            _slot_states["REFERENCE"] = _cframe
+                        self._predictor_bank.commit(_slot_states,
+                                                    action=int(action_num))
+                        # retain the committed pre-frame: the mint's `before`
+                        self._w4c_pre_frame = _cframe.copy()
             except Exception:
                 pass
         except Exception:
@@ -1230,6 +1324,167 @@ class CognitiveLoop:
                             _fab.echo(_pid, by=_fab.agent_id)
                 except Exception:
                     pass
+            # ═══ W4c (EGO-WIRE): every producer's consumer, named in code ═══
+            # Lazy init alongside the fabric: binder/bank/router/mint/gamma/affect/mute.
+            try:
+                _wfab = getattr(self, "_ego_fabric", None)
+                if _wfab is not None and getattr(self, "_gamma", None) is None:
+                    from engines.egocentric.binder import RoleBinder
+                    from engines.egocentric.bank import PredictorBank
+                    from engines.egocentric.router import ResidualRouter
+                    from engines.egocentric.mint import MDLMint
+                    from engines.egocentric.affect import AffectGains
+                    from engines.egocentric.verdicts import MuteHandler
+                    from engines.egocentric.effects import Gamma
+                    self._gamma = Gamma(_wfab)
+                    self._role_binder = RoleBinder()
+                    self._predictor_bank = PredictorBank(
+                        gamma=self._gamma,
+                        game=str(getattr(self, "_game_id", "") or "game"),
+                        level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                    self._residual_router = ResidualRouter()
+                    self._mdl_mint = MDLMint(self._gamma)
+                    self._affect = AffectGains(_wfab)
+                    self._mute = MuteHandler()
+                    self._atom_verified = {}  # atom id -> TRANSFERRED count
+                    self._w4c_calls = 0
+                    self._w4c_cls_prev = None
+            except Exception:
+                pass
+            # W4c-1: FEED THE BINDER — per-step, per-class invariance evidence.
+            try:
+                _rb = getattr(self, "_role_binder", None)
+                if _rb is not None:
+                    if level_changed:
+                        _rb.on_level_change()  # the maze redraws; bindings re-earn
+                        self._w4c_cls_prev = None
+                    _w_lai = getattr(self, "_last_action_info", None) or {}
+                    _w_act = int(_w_lai.get('type', 0) or 0)
+                    _w_x, _w_y = _w_lai.get('x'), _w_lai.get('y')
+                    _w_click = (_w_act == 6 and _w_x is not None
+                                and _w_y is not None)
+                    _now = {}
+                    for _wo in (getattr(self._ego_observer, "_prev_objs", None)
+                                or []):
+                        _now.setdefault(min(_wo.colours), set()).update(_wo.cells)
+                    _prevmap = getattr(self, "_w4c_cls_prev", None)
+                    if _prevmap is not None and not level_changed:
+                        for _wc, _wcells in _now.items():
+                            _pcells = _prevmap.get(_wc)
+                            if not _pcells or not _wcells:
+                                continue
+                            _cn = (sum(p[0] for p in _wcells) / len(_wcells),
+                                   sum(p[1] for p in _wcells) / len(_wcells))
+                            _cp = (sum(p[0] for p in _pcells) / len(_pcells),
+                                   sum(p[1] for p in _pcells) / len(_pcells))
+                            _moved = (int(round(_cn[0])) != int(round(_cp[0]))
+                                      or int(round(_cn[1])) != int(round(_cp[1])))
+                            _mut = _wcells != _pcells
+                            _near = bool(_w_click and any(
+                                abs(_pr - int(_w_y)) <= 1
+                                and abs(_pc2 - int(_w_x)) <= 1
+                                for (_pr, _pc2) in _pcells))
+                            self._role_binder.observe(
+                                object_class=_wc, action=_w_act,
+                                moved_with_action=_moved,
+                                mutated_on_contact=bool(_near and _mut),
+                                changed_without_agent=bool(
+                                    _w_click and not _near and _mut),
+                                scalar_delta=0)
+                    self._w4c_cls_prev = _now
+            except Exception:
+                pass
+            # W4c-2: THE BANK settles at result; EVERY settlement routes.
+            try:
+                _pb = getattr(self, "_predictor_bank", None)
+                _rt = getattr(self, "_residual_router", None)
+                if _pb is not None and _rt is not None and post_array is not None:
+                    _pb.game = str(getattr(self, "_game_id", "") or "game")
+                    _pb.level = int(getattr(self, "_ego_level", 0) or 0) + 1
+                    _obs_states = {"WORKSPACE": post_array,
+                                   "REFERENCE": post_array}
+                    _bcen = (getattr(self, "_ego_prev_centroid", None)
+                             or getattr(self, "_ego_last_known_cen", None))
+                    if _bcen is not None:
+                        _obs_states["BODY"] = (int(round(_bcen[0])),
+                                               int(round(_bcen[1])))
+                    _wexec = int((getattr(self, "_last_action_info", None)
+                                  or {}).get('type', 0) or 0)
+                    _wpre = getattr(self, "_w4c_pre_frame", None)
+                    out = self._predictor_bank.settle(_obs_states)
+                    for _slot, _stl in out.items():
+                        _bin = self._residual_router.route(_slot, _stl)
+                        # the wheel rule's ledger: a TRANSFERRED WORKSPACE
+                        # settlement from a known atom verifies WHICH atom bet
+                        # (re-scan gamma: whose apply reproduces the post frame)
+                        if (_bin == "TRANSFERRED" and _slot == "WORKSPACE"
+                                and _stl.get("from_known_atom")
+                                and _wpre is not None):
+                            from engines.egocentric.effects import (
+                                Gamma as _Gm, apply_effect as _apf)
+                            for _rec2 in self._gamma.fabric.query(
+                                    "collective", _Gm.TOPIC):
+                                _at = _rec2.get("atom") or {}
+                                if (_at.get("kind") != "EFFECT"
+                                        or str(_rec2.get("game")) != _pb.game
+                                        or int(_rec2.get("level", -1)) != _pb.level
+                                        or int(_at.get("action", -1)) != _wexec):
+                                    continue
+                                _pr2 = _apf(_at, np.asarray(_wpre))
+                                if (_pr2 is not None
+                                        and _pr2.shape == post_array.shape
+                                        and bool((_pr2 == post_array).all())):
+                                    _aid2 = _rec2.get("id")
+                                    self._atom_verified[_aid2] = (
+                                        self._atom_verified.get(_aid2, 0) + 1)
+                                    break
+            except Exception:
+                pass
+            # W4c-3: THE MINT — bar-gated by affect (picky when desperate).
+            try:
+                _rt = getattr(self, "_residual_router", None)
+                _aff = getattr(self, "_affect", None)
+                if (getattr(self, "_mdl_mint", None) is not None
+                        and _rt is not None and _aff is not None):
+                    _bar = float(_aff.gains()["mint_bar"])
+                    _wpre = getattr(self, "_w4c_pre_frame", None)
+                    _wexec = int((getattr(self, "_last_action_info", None)
+                                  or {}).get('type', 0) or 0)
+                    while _rt.mint_queue:
+                        _wit = _rt.mint_queue.pop(0)
+                        if (float(_wit.get("residual", 0.0)) >= _bar
+                                and _wpre is not None
+                                and post_array is not None):
+                            _wv = self._mdl_mint.consider(
+                                before=_wpre, action=_wexec, after=post_array,
+                                game=str(getattr(self, "_game_id", "") or "game"),
+                                level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                            print(f"[MINT] verdict={_wv.get('verdict')} "
+                                  f"id={_wv.get('id')}")
+                        # below the bar: dropped — desperation makes the
+                        # mint pickier, never looser
+            except Exception:
+                pass
+            # W4c-4: NOVEL items persist — the endogenous agenda stays visible.
+            try:
+                _rt = getattr(self, "_residual_router", None)
+                _wfab = getattr(self, "_ego_fabric", None)
+                if _rt is not None and _wfab is not None:
+                    while _rt.import_queue:
+                        _wit = _rt.import_queue.pop(0)
+                        _wfab.append("collective", "import_queue",
+                                     {"slot": _wit.get("slot"),
+                                      "residual": float(_wit.get("residual", 0.0))})
+            except Exception:
+                pass
+            # W4c-6: AFFECT NARRATES — no channel moves without the state emitted.
+            try:
+                if getattr(self, "_affect", None) is not None:
+                    self._w4c_calls = int(getattr(self, "_w4c_calls", 0)) + 1
+                    if self._w4c_calls % 25 == 0:
+                        print("[AFFECT] " + self._affect.narrate())
+            except Exception:
+                pass
             # ═══ PHASE 3a: FALSIFY write-back — a seeded cell reached WITHOUT reward ═══
             _seeded = getattr(self, "_ego_seeded", None)
             if _seeded and not level_changed and _cen is not None:
@@ -1264,6 +1519,43 @@ class CognitiveLoop:
                     self._goal_spine.demote_inherited_click(_ccell)
                     self._ego_self_clicks.discard(_ccell)
                     print("[EGO-GOAL] demoted self-confirmed click (no reward)")
+            # ═══ W4c-7 (EGO-MUTE): a seeded goal demoted by the falsify path is MUTE —
+            # the ground said nothing; quarantine the prior and answer with the
+            # empowerment probe (least-observed untried cell from the harvest). ═══
+            try:
+                if getattr(self, "_mute", None) is not None:
+                    _cur_ids = (
+                        set((getattr(self, "_ego_seeded", None) or {}).values())
+                        | set((getattr(self, "_ego_seeded_clicks", None)
+                               or {}).values()))
+                    _prev_ids = getattr(self, "_w4c_seed_ids", None)
+                    _slv_now = getattr(self, "_ego_seed_level", None)
+                    if (_prev_ids is not None and not level_changed
+                            and _slv_now == getattr(self, "_w4c_seed_lvl", None)):
+                        for _mid in sorted(_prev_ids - _cur_ids):
+                            _hh = getattr(self, "_ego_harvest", None) or {}
+                            _tried2 = _hh.get("tried") or set()
+                            _shape3 = (getattr(self, "_ego_frame_shape", None)
+                                       or (64, 64))
+                            _cands = []  # up to 5 untried cells from the harvest
+                            for _my in range(4, int(_shape3[0]), 8):
+                                for _mx in range(4, int(_shape3[1]), 8):
+                                    if len(_cands) >= 5:
+                                        break
+                                    if (_mx, _my) not in _tried2:
+                                        _cands.append((_mx, _my))
+                                if len(_cands) >= 5:
+                                    break
+                            _pv = self._mute.mute(
+                                item={"id": _mid, "kind": "objective"},
+                                candidates=_cands,
+                                observed_counts={_cc: 0 for _cc in _cands})
+                            # no explore-aim variable exists yet: log the probe
+                            print(f"[MUTE] probe={_pv.get('probe')} item={_mid}")
+                    self._w4c_seed_ids = _cur_ids
+                    self._w4c_seed_lvl = _slv_now
+            except Exception:
+                pass
             # ═══ 3d-i (EGO-FRONTIER): frontier level + first post-frontier click ═══
             # Per-episode by construction (the loop instance is per-episode).
             # The fatal-opening book rides the fabric (lazy, once per episode).
