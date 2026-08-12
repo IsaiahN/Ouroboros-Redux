@@ -479,3 +479,26 @@ census + debasement judges, binder-binding visibility, mint-split watchdog, [PLA
 drive counts, and the only number that was ever the point -- level 2, on the budget-restored
 line, attempted for the first time by an agent that can read what a level wants and plan
 what to spend on it.
+
+---
+
+## ENTRY 28 - 2026-08-12 - THE SWARM IS LIVE: 25 workers, one per game, one shared economy. Plus the restart's first finding fixed same-hour (the starving mint).
+
+> ## **L2 count: 0 (assembly1 mid-run; the swarm's clock starts now). Gate 164/164.**
+
+assembly1's interim logs delivered the restart's first live finding within the hour: [MINT] 0
+- the mint only ate BROKEN-mechanism, which requires a known atom to be wrong, and a fresh
+Gamma knows nothing. Fixed (5ea2a46): NOVEL workspace evidence is the mint's first meal,
+through the same affect bar, filtered by the mint's own guards. The fabric-seeds env landed
+in the same commit (unset = byte-identical; thirteen containment verdicts still stand).
+
+**THE SWARM (Isaiah's items 1-4, executed):** 25 workers spawned, one per game, breadth-equal
+per his ruling, each cross-mounting every sibling's fabric read-only (re-evaluated per episode,
+so late-appearing siblings join automatically) plus the compound2 inheritance. Supervisor
+restarts dead workers and writes status every minute. Every worker carries the FULL assembled
+loop: binder, bank, router, bootstrapped mint, planner (wheel-gated), affect, mute, frontier
+harvest, mastery, budget restoration. Many bodies, one economy - the v4 vision at n=1 grain.
+
+Queued behind the swarm's first verdicts: assembly1's full judges (item 3, on completion);
+the SMART CLEANUP prereg (item 4 - now urgent at swarm scale); alpha precision upgrade;
+probe-prune-enumerate.
