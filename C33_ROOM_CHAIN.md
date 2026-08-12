@@ -154,3 +154,30 @@ action's effect stay local to the acted-on cell or go board-wide? Games without 
 cannot be helped by hierarchical caching IN PRINCIPLE; know which before building for them.
 Third independent derivation logged: append-only/locally-keyed/monotonic = the iced branch's
 evidence-never-replaced law = HashLife's invalidation immunity. Load-bearing.
+
+## 11. THE CLOSING SYNTHESIS (three answers, one retraction — recorded)
+
+**① The saturation mechanism, settled:** Γ saturates at the leaves BY CONSTRUCTION when
+composites are computed-and-consumed but never keyed — a memo table that cannot key its own
+composites stays a table of letters no matter how many letters are added. Confirmed on THIS
+branch: the fabric's ideas are flat leaves (CLICK_AT/BE_AT), consumed, never composite-keyed —
+the disease survived the SQLite→JSONL migration untouched; it was never storage technology.
+Lexical enrichment cannot help a flat store. Harvest v2 is the fix (§10).
+
+**② The curriculum mechanism, settled:** refactor pressure = cache invalidation of globally-
+keyed entries. Fix is keying, not anticipation. Third independent derivation of
+append-only-with-local-keys (ledger death, family-best, HashLife) — load-bearing law.
+
+**③ Path A vs Path B, dissolved:** the library IS the composer's memo table — one machine at
+two times. A cache nobody computes into is a lookup table; a composer that caches nothing pays
+full price every time. (Retires the two-arm framing permanently.)
+
+**THE RETRACTION, written down as requested — the corpus's cleanest self-description:**
+> Irreducibility is a FIELD, not a property: reducible pockets everywhere, branch events
+> between them. The mint's MDL test (|φ| + |R|φ| < |R|) is literally a compressibility test.
+> **The agent is not fighting irreducibility. It is prospecting for the pockets where it
+> fails locally — and cashing them.**
+
+**Unchanged:** the four measured walls (residual≈0 on stalled games; abduced=[]; 2/5 relations
+drivable; 23/25 needing a second object) are all upstream of storage. Better storage does not
+create something to store. ORDER UNCHANGED: marketplace merge → harvest v2 → rooms → affect.
