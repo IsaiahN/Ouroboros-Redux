@@ -134,3 +134,23 @@ run: roles are points in the unit-normalised (seed-dist, k, depth, bar) cube (ea
 scaled by its hard bounds); R_T = Euclidean distance in that cube; **refutation threshold
 R_T > 0.25** (pre-registered here; changing it after data is forbidden). Large R_T = role is a
 population-scale object that does not survive the descent, and affect needs its own derivation.
+
+## 10. HARVEST v2 SPEC AMENDMENT (the HashLife exchange — items that transfer)
+
+Effect signatures are DYNAMICS, CANONICALLY KEYED, with COMPOSITES FIRST-CLASS:
+- an entry maps (canonical before-pattern, action) -> after-pattern — a transform, never a
+  label; playback-shaped entries are inadmissible (the membrane law at cache granularity);
+- canonical form: translation-normalised at minimum (the keying choice IS the abstraction
+  choice — the letters wall was a keying failure: one granularity, leaves only, nothing
+  composite ever keyable);
+- a minted composite is hashable and reusable exactly as an atom (hierarchy without a second
+  mechanism — the specific fix for single-pass saturation);
+- LAZY: cache what reality presents, never enumerate what it might (the reachable set is
+  vanishingly smaller than the possible set);
+- regime tags + revocation path = level-scoping + defeasible pariahs, treated as ONE mechanism.
+
+NEW CHEAP MEASUREMENT (queued): the per-game LIGHT-CONE PROFILE — from harvest diffs, does an
+action's effect stay local to the acted-on cell or go board-wide? Games without causal locality
+cannot be helped by hierarchical caching IN PRINCIPLE; know which before building for them.
+Third independent derivation logged: append-only/locally-keyed/monotonic = the iced branch's
+evidence-never-replaced law = HashLife's invalidation immunity. Load-bearing.
