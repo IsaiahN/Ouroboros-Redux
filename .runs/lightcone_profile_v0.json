@@ -1,0 +1,24 @@
+{
+  "note": "VOLUME proxy from iced-era decomp probes; conflates action-effect with autonomous motion. Spatial, action-attributed profile lands with harvest v2. Classes are PROVISIONAL.",
+  "local_ish": [
+    "lf52",
+    "s5i5",
+    "tn36",
+    "vc33",
+    "su15"
+  ],
+  "global_or_animated": [
+    "ar25",
+    "cn04",
+    "r11l",
+    "ls20"
+  ],
+  "mixed": [
+    "sc25"
+  ],
+  "unprofiled": [
+    "lp85",
+    "and 14 others"
+  ],
+  "caveat": "autonomous-tick games read LOCAL on volume while their change is world-driven; r11l/cn04 read GLOBAL partly from self-animation"
+}
