@@ -405,3 +405,15 @@ strictly worse than dying into the next handoff. Consumer-first law applied. (2)
 ideas landed: mints tagged with the level their reward produced; seeds re-scope on every level
 change; L1 goals no longer burn frontier budget being falsified at LN. Capability judged on the
 compounding runs ([EGO-SEED] level tags; frontier falsify-counts drop).
+
+---
+
+## ENTRY 24 - 2026-08-12 - COMPOUND1 COMPLETE: mastery capability PASSED (130 outcomes, all banks earning their 0.80); coverage compounding hard (lp85 362->949, ft09 809). compound2 launches - the fabric's third hop, all mechanisms live.
+
+> ## **L2 count: 0 (1038 episodes on compound1). The sweep curve: lp85 362 -> 583 -> 949 cells across the run chain; ft09 at 809 (~20% of board). Level-scope capability rolls to compound2 (the resumed process predated that commit).**
+
+The economy self-regulates correctly: every bank at 100% recent reliability keeps its earned
+0.80; the decay path stands proven in gates, untriggered because nothing deserved it. compound2
+carries the grown fabric forward with level-scoped seeding live for the first time - its judges:
+[EGO-SEED] level tags at handoffs, frontier falsify-counts dropping, continued strict coverage
+containment, and the standing L2 watch on the deepest charts this system has ever had.
