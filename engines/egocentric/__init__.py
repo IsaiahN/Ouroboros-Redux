@@ -14,9 +14,12 @@ Modules (ported byte-identical from Nexus:src/newhorse/, logic untouched):
   * mastery     -- MasteryLite (replay probability earned from replay reliability)
   * pricing     -- the iced marketplace core VERBATIM (informative_salience)      [C33 step 1]
   * betting     -- BetBook (per-action bet commit/settle on the fabric)           [C33 step 1]
+  * effects    -- EFFECT atoms + typed Gamma store (canonically keyed, priced)   [W1a]
 """
-from engines.egocentric import agency, betting, falsified_ledger, goal, navigation, perception, pricing, relations, self_locus  # noqa: F401
+from engines.egocentric import agency, betting, effects, falsified_ledger, goal, navigation, perception, pricing, relations, self_locus  # noqa: F401
+from engines.egocentric.effects import Gamma, apply_effect, encoding_cost_atom, encoding_cost_route, learn_effect  # noqa: F401
 from engines.egocentric.fabric import KnowledgeFabric  # noqa: F401
 from engines.egocentric.mastery import MasteryLite  # noqa: F401
 from engines.egocentric.observer import EgoObserver  # noqa: F401
 from engines.egocentric.spine import GoalSpine  # noqa: F401
+from engines.egocentric.binder import RoleBinder  # noqa: F401
