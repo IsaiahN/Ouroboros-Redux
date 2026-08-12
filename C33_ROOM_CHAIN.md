@@ -107,3 +107,30 @@ distribution, promoted back up, R_T measured) therefore has ground truth on the 
   external settlement event — the second justification for bets-as-admission. Roles become
   named points in (seed, k, depth, bar) space: Pioneer = wide/deep/low-bar, Optimizer =
   narrow/shallow/high-bar — one organ, not two.
+
+## 9. AMENDMENTS (the three-things exchange, all binding)
+
+**① NO PRIOR SUPPORT.** The proven result (as66 L4/276 gens) was produced with the affect organ
+NEVER EXECUTING. Measured datum: affect is not necessary for the one proven result. The layer
+stands on the termination argument alone (a BST over closure has no stopping rule; v4 had no
+BST). Grade: `[BELIEVED — no prior support]`; the three-arm ρ falsifier carries it entirely.
+
+**② THE MECHANISM BEHIND THE RULE.** Affect has shipped inert twice by the same hand
+(frustration: built, never called; sensation: 8000 rows, never read) because **affect is
+nameable before it is consumable** — the name means something on day one, the knob is the hard
+question, so the organ ships without one. Define-by-consumer (channels ≤ knobs, no exceptions)
+is the direct fix for a twice-committed failure, not a style preference. Attempt three follows
+the rule or ends the same way.
+
+**③ THE BRACKET ANCHOR, AUDITED (this beat).** The regulation engine's inputs SPLIT:
+score-derived stress traces to ground (legitimate); budget-derived stress reads
+`action_allowance`, which regulation itself tunes via `auto_exploration_budget_mult` —
+self-referential, EXCLUDED; prestige-derived is internally weighted — conservatively EXCLUDED.
+The bracket uses only trajectories whose `triggering_signal_id` traces to score/win components.
+
+**THE IDENTITY CLAIM IS THE HYPOTHESIS, NOT THE FRAMING:** "regulation-at-population =
+affect-at-thought under T" is what the bracket TESTS. Pre-specified metric, written before any
+run: roles are points in the unit-normalised (seed-dist, k, depth, bar) cube (each channel
+scaled by its hard bounds); R_T = Euclidean distance in that cube; **refutation threshold
+R_T > 0.25** (pre-registered here; changing it after data is forbidden). Large R_T = role is a
+population-scale object that does not survive the descent, and affect needs its own derivation.
