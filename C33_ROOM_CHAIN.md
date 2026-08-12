@@ -181,3 +181,21 @@ full price every time. (Retires the two-arm framing permanently.)
 **Unchanged:** the four measured walls (residual≈0 on stalled games; abduced=[]; 2/5 relations
 drivable; 23/25 needing a second object) are all upstream of storage. Better storage does not
 create something to store. ORDER UNCHANGED: marketplace merge → harvest v2 → rooms → affect.
+
+## 12. THE NOTATION-PRICING AMENDMENT (the final synthesis of the exchange)
+
+Library-vs-composer is retired: one machine, two times; the bottleneck is WHAT THE NOTATION
+MAKES CHEAP. Binding consequences:
+- **Harvest v2 commits to the TWO-PLACE causal form**: (context-patch, action) → effect-on-
+  object — contact/actor/consequence — never one-place "cell changed". Routes are priced out
+  of the fabric entirely (playback stays in winning_sequences, outside the membrane).
+- **The n=1 acceptance gate (synthetic, zero game contamination):** offer the mint one
+  synthetic event with both encodings available; the transform must beat the route at a single
+  example. Transform wins ⇒ notation correct. Route wins ⇒ the pricing is the bug — fixed
+  before any game evidence enters.
+- **The curriculum is the evidence supply**: each boundary = one clean intervention, one
+  informative failure per new distinction. Write lessons in boundary-extensible form (the
+  two-place transforms) and let the boundaries pay for the discriminations. Level-scoping
+  already gives boundaries their structural handling; v2 gives them content worth extending.
+- The architecture is installed, not learned: generality of FORM at L1 costs nothing at L1
+  (transforms-not-routes, belief state always, search-not-recipe, every constant per-regime).
