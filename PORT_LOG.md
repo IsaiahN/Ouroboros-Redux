@@ -457,3 +457,25 @@ census re-run + debasement report.
 Also this beat: the §12 correction recorded (temporal-not-spatial, the single-atom constructor
 requirement, operator_effect.py as harvest v2's reference implementation) - the spatial
 two-place null (30 mints, zero levels) is v2's standing warning.
+
+---
+
+## ENTRY 27 - 2026-08-12 - THE ASSEMBLY IS COMPLETE. Ten components, five waves, one loop -- built in one day from contracts argued to consensus. THE RESTART LAUNCHES.
+
+> ## **L2 count: 0 (the pre-assembly lines are closed; the assembly line opens now). Gate 101 -> 162. Containment: thirteen consecutive byte-identity verdicts across the entire port.**
+
+What now runs in one loop, none of it hand-tuned, all of it narrated: a self that knows its
+body by contingency; roles bound by invariance and re-earned at boundaries; every action a
+bet across every bound slot; every settlement binned; atoms minted only where compression
+pays, priced so causal transforms beat routes at n=1; composites keyed as atoms (the letters
+wall structurally closed); a computed, FALSIFIABLE objective; a planner that spends verified
+operators against it under the wheel rule; affect as two ledger-computed gains with the
+replay test; mute closed with the empowerment probe; and underneath it all the fabric --
+collective, personal, kin -- carrying charts, ideas, outcomes, verdicts and the import agenda
+across episodes, runs, deaths and process crashes.
+
+**THE RESTART: assembly1 launches with compound2's fabric carried forward.** Riding it: the
+census + debasement judges, binder-binding visibility, mint-split watchdog, [PLAN] shadow/
+drive counts, and the only number that was ever the point -- level 2, on the budget-restored
+line, attempted for the first time by an agent that can read what a level wants and plan
+what to spend on it.
