@@ -391,3 +391,17 @@ point: lp85's frontier chart carried at 362 cells and grew to 583 - a second run
 extending a map the first run's agents drew. Also: run boxes unignored by git until now
 (add -A sweep); fixed - boxes ignored, falsifier-control JSONs kept tracked. Gate 82/82 on
 resume. Mastery capability (replay_outcomes accumulating) judged when compound1 completes.
+
+---
+
+## ENTRY 23 - 2026-08-12 - LEVEL-SCOPED IDEAS LAND; the proactive-reset port KILLED by consumer analysis; compound1 mid-flight with mastery outcomes accumulating.
+
+> ## **L2 count: 0 (compound1 at 231 episodes, 5 replay-outcomes banked -- mastery's live precondition met). Tenth consecutive clean containment.**
+
+Two queue decisions this beat, both evidence-driven: (1) proactive reset NOT ported -- its v2
+rationale (knowledge dies at game-over) is obsolete under the fabric (3d-ii harvests at every
+episode end), and a mid-episode reset strands the agent at L1 without replay assistance:
+strictly worse than dying into the next handoff. Consumer-first law applied. (2) Level-scoped
+ideas landed: mints tagged with the level their reward produced; seeds re-scope on every level
+change; L1 goals no longer burn frontier budget being falsified at LN. Capability judged on the
+compounding runs ([EGO-SEED] level tags; frontier falsify-counts drop).
