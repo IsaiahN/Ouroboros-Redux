@@ -1480,6 +1480,26 @@ class CognitiveLoop:
                                   f"id={_wv.get('id')}")
                         # below the bar: dropped — desperation makes the
                         # mint pickier, never looser
+                    # PRIMAL path: a click that CHANGED the frame is offered
+                    # to the mint DIRECTLY — no routing, no bet (WORKSPACE
+                    # cannot bet with an empty Gamma, so the starvation moved
+                    # one link up). NOVELTY dedups repeats, MDL filters junk;
+                    # the SAME bar gates, with changed-cell count as residual.
+                    _wlai = getattr(self, "_last_action_info", None) or {}
+                    if (frame_changed and _wlai.get('x') is not None
+                            and _wlai.get('y') is not None
+                            and _wpre is not None and post_array is not None):
+                        _wpa = np.asarray(_wpre)
+                        _wres = (float((_wpa != post_array).sum())
+                                 if _wpa.shape == post_array.shape
+                                 else float(post_array.size))
+                        if _wres >= _bar:
+                            _wv = self._mdl_mint.consider(
+                                before=_wpre, action=_wexec, after=post_array,
+                                game=str(getattr(self, "_game_id", "") or "game"),
+                                level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                            print(f"[MINT] verdict={_wv.get('verdict')} "
+                                  f"id={_wv.get('id')} (primal)")
             except Exception:
                 pass
             # W4c-4: NOVEL items persist — the endogenous agenda stays visible.
