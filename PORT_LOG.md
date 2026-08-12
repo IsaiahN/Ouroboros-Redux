@@ -377,3 +377,17 @@ constant), proactive reset behind it.
 Falsifier for the carry-forward: the seeded run's coverage union must strictly contain the
 prior run's per game+level. Mastery capability judged on the compounding runs (outcomes
 accumulate; failing banks visibly decay). Gate 82/82; ninth consecutive clean containment.
+
+---
+
+## ENTRY 22 - 2026-08-12 - THE CARRY-FORWARD HOLDS ON PARTIAL DATA: lp85's chart grew 362 -> 583 cells ACROSS RUNS. compound1 resumed in place after a session restart.
+
+> ## **L2 count: 0 (compound1 mid-flight, resumed with DB+fabric intact). Cross-run compounding is REAL: strict containment on all four charted frontiers, with growth on two (+221 cells on lp85, +8 on r11l).**
+
+The session restart stopped compound1 mid-episode (37k log lines in). Because everything is
+accumulation by design, the resume is a plain relaunch in the same box - the DB keeps its bank,
+the fabric keeps its charts, generations continue. The interrupted run had already proven the
+point: lp85's frontier chart carried at 362 cells and grew to 583 - a second run's agents
+extending a map the first run's agents drew. Also: run boxes unignored by git until now
+(add -A sweep); fixed - boxes ignored, falsifier-control JSONs kept tracked. Gate 82/82 on
+resume. Mastery capability (replay_outcomes accumulating) judged when compound1 completes.
