@@ -211,3 +211,19 @@ MAKES CHEAP. Binding consequences:
 - REFERENCE IMPLEMENTATION: redux_arch/operator_effect.py (OperatorEffectLearner — site →
   effect by intervention, ground-priced, INERT marking = dead cells independently derived) —
   built, unit-tested, never wired. The v2 builder extracts from it rather than inventing.
+
+## 13. THE POLICY-MAKER LOOP (final synthesis) — status collision with v4-cold, recorded
+
+Their build-status table vs this branch: per-action bets = LANDED (f9a326a, one slot,
+consumer-less); candidate-site enumeration = ANSWERED by the harvest (dead/effect/fatal cells
+by intervention, population-wide; v2 types them); refutation-changes-next-attempt = CLOSED and
+measured (fatal openings/vetoes/falsified seeds); residual localization = resolved on movement
+games via contingency, open on autonomous-churn games (the light-cone profile's split).
+
+**NEW BUILDABLE (adopted): THE ROLE BINDER = SELF-LOCUS GENERALISED.** One invariance
+classifier, four verdicts from the same evidence stream: contingent-mover → BODY (live today);
+mutates-under-contact → WORKSPACE; invariant-under-agent → REFERENCE; monotone-under-action →
+RESOURCE. Publishes bindings (not labels), re-binds at level boundaries. Slots after harvest
+v2, before rooms. The EFFECT constructor stays harvest v2's single-atom temporal form; the
+planner (their L3) is the rooms-era consumer; lives-as-discovery-allowance holds here because
+the fabric survives death, reset, and process exit (verified by accident and by design).
