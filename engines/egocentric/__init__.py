@@ -11,8 +11,10 @@ Modules (ported byte-identical from Nexus:src/newhorse/, logic untouched):
   * spine       -- GoalSpine wrapper (confirmed reward earns the wheel)        [Phase 2]
   * fabric      -- KnowledgeFabric (scoped JSONL + the idea economy)           [Phase 3a]
   * falsified_ledger -- FalsifiedLedger (weighted, defeasible reject-memory)   [Phase 3a]
+  * mastery     -- MasteryLite (replay probability earned from replay reliability)
 """
 from engines.egocentric import agency, falsified_ledger, goal, navigation, perception, relations, self_locus  # noqa: F401
 from engines.egocentric.fabric import KnowledgeFabric  # noqa: F401
+from engines.egocentric.mastery import MasteryLite  # noqa: F401
 from engines.egocentric.observer import EgoObserver  # noqa: F401
 from engines.egocentric.spine import GoalSpine  # noqa: F401

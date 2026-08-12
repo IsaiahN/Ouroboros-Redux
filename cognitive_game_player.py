@@ -97,6 +97,18 @@ class CognitiveGamePlayer:
         Mirrors GamePlayer.play_game() signature exactly.
         Preserves all side effects (DB writes, events, etc.).
         """
+        # ═══ MASTERY-LITE: replay probability EARNED from replay reliability ═══
+        # Lazy fabric-backed instance (PREREG_MASTERY_LITE.md). CWD is the run
+        # box, so "ego_fabric" is the SAME root the loop uses -- intended.
+        if getattr(self, '_mastery', None) is None:
+            try:
+                from engines.egocentric.fabric import KnowledgeFabric
+                from engines.egocentric.mastery import MasteryLite
+                self._mastery = MasteryLite(KnowledgeFabric(
+                    "ego_fabric", agent_id="player", kin_key="v4"))
+            except Exception:
+                self._mastery = None
+
         # Create cognitive loop
         loop = CognitiveLoop(
             decision_system=self._gp.decision_system,
@@ -237,13 +249,26 @@ class CognitiveGamePlayer:
             has_bank = bool(self._load_fallback_sequence(game_type, 1))
         except Exception:
             has_bank = False
-        if random.random() < self._replay_probability(has_bank):
+        # Earned rate via mastery when available; static prior as fallback.
+        # Exactly ONE random draw either way (the RNG stream must not shift).
+        p = (self._mastery.replay_probability(game_type, has_bank)
+             if getattr(self, '_mastery', None)
+             else self._replay_probability(has_bank))
+        if random.random() < p:
             replay_result = self._replay_winning_sequences(
                 agent=agent, env=env, game_id=game_id, game_type=game_type,
                 win_levels=win_levels, current_generation=current_generation,
                 is_running_fn=is_running_fn,
             )
             if replay_result is not None:
+                # MASTERY-LITE: record the outcome of every completed replay
+                # (ok = the replay reproduced at least one banked level).
+                try:
+                    if getattr(self, '_mastery', None):
+                        ok = bool(replay_result.levels_completed >= 1)
+                        self._mastery.record_replay_outcome(game_type, ok)
+                except Exception:
+                    pass
                 # ═══ PHASE 3c: THE PURE HANDOFF ═══
                 # Terminal replays (win, game over, exhausted budget, or no
                 # observation to resume from) end the episode as before.
