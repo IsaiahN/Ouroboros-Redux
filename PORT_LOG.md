@@ -367,3 +367,13 @@ driver-script change, not agent code).
 
 Port queue stands: mastery-gated replay next (earned replay probability supersedes the 0.8
 constant), proactive reset behind it.
+
+---
+
+## ENTRY 21 - 2026-08-11 - MASTERY-LITE LANDS (the earned replay rate) + THE COMPOUNDING ERA OPENS (fabric carried across runs).
+
+> ## **L2 count: 0. Two moves: replay probability is now EARNED per game (v2's principle, fabric-backed, decaying on failure); and compound1 runs with harvest_cap's fabric carried forward - the first run in this codebase's history that STARTS with charted frontiers (lp85 362 cells, ft09 148, r11l 102).**
+
+Falsifier for the carry-forward: the seeded run's coverage union must strictly contain the
+prior run's per game+level. Mastery capability judged on the compounding runs (outcomes
+accumulate; failing banks visibly decay). Gate 82/82; ninth consecutive clean containment.
