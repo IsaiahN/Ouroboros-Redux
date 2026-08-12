@@ -1168,16 +1168,17 @@ class CognitiveLoop:
                 self._ego_prev_centroid = None
                 self._ego_last_known_cen = None  # AMENDMENT 3b3: survives None steps
             # ═══ PHASE 3a: the knowledge fabric — lazy init + SEED once per game ═══
-            # Root is the RELATIVE "ego_fabric" (cwd-scoped: hermetic boxes isolate
-            # naturally). Priors feed the spine at an INHERITED price: credibility>=1
-            # opens the gate (confirm_bonus exactly); below that, proposal-bias only.
-            # DECOUPLED from the spine guard above (init-once flag): replay-fed
-            # episodes arrive spine pre-inited and still need fabric + seeding.
+            # Relative root (cwd-scoped: hermetic). Priors feed the spine at an
+            # INHERITED price (credibility>=1 opens the gate; below, bias only).
+            # Init-once flag: replay-fed episodes still need fabric + seeding.
             if not getattr(self, "_ego_fabric_inited", False):
                 try:
                     from engines.egocentric.fabric import KnowledgeFabric
+                    _sd = [_s.strip() for _s in os.environ.get(
+                        "OURO_FABRIC_SEEDS", "").split(";")
+                        if _s.strip() and os.path.isdir(_s.strip())]
                     self._ego_fabric = KnowledgeFabric(
-                        "ego_fabric",
+                        "ego_fabric", seeds=_sd,
                         agent_id=str(getattr(self, "_ego_agent_id", "") or "agent"),
                         kin_key="v4")
                     self._ego_seeded = {}          # seeded cell -> prior idea id
@@ -1219,16 +1220,15 @@ class CognitiveLoop:
                                + (1 if level_changed else 0))
             _cen = info.get('centroid') if isinstance(info, dict) else None
             if _cen is not None:
-                # AMENDMENT 3b3: retain the most recent non-None centroid — the level-up
-                # step's frame breaks the pick exactly then; attribution needs the body's
-                # cell from BEFORE the transition.
+                # AMENDMENT 3b3: retain the last non-None centroid — the level-up
+                # frame breaks the pick; attribution needs the pre-transition cell.
                 self._ego_last_known_cen = _cen
             if _cen is not None and self._ego_prev_centroid is not None:
                 _delta = (int(round(_cen[0] - self._ego_prev_centroid[0])),
                           int(round(_cen[1] - self._ego_prev_centroid[1])))
                 self._goal_spine.note_move(str(_ego_action), _delta)
             self._ego_prev_centroid = _cen
-            # Candidate target cells: non-self objects, smallest (most marker-like) first, cap 5
+            # Candidates: non-self objects, smallest (marker-like) first, cap 5
             _colour = info.get('colour') if isinstance(info, dict) else None
             _objs = list(getattr(self._ego_observer, "_prev_objs", None) or [])
             _objs = [o for o in _objs if _colour is None or _colour not in o.colours]
@@ -1450,6 +1450,23 @@ class CognitiveLoop:
                     _wpre = getattr(self, "_w4c_pre_frame", None)
                     _wexec = int((getattr(self, "_last_action_info", None)
                                   or {}).get('type', 0) or 0)
+                    # MINT BOOTSTRAP: with an empty Gamma, BROKEN-mechanism can
+                    # never fire (it needs a KNOWN atom to be wrong), so every
+                    # residual routes NOVEL and the mint starves. NOVEL WORKSPACE
+                    # evidence is the mint's first meal, offered under the SAME
+                    # bar; the mint's guards (SUPPORT x NOVELTY x MDL) filter.
+                    # Peek only -- W4c-4 still persists these to the fabric.
+                    for _wit in list(_rt.import_queue):
+                        if (_wit.get("slot") == "WORKSPACE"
+                                and float(_wit.get("residual", 0.0)) >= _bar
+                                and _wpre is not None
+                                and post_array is not None):
+                            _wv = self._mdl_mint.consider(
+                                before=_wpre, action=_wexec, after=post_array,
+                                game=str(getattr(self, "_game_id", "") or "game"),
+                                level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                            print(f"[MINT] verdict={_wv.get('verdict')} "
+                                  f"id={_wv.get('id')} (NOVEL bootstrap)")
                     while _rt.mint_queue:
                         _wit = _rt.mint_queue.pop(0)
                         if (float(_wit.get("residual", 0.0)) >= _bar
