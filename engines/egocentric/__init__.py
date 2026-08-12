@@ -25,3 +25,9 @@ from engines.egocentric.spine import GoalSpine  # noqa: F401
 from engines.egocentric.binder import RoleBinder  # noqa: F401
 from engines.egocentric.router import ResidualRouter  # noqa: F401
 from engines.egocentric.bank import PredictorBank  # noqa: F401
+from engines.egocentric import discrepancy, planner  # noqa: F401
+from engines.egocentric.discrepancy import compute_d, is_identity, objective_falsified  # noqa: F401
+from engines.egocentric.planner import plan_to_identity  # noqa: F401
+from engines.egocentric.verdicts import MuteHandler  # noqa: F401
+from engines.egocentric.mint import MDLMint  # noqa: F401
+from engines.egocentric.affect import AffectGains  # noqa: F401
