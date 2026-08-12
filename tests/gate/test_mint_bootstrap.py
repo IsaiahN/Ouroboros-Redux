@@ -35,3 +35,17 @@ def test_fabric_seeds_env_is_read():
     window = src[max(0, i - 500):i + 800]
     assert "seeds" in window and "KnowledgeFabric" in window, (
         "the env var is read but never reaches the fabric constructor")
+
+
+def test_the_primal_path_click_with_change_reaches_the_mint():
+    """Second bootstrap gap (swarm vitals): NOVEL routing requires a BET, and WORKSPACE
+    cannot bet without atoms -- the starvation moved one link up. The primal path: a click
+    that changed the frame is offered to the mint DIRECTLY (dense R_tau mints EFFECT atoms);
+    NOVELTY dedups, MDL filters, the bar gates."""
+    src = open(os.path.join(REPO, "cognitive_loop.py"), encoding="utf-8",
+               errors="replace").read()
+    i = src.find("primal")
+    assert i != -1, "no primal mint path -- the mint still starves behind the bet requirement"
+    window = src[max(0, i - 1500):i + 1500]
+    assert ".consider(" in window and "frame_changed" in window, (
+        "the primal path must offer click-with-change evidence to consider()")
