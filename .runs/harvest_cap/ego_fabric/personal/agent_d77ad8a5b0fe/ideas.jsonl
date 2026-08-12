@@ -1,3 +1,0 @@
-{"id": "r11l-495a7899:personal:agent_d77ad8a5b0fe:1", "idea": {"kind": "CLICK_AT", "cell": [52, 12]}, "game": "r11l-495a7899", "by": "agent_d77ad8a5b0fe", "scope": "personal", "signal": {"type": "level_up"}, "seq": 1}
-{"id": "r11l-495a7899:personal:agent_d77ad8a5b0fe:2", "idea": {"kind": "CLICK_AT", "cell": [35, 28]}, "game": "r11l-495a7899", "by": "agent_d77ad8a5b0fe", "scope": "personal", "signal": {"type": "level_up"}, "seq": 2}
-{"id": "r11l-495a7899:personal:agent_d77ad8a5b0fe:3", "idea": {"kind": "CLICK_AT", "cell": [52, 12]}, "game": "r11l-495a7899", "by": "agent_d77ad8a5b0fe", "scope": "personal", "signal": {"type": "level_up"}, "seq": 3}

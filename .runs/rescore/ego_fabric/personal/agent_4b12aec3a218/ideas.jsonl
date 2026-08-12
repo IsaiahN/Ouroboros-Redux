@@ -1,2 +1,0 @@
-{"id": "r11l-495a7899:personal:agent_4b12aec3a218:1", "idea": {"kind": "CLICK_AT", "cell": [52, 12]}, "game": "r11l-495a7899", "by": "agent_4b12aec3a218", "scope": "personal", "signal": {"type": "level_up"}, "seq": 1}
-{"id": "r11l-495a7899:personal:agent_4b12aec3a218:2", "idea": {"kind": "CLICK_AT", "cell": [52, 15]}, "game": "r11l-495a7899", "by": "agent_4b12aec3a218", "scope": "personal", "signal": {"type": "level_up"}, "seq": 2}

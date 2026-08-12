@@ -85,3 +85,5 @@ Thumbs.db
 # Documentation (internal only)
 DOCS/
 agents.md
+.runs/*
+!.runs/*.json
