@@ -1044,8 +1044,7 @@ class CognitiveLoop:
             # naturally). Priors feed the spine at an INHERITED price: credibility>=1
             # opens the gate (confirm_bonus exactly); below that, proposal-bias only.
             # DECOUPLED from the spine guard above (init-once flag): replay-fed
-            # episodes arrive with the spine pre-inited by _ego_feed and must
-            # still get fabric init + prior seeding.
+            # episodes arrive spine pre-inited and still need fabric + seeding.
             if not getattr(self, "_ego_fabric_inited", False):
                 try:
                     from engines.egocentric.fabric import KnowledgeFabric
@@ -1058,7 +1057,8 @@ class CognitiveLoop:
                     self._ego_self_clicks = set()  # PHASE 3b2: self-confirmed CLICK_AT cells
                     _gkey = str(getattr(self, "_game_id", "") or "game")
                     _bonus = self._goal_spine.manager.confirm_bonus
-                    for _p in self._ego_fabric.priors(_gkey)[:3]:
+                    _plv = int(getattr(self, "_ego_level", 0) or 0) + 1
+                    for _p in self._ego_fabric.priors(_gkey, level=_plv)[:3]:
                         if _p.get("pariah"):
                             continue
                         _pi = _p.get("idea") or {}
@@ -1076,8 +1076,9 @@ class CognitiveLoop:
                         else:
                             self._goal_spine.seed_confirmed(_pcell, price=_price)
                             self._ego_seeded[_pcell] = _p["id"]
+                    self._ego_seed_level = _plv
                     if self._ego_seeded or self._ego_seeded_clicks:
-                        print(f"[EGO-SEED] n="
+                        print(f"[EGO-SEED] level={_plv} n="
                               f"{len(self._ego_seeded) + len(self._ego_seeded_clicks)}")
                 except Exception:
                     self._ego_fabric = None
@@ -1085,6 +1086,9 @@ class CognitiveLoop:
                     self._ego_seeded_clicks = {}
                     self._ego_self_clicks = set()
                 self._ego_fabric_inited = True  # once per game, success or fail
+            # hoisted above credit: mints carry the reward's level
+            self._ego_level = (int(getattr(self, "_ego_level", 0) or 0)
+                               + (1 if level_changed else 0))
             _cen = info.get('centroid') if isinstance(info, dict) else None
             if _cen is not None:
                 # AMENDMENT 3b3: retain the most recent non-None centroid — the level-up
@@ -1116,8 +1120,10 @@ class CognitiveLoop:
                         _gkey = str(getattr(self, "_game_id", "") or "game")
                         _mi = {"kind": "BE_AT", "cell": [_cell[0], _cell[1]]}
                         _sig = {"type": "level_up"}
-                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
-                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal",
+                                          level=self._ego_level)
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective",
+                                          level=self._ego_level)
                         print(f"[EGO-MINT] {_id_p} {_id_c}")
                         # a level-up at a SEEDED cell corroborates the inherited idea
                         _pid = (getattr(self, "_ego_seeded", None) or {}).get(_cell)
@@ -1138,8 +1144,10 @@ class CognitiveLoop:
                         _gkey = str(getattr(self, "_game_id", "") or "game")
                         _mi = {"kind": "BE_AT", "cell": [_cell[0], _cell[1]]}
                         _sig = {"type": "level_up"}
-                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
-                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal",
+                                          level=self._ego_level)
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective",
+                                          level=self._ego_level)
                         print(f"[EGO-MINT] {_id_p} {_id_c}")
                         # a level-up at a SEEDED cell corroborates the inherited idea
                         _pid = (getattr(self, "_ego_seeded", None) or {}).get(_cell)
@@ -1157,8 +1165,10 @@ class CognitiveLoop:
                         _gkey = str(getattr(self, "_game_id", "") or "game")
                         _mi = {"kind": "LEVEL", "action": int(_lai.get('type') or 0)}
                         _sig = {"type": "level_up"}
-                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
-                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal",
+                                          level=self._ego_level)
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective",
+                                          level=self._ego_level)
                         print(f"[EGO-MINT] {_id_p} {_id_c}")
                 except Exception:
                     pass
@@ -1175,8 +1185,10 @@ class CognitiveLoop:
                         _gkey = str(getattr(self, "_game_id", "") or "game")
                         _mi = {"kind": "CLICK_AT", "cell": [_ccell[0], _ccell[1]]}
                         _sig = {"type": "level_up"}
-                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal")
-                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective")
+                        _id_p = _fab.mint(_mi, game=_gkey, signal=_sig, scope="personal",
+                                          level=self._ego_level)
+                        _id_c = _fab.mint(_mi, game=_gkey, signal=_sig, scope="collective",
+                                          level=self._ego_level)
                         print(f"[EGO-MINT] {_id_p} {_id_c}")
                         # a level-up at a SEEDED click cell corroborates the inherited idea
                         _pid = (getattr(self, "_ego_seeded_clicks", None) or {}).get(_ccell)
@@ -1234,12 +1246,52 @@ class CognitiveLoop:
                 self._ego_frontier_effects = []   # frontier clicks that changed the frame
             if post_array is not None:
                 self._ego_frame_shape = post_array.shape[:2]
-            self._ego_level = int(getattr(self, "_ego_level", 0) or 0)
-            if level_changed:
-                # Bare increment: the levels_completed convention, matching the
-                # obs-based max in cycle() — live and handoff pathways share one
-                # avoid-set key (cross-pathway compounding stays complete).
-                self._ego_level += 1
+            # ═══ LEVEL-SCOPED IDEAS: RE-SEED on level change ═══
+            # The playing level is levels_completed + 1; whenever it drifts from
+            # the seeded level (live increment above, OR the obs-based max in
+            # cycle() on a handoff), demote the previous level's inherited seeds
+            # (their gate closes; pariah status untouched) and reload priors
+            # scoped to the level now being played. Runs AFTER the credit
+            # branches so a level-up at a seeded cell still echoes its prior.
+            try:
+                _fab = getattr(self, "_ego_fabric", None)
+                _plv = self._ego_level + 1
+                if (_fab is not None
+                        and getattr(self, "_ego_seed_level", None) != _plv):
+                    for _dc in list(getattr(self, "_ego_seeded", None) or {}):
+                        self._goal_spine.demote_inherited(_dc)
+                    for _dc in list(getattr(self, "_ego_seeded_clicks", None)
+                                    or {}):
+                        self._goal_spine.demote_inherited_click(_dc)
+                    self._ego_seeded = {}
+                    self._ego_seeded_clicks = {}
+                    _gkey = str(getattr(self, "_game_id", "") or "game")
+                    _bonus = self._goal_spine.manager.confirm_bonus
+                    for _p in _fab.priors(_gkey, level=_plv)[:3]:
+                        if _p.get("pariah"):
+                            continue
+                        _pi = _p.get("idea") or {}
+                        _pk = _pi.get("kind")
+                        if _pk not in ("BE_AT", "CLICK_AT"):
+                            continue
+                        _pc = _pi.get("cell") or []
+                        if len(_pc) != 2:
+                            continue
+                        _pcell = (int(_pc[0]), int(_pc[1]))
+                        _price = (_bonus if _p.get("credibility", 0) >= 1
+                                  else _bonus * 0.6)
+                        if _pk == "CLICK_AT":
+                            self._goal_spine.seed_confirmed_click(
+                                _pcell, price=_price)
+                            self._ego_seeded_clicks[_pcell] = _p["id"]
+                        else:
+                            self._goal_spine.seed_confirmed(_pcell, price=_price)
+                            self._ego_seeded[_pcell] = _p["id"]
+                    self._ego_seed_level = _plv
+                    print(f"[EGO-SEED] level={_plv} n="
+                          f"{len(self._ego_seeded) + len(self._ego_seeded_clicks)}")
+            except Exception:
+                pass
             # The FIRST click made AT the frontier (not the one that opened it):
             # a level-up step's click belongs to the level below, so it is skipped.
             if (not level_changed and self._ego_level >= 1

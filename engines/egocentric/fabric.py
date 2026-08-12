@@ -109,17 +109,22 @@ class KnowledgeFabric:
     # ── the idea economy ──────────────────────────────────────────────────────
 
     def mint(self, idea: Dict[str, Any], game: str, signal: Any,
-             scope: str = "personal") -> str:
+             scope: str = "personal", level: Optional[int] = None) -> str:
         """Mint an idea into ONE scope's "ideas" stream. Raises WITHOUT a signal --
-        the wheel rule extends to memory: nothing is minted on silence."""
+        the wheel rule extends to memory: nothing is minted on silence.
+        `level` (optional): the levels_completed value the reward produced --
+        records missing it are treated as level 1 by `priors` (historically true)."""
         if not signal:
             raise ValueError("mint requires a signal -- no idea is minted on silence")
         seq = self._next_seq(scope, self.IDEAS_TOPIC)
         idea_id = "%s:%s:%s:%d" % (game, scope, self.agent_id, seq)
-        self.append(scope, self.IDEAS_TOPIC, {
+        rec = {
             "id": idea_id, "idea": idea, "game": game,
             "by": self.agent_id, "scope": scope, "signal": signal,
-        })
+        }
+        if level is not None:
+            rec["level"] = int(level)
+        self.append(scope, self.IDEAS_TOPIC, rec)
         return idea_id
 
     def echo(self, idea_id: str, by: str) -> Dict[str, Any]:
@@ -182,16 +187,23 @@ class KnowledgeFabric:
                 total += max(0, counts.get(str(iid), (0, 0))[0])
         return total
 
-    def priors(self, game: str) -> List[Dict[str, Any]]:
+    def priors(self, game: str,
+               level: Optional[int] = None) -> List[Dict[str, Any]]:
         """All visible ideas for `game` across collective + own personal + own kin,
         deduped by id; ranked pariahs LAST, then credibility desc, then nearer evidence
-        (personal < kin < collective), then id asc. Deterministic."""
+        (personal < kin < collective), then id asc. Deterministic.
+        `level` (optional): keep only ideas whose reward was produced at that
+        levels_completed value; records missing the field default to level 1
+        (every historical mint was a level-1 win). level=None: no filter."""
         counts = self._event_counts()
         out: List[Dict[str, Any]] = []
         seen: set = set()
         for scope in ("personal", "kin", "collective"):
             for rec in self.query(scope, self.IDEAS_TOPIC):
                 if rec.get("game") != game:
+                    continue
+                if (level is not None
+                        and int(rec.get("level") or 1) != int(level)):
                     continue
                 iid = rec.get("id")
                 if iid is None or iid in seen:
