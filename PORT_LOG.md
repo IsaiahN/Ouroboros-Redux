@@ -352,3 +352,18 @@ proactive level-reset lifeline. The 50% replay-rate precedent stands as a calibr
 
 Queue: mastery-gating prereg next beat; proactive reset behind it; probe-prune-enumerate behind
 the classifier re-grounding design. Level-scoped ideas, RESONANCE-ERR, su15 remain.
+
+---
+
+## ENTRY 20 - 2026-08-11 - 3d-ii CAPABILITY PASSES ON ALL THREE CONDITIONS: the population sweep is real (lp85 frontier: 362 cells charted, 22/22 later records adding new ground). One structural gap surfaced: fabrics do not yet carry across RUNS.
+
+> ## **L2 count: 0 (900 more eps). Within-run compounding PROVEN: 54 harvests, 929 untried remaps, monotonic coverage on 4 games re-derived from the fabric raw.**
+
+The gap the numbers surface: each run box starts a FRESH fabric, so the 362-cell lp85 chart dies
+with the run. The seed-overlay machinery (built for Kaggle from day one) is the fix and needs no
+new code - carry each run's ego_fabric forward as the next run's read-only seed. Self-generated
+knowledge, not answers; the compounding becomes cross-run. Queued as run-harness practice (a
+driver-script change, not agent code).
+
+Port queue stands: mastery-gated replay next (earned replay probability supersedes the 0.8
+constant), proactive reset behind it.
