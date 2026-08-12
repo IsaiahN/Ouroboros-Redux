@@ -199,3 +199,15 @@ MAKES CHEAP. Binding consequences:
   already gives boundaries their structural handling; v2 gives them content worth extending.
 - The architecture is installed, not learned: generality of FORM at L1 costs nothing at L1
   (transforms-not-routes, belief state always, search-not-recipe, every constant per-regime).
+
+### §12 CORRECTION (the three-way disambiguation, recorded with receipts)
+- TEMPORAL two-place (one object across a contact event) is the gap — NOT spatial two-place:
+  spatial relational atoms ran on Redux, WON 30 MINTS, moved ZERO levels (falsifier fired).
+  Harvest v2's form is temporal by spec; the spatial null is its standing warning.
+- THE CONSTRUCTOR REQUIREMENT: a before/after transform enters as ONE priced atom (a
+  constructor with an argument), never a conjunction — the arity route is measured closed
+  (max_size=2 → arity {1:46}; two-part MDL prices every conjunction out). v2 records are
+  atomic units in priors/composition.
+- REFERENCE IMPLEMENTATION: redux_arch/operator_effect.py (OperatorEffectLearner — site →
+  effect by intervention, ground-priced, INERT marking = dead cells independently derived) —
+  built, unit-tested, never wired. The v2 builder extracts from it rather than inventing.
