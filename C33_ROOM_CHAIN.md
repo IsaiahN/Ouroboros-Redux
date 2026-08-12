@@ -72,3 +72,38 @@ affect-seeded enumeration; per-life fitness → per-action settlement; bank → 
     lands as preregs in the beat queue); mirror-stop on ρ→1.
 (4) AFFECT (the four channels, §4 sources only), retiring on §1's three-arm falsifier.
 Swarm (population scale) proceeds in parallel throughout.
+
+## 8. THE AFFECT SECTION (codified per the interoception exchange, amended by the archive)
+
+**The archive verdict (this beat, from our own DBs):** the frustration organ was never invoked
+in this era — zero rows in every frustration table across 2838 episodes, no caller in the live
+path. NOT inheritance: a SECOND ATTEMPT, with one real precedent alive at population scale:
+`network_regulation_history` (132 rows in the sealed run) adjusting pioneer/generalist
+allocation, mutation rate, exploration budget — the role-as-affect-point organ, one scale up,
+WITH recorded trajectories. The bracket experiment (role prior seeded down as stance
+distribution, promoted back up, R_T measured) therefore has ground truth on the top side.
+
+**The codification, binding:**
+- Emotion is interoception: statistics over the agent's own books, never a sensor, never a
+  price. THE ENDOGENIZATION OF THE HYPERPARAMETERS — channels ≤ knobs, defined by consumer:
+  (seed distribution ← largest×least-explained residual bin), (width k ← measured ρ_deriv vs
+  target n_eff + settlement latency), (depth ← marginal h²·S, mirror-stop on ρ→1),
+  (mint bar ← steps-since-settlement ÷ budget — desperation RAISES the bar). Labels are
+  documentation.
+- **THE REPLAY TEST (pytest on landing):** affect(t) = f(ledger[0:t]) — replay the fabric
+  prefix offline, the affect trace must reproduce exactly. Private state = a second brain.
+  Trivially enforceable here: the fabric IS an append-only ledger.
+- Affect sets the DISTRIBUTION; the RNG draws. Bounded, hysteretic; floors never below the
+  standing guards. Wireheading guard: affect reads the books, the ground writes the books, the
+  agent cannot write the books.
+- **LEGIBILITY ENFORCEMENT:** no channel modulation without the affect state in that step's
+  emitted frame data — raise on violation. (The paper's sharpest result: desperation arrives
+  composed and methodical, markerless. A steering signal that leaves no trace is the failure.)
+- Sources: statistics RE-DERIVED from the fabric/DB directly (the frustration FORMULA —
+  progress-vs-best — is adoptable as a statistic; its plumbing is not). Sensation-mode role
+  presets stay excluded (authored scalars).
+- **Role-scale safety law (the descent constraint): a room may choose its stance; it may not
+  choose whether its bet settles.** Self-determination survives the descent only inside an
+  external settlement event — the second justification for bets-as-admission. Roles become
+  named points in (seed, k, depth, bar) space: Pioneer = wide/deep/low-bar, Optimizer =
+  narrow/shallow/high-bar — one organ, not two.
