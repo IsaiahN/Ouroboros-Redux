@@ -438,3 +438,22 @@ disease the alpha design names), and "positive outcome" needs the regulation-sty
 trace before its trajectories qualify for the bracket. Alpha is INHERITANCE-WITH-AUDIT: the
 build is an upgrade (bandit -> recency-weighted precision ratio), bracketed against
 i_thread_history's real trajectories.
+
+---
+
+## ENTRY 26 - 2026-08-12 - C33 STEP 1 LANDS: every action carries a bet. The iced spine returns, byte-verbatim, consumer-less, on the fabric.
+
+> ## **L2 count: 0 (compound2 still grinding, old budgets; the census run just launched with bets live). Gate 92 -> 101; containment 6/6 - TWELFTH consecutive.**
+
+The 89-line pricing core that survived nine lifecycles on the iced branch is back, sha-verified
+byte-identical, now writing lineage-bearing settlement records to the fabric (the ledger the
+affect replay-test and the rooms' admission rule both need). The three paid-for laws are in
+from commit one: counterfactuals void, family-best floor, executed-action discipline. The
+debasement field (nontrivial) rides every record. NO CONSUMER by prereg - a gate test fails if
+any decision path ever reads a bet score; the wheel rule will decide consumers in the rooms
+step. Capability judge launched: a fresh production box whose settlement ledger IS the band
+census re-run + debasement report.
+
+Also this beat: the §12 correction recorded (temporal-not-spatial, the single-atom constructor
+requirement, operator_effect.py as harvest v2's reference implementation) - the spatial
+two-place null (30 mints, zero levels) is v2's standing warning.
