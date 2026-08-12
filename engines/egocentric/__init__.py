@@ -23,3 +23,5 @@ from engines.egocentric.mastery import MasteryLite  # noqa: F401
 from engines.egocentric.observer import EgoObserver  # noqa: F401
 from engines.egocentric.spine import GoalSpine  # noqa: F401
 from engines.egocentric.binder import RoleBinder  # noqa: F401
+from engines.egocentric.router import ResidualRouter  # noqa: F401
+from engines.egocentric.bank import PredictorBank  # noqa: F401
