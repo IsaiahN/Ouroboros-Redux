@@ -417,3 +417,24 @@ The economy self-regulates correctly: every bank at 100% recent reliability keep
 carries the grown fabric forward with level-scoped seeding live for the first time - its judges:
 [EGO-SEED] level tags at handoffs, frontier falsify-counts dropping, continued strict coverage
 containment, and the standing L2 watch on the deepest charts this system has ever had.
+
+---
+
+## ENTRY 25 - 2026-08-12 - THE BUDGET RESTORATION: replayed levels fund like live levels; the stranded role economy is wired. And the third archive grep found a LIVING organ: alpha.
+
+> ## **L2 count: 0 (compound2 still running on the OLD budgets). From the next run, L2s report on the BUDGET-RESTORED line - the sealed baselines were frontier-starved by design conservatism (3c remainder-only) and role-flat purses.**
+
+Isaiah's two-part directive executed: (a) a replayed level is a completed level for funding -
+handoff budget = allowance x (1+levels_replayed) - replay_cost; (b) ROLE_BASE_ATP wired from
+his committed table (adaptive_action_limits was built and never called - the stranded-organ
+census grows). Gate 92/92; the containment BREAK is expected, documented, and new controls
+will be stored post-land (crash-fix precedent).
+
+**The alpha archive verdict (the mirror of the frustration grep): OUTCOME (1) - ALIVE.**
+`i_thread.learn_from_outcome` recomputes w_A/w_B at runtime from action outcomes (bounded
+0.1-0.9, persisted, 4847 history rows in our baseline). First living organ in three greps.
+Caveats -> C33: it is a fixed-step bandit (no EWMA, no precision - exactly the lifetime-drift
+disease the alpha design names), and "positive outcome" needs the regulation-style input
+trace before its trajectories qualify for the bracket. Alpha is INHERITANCE-WITH-AUDIT: the
+build is an upgrade (bandit -> recency-weighted precision ratio), bracketed against
+i_thread_history's real trajectories.
