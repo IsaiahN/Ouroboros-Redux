@@ -227,3 +227,27 @@ RESOURCE. Publishes bindings (not labels), re-binds at level boundaries. Slots a
 v2, before rooms. The EFFECT constructor stays harvest v2's single-atom temporal form; the
 planner (their L3) is the rooms-era consumer; lives-as-discovery-allowance holds here because
 the fabric survives death, reset, and process exit (verified by accident and by design).
+
+## 14. FIGURE 8 — THE UNION SURPLUS (the import queue gets its consumer)
+
+Completes Figs 1-7: only IMPORT moves the wall (6); Fig 8 says why nothing else can (closure
+idempotence; Goedel/Tarski; Chaitin) and WHERE imports come from: closure(A∪B) exceeds
+closure(A) ∪ closure(B) -- cross-frame composition is the surplus, found by RESIDUAL-FIRST
+TRIANGULATION (characterise R, then search for a frame whose closure already predicts its
+shape; the shadow is cast before the link is drawn).
+
+**THE CONCRETE CHANGE:** the import queue's consumer protocol, buildable NOW because the swarm
+IS 25 low-rho frames: per import item, search SIBLING GAMES' structural atoms (canonical keys
+travel) for one whose application reproduces the residual's shape; hits cross with provenance,
+pass the shadow test (must explain the actual gap), enter local Gamma regime-tagged and
+defeasible. This is the correct rebuild of v4's dead resonance detector.
+
+**GUARDS:** collapse-5 (never browse->apply; strictly residual->search) with the collapse-4
+pre-filter (atom-key overlap between two games' Gammas ~ their rho; high overlap = blended
+frames, no surplus, skip). CHAITIN RULE: an empty search NEVER closes an item -- no
+import-impossible state exists; items re-search as sibling closures grow.
+
+**THE PROSPECTIVE TEST (the figure grades triangulation BELIEVED, retrodicted-only):** our
+consumer is its first prospective test -- prereg: residual-first cross-frame search must
+produce shadow-surviving imports at a rate above frame-first browsing (the control arm).
+Queued as THE TRIANGULATION CONSUMER, after fabric_janitor, ledger-permitting.
