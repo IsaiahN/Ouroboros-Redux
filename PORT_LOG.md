@@ -533,3 +533,39 @@ Isaiah wants one.
 **Next beats:** [PLAN] shadow/DRIVE watch (atoms exist; verification chain should light);
 fabric_janitor build (cleanup prereg af70593); alpha precision; the lp85/ft09 debasement
 follow-up.
+
+## Entry 30 — SWARM BEAT: the venv-launcher trap defused 29 minutes before it fired; the [PLAN] wire goes in
+
+GAMES WON: 0/25. High-water HOLDS: ar25 = L2 (banked, replicating). Levels delta: none —
+the same 7 games hold depth (ar25 L2; cd82/cn04/ft09/lp85/r11l/sp80 L1).
+
+SCOREBOARD (raw from 25 worker DBs): episodes 48-111 per game; generations 11-92.
+
+VITALS:
+- Mint economy: 88,160 verdicts -> 504 accepted atoms, 100% structural (175:1 filter;
+  letters wall clean). Atoms span 22 game/level pairs; census: m0r0 136, tn36 62, lp85 60,
+  s5i5 58, ft09 41 (mostly L1-play mints; the L2+ tail is thin).
+- [PLAN] = 0 in all logs with 504 atoms banked, two+ beats running -> STARVATION CONFIRMED
+  as a condition. Mechanism read: seven conjunctive silent gates (refsnap, level>=1,
+  REFERENCE binding, shape, per-game atoms, non-empty plan). Per C33 §15 silence is not a
+  verdict on WHICH gate -> PREREG_PLAN_WIRE registered, builder added per-gate counters
+  ([PLAN-GATE] line every 200 cycles, narration only, record_result untouched). Gate
+  167/167 green, failing-first shown. Verdict next beat: the first gate that collapses
+  to ~0 is the starvation site; the fix gets its own prereg.
+- Import queue: 165,956 records across 25 fabrics — fabric_janitor urgency rising.
+
+HERD — THE VENV-LAUNCHER TRAP (the beat's find): Windows venv python.exe is a LAUNCHER
+that spawns the real interpreter as a child. Supervisor v2 tracked launcher pids, so
+(a) the memory cap watched a 3MB stub (rss=0 all beat — blind), and (b) p.kill() at the
+2h recycle would have killed only launchers and ORPHANED all 25 real workers into
+double-riding their boxes. First recycle was ~29 minutes away when caught. v3/v3.1
+(37914e3, 0fd2c89): taskkill /T tree kills, tree_rss() sums launcher+child, wmic replaces
+the powershell poll (cold-start >45s under load, timed out), empty polls announced loudly.
+rss now reads real workers (204-288MB). Swarm restarted instrumented: 25/25 verified as
+process pairs, all post-dating the wire build. Fabrics, banks, and the ar25 L2 bank
+persisted through all three restarts, as designed.
+
+C33: §16 committed (670e903) — signature-first recognition corrects §14's candidate-first
+consumer spec; seq-provable conditions; expiring eliminations; the silent-failure caution.
+(§17 provenance-sort draft was REJECTED at commit by Isaiah — held uncommitted pending
+his direction.)
