@@ -699,6 +699,9 @@ class CognitiveGamePlayer:
         # BOTH end kinds land here (GAME_OVER break above AND budget/loop
         # expiry): bank the dead/effect cells and the established action->delta
         # map — observations, never signal (PREREG_FRONTIER_HARVEST.md).
+        # CK-1b (PREREG_CK_WAVE1.md): banked at EPISODE END regardless of
+        # level/death — level-0 episodes bank too. This is the SINGLE
+        # record_harvest site (one write per episode; no double-banking).
         try:
             _book = getattr(loop, '_ego_frontier_book', None)
             _hdead = list(getattr(loop, '_ego_frontier_dead', None) or [])
@@ -708,7 +711,7 @@ class CognitiveGamePlayer:
                        if _died else None)
             _hlevel = max(int(getattr(loop, '_ego_level', 0) or 0),
                           int(current_levels))
-            if (_book is not None and _hlevel >= 1
+            if (_book is not None
                     and (_hdead or _heff or _hfatal is not None)):
                 _spine = getattr(loop, '_goal_spine', None)
                 _hdeltas = dict(_spine.established()) if _spine is not None else {}

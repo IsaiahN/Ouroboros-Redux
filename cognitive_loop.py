@@ -1688,10 +1688,13 @@ class CognitiveLoop:
                     and _ax is not None and _ay is not None):
                 self._ego_first_frontier_click = (int(_ax), int(_ay))
             # ═══ 3d-ii (EGO-FRONTIER): accrue the harvest material ═══
-            # Every frontier click is an OBSERVATION — effectful or dead — banked
-            # at episode end. A level-up step's click belongs to the level below,
-            # so it is skipped (the same convention as the first-frontier click).
-            if (not level_changed and self._ego_level >= 1
+            # Every click is an OBSERVATION — effectful or dead — banked at
+            # episode end. CK-1b (PREREG_CK_WAVE1.md): level 0 accrues too —
+            # the affordance harvest is un-gated from the frontier (18 level-0
+            # games banked nothing across 48-112 episodes each). A level-up
+            # step's click belongs to the level below, so it is skipped (the
+            # same convention as the first-frontier click).
+            if (not level_changed
                     and _ax is not None and _ay is not None):
                 (self._ego_frontier_effects if frame_changed
                  else self._ego_frontier_dead).append((int(_ax), int(_ay)))
