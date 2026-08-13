@@ -502,3 +502,34 @@ harvest, mastery, budget restoration. Many bodies, one economy - the v4 vision a
 Queued behind the swarm's first verdicts: assembly1's full judges (item 3, on completion);
 the SMART CLEANUP prereg (item 4 - now urgent at swarm scale); alpha precision upgrade;
 probe-prune-enumerate.
+
+---
+
+## ENTRY 29 - 2026-08-13 - ⭐⭐⭐ THE FIRST LEVEL 2 IN THE PROJECT'S HISTORY: ar25, banked at 00:36, replicated EIGHT TIMES by three generations. GAMES WON: 0/25 -- but the depth wall is BROKEN.
+
+> ## **GAMES WON: 0/25. Levels: ar25 = 2 (FIRST EVER, x8 reps, banked 58-action L2 sequence seq_4f21a9fc59e3); L1 now held by 7 games (cn04 and sp80 joined). 1,643 episodes overnight across the swarm.**
+
+**The verification (raw, per the discipline):** eight L2-completing episodes in ar25's DB
+(gens 9-11, 00:47 through 11:10); the L2 sequence banked at 00:36 and replayed since -- the
+ratchet operating at a NEW level for the first time: discover once, bank, routine. Mechanism
+read from the worker log: the breakthrough episode reached L2 via the reasoned path on a
+FUNDED post-handoff budget (302-450-action episodes -- the budget restoration paying exactly
+as Isaiah diagnosed); planner still silent ([PLAN] 0 -- verified atoms only now accumulating).
+Attribution line: BUDGET-RESTORED ERA, assembled-machine swarm. Three sealed eras produced 0
+L2 in 5,400 episodes; the swarm produced L2 in ~500.
+
+**THE MINT ECONOMY IS ALIVE (post-primal-path):** 79,694 verdicts considered, 493 atoms
+accepted -- ALL STRUCTURAL (the letters-wall watchdog reads clean: zero lexical). The guards
+filter at 160:1. assembly1 (completed, pre-fix code): 347 eps, its settlement census profiles
+all 25 games -- the debasement watch flags lp85 (0% nontrivial of 5,580 settles) and ft09 (9%)
+as inertia-pricing candidates exactly as the beat-104-era receipts predicted.
+
+**HERD FIXED:** the first launch's 27 orphans had double-ridden boxes all night (52 procs);
+all killed; ONE clean 25-worker herd relaunched on current code. Heartbeat: the cron fired
+this beat; the overnight silence (REPL not pumping) is a session-only-cron fragility --
+mitigation: the supervisor grinds regardless; a cloud schedule is the durable option if
+Isaiah wants one.
+
+**Next beats:** [PLAN] shadow/DRIVE watch (atoms exist; verification chain should light);
+fabric_janitor build (cleanup prereg af70593); alpha precision; the lp85/ft09 debasement
+follow-up.
