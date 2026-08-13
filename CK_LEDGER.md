@@ -65,3 +65,56 @@ counterfactuals.
 ## STAGE 4 DISCIPLINE (adopted): per-primitive usage logging; never-fired priors get
 pruned or confirmed unnecessary. Benchmarks steer: parse failures -> Gestalt; goals not
 found -> self-agency/goal-setting; goals found but inefficient -> planner/world-model.
+
+## LEDGER v2 (Isaiah, 2026-08-13): the 13-category comprehensive set
+Categories: 1 objects/physics (Baillargeon full decalage + individuation + essentialism +
+amodal completion) · 2 agents (+ adversarial/helpful goal inference) · 3 SELF AND ACTION
+(self-agency, body schema, FORWARD MODELS/EFFERENCE COPY [von Holst; Wolpert], self as
+object, temporally extended self, interoception) · 4 number (+ serial order, monotonicity,
+periodicity) · 5 geometry/space/navigation (+ COGNITIVE MAPS [Tolman; O'Keefe & Nadel],
+PATH INTEGRATION [Etienne & Jeffery], boundary-as-distinguished-object, collinearity) ·
+6 perceptual organization (+ constancies, INVARIANCE DETECTION, event segmentation,
+affordances) · 7 LEARNING MECHANISMS (statistical learning, PREDICTION-ERROR [Rescorla-
+Wagner], LAW OF EFFECT [Thorndike], MODEL-FREE VS MODEL-BASED WITH ARBITRATION [Daw],
+causal intervention, intuitive statistics, MUTUAL EXCLUSIVITY [Markman], variable binding
+[Marcus]) · 8 memory/attention/control (WM architecture, capacity + RELATIONAL COMPLEXITY
+LIMITS [Halford ~4], executive functions, chunking, episodic memory for own actions,
+metacognition, UNCERTAINTY MONITORING, representational redescription [Karmiloff-Smith]) ·
+9 CONCRETE-OPERATIONAL [Piaget] (conservation, REVERSIBILITY/INVERSE, seriation,
+transitivity, class inclusion, compensation, identity, decentration) · 10 relational/
+analogical (structure mapping, systematicity, analogical retrieval [Gick & Holyoak],
+multiconstraint, same/different, deep-vs-surface) · 11 PROBLEM SOLVING (problem spaces,
+means-ends, subgoaling, BACKWARD CHAINING, satisficing, simplicity bias, REPRESENTATIONAL
+CHANGE [Ohlsson], DUAL SEARCH [Klahr & Dunbar], ABSENCE AS INFORMATION, arbitrary
+commitment under symmetry, overlapping waves [Siegler], fast-and-frugal) · 12 exploration/
+motivation (collative variables [Berlyne], information gap [Loewenstein], Goldilocks
+[Kidd], DISAMBIGUATING INTERVENTION [Schulz], value of information, intertemporal choice)
+· 13 meta-learning (near-decomposability [Simon], causality-as-frame, continuity,
+modular-hierarchical [Chollet]).
+
+AGE-LINE AMENDMENT: category 9 (concrete operations, ~7yo) and parts of 8/11 exceed the
+four-year-old test AS STATED. The charter's real line is UNIVERSALITY + NON-TASK-
+SPECIFICITY (adult humans all hold these; they are not answers to any game). The
+four-year-old test remains the SUFFICIENT check; for 8/9/11 entries the test is:
+universal in neurotypical adults, content-free, no game specifics. Tag: post-core.
+
+PROCTOR ADDITIONS (gaps found on review, queued for Isaiah's ratification):
+- COUNTERFACTUAL REASONING [Gopnik] — was in the earlier Tier-2 list, fell out of v2;
+  the efference-copy complement ("what would have happened without my action").
+- PROPERTY TRANSFER ON CONTACT — a property passes between objects at contact
+  (marking/contamination schema); ubiquitous in grid worlds; core-adjacent.
+- INHIBITION OF RETURN [Posner] — attention deprioritizes recently examined locations;
+  the frontier book is our built version; naming legitimizes it.
+- TRANSFORMATION GROUP STRUCTURE [Klein] — transforms compose, have inverses, and are
+  closed; the deep form of symmetry + reversibility; typed transforms (CK-1a) are the
+  partial implementation; composition/inverse closure is the completion.
+- NAIVE UTILITY CALCULUS [Jara-Ettinger et al. 2016] — agents act by cost-benefit; the
+  missing citation for v2's "adversarial/helpful goal inference".
+
+MEASURED-WALL MAP (what wires first, by evidence): g4=0 REFERENCE-binding wall <-
+forward models/efference copy (3) + invariance detection (6). g7=0 planning wall <-
+reversibility (9) + backward chaining (11) + group structure, on top of CK-1a. Level-0
+grind <- affordances (banked, CK-1b) + IOR + dual search + collative curiosity.
+Debasement (lp85/ft09) <- prediction-error weighting (7). The wheel rule IS Daw
+arbitration (model-free incumbent, model-based gated by verification) — retroactive
+legitimacy, no change needed.
