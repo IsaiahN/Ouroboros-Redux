@@ -586,3 +586,16 @@ committed; four-year-old test = standing legitimacy gate). Wave CK-1 preregister
   attacks the 18-game harvest=0 blind-re-exploration finding (Gibson affordances).
 Verdict rules registered: g7 moves off zero where g6>0; harvest moves off zero for
 level-0 games within one beat.
+
+## Entry 32 — CK WAVE 1 LANDS: the closure gains variable binding and affordances
+
+Both builds verified independently (188/188 gate, failing-first shown) and committed
+separately: CK-1a ec773c3 (typed parameterized transforms — TRANSLATE/ROTATE/REFLECT/
+SCALE/COLOUR_PERM as open-variable ops; apply_effect fires in never-seen contexts; raw
+path intact as fallback) and CK-1b 78d818a (affordance harvest un-gated — level-0
+episodes bank dead/effect cells at episode end; read gate kept at level>=1 pending its
+own prereg). Swarm restarted on the new closure — all 25 workers uniform, verdict clocks
+clean. REGISTERED VERDICTS: g7 off zero where g6>0 (CK-1a); harvest off zero for
+level-0 games within one beat (CK-1b). Follow-ups queued: level-0 harvest CONSUMPTION
+prereg; g4=0 REFERENCE-binding wall after CK-1a's verdict; CK-2 (Gestalt, physics
+predictor families, same/different sigma).
