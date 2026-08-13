@@ -569,3 +569,20 @@ C33: §16 committed (670e903) — signature-first recognition corrects §14's ca
 consumer spec; seq-provable conditions; expiring eliminations; the silent-failure caution.
 (§17 provenance-sort draft was REJECTED at commit by Isaiah — held uncommitted pending
 his direction.)
+
+## Entry 31 — THE WIRE SPEAKS + THE CK DIRECTIVE: Core Knowledge wiring begins
+
+[PLAN-GATE] first data (lp85, two episodes): (A) g1..g6=194, g7=0 — every gate passes,
+atoms present, slots bound, and the planner returns an EMPTY plan 194/194 times: raw
+pixel-patch atoms cannot compose to unseen states (the variable-binding wall). (B) g4=0 —
+REFERENCE never binds (the slot-binding wall). Both walls real; g7 is the deeper one.
+
+ISAIAH'S DIRECTIVE: wire the Core Knowledge ledger into the closure (CK_LEDGER.md
+committed; four-year-old test = standing legitimacy gate). Wave CK-1 preregistered
+(PREREG_CK_WAVE1) and dispatched to two firewalled builders:
+- CK-1a typed parameterized transforms (TRANSLATE/ROTATE/REFLECT/SCALE/COLOUR_PERM) —
+  attacks g7=0 via Marcus variable binding + core geometry; raw path kept as fallback.
+- CK-1b affordance harvest un-gating — episode-end banking regardless of level/death;
+  attacks the 18-game harvest=0 blind-re-exploration finding (Gibson affordances).
+Verdict rules registered: g7 moves off zero where g6>0; harvest moves off zero for
+level-0 games within one beat.
