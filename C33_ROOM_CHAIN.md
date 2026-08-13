@@ -251,3 +251,19 @@ import-impossible state exists; items re-search as sibling closures grow.
 consumer is its first prospective test -- prereg: residual-first cross-frame search must
 produce shadow-surviving imports at a rate above frame-first browsing (the control arm).
 Queued as THE TRIANGULATION CONSUMER, after fabric_janitor, ledger-permitting.
+
+## 15. THE FRAME-RELATIVE CO-NP NOTE (three additions, order unchanged)
+
+- **The free metaframe:** the agent's own trace (mint_verdicts, fabric-persisted, replay-pure)
+  yields DEFEASIBLE not-in-closure estimates -- rejection patterns aggregated per residual
+  shape ("fifty rejections on one axis is evidence about the axis"). Upgrades the triangulation
+  consumer's input: import items ranked by characterized, evidenced estimates, not raw mass.
+- **PROCTOR LAW -- negative verdicts require IMPORTED WITNESSES:** a frame cannot certify its
+  own limit, so "starving/unreachable/no surplus/impossible" claims need a witness from outside
+  the claiming frame (control arm, cut-wire instrument, sibling frame). Retroactively explains
+  the three-arm control, the wire tests, the vacuous-falsifier catches. Silence is never a
+  verdict.
+- **Grounds the Chaitin rule:** frames are self-sufficient for positive certificates (one
+  composition that pays) and structurally dependent for negative ones -- why import-impossible
+  cannot exist as a state. Caveat kept visible: structural analogy to NP/co-NP, not a
+  complexity-theoretic result.
