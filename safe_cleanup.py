@@ -670,15 +670,38 @@ class SafeDatabaseCleaner:
         return results
 
     def _clean_zero_score_games(self, c, conn, dry_run, verbose):
-        """Delete zero-score game results."""
-        c.execute('SELECT COUNT(*) FROM game_results WHERE final_score = 0')
+        """Delete zero-EVIDENCE game results (evidence-preserving, generation-based).
+
+        A row is EVIDENCE and is kept forever if it recorded a win, a level
+        completion, or a positive score -- score alone is not the value test
+        (a zero-score episode is zero-reward, not zero-information). For true
+        zero-evidence rows we keep the most recent
+        raw_data_generation_retention generations (episode census for
+        stuck-game diagnosis) and delete only older ones. Rows with NULL
+        generation are kept (conservative). No time assumptions.
+        """
+        evidence = ('(final_score > 0 OR win_detected = 1 '
+                    'OR level_completions > 0)')
+        c.execute('SELECT MAX(generation) FROM game_results')
+        row = c.fetchone()
+        max_gen = row[0] if row and row[0] is not None else None
+        retention = int(getattr(self, 'raw_data_generation_retention', 10) or 10)
+        if max_gen is None or max_gen < retention:
+            if verbose:
+                print('   Generation history shorter than retention; keeping all')
+            return {'found': 0, 'deleted': 0}
+        cutoff = max_gen - retention
+        where = (f'NOT {evidence} AND generation IS NOT NULL '
+                 f'AND generation < {int(cutoff)}')
+        c.execute(f'SELECT COUNT(*) FROM game_results WHERE {where}')
         count = c.fetchone()[0]
 
         if verbose:
-            print(f'   Found: {count:,} zero-score games')
+            print(f'   Found: {count:,} old zero-evidence games '
+                  f'(gen < {cutoff}; evidence rows kept forever)')
 
         if not dry_run and count > 0:
-            c.execute('DELETE FROM game_results WHERE final_score = 0')
+            c.execute(f'DELETE FROM game_results WHERE {where}')
             conn.commit()
             if verbose:
                 print(f'   Deleted: {count:,} rows')
