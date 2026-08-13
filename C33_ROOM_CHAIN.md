@@ -267,3 +267,24 @@ Queued as THE TRIANGULATION CONSUMER, after fabric_janitor, ledger-permitting.
   composition that pays) and structurally dependent for negative ones -- why import-impossible
   cannot exist as a state. Caveat kept visible: structural analogy to NP/co-NP, not a
   complexity-theoretic result.
+
+## 16. LEAVING / ARRIVING / SEARCHING — the consumer spec corrected (signature-first)
+
+CORRECTION TO §14: the triangulation consumer is NOT candidate-first verification (apply
+foreign atoms, see what sticks) — it is SIGNATURE-FIRST RECOGNITION:
+- σ(R) computed INSIDE the home frame, candidate-blind (grid invariants: patch arity, bbox
+  geometry, colour-permutation class, displacement class, cell-count conservation,
+  periodicity), PERSISTED to the import queue before any match attempt;
+- atoms store their prediction-signature AT MINT TIME; match = signature equality — a lookup,
+  one pass, no application loop;
+- the three conditions become seq-provable from the fabric's append-only ordering:
+  ① priority (σ's seq precedes the match), ② prior existence (atom's mint seq precedes the
+  match — the shadow test with a timestamp), ③ independence (the key-overlap pre-filter).
+- EXPIRING ELIMINATIONS: axis-tagged; a new atom touching an axis re-opens that axis's items
+  (the Chaitin rule, now with its re-look trigger).
+- THE SILENT FAILURE stands as the sharpest caution: a wrong σ removes the true frame and
+  ACCELERATES the search, signalless — σ itself is fallible; eliminations ranked, reversible,
+  never load-bearing; a filter never issues a verdict.
+- The budget relocates: the expensive work is making σ discriminating; recognition is cheap
+  and can be performed by a frame-holder who has never seen the problem (ignorance keeps ρ
+  low — the recognizer's ignorance is a feature).
