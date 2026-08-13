@@ -120,13 +120,30 @@ def working_sets():
     spawns the REAL interpreter as a child. Popen's pid is the launcher's, so a
     worker's true memory lives on the launcher's child. tree_rss() sums the tree.
     """
+    # wmic: ~12s under swarm load; powershell cold-starts >45s and times out.
+    try:
+        out = subprocess.run(
+            ["wmic", "process", "where", "name='python.exe'",
+             "get", "ProcessId,ParentProcessId,WorkingSetSize", "/format:csv"],
+            capture_output=True, text=True, timeout=50)
+        m = {}
+        for line in out.stdout.splitlines():
+            parts = line.strip().split(",")
+            # CSV columns (alphabetical): Node,ParentProcessId,ProcessId,WorkingSetSize
+            if len(parts) == 4 and parts[1].isdigit() and parts[2].isdigit() \
+                    and parts[3].isdigit():
+                m[int(parts[2])] = (int(parts[1]), int(parts[3]) / 1e6)
+        if m:
+            return m
+    except Exception:
+        pass
     try:
         out = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
              "ForEach-Object { \"$($_.ProcessId) $($_.ParentProcessId) "
              "$($_.WorkingSetSize)\" }"],
-            capture_output=True, text=True, timeout=45)
+            capture_output=True, text=True, timeout=50)
         m = {}
         for line in out.stdout.splitlines():
             parts = line.split()

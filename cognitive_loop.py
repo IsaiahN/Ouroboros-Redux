@@ -904,9 +904,28 @@ class CognitiveLoop:
             # salience-grounded by >= 2 TRANSFERRED settlements (self._atom_verified);
             # anything less is shadow-narrated. A fresh box has no atoms: nothing drives. ═══
             try:
+                # PREREG_PLAN_WIRE: per-gate pass counters (narration only) — the
+                # [PLAN-GATE] line names the first gate whose count collapses to ~0.
+                if not hasattr(self, "_plan_gate"):
+                    self._plan_gate = {"g1": 0, "g2": 0, "g3": 0, "g4": 0, "g5": 0,
+                                       "g6": 0, "g7": 0, "shadow": 0, "drive": 0,
+                                       "cycles": 0}
+                _pg = self._plan_gate
+                _pg["cycles"] += 1
+                if _pg["cycles"] % 200 == 0:
+                    print(f"[PLAN-GATE] cyc={_pg['cycles']} g1={_pg['g1']} "
+                          f"g2={_pg['g2']} g3={_pg['g3']} g4={_pg['g4']} "
+                          f"g5={_pg['g5']} g6={_pg['g6']} g7={_pg['g7']} "
+                          f"shadow={_pg['shadow']} drive={_pg['drive']}")
                 _gm = getattr(self, "_gamma", None)
                 _rbind = getattr(self, "_role_binder", None)
                 _refsnap = getattr(self, "_reference_snapshot", None)
+                if _gm is not None and _rbind is not None:
+                    _pg["g1"] += 1
+                    if _refsnap is not None:
+                        _pg["g2"] += 1
+                        if int(getattr(self, "_ego_level", 0) or 0) >= 1:
+                            _pg["g3"] += 1
                 if (_gm is not None and _rbind is not None and _refsnap is not None
                         and int(getattr(self, "_ego_level", 0) or 0) >= 1):
                     # v1 trigger: a REFERENCE-bound class exists AND its region
@@ -914,13 +933,17 @@ class CognitiveLoop:
                     _ref_bound = any(
                         (_rbind.binding(_kc) or {}).get("slot") == "REFERENCE"
                         for _kc in list(getattr(_rbind, "_evidence", {}) or {}))
+                    if _ref_bound:
+                        _pg["g4"] += 1
                     _pframe = self._perceiver._to_numpy(frame)
                     if (_ref_bound and _pframe is not None
                             and _pframe.shape == _refsnap.shape):
+                        _pg["g5"] += 1
                         _atoms = _gm.fabric.query(
                             "collective", "atoms",
                             where=lambda r: r.get("game") == str(self._game_id))
                         if _atoms:
+                            _pg["g6"] += 1
                             from engines.egocentric.discrepancy import compute_d
                             from engines.egocentric.planner import plan_to_identity
                             _d = compute_d(_pframe, _refsnap)
@@ -932,6 +955,7 @@ class CognitiveLoop:
                                     0, self._max_actions - self._actions_taken)),
                                 cost_per_action=1.0)
                             if _plan is not None and _plan.get("steps"):
+                                _pg["g7"] += 1
                                 _av = getattr(self, "_atom_verified", None) or {}
                                 # verified = every step atom carries >= 2 TRANSFERRED
                                 # settlements (the salience-grounding bar)
@@ -958,9 +982,11 @@ class CognitiveLoop:
                                     action_num = 6
                                     action_data = {'x': int(_site[0]),
                                                    'y': int(_site[1])}
+                                    _pg["drive"] += 1
                                     print(f"[PLAN] DRIVE steps={len(_plan['steps'])} "
                                           f"site={_site} d={_d.get('differing')}")
                                 else:
+                                    _pg["shadow"] += 1
                                     print(f"[PLAN] shadow steps={len(_plan['steps'])} "
                                           f"feasible={_plan.get('feasible')} "
                                           f"verified={_verified} "
