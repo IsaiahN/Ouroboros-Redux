@@ -599,3 +599,20 @@ clean. REGISTERED VERDICTS: g7 off zero where g6>0 (CK-1a); harvest off zero for
 level-0 games within one beat (CK-1b). Follow-ups queued: level-0 harvest CONSUMPTION
 prereg; g4=0 REFERENCE-binding wall after CK-1a's verdict; CK-2 (Gestalt, physics
 predictor families, same/different sigma).
+
+## Entry 33 — THE CLEANER ATE THE CENSUS: evidence-preserving cleanup shipped (725d0f5)
+
+Isaiah caught it from the scoreboard: re86 112->8, tu93 97->12 episode rows. Root cause:
+SafeDatabaseCleaner._clean_zero_score_games ran DELETE FROM game_results WHERE
+final_score=0 at every recycle — score-based, not value-based. Fixed: rows carrying
+EVIDENCE (win_detected, level_completions>0, or score>0) are kept FOREVER; zero-evidence
+rows keep the latest 10 generations (stuck-game census); NULL-generation kept. 3
+regression tests; gate 191 green. Deployed via supervisor restart; 2 recycles since ran
+the new rule (db sizes stable, ar25's L2 rows intact: 21 rows, maxL=2). CASUALTY: the old
+rule's final pass (fired at the 120-min recycle ~1 min before the fixed supervisor took
+over) zeroed re86 and tu93 game_results entirely — their episode census restarts from
+this afternoon; historical counts live only in PORT_LOG entries 29-32. Fabrics, banked
+sequences, and all knowledge stores were never touched (separate files/tables).
+WATCH: re86 + tu93 wrote ZERO new episode rows in ~2h since — the same two games that
+had anomalously few episodes all day. Next beat: read their worker logs (slow-episode or
+stuck-loop diagnosis), now visible precisely because the census survives.
