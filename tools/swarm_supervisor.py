@@ -114,27 +114,60 @@ def spawn(g):
 
 
 def working_sets():
-    """One CIM call for all python working sets: {pid: MB}."""
+    """One CIM call for all python processes: {pid: (ppid, MB)}.
+
+    VENV LAUNCHER TRAP: on Windows the venv python.exe is a small launcher that
+    spawns the REAL interpreter as a child. Popen's pid is the launcher's, so a
+    worker's true memory lives on the launcher's child. tree_rss() sums the tree.
+    """
     try:
         out = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
-             "ForEach-Object { \"$($_.ProcessId) $($_.WorkingSetSize)\" }"],
-            capture_output=True, text=True, timeout=30)
+             "ForEach-Object { \"$($_.ProcessId) $($_.ParentProcessId) "
+             "$($_.WorkingSetSize)\" }"],
+            capture_output=True, text=True, timeout=45)
         m = {}
         for line in out.stdout.splitlines():
             parts = line.split()
-            if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
-                m[int(parts[0])] = int(parts[1]) / 1e6
+            if len(parts) == 3 and all(p.isdigit() for p in parts):
+                m[int(parts[0])] = (int(parts[1]), int(parts[2]) / 1e6)
         return m
     except Exception:
         return {}
 
 
+def tree_rss(root_pid, ws):
+    """Total working set of root_pid + all descendants found in ws."""
+    total = 0.0
+    frontier = [root_pid]
+    seen = set()
+    while frontier:
+        pid = frontier.pop()
+        if pid in seen:
+            continue
+        seen.add(pid)
+        if pid in ws:
+            total += ws[pid][1]
+        frontier.extend(cp for cp, (pp, _r) in ws.items() if pp == pid)
+    return total
+
+
+def kill_tree(pid):
+    """Kill the whole process tree (launcher + real interpreter + children).
+    p.kill() alone terminates only the venv launcher and ORPHANS the real
+    worker -- the double-riding catastrophe. taskkill /T takes the tree."""
+    try:
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                       capture_output=True, timeout=30)
+    except Exception:
+        pass
+
+
 def stop_and_gc(g, reason):
     p, logf, _t0 = procs[g]
+    kill_tree(p.pid)
     try:
-        p.kill()
         p.wait(timeout=15)
     except Exception:
         pass
@@ -152,10 +185,12 @@ while True:
     time.sleep(POLL_SEC)
     ws = working_sets()
     lines = []
+    if not ws:
+        lines.append("!! working_sets EMPTY -- memory cap blind this cycle")
     for g in GAMES:
         p, logf, t0 = procs[g]
         up_min = (time.time() - t0) / 60.0
-        rss = ws.get(p.pid, 0.0)
+        rss = tree_rss(p.pid, ws)
         if p.poll() is not None:
             stats[g]["restarts"] += 1
             logf.write("\n[SUPERVISOR] exited rc=%s; restart #%d\n" % (p.returncode, stats[g]["restarts"]))

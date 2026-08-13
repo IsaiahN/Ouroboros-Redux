@@ -288,3 +288,29 @@ foreign atoms, see what sticks) — it is SIGNATURE-FIRST RECOGNITION:
 - The budget relocates: the expensive work is making σ discriminating; recognition is cheap
   and can be performed by a frame-holder who has never seen the problem (ignorance keeps ρ
   low — the recognizer's ignorance is a feature).
+
+## 17. FIGURE 9 + ONE-SHOT-AS-RECOGNITION — sorted: what transfers, what is theirs
+
+PROVENANCE SORT (the document addresses the source instance's measured reality; ours differs):
+- "MDL picks the route over the transform" / "the right hypothesis wasn't in the space" —
+  THEIR constraint, SOLVED HERE: typed Gamma + composites-as-atoms; n=1 gate green
+  (transform 2.0 < route 10.0). Their "none of it moved" is their status, not ours.
+- "swarms don't reach a higher frame (same closure, no surplus)" — true for clones sharing
+  one closure; OUR workers diverge by EXPERIENCE (different games mint different atoms), so
+  cross-game closures genuinely differ. The Figure 8 surplus is earned by experiential
+  divergence, not architecture. Recorded as the standing rebuttal.
+
+WHAT TRANSFERS:
+(a) ONE-SHOT = ZERO-SHOT RECOGNITION + ONE-SHOT INSTANTIATION. The class collapses the
+    neighbourhood; only the parameter comes from the example. FALSIFIABLE PREDICTION for our
+    line: once a class is held, a level boundary costs a REFIT (BROKEN-rebinding, new
+    parameter) not a RE-MINT (fresh induction). ar25 L1->L2 is in the books — a beat audits
+    which it was. If boundaries stay re-mint-expensive while classes are held, recognition
+    is decorative here.
+(b) THE SIGMA-VS-GAMMA DIAGNOSTIC. Lookup miss splits two ways: class missing (Gamma) vs
+    class held but not retrieved (sigma — a lookup failure masquerading as ignorance).
+    Build: NEAR-MISS LOGGING at the consumer — atoms matching all but one invariant of
+    sigma. Near-misses present -> suspect sigma; clean silence -> suspect Gamma. Without
+    it every miss reads as an unearned negative verdict (the §15 sin).
+(c) BUILD ORDER CONFIRMED: sigma is the load-bearing artifact — the residual must speak
+    before any consumer has an input. Mint signature field -> backfill -> consumer.
