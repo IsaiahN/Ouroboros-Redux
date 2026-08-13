@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-__all__ = ["learn_effect", "apply_effect", "Gamma",
+__all__ = ["learn_effect", "apply_effect", "classify_transform", "Gamma",
            "encoding_cost_route", "encoding_cost_atom"]
 
 
@@ -42,6 +42,82 @@ def _key_of(ctx: List[List[int]], out: List[List[int]], action: int) -> str:
     blob = json.dumps({"ctx": ctx, "out": out, "action": int(action)},
                       sort_keys=True, separators=(",", ":"))
     return "eff-" + hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
+
+
+# ── CK-1a: typed parameterized transforms ─────────────────────────────────────
+
+def _match_translate(b: np.ndarray, a: np.ndarray) -> Optional[Dict[str, Any]]:
+    """after == before shifted by (dx,dy), vacated cells a single fill colour, nothing
+    shifted out of the bbox but fill. Smallest shift wins (deterministic order)."""
+    h, w = b.shape
+    cands = sorted(((dx, dy) for dx in range(-(h - 1), h) for dy in range(-(w - 1), w)
+                    if (dx, dy) != (0, 0)),
+                   key=lambda p: (abs(p[0]) + abs(p[1]), p[0], p[1]))
+    for dx, dy in cands:
+        ar0, ar1 = max(0, dx), h + min(0, dx)
+        ac0, ac1 = max(0, dy), w + min(0, dy)
+        in_a = np.zeros((h, w), dtype=bool); in_a[ar0:ar1, ac0:ac1] = True
+        in_b = np.zeros((h, w), dtype=bool); in_b[ar0 - dx:ar1 - dx, ac0 - dy:ac1 - dy] = True
+        if not (a[in_a] == b[in_b]).all():
+            continue
+        fills = a[~in_a]
+        if fills.size == 0 or not (fills == fills[0]).all():
+            continue
+        fill = int(fills[0])
+        if not (b[~in_b] == fill).all():
+            continue                                      # content vanished -- not a shift
+        return {"ttype": "TRANSLATE", "params": {"dx": int(dx), "dy": int(dy), "fill": fill}}
+    return None
+
+
+def classify_transform(before_patch, after_patch) -> Dict[str, Any]:
+    """Name the mechanism relating two changed-region bbox patches, exactly or not at all:
+    TRANSLATE(dx,dy,fill) / ROTATE(k) / REFLECT(axis) / SCALE(fx,fy,mode) / COLOUR_PERM
+    (mapping) / NONE. Pure, deterministic; first exact match wins. TRANSLATE runs first --
+    the cheapest description (an object moved) must not be eaten by an incidental symmetry
+    (a 1-cell mover's corridor always equals its own reflection); the remaining checks are
+    single-comparison and run cheapest-first."""
+    none = {"ttype": "NONE", "params": {}}
+    b = np.asarray(before_patch)
+    a = np.asarray(after_patch)
+    if b.ndim != 2 or a.ndim != 2 or b.size == 0 or a.size == 0:
+        return none
+    same = b.shape == a.shape
+    if same and (b == a).all():
+        return none                                       # identity is no transform
+    if same:
+        t = _match_translate(b, a)
+        if t:
+            return t
+    for k in (1, 2, 3):                                   # ROTATE: after == rot90(before, k)
+        r = np.rot90(b, k)
+        if r.shape == a.shape and (r == a).all():
+            return {"ttype": "ROTATE", "params": {"k": int(k)}}
+    if same:                                              # REFLECT: h = up-down, v = left-right
+        if (np.flipud(b) == a).all():
+            return {"ttype": "REFLECT", "params": {"axis": "h"}}
+        if (np.fliplr(b) == a).all():
+            return {"ttype": "REFLECT", "params": {"axis": "v"}}
+    (h, w), (H, W) = b.shape, a.shape                     # SCALE: exact integer factors
+    if H % h == 0 and W % w == 0 and (H // h, W // w) != (1, 1):
+        fx, fy = H // h, W // w
+        if (np.kron(b, np.ones((fx, fy), dtype=b.dtype)) == a).all():
+            return {"ttype": "SCALE", "params": {"fx": int(fx), "fy": int(fy), "mode": "up"}}
+    if h % H == 0 and w % W == 0 and (h // H, w // W) != (1, 1):
+        fx, fy = h // H, w // W
+        if (np.kron(a, np.ones((fx, fy), dtype=a.dtype)) == b).all():
+            return {"ttype": "SCALE", "params": {"fx": int(fx), "fy": int(fy), "mode": "down"}}
+    if same:                                              # COLOUR_PERM: same geometry, injective remap
+        mapping: Dict[int, int] = {}
+        for s, d in zip(b.ravel().tolist(), a.ravel().tolist()):
+            if mapping.setdefault(int(s), int(d)) != int(d):
+                return none                               # one colour, two fates: not a map
+        if len(set(mapping.values())) != len(mapping):
+            return none                                   # colours merged: not a perm
+        pairs = sorted([s, d] for s, d in mapping.items() if s != d)
+        if pairs:
+            return {"ttype": "COLOUR_PERM", "params": {"mapping": pairs}}
+    return none
 
 
 def learn_effect(before: np.ndarray, action: int, after: np.ndarray) -> Optional[Dict[str, Any]]:
@@ -59,7 +135,7 @@ def learn_effect(before: np.ndarray, action: int, after: np.ndarray) -> Optional
     c0, c1 = int(cols[0]), int(cols[-1])
     ctx = _to_lists(b[r0:r1 + 1, c0:c1 + 1])
     out = _to_lists(a[r0:r1 + 1, c0:c1 + 1])
-    return {
+    atom = {
         "kind": "EFFECT",
         "arity": 2,
         "key": _key_of(ctx, out, action),
@@ -68,13 +144,97 @@ def learn_effect(before: np.ndarray, action: int, after: np.ndarray) -> Optional
         "transform": {"before": ctx, "after": out},       # before-patch -> after-patch
         "changed": int(diff.sum()),                       # what pricing is based on
     }
+    t = classify_transform(ctx, out)                      # CK-1a: name the mechanism when exact
+    if t["ttype"] != "NONE":
+        atom["ttype"] = t["ttype"]
+        atom["params"] = t["params"]
+    return atom
+
+
+def _apply_translate(ctx: np.ndarray, params: Dict[str, Any],
+                     b: np.ndarray) -> Optional[np.ndarray]:
+    """Bind the moving object (the non-fill content of ctx) wherever it sits in the frame
+    -- corridor debris and never-seen surroundings included -- and shift it by (dx,dy).
+    First row-major match whose destination is clear; None if the op cannot fire."""
+    dx, dy = int(params.get("dx", 0)), int(params.get("dy", 0))
+    fill = int(params.get("fill", 0))
+    m = ctx != fill
+    if not m.any() or (dx, dy) == (0, 0):
+        return None
+    rows, cols = np.flatnonzero(m.any(axis=1)), np.flatnonzero(m.any(axis=0))
+    obj = ctx[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1]
+    om = obj != fill
+    oh, ow = obj.shape
+    bh, bw = b.shape
+    for r in range(bh - oh + 1):
+        for c in range(bw - ow + 1):
+            if not (b[r:r + oh, c:c + ow] == obj).all():
+                continue
+            tr, tc = r + dx, c + dy
+            if tr < 0 or tc < 0 or tr + oh > bh or tc + ow > bw:
+                continue                                  # would shift off the frame
+            res = b.copy()
+            res[r:r + oh, c:c + ow][om] = fill            # vacate the source
+            tgt = res[tr:tr + oh, tc:tc + ow]
+            if not (tgt[om] == fill).all():
+                continue                                  # destination blocked
+            tgt[om] = obj[om]
+            return res
+    return None
+
+
+def _apply_typed(atom: Dict[str, Any], b: np.ndarray) -> Optional[np.ndarray]:
+    """PARAMETERIZED application: run the atom's named op at the pattern's position in the
+    frame, whatever that position is. None -> caller falls back to the raw exact path."""
+    ttype = atom.get("ttype")
+    params = atom.get("params") or {}
+    ctx = np.asarray(atom["context"])
+    if ctx.ndim != 2 or b.ndim != 2:
+        return None
+    if ttype == "TRANSLATE":
+        return _apply_translate(ctx, params, b)
+    if ttype == "ROTATE":
+        rep = np.rot90(ctx, int(params.get("k", 0)) % 4)
+    elif ttype == "REFLECT":
+        rep = np.flipud(ctx) if params.get("axis") == "h" else np.fliplr(ctx)
+    elif ttype == "SCALE":
+        fx, fy = int(params.get("fx", 1)), int(params.get("fy", 1))
+        if fx < 1 or fy < 1:
+            return None
+        rep = (np.kron(ctx, np.ones((fx, fy), dtype=ctx.dtype))
+               if params.get("mode") == "up" else ctx[::fx, ::fy])
+    elif ttype == "COLOUR_PERM":
+        rep = ctx.copy()
+        for s, d in (params.get("mapping") or []):
+            rep[ctx == int(s)] = int(d)
+    else:
+        return None
+    ph, pw = ctx.shape
+    rh, rw = rep.shape
+    bh, bw = b.shape
+    for r in range(bh - ph + 1):                          # scan for the pattern, apply the op
+        for c in range(bw - pw + 1):
+            if (b[r:r + ph, c:c + pw] == ctx).all() and r + rh <= bh and c + rw <= bw:
+                res = b.copy()
+                res[r:r + rh, c:c + rw] = rep
+                return res
+    return None
 
 
 def apply_effect(atom: Dict[str, Any], before: np.ndarray) -> Optional[np.ndarray]:
     """Match the atom's context patch anywhere in `before` (exact content, any position);
-    write the after-patch there. First match in row-major order; None if no match."""
+    write the after-patch there. First match in row-major order; None if no match.
+    CK-1a: an atom carrying a ttype tries its PARAMETERIZED op first (the mechanism fires
+    in contexts never literally seen); the raw exact-context scan is the fallback."""
     if not atom or atom.get("kind") != "EFFECT":
         return None
+    if atom.get("ttype") and atom.get("ttype") != "NONE":
+        try:
+            res = _apply_typed(atom, np.asarray(before))
+        except Exception:
+            res = None                                    # typed path must never break raw
+        if res is not None:
+            return res
     ctx = np.asarray(atom["context"])
     out = np.asarray(atom["transform"]["after"])
     b = np.asarray(before)
