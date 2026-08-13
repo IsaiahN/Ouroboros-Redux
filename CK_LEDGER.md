@@ -118,3 +118,20 @@ grind <- affordances (banked, CK-1b) + IOR + dual search + collative curiosity.
 Debasement (lp85/ft09) <- prediction-error weighting (7). The wheel rule IS Daw
 arbitration (model-free incumbent, model-based gated by verification) — retroactive
 legitimacy, no change needed.
+
+## v2 CATEGORY 14 (Isaiah, continuation): intuitive psychology / adversarial
+Level-1 perspective taking (another agent perceives part of the world) [Flavell 1978;
+Masangkay 1974] · ADVERSARY INPUT MODEL (an agent's policy reads a specific function of
+state, WHICH CAN BE MANIPULATED) [engineering restatement] · implicit false belief (an
+agent can act on a world-state that is not the case) [Onishi & Baillargeon 2005 — 15mo,
+pre-verbal, genuinely core] · Level-2 perspective taking (same thing seen differently
+from where it stands) [Flavell 1978] · deception/strategic misrepresentation (act to make
+another agent's model wrong) [Sodian 1991].
+AGE NOTE: implicit false belief and Level-1 pass the four-year-old test cleanly (15mo-3y);
+Level-2 and explicit deception are borderline (~4-5y) — tag post-core-borderline.
+LEGITIMACY: agentness is a DECLARED ARC-3 prior ("certain objects act with intent");
+this category is its operational completion for pursuit/evasion mechanics. Content-free.
+WIRING SHAPE (flagged, usage-logged): an agent-motion PREDICTOR FAMILY in the bank —
+classify mover as agent (animacy), infer goal by approach vector (rational action),
+predict next step by efficiency, exploit the input function (occlusion breaks pursuit).
+Settlements decide whether a mover is policy-driven or mechanical; no game specifics.
