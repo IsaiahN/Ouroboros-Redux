@@ -69,6 +69,27 @@ def _neg_feed(loop, mut) -> None:
         pass
 
 
+def _seed_imp(loop) -> None:
+    """W1 (CONSUMER DRIVER, seed side): enter this agent's import_candidates
+    for (game, playing level) into Gamma at the gamma init site — episode N's
+    end_game consumed the queue; episode N+1 seeds the candidates here, each
+    atom flagged imported=True (consumer.seed_imports' exact signature; the
+    wheel rule outranks imports — 2x TRANSFERRED still required to drive).
+    One-line call site by the .credit/.route window law; containment: never
+    raises."""
+    try:
+        _g = getattr(loop, "_gamma", None)
+        _f = getattr(loop, "_ego_fabric", None)
+        if _g is not None and _f is not None:
+            from engines.egocentric.consumer import seed_imports
+            _n = seed_imports(_g, _f, str(getattr(loop, "_game_id", "") or "game"),
+                              int(getattr(loop, "_ego_level", 0) or 0) + 1)
+            if _n:
+                print(f"[IMPORT] seeded {_n} candidate atom(s) imported=True")
+    except Exception:
+        _swal(loop, "OTHER")
+
+
 # =============================================================================
 # PERCEPTUAL BLACKBOARD ADAPTER
 # =============================================================================
@@ -465,6 +486,27 @@ class CognitiveLoop:
                 self._starve_settled = True
         except Exception:
             _swal(self, "STARVATION")
+        # ═══ W1 (CONSUMER DRIVER): the SAME boundary drains the import queue ═══
+        # consumer.consume was built (B12) but had NO production call site —
+        # the queue never drained at runtime. Once per episode, budgeted:
+        # sigma-match the queued residuals against every mounted fabric's
+        # atoms; candidates land in import_candidates and the NEXT episode's
+        # gamma init seeds them (seed_imports, imported=True).
+        try:
+            _cofab = getattr(self, "_ego_fabric", None)
+            if _cofab is not None and not getattr(self, "_consume_settled", False):
+                from engines.egocentric import consumer as _con
+                _crep = _con.consume(
+                    _cofab, str(getattr(self, "_game_id", "") or "game"),
+                    int(getattr(self, "_ego_level", 0) or 0) + 1, budget_n=8)
+                self._consume_settled = True
+                if _crep.get("drained") or _crep.get("reopened"):
+                    print(f"[IMPORT] consumed drained={_crep['drained']} "
+                          f"candidates={_crep['candidates']} "
+                          f"not_found={_crep['not_found']} "
+                          f"reopened={_crep['reopened']}")
+        except Exception:
+            _swal(self, "OTHER")
         # ═══ B4 (BUILD_PROGRAM_2 W1): the SAME boundary settles the swallow book ═══
         # <= 1 enum-coded record per guarded block per episode to the PERSONAL
         # "swallow" stream, [SWALLOW]-narrated — a pure function of the counts
@@ -1440,12 +1482,13 @@ class CognitiveLoop:
                     self._affect = AffectGains(_wfab)
                     self._mute = MuteHandler()
                     self._atom_verified = {}  # atom id -> TRANSFERRED count
-                    # R1: per-episode mint/bank socket counters (StarvationBook)
+                    # R1: per-episode mint/bank socket counters
                     self._w4c_counters = {"mint_tried": 0, "mint_passed": 0,
                                           "bank_tried": 0, "bank_passed": 0,
                                           "neg_tried": 0, "neg_passed": 0}
                     self._w4c_calls = 0
                     self._w4c_cls_prev = None
+                    _seed_imp(self)
             except Exception:
                 _swal(self, "FABRIC")
             # W4c-1: FEED THE BINDER — per-step, per-class invariance evidence.

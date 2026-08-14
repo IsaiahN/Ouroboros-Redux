@@ -17,7 +17,7 @@ Principles (MAP SS9.2, grounded via the FMap on Simon's near-decomposability):
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 import numpy as np
 
@@ -72,6 +72,47 @@ def label_components(mask: np.ndarray, connectivity: int = 1) -> Tuple[np.ndarra
         labels, n = _ndimage.label(m, structure=structure)
         return labels, int(n)
     return _label_pure(m, connectivity)
+
+
+def unwrap_frame(frame: Any) -> Optional[np.ndarray]:
+    """Unwrap a raw API frame to the single 2-D board every consumer expects.
+
+    THE TRAP (the live [EGO] blindness + BANK_SETTLE storm root cause): the
+    ARC API delivers each frame as a LIST of animation grids
+    (list[list[list[int]]]), and a naive conversion turns it into a (k, H, W)
+    stack with k VARYING by animation phase — so 2-D consumers (segment, the
+    binder feed, bank commit/settle pre-frames, mint before/after) either
+    throw or silently compare mismatched stacks.
+
+    THE LAW: a (k, H, W) stack reduces to its LAST grid. Last, not first —
+    the animation plays oldest -> newest, so grid [-1] is the SETTLED board,
+    the state the next observation will actually corroborate; earlier grids
+    are mid-animation transients the world has already left behind (acting on
+    the first grid means betting on a board that no longer exists).
+
+      * 2-D array-like  -> as-is (an ndarray passes through untouched);
+      * (1, H, W)       -> the single grid (k=1 unwraps trivially);
+      * (k, H, W)       -> the LAST grid;
+      * [ndarray(H, W)] -> that exact array (the legacy SDK wrap, unchanged);
+      * malformed       -> None, never a raise (sensing must not crash hosts).
+    """
+    if frame is None:
+        return None
+    try:
+        if isinstance(frame, np.ndarray):
+            arr = frame
+        elif (isinstance(frame, (list, tuple)) and len(frame) == 1
+                and isinstance(frame[0], np.ndarray)):
+            arr = frame[0]                       # legacy [ndarray] wrap: identity out
+        else:
+            arr = np.array(frame, dtype=np.uint8)  # raw API lists coerce as before
+        if arr.ndim == 3:
+            arr = arr[-1]                        # the settled (final) animation grid
+        if arr.ndim != 2:
+            return None
+        return arr
+    except Exception:
+        return None
 
 
 class DownsampleError(ValueError):

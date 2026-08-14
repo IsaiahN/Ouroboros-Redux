@@ -15,9 +15,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-import numpy as np
-
-from engines.egocentric.perception import Object, ObjectTracker, segment
+from engines.egocentric.perception import Object, ObjectTracker, segment, unwrap_frame
 from engines.egocentric.self_locus import SelfLocus
 
 
@@ -36,7 +34,13 @@ class EgoObserver:
         """Digest one post-action frame. First call stores state and names nobody (colour=None)."""
         self.calls += 1
         try:
-            g = np.asarray(frame)
+            # unwrap_frame, not bare asarray: the API frame is a (k, H, W)
+            # animation stack (k varies) — the LAST grid is the settled board.
+            # A bare asarray here was the live "[EGO] objects=0 colour=None"
+            # blindness: segment raised on 3-D every step, swallowed below.
+            g = unwrap_frame(frame)
+            if g is None:
+                raise ValueError("frame did not unwrap to a 2-D grid")
             objs = segment(g, background=self.background)
             current = self.tracker.update(objs)
             if self._prev_objs is not None:

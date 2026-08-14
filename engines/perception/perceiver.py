@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from engines.egocentric.perception import unwrap_frame as _unwrap_frame
 from engines.perception.perceptual_field import ActionEffect, CellDiff, PerceptualField
 
 logger = logging.getLogger(__name__)
@@ -722,22 +723,15 @@ class Perceiver:
 
     @staticmethod
     def _to_numpy(frame: Any) -> Optional[np.ndarray]:
-        """Convert frame to numpy array.
+        """Convert frame to a single 2-D numpy grid.
 
-        The SDK often returns frame as [ndarray(64,64)] — a Python list
-        wrapping a single numpy array. Unwrap before converting.
+        The API frame is a LIST of animation grids (k varies by animation
+        phase); the SDK also sometimes wraps a single ndarray as [ndarray].
+        Both unwrap through engines.egocentric.perception.unwrap_frame, which
+        reduces any (k, H, W) stack to its LAST grid — the settled board (the
+        3-D leak here was the live ego blindness + BANK_SETTLE storm).
         """
-        if frame is None:
-            return None
-        if isinstance(frame, np.ndarray):
-            return frame
-        # Unwrap [ndarray] -> ndarray
-        if isinstance(frame, list) and len(frame) == 1 and isinstance(frame[0], np.ndarray):
-            return frame[0]
-        try:
-            return np.array(frame, dtype=np.uint8)
-        except Exception:
-            return None
+        return _unwrap_frame(frame)
 
     @staticmethod
     def _to_list(frame: Any, frame_array: Optional[np.ndarray]) -> Optional[list]:

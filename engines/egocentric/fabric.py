@@ -5,6 +5,12 @@ Pure-stdlib JSONL streams under scoped directories -- no database, no wall-clock
   * scopes: "collective" -> collective/, "personal" -> personal/<agent_id>/,
     "kin" -> kin/<kin_key>/; a stream is <scopedir>/<topic>.jsonl;
   * `append()` adds a monotonic per-stream "seq" read back from disk (reopen continues);
+    the seq high-water mark is CACHED per stream after the first read and advanced in
+    memory -- re-read only when the file's size stops matching this writer's own
+    bookkeeping (a janitor rewrite shrinks it; any out-of-band byte is a reason to
+    re-read) or on explicit reload_seqs(). CROSS-PROCESS INVARIANT: each stream has a
+    single WRITER process by design (own-scope appends only; seed mounts are read-only
+    and never appended to), so the in-memory advance can never hand out a seq twice;
   * `seeds` are READ-ONLY overlay roots (the verified Kaggle pattern: mounted input +
     local working) -- queried first, never written;
   * a corrupt line (a crash mid-write) is skipped silently, never fatal;
@@ -33,6 +39,13 @@ class KnowledgeFabric:
         self.seeds = [str(s) for s in (seeds or [])]
         self.agent_id = str(agent_id)
         self.kin_key = str(kin_key)
+        # seq cache: (scope, topic) -> {"seq": last LOCAL seq, "size": file size
+        # after this writer's last sync, "clean": file ends in a newline}. Valid
+        # only while the file's size still matches "size" -- our own appends keep
+        # it matched; any out-of-band byte (janitor shrink, torn tail, foreign
+        # write) forces a full re-read. Safe across the swarm because each stream
+        # has ONE writer process (own-scope appends only; seeds are read-only).
+        self._seq_cache: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
     # ── scope / stream resolution ─────────────────────────────────────────────
 
@@ -67,20 +80,54 @@ class KnowledgeFabric:
                     out.append(rec)
         return out
 
+    @staticmethod
+    def _ends_in_newline(path: str) -> bool:
+        """True unless the file ends mid-line (a crash-truncated tail): the next
+        append would MERGE with that tail and be lost with it -- the cache must
+        account the same way a from-disk re-read would."""
+        try:
+            with open(path, "rb") as fh:
+                fh.seek(-1, os.SEEK_END)
+                return fh.read(1) == b"\n"
+        except OSError:
+            return True                      # missing or empty: nothing to merge with
+
     def _next_seq(self, scope: str, topic: str) -> int:
-        """1 + max existing seq in the LOCAL stream (seeds are never appended to)."""
+        """1 + max existing seq in the LOCAL stream (seeds are never appended to).
+        Cached per stream after the first full read (a size stat replaces the
+        re-read); the stream is re-read whenever its size stops matching this
+        writer's own bookkeeping, or after reload_seqs()."""
+        key = (scope, str(topic))
+        path = self._stream_path(self.root, scope, topic)
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            size = 0
+        hit = self._seq_cache.get(key)
+        if hit is not None and hit["size"] == size:
+            return hit["seq"] + 1
         top = 0
-        for rec in self._read_stream(self._stream_path(self.root, scope, topic)):
+        for rec in self._read_stream(path):
             try:
                 top = max(top, int(rec.get("seq", 0)))
             except Exception:
                 continue
+        self._seq_cache[key] = {"seq": top, "size": size,
+                                "clean": self._ends_in_newline(path)}
         return top + 1
+
+    def reload_seqs(self) -> None:
+        """Drop the per-stream seq cache: the next append re-reads from disk.
+        The escape hatch for an out-of-band edit the size check cannot see."""
+        self._seq_cache.clear()
 
     # ── the fabric: append / query ────────────────────────────────────────────
 
     def append(self, scope: str, topic: str, record: Dict[str, Any]) -> Dict[str, Any]:
-        """Append one record to the LOCAL stream; adds monotonic "seq"; returns it enriched."""
+        """Append one record to the LOCAL stream; adds monotonic "seq"; returns it
+        enriched. SINGLE-WRITER INVARIANT: one process owns each stream's appends
+        (own-scope appends only; seed mounts are read-only), so advancing the seq
+        cache in memory below is safe across the swarm."""
         rec = dict(record)
         rec["seq"] = self._next_seq(scope, topic)
         path = self._stream_path(self.root, scope, topic)
@@ -89,6 +136,18 @@ class KnowledgeFabric:
             os.makedirs(d)
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        key = (scope, str(topic))
+        hit = self._seq_cache[key]           # _next_seq above ensured the entry
+        if hit["clean"]:
+            hit["seq"] = rec["seq"]          # advance in memory: no re-read next time
+        # else: the record merged into a crash-truncated tail and is lost with it
+        # (exactly what a re-reading _next_seq would conclude); our newline ended
+        # the merged line, so the stream is clean again from here on.
+        hit["clean"] = True
+        try:
+            hit["size"] = os.path.getsize(path)
+        except OSError:
+            del self._seq_cache[key]         # stat failed: force a re-read next time
         return rec
 
     def query(self, scope: str, topic: str,

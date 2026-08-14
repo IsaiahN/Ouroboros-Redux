@@ -89,7 +89,18 @@ class BetBook:
             self.settled += 1
             return {"void": True, "action": action, "executed": executed}
         # Family-best: max member salience -- the paste's score is the floor.
-        scores = [float(pricing.informative_salience(before, m, post)) for m in members]
+        # The API frame is a stack of animation grids ((k, 64, 64) after
+        # _to_numpy) and k VARIES between commit and settle; a post frame the
+        # family cannot even be compared against (broadcast failure) prices
+        # nothing: VOID -- the settle-attribution law, never a raise (this
+        # escaped as the live [SWALLOW] BANK_SETTLE storm, 33x/episode).
+        try:
+            scores = [float(pricing.informative_salience(before, m, post))
+                      for m in members]
+        except ValueError:
+            self.voided += 1
+            self.settled += 1
+            return {"void": True, "action": action, "executed": executed}
         best = max(scores)
         self.records.setdefault(action, []).append(best)
         # DEBASEMENT field: did the executed action change anything at all?
