@@ -195,3 +195,30 @@ cue-shaped hint). Three consequences, binding on the consumer build:
 Karmiloff-Smith's representational redescription is the capacity that makes the others
 accessible: the mint already redescribes procedures into atoms and the trace metaframe
 redescribes the search; item 3 closes the loop by redescribing the FAILURES.
+
+## THE GROUND CRITERION (mechanism design, not epistemology)
+A legitimate ground passes three STRUCTURAL tests — inspectable, no character judgment:
+1. OUTSIDE THE SLICE IT GRADES (a market cannot price its own currency);
+2. NO GAIN FROM MOVING IT (whoever benefits from the reading cannot own the reading);
+3. POSITIONED TO SEE the failure modes invisible from inside (vantage, not just
+   disinterest).
+A captured ground is DETECTABLE by inspection, not revealed by trust. "The ground is
+whoever structurally cannot afford to be dishonest about this slice of R."
+
+AUDIT OF OUR GROUNDS (2026-08-13):
+- THE GAME (frames/levels/GAME_OVER): passes all three. The terminal anchor.
+- PREREGS + GATE SUITE: pass via tamper-evidence — committed BEFORE builds (git history
+  = the timestamped fact), failing-first required, verdicts checked against books the
+  judge does not author.
+- THE PROCTOR SEAT: weakest link, held by structure not virtue — claims re-derivable
+  from artifacts the proctor does not write (worker DBs, fabrics), preregs immovable
+  after commit, Isaiah as the outside ground for the proctor's own slice.
+- TEST-3 CASE LAW (vantage failures, both fixed this week): the memory cap watching
+  launcher pids (a ground that could not SEE its failure mode) and the cleaner grading
+  itself by shrinkage (test-2 failure: it gained from deleting the rows that graded the
+  swarm).
+- FLAG FOR THE CONSUMER PREREG (new catch from applying test 2): echo pays the origin
+  author, and cross-mounted fabrics let an author's own offspring/kin echo its atoms —
+  the reputation reading partly owned by its beneficiary. The consumer build MUST
+  exclude or down-weight self/kin echoes in reputation, or the import economy mints
+  status from self-dealing.
