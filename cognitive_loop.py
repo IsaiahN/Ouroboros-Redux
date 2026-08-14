@@ -96,7 +96,10 @@ def _goal_abd(loop, level_changed, post_array) -> None:
     colour-count-zero, regions-equal; mechanics, never answers) and bank them as
     game+level-scoped GOAL HYPOTHESES on the collective "goal_hypotheses"
     stream; a level-up WITHOUT a known predicate falsifies it (credibility
-    drops). One-line call site placed AFTER the .credit/.route anchors by the
+    drops). A3-2 CONVENTION (PLAYING level): _ego_level has already been
+    incremented on this level-changed step, so the bare value banked here IS
+    the playing level at which the goal was achieved (pre-increment + 1).
+    One-line call site placed AFTER the .credit/.route anchors by the
     window law; containment: never raises."""
     try:
         _fab = getattr(loop, "_ego_fabric", None)
@@ -113,6 +116,53 @@ def _goal_abd(loop, level_changed, post_array) -> None:
             print(f"[GOAL] banked {_b.get('sig')} (level-up delta hypothesis)")
     except Exception:
         _swal(loop, "SPINE")
+
+
+def _hyd_ver(loop) -> Dict[str, int]:
+    """A3-1 (KNOBS.md AMENDMENT 3): "verified" is BOOK-DERIVED. Hydrate the
+    planner's per-atom TRANSFERRED tally from the settlements books at the W4c
+    lazy-init, so cross-episode verification persists (pre-fix the dict was
+    born empty and every atom -- imported atoms especially -- had to re-earn
+    its 2x TRANSFERRED inside a single episode). The in-episode increment path
+    is unchanged: it adds to this hydrated base.
+
+    Scope: THIS game at the FULL version-id grain (A3-3 knowledge grain) at
+    the PLAYING level (_ego_level + 1 -- A3-2 CONVENTION (PLAYING level):
+    settlements carry the level being played). Reads the personal AND
+    collective settlements streams (BetBook writes collective today; personal
+    is the forward-compatible half of the pair), BOUNDED to the last N=500
+    records per scope -- the janitor's settlements retention is 100 raw
+    records, so 500 covers every survivor without an unbounded scan. One-line
+    call site by the .credit/.route window law; containment: empty dict,
+    never raises."""
+    out: Dict[str, int] = {}
+    try:
+        fab = getattr(loop, "_ego_fabric", None)
+        if fab is None:
+            return out
+        g = str(getattr(loop, "_game_id", "") or "game")
+        lv = int(getattr(loop, "_ego_level", 0) or 0) + 1
+        for scope in ("personal", "collective"):
+            try:
+                rows = fab.query(scope, "settlements")
+            except Exception:
+                continue
+            for rec in rows[-500:]:                  # bounded read: last N=500
+                try:
+                    if (rec.get("atom_bin") == "TRANSFERRED"
+                            and rec.get("atom_key") is not None
+                            and str(rec.get("game")) == g
+                            and int(rec.get("level", -1)) == lv):
+                        k = str(rec.get("atom_key"))
+                        out[k] = out.get(k, 0) + 1
+                except Exception:
+                    continue
+        if out:
+            print("[VERIFIED] hydrated %d atom(s) from the books "
+                  "(game=%s level=%d)" % (len(out), g, lv))
+    except Exception:
+        pass
+    return out
 
 
 # =============================================================================
@@ -1551,7 +1601,7 @@ class CognitiveLoop:
                     self._mdl_mint = MDLMint(self._gamma)
                     self._affect = AffectGains(_wfab)
                     self._mute = MuteHandler()
-                    self._atom_verified = {}  # atom id -> TRANSFERRED count
+                    self._atom_verified = _hyd_ver(self)  # A3-1 book-derived
                     # R1: per-episode mint/bank socket counters
                     self._w4c_counters = {"mint_tried": 0, "mint_passed": 0,
                                           "bank_tried": 0, "bank_passed": 0,
@@ -1751,9 +1801,15 @@ class CognitiveLoop:
                 if _rt is not None and _wfab is not None:
                     while _rt.import_queue:
                         _wit = _rt.import_queue.pop(0)
+                        # A3-2 CONVENTION (PLAYING level): import_queue records
+                        # carry game (full-id grain) + the level being played.
                         _wfab.append("collective", "import_queue",
                                      {"slot": _wit.get("slot"),
-                                      "residual": float(_wit.get("residual", 0.0))})
+                                      "residual": float(_wit.get("residual", 0.0)),
+                                      "game": str(getattr(self, "_game_id", "")
+                                                  or "game"),
+                                      "level": int(getattr(self, "_ego_level", 0)
+                                                   or 0) + 1})
             except Exception:
                 _swal(self, "MINT_DRAIN")
             # W4c-6: AFFECT NARRATES — no channel moves without the state emitted.
@@ -1943,6 +1999,9 @@ class CognitiveLoop:
             # B1 (BUILD_PROGRAM_2 W1): _ego_level >= 0 — level-0 records load
             # too (18 level-0 games banked harvests nobody consumed); the
             # conservative >=2-report dead rule lives in load_harvest itself.
+            # A3-2 CONVENTION (COMPLETED level): frontier streams (harvest /
+            # fatal openings / moves) are keyed by bare _ego_level -- the level
+            # already completed, where the banked experience was earned.
             if self._ego_frontier_book is not None and self._ego_level >= 0:
                 if not hasattr(self, "_ego_harvest_cache"):
                     self._ego_harvest_cache = {}
@@ -1967,7 +2026,12 @@ class CognitiveLoop:
                 _bb = getattr(self, "_bet_book", None)
                 if (_bb is not None and getattr(_bb, "pending", None) is not None
                         and post_array is not None):
-                    _bb.level = int(getattr(self, "_ego_level", 0) or 0)
+                    # A3-2 CONVENTION (PLAYING level): settlements carry the
+                    # level being played (_ego_level + 1) -- registered with
+                    # atoms/mint_verdicts/import*/goal_hypotheses; the frontier
+                    # streams alone carry the COMPLETED level. A3-1's hydrator
+                    # (_hyd_ver) reads this back at the same grain.
+                    _bb.level = int(getattr(self, "_ego_level", 0) or 0) + 1
                     _bexec = int((getattr(self, "_last_action_info", None)
                                   or {}).get('type', 0) or 0)
                     _bbefore = _bb.pending.get("before")
