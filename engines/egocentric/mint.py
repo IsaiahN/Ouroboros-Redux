@@ -38,6 +38,22 @@ MDLMint.consider(before, action, after, game, level) runs three guards in order:
 Every call, whatever the verdict, appends a record to the fabric's collective
 "mint_verdicts" topic. Nothing silent. Deterministic throughout; malformed inputs bump
 an errors counter and quarantine instead of raising.
+
+A3-4 (KNOBS AMENDMENT 3) -- every verdict record additionally carries:
+
+  "ep"    the episode ordinal: an instance-local counter that advances whenever the
+          (game, level) context of consider() changes, or when the caller invokes
+          bump_episode(). A caller that already owns an episode counter may pass
+          consider(..., ep=N) to stamp its own ordinal (the internal counter is
+          untouched); ep=None (the default) uses the internal one -- so NO caller
+          change is required for the stamp to exist.
+  "sigma" the EVENT's sigma in the consumer's shared vocabulary (sigma_of over the
+          full before/after frames). Minted atoms already carried it (B13); now
+          rederivation/reject/quarantine verdicts carry it too -- the bracket's
+          rederivation-time sigma, no longer MISSING. On quarantine the sigma
+          degrades (sigma_of never raises) rather than vanishing.
+
+Both fields are ADDITIVE: old books without them still read everywhere.
 """
 from __future__ import annotations
 
@@ -85,16 +101,49 @@ class MDLMint:
         # (game, level, action, signature) -> times seen; LRU-bounded at seen_cap.
         self._seen: OrderedDict[Tuple[str, int, int, str], int] = OrderedDict()
         self._seen_cap = max(1, int(seen_cap))
+        # A3-4: the episode ordinal -- advances on (game, level) context change
+        # or an explicit bump_episode(); stamped on every verdict record.
+        self._ep = 0
+        self._ep_ctx: Optional[Tuple[str, str]] = None
 
     # -- internals -----------------------------------------------------------------
 
+    def bump_episode(self) -> int:
+        """A3-4: advance the episode ordinal explicitly (e.g. on a level retry the
+        (game, level) context cannot see). Returns the new ordinal."""
+        self._ep += 1
+        return self._ep
+
+    def _episode_of(self, game, level, ep: Optional[int]) -> int:
+        """The ordinal to stamp: the caller's ep when given, else the internal
+        counter -- advanced first if the (game, level) context changed."""
+        try:
+            ctx = (str(game), str(level))
+        except Exception:
+            ctx = self._ep_ctx
+        if self._ep_ctx is not None and ctx != self._ep_ctx:
+            self._ep += 1
+        self._ep_ctx = ctx
+        if ep is None:
+            return self._ep
+        try:
+            return int(ep)
+        except Exception:
+            return self._ep
+
     def _record(self, verdict: str, game: str, level: int,
-                key: Optional[str] = None, w: Optional[float] = None) -> None:
+                key: Optional[str] = None, w: Optional[float] = None,
+                ep: Optional[int] = None,
+                sigma: Optional[Dict[str, Any]] = None) -> None:
         rec: Dict[str, Any] = {"verdict": verdict, "game": str(game), "level": int(level)}
         if key is not None:
             rec["key"] = key
         if w is not None:
             rec["w"] = float(w)
+        if ep is not None:
+            rec["ep"] = int(ep)                  # A3-4: the episode ordinal
+        if isinstance(sigma, dict):
+            rec["sigma"] = dict(sigma)           # A3-4: the event's sigma (own copy)
         self.gamma.fabric.append("collective", VERDICT_TOPIC, rec)
 
     @staticmethod
@@ -139,29 +188,38 @@ class MDLMint:
 
     # -- the operator ----------------------------------------------------------------
 
-    def consider(self, before, action, after, game, level) -> Dict[str, Any]:
+    def consider(self, before, action, after, game, level,
+                 ep: Optional[int] = None) -> Dict[str, Any]:
+        # A3-4: the episode ordinal for THIS call (context-derived unless given),
+        # plus the event's sigma -- both stamped on whatever verdict follows.
+        ep_now = self._episode_of(game, level, ep)
         # SUPPORT: evidence exists, checked before any search. Malformed -> quarantine.
         try:
             b = np.asarray(before)
             a = np.asarray(after)
             if b.shape != a.shape or b.ndim != 2 or b.size == 0:
                 self.errors += 1
-                self._record("quarantine", game, level)
+                self._record("quarantine", game, level, ep=ep_now,
+                             sigma=_consumer.sigma_of(before, after))
                 return {"verdict": "quarantine", "id": None}
             changed = int((b != a).sum())
         except Exception:
             self.errors += 1
-            self._record("quarantine", game, level)
+            self._record("quarantine", game, level, ep=ep_now,
+                         sigma=_consumer.sigma_of(None, None))
             return {"verdict": "quarantine", "id": None}
+        # The event's sigma (B13 vocabulary), computed ONCE: it already had to be
+        # computed for any minted atom; now every verdict record carries it.
+        sigma = _consumer.sigma_of(b, a)
         if changed == 0:
-            self._record("reject", game, level)
+            self._record("reject", game, level, ep=ep_now, sigma=sigma)
             return {"verdict": "reject", "id": None}
 
         # Candidate atom from the event.
         phi = _effects.learn_effect(b, action, a)
         if phi is None or phi.get("kind") != "EFFECT":
             self.errors += 1
-            self._record("reject", game, level)
+            self._record("reject", game, level, ep=ep_now, sigma=sigma)
             return {"verdict": "reject", "id": None}
 
         key = phi.get("key")
@@ -176,7 +234,7 @@ class MDLMint:
         # NOVELTY: a known key is a re-derivation, never a second atom. (Unchanged --
         # a transition already reproduced by an existing atom contributes rederivation.)
         if key in self._known_keys():
-            self._record("rederivation", game, level, key=key)
+            self._record("rederivation", game, level, key=key, ep=ep_now, sigma=sigma)
             return {"verdict": "rederivation", "id": None}
 
         # SUPPORT, surprise-weighted: only full support (a first-seen transition
@@ -184,7 +242,7 @@ class MDLMint:
         # 1/(1+seen) -- the harmonic accumulation asymptotes below what the same
         # count of distinct transitions clears. The bar itself is unchanged.
         if w < SUPPORT_FULL:
-            self._record("reject", game, level, key=key, w=w)
+            self._record("reject", game, level, key=key, w=w, ep=ep_now, sigma=sigma)
             return {"verdict": "reject", "id": None, "w": w}
 
         # MDL: accept iff |phi| + |R given phi| < |R|, with margin and a pocket test.
@@ -200,19 +258,19 @@ class MDLMint:
             and bbox_area < MAX_BBOX_BOARD_FRACTION * board_area
         )
         if not compresses:
-            self._record("reject", game, level, key=key)
+            self._record("reject", game, level, key=key, ep=ep_now, sigma=sigma)
             return {"verdict": "reject", "id": None}
 
         # B13: SIGMA AT MINT TIME -- the atom's prediction-signature (the consumer's
-        # shared vocabulary, computed from the full before/after frames) travels with
-        # the record; recognition later is a lookup, not an application loop.
-        phi["sigma"] = _consumer.sigma_of(b, a)
+        # shared vocabulary, computed once above from the full before/after frames)
+        # travels with the record; recognition later is a lookup, not an application loop.
+        phi["sigma"] = sigma
 
         # Mint: pay the cost, cash the pocket. Full-surprise support is ledgered as w.
         aid = self.gamma.add(phi, game, level)
         typ = "structural" if phi.get("transform") is not None else "lexical"
         self._split[typ] = self._split.get(typ, 0) + 1
-        self._record("mint", game, level, key=key, w=w)
+        self._record("mint", game, level, key=key, w=w, ep=ep_now, sigma=sigma)
         return {"verdict": "mint", "id": aid, "w": w}
 
     # -- the letters-wall watchdog ------------------------------------------------------

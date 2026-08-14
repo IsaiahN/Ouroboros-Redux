@@ -25,10 +25,12 @@ the prior sharpens; the membrane holds throughout.
 LIVE MODE: read-only over swarm boxes (.runs/swarm/<game>/ego_fabric). The swarm
 cross-mounts every box's fabric, so a generator promoted in one box surfaces in a
 sibling as a NOVELTY-blocked "rederivation" verdict naming the same canonical key —
-key identity is patch-level identity, so that leg's R_T is exactly 0. Everything
-the books do NOT carry (episode counters on verdicts, seed-mount manifests,
-the rederiving event's own sigma) is reported MISSING, loudly — an absent
-instrument is a routed fix; a fabricated join is a captured ground.
+key identity is patch-level identity, so that leg's R_T is exactly 0. A3-4-stamped
+verdicts (an "ep" episode ordinal + the rederiving event's own "sigma") are READ
+when present: the rederivation-time sigma leg is then measured against the origin
+atom's sigma. Everything the books do NOT carry (unstamped verdicts, seed-mount
+manifests) is reported MISSING, loudly — an absent instrument is a routed fix; a
+fabricated join is a captured ground.
 
   python tools/bracket_rt.py synthetic
   python tools/bracket_rt.py live [.runs/swarm | .runs/swarm/ar25]
@@ -376,23 +378,37 @@ def _boxes_under(root: str) -> List[str]:
 
 
 def _box_books(fabric_root: str) -> Dict[str, Any]:
-    """One box's atoms + mint verdicts, LOCAL streams only (collective dir)."""
+    """One box's atoms + mint verdicts, LOCAL streams only (collective dir).
+    A3-4: rederivation entries carry the verdict's ep + sigma stamps when the
+    books have them (None when absent -- old books read unchanged)."""
     coll = os.path.join(fabric_root, "collective")
     atoms = _read_stream(os.path.join(coll, "atoms.jsonl"))
     verdicts = _read_stream(os.path.join(coll, "mint_verdicts.jsonl"))
     minted = {}                                            # key -> first mint seq
-    reder = []                                             # (key, seq)
+    reder = []                                             # {key, seq, ep, sigma}
+    stamped = 0                                            # verdicts carrying ep+sigma
     for v in verdicts:
+        if isinstance(v.get("ep"), int) and isinstance(v.get("sigma"), dict):
+            stamped += 1
         key = v.get("key")
         if not key:
             continue
         if v.get("verdict") == "mint":
             minted.setdefault(key, v.get("seq"))
         elif v.get("verdict") == "rederivation":
-            reder.append((key, v.get("seq")))
+            sig = v.get("sigma")
+            reder.append({"key": key, "seq": v.get("seq"),
+                          "ep": v.get("ep") if isinstance(v.get("ep"), int) else None,
+                          "sigma": sig if isinstance(sig, dict) else None})
     atom_keys = {(r.get("atom") or {}).get("key") for r in atoms} - {None}
+    key_sigma = {}                                         # key -> the atom's sigma
+    for r in atoms:
+        atom = r.get("atom") or {}
+        if atom.get("key") and isinstance(atom.get("sigma"), dict):
+            key_sigma.setdefault(atom["key"], atom["sigma"])
     return {"atoms": atoms, "verdicts": verdicts, "minted": minted,
-            "rederivations": reder, "local_keys": atom_keys | set(minted)}
+            "rederivations": reder, "local_keys": atom_keys | set(minted),
+            "key_sigma": key_sigma, "stamped": stamped}
 
 
 def live_report(path: str, out=print) -> int:
@@ -415,16 +431,20 @@ def live_report(path: str, out=print) -> int:
 
     books = {box: _box_books(_fabric_of(box)) for box in universe}
     key_origins: Dict[str, List[str]] = {}
+    origin_sigma: Dict[str, Dict[str, Any]] = {}           # key -> minted atom's sigma
     for box, bb in books.items():
         for key in bb["local_keys"]:
             key_origins.setdefault(key, []).append(box)
+        for key, sig in bb["key_sigma"].items():
+            origin_sigma.setdefault(key, sig)
 
     measurable = 0
     for box in focus:
         bb = books[box]
         name = os.path.basename(box)
         viols = membrane_violations([_fabric_of(box)])
-        within = sum(1 for k, _s in bb["rederivations"] if k in bb["local_keys"])
+        within = sum(1 for r in bb["rederivations"]
+                     if r["key"] in bb["local_keys"])
         out("[BRACKET] live box=%s atoms=%d minted=%d rederivation_verdicts=%d "
             "(within_box=%d cross_box_candidates=%d) membrane=%s"
             % (name, len(bb["atoms"]), len(bb["minted"]),
@@ -433,23 +453,41 @@ def live_report(path: str, out=print) -> int:
                "HELD" if not viols else "VIOLATED"))
         for v in viols:
             out("[BRACKET] live box=%s MEMBRANE VIOLATION: %s" % (name, v))
-        cross: Dict[str, List[Any]] = {}
-        for key, seq in bb["rederivations"]:
-            if key not in bb["local_keys"]:
-                cross.setdefault(key, []).append(seq)
+        cross: Dict[str, List[Dict[str, Any]]] = {}
+        for r in bb["rederivations"]:
+            if r["key"] not in bb["local_keys"]:
+                cross.setdefault(r["key"], []).append(r)
         for key in sorted(cross):
-            seqs = cross[key]
+            hits = cross[key]
+            seqs = [r["seq"] for r in hits]
             origins = [os.path.basename(b) for b in key_origins.get(key, [])
                        if b != box]
             if origins:
                 measurable += 1
+                # A3-4: sigma-stamped verdicts make the rederivation-time sigma
+                # leg MEASURABLE against the origin atom's sigma; ep gives WHEN.
+                extra = ""
+                stamped_hits = [r for r in hits if r["sigma"] is not None]
+                osig = origin_sigma.get(key)
+                if stamped_hits and isinstance(osig, dict):
+                    dists = [sigma_distance(osig, r["sigma"])
+                             for r in stamped_hits]
+                    eps = sorted({r["ep"] for r in stamped_hits
+                                  if r["ep"] is not None})
+                    extra = (" verdict_sigma_dist=%.3f (over %d stamped) ep=%s"
+                             % (min(dists), len(stamped_hits),
+                                ",".join(str(e) for e in eps) or "?"))
+                elif stamped_hits:
+                    extra = (" verdict sigma stamped x%d but the origin atom "
+                             "carries no sigma -- that leg stays MISSING"
+                             % len(stamped_hits))
                 out("[BRACKET] live box=%s cross-box rederivation key=%s "
                     "origin=%s first_verdict_seq=%s rederivations=%d "
                     "R_T=0.000 (key identity is patch-level identity: "
-                    "sigma_dist=0, cost_delta=0)"
+                    "sigma_dist=0, cost_delta=0)%s"
                     % (name, key, "|".join(origins),
                        min((s for s in seqs if s is not None), default=None),
-                       len(seqs)))
+                       len(seqs), extra))
                 if len(origins) > 1:
                     out("[BRACKET] live box=%s MISSING: no seed-mount manifest "
                         "on disk -- origin of %s ambiguous across %d boxes"
@@ -458,10 +496,19 @@ def live_report(path: str, out=print) -> int:
                 out("[BRACKET] live box=%s MISSING: rederivation of %s names "
                     "no visible origin atom (compacted or out-of-universe) -- "
                     "the promote leg is unmeasurable here" % (name, key))
-    out("[BRACKET] live MISSING: mint_verdicts carry no episode/evidence "
-        "counter and no rederivation-time sigma -- evidence_to_rederivation "
-        "and the full R_T bracket are UNMEASURABLE on these books; routed "
-        "fix: verdicts must carry an episode id and the event's sigma")
+    # A3-4 stamps ledger: honest about what the books carry, either way.
+    total_v = sum(len(books[b]["verdicts"]) for b in focus)
+    stamped_v = sum(books[b]["stamped"] for b in focus)
+    if stamped_v < total_v or total_v == 0:
+        out("[BRACKET] live MISSING: %d/%d mint_verdicts carry no episode "
+            "ordinal (ep) / event sigma -- evidence_to_rederivation and the "
+            "full R_T bracket are UNMEASURABLE on the unstamped remainder; "
+            "routed fix (A3-4, landed): new verdicts carry ep + sigma"
+            % (total_v - stamped_v, total_v))
+    else:
+        out("[BRACKET] live stamps: ep+sigma present on all %d mint_verdicts "
+            "-- episode ordinals and rederivation-time sigma are measurable "
+            "on these books (A3-4)" % total_v)
     if measurable:
         out("[BRACKET] live verdict: %d cross-box rederivation(s) measured "
             "(R_T=0.000 on the key-identity leg); remaining legs MISSING as "
