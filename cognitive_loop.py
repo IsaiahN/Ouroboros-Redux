@@ -1389,6 +1389,12 @@ class CognitiveLoop:
                     _w_x, _w_y = _w_lai.get('x'), _w_lai.get('y')
                     _w_click = (_w_act == 6 and _w_x is not None
                                 and _w_y is not None)
+                    # CK-2a: the efference copy — cells MY action should change
+                    _pmask = (_rb.predicted_change_mask(
+                        getattr(self, "_w4c_pre_frame", None), _w_act,
+                        (int(_w_y), int(_w_x)),
+                        bank=getattr(self, "_predictor_bank", None))
+                        if _w_click else set())
                     _now = {}
                     for _wo in (getattr(self._ego_observer, "_prev_objs", None)
                                 or []):
@@ -1406,17 +1412,12 @@ class CognitiveLoop:
                             _moved = (int(round(_cn[0])) != int(round(_cp[0]))
                                       or int(round(_cn[1])) != int(round(_cp[1])))
                             _mut = _wcells != _pcells
-                            _near = bool(_w_click and any(
-                                abs(_pr - int(_w_y)) <= 1
-                                and abs(_pc2 - int(_w_x)) <= 1
-                                for (_pr, _pc2) in _pcells))
-                            self._role_binder.observe(
-                                object_class=_wc, action=_w_act,
-                                moved_with_action=_moved,
-                                mutated_on_contact=bool(_near and _mut),
-                                changed_without_agent=bool(
-                                    _w_click and not _near and _mut),
-                                scalar_delta=0)
+                            # CK-2a: subtract the efference copy — self-caused
+                            # iff the change intersects the predicted mask
+                            self._role_binder.observe_attributed(
+                                _wc, _w_act, _moved,
+                                bool(_w_click and _mut),
+                                _pcells ^ _wcells, _pmask, 0)
                     self._w4c_cls_prev = _now
             except Exception:
                 pass
