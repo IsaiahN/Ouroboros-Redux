@@ -35,6 +35,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from engines.egocentric import lp_drive as _lp_drive
+
 
 class AffectGains:
     """Two affect channels derived purely from the collective books."""
@@ -152,3 +154,26 @@ class AffectGains:
         return {"base": g["seed_bias"], "boost": boost,
                 "applied": min(1.0, g["seed_bias"] * boost),
                 "codes": st["codes"], "swallowed": tuple(sorted(blocks))}
+
+    # ── G-D (PREREG_FINAL_GAPS): the LP-drive hook — steering only ────────────
+
+    def lp_steer(self, candidates, game):
+        """The LP drive's affect-style face (house write-contract): a signal
+        DERIVED from the ledger (a pure read of collective import_queue +
+        mint_verdicts — lp_drive never appends), BOUNDED (lp_drive.CEIL),
+        NARRATED ([LP], emitted on the lp arm only), that STEERS exploration
+        only — it reorders the explore candidates the loop already had and
+        touches nothing else: no mint_bar, no support, no pricing, no
+        verification; gains() keys stay exactly {seed_bias, mint_bar}. On the
+        "fixed"/"random" arms (LP_DRIVE_ARM) the candidates come back
+        unchanged — the same object, byte-identical current behavior. Pure
+        function of the fabric prefix + the arm (the replay requirement);
+        failures are swallowed into self.errors, never raised."""
+        try:
+            drive = _lp_drive.LPDrive(self.fabric)
+            out = drive.steer(candidates, game)
+            self.errors += drive.errors
+            return out
+        except Exception:
+            self.errors += 1
+            return candidates

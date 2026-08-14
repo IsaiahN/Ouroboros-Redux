@@ -3425,6 +3425,12 @@ class CognitiveLoop:
         if self._causal_map and 6 in self._available_actions:
             productive = self._causal_map.get_productive_targets()
             if productive and self._goal_cells_total > 0:
+                # G-D (PREREG_FINAL_GAPS): the lp arm may REORDER the explore
+                # candidates toward large+compressible NOVEL residual sites —
+                # steering only; fixed/random arms return them unchanged.
+                if getattr(self, "_affect", None) is not None:
+                    productive = self._affect.lp_steer(
+                        productive, str(getattr(self, "_game_id", "") or "game"))
                 # Rotate among the top productive positions. B5: starvation
                 # widens the rotation window (bounded, STARVE_CEIL caps at x2).
                 top_n = min(max(1, int(round(

@@ -26,6 +26,9 @@ import sys
 import time
 
 REDUX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REDUX)
+from engines.egocentric.lp_drive import assign_arm  # G-D: three-arm LP-drive control
+
 PY = sys.executable
 ROOT = os.path.join(REDUX, ".runs", "swarm")
 GAMES = ["ar25", "bp35", "cd82", "cn04", "dc22", "ft09", "g50t", "ka59", "lf52", "lp85",
@@ -105,7 +108,13 @@ def spawn(g):
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["OURO_FABRIC_SEEDS"] = ";".join(d for d in seed_dirs
                                         if d != os.path.join(box, "ego_fabric"))
+    # G-D (PREREG_FINAL_GAPS): the three-arm LP-drive control runs LIVE — each
+    # worker carries ONE arm for its whole life, assigned deterministically by
+    # game name (sha1 mod 3: stable across restarts, recycles and supervisor
+    # reboots), so fixed/random/lp populations are comparable at equal compute.
+    env["LP_DRIVE_ARM"] = assign_arm(g)
     logf = open(os.path.join(box, "worker.log"), "a", encoding="utf-8", errors="replace")
+    logf.write("[SUPERVISOR] LP_DRIVE_ARM=%s\n" % env["LP_DRIVE_ARM"])
     p = subprocess.Popen([PY, os.path.join(REDUX, "evolution_runner.py"), "--verbose",
                           "--game", g, "--population", "6", "--agents-per-gen", "4",
                           "--games-per-gen", "1", "--max-generations", "50"],
