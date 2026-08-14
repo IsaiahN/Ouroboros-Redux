@@ -675,3 +675,16 @@ sequencing race), once on the venv-launcher pair (known trap); forced with justi
 SWARM RESTARTED on the complete closure. Registered verdicts (2 beats): g7 > 0 somewhere;
 import_candidates > 0 with >=1 TRANSFERRED imported atom; [SWALLOW] baseline; movement
 bias visible in the six click-less games.
+
+## Entry 37 — THE HARDENED RESTART: 500/500, every live-audit finding closed
+
+Post-buildout hardening committed (6924448): consumer driver wired (consume at end_game,
+seed at init — the queue drains at last), VOID settles, THE BLIND OBSERVER CURED (3D
+animation stacks unwrap to the settled grid at one choke point — the ego pipeline had
+been blind on animated frames all along), planner node budget (runaway -> 4s shadow),
+fabric seq cache (x85-x398), 5 behavioral suites (e2e, cross-wave composition, byte-
+identical determinism, soak, torn-writes). FINAL QA independent: 500/500 gate, ruff
+clean, OOD CLEAN. Swarm restarted on the complete hardened closure. Registered verdicts
+(2 beats): g7 > 0; first cross-game import earns TRANSFERRED; [SWALLOW] ~0 baseline;
+movement bias visible. Every bug this build-out found was found by an instrument built
+this week.
