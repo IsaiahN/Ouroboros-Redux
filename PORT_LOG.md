@@ -654,3 +654,24 @@ topics, every writer needs a reader or a prereg-cited allowlist entry; stale ent
 fail too (monotone tightening). import_queue = the one named orphan (C33 §14-16, CK-3+).
 Suite 244/244 verified independently; failing-first shown for R1 and R3; swarm restarted
 with readouts live. THE LINE, now plumbing: residual in, grade out.
+
+## Entry 36 — BUILD_PROGRAM_2 EXECUTED: full stop, full build-out, instrument-gated restart
+
+Isaiah's directive: stop everything, build EVERYTHING, QA against instruments only, then
+restart. Done in one day: 4 firewalled waves (B1-B21) + a fix wave, all tests-first.
+THE TREE GAINED: level-0 harvest consumption; movement affordances; DRIVE frontier veto;
+swallow counters (G1); starvation->seed-bias; negative feeder; salient-prefix bank;
+OBJECT-LEVEL transform classifier; EFFECT_IF (arity-3); class-fission; agent-motion
+family; THE TRIANGULATION CONSUMER (sigma-first, kin-echo law, seq-provable conditions);
+sigma at mint + 585-atom backfill; fabric_janitor; OOD lint; compat fixtures; ship-clean
+gate; cold-ship smoke; control-arm driver; n=1 metric; settlements carry atom identity.
+QA FOUND AND FIXED REAL ROT: lp85 hardcoded across 4 sites in a stock reasoning engine
+(the exact id-based nonsense the directive named), a (32,32) literal, unguarded scipy
+(the one blocker to true Kaggle parity — cold-ship now passes BARE with zero debt).
+FINAL QA (independent): gate 416/416; ruff clean; vulture clean; OOD CLEAN; consumer
+gate zero orphans; cold-ship PASS. Commit: single build-out commit post-e0f9c14.
+Backfill note: sigma_backfill's process guard fired twice — once correctly (my own
+sequencing race), once on the venv-launcher pair (known trap); forced with justification.
+SWARM RESTARTED on the complete closure. Registered verdicts (2 beats): g7 > 0 somewhere;
+import_candidates > 0 with >=1 TRANSFERRED imported atom; [SWALLOW] baseline; movement
+bias visible in the six click-less games.
