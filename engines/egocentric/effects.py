@@ -23,11 +23,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
 __all__ = ["learn_effect", "apply_effect", "classify_transform", "Gamma",
+           "invert_transform", "apply_inverse",
            "encoding_cost_route", "encoding_cost_atom"]
 
 
@@ -247,6 +248,78 @@ def apply_effect(atom: Dict[str, Any], before: np.ndarray) -> Optional[np.ndarra
                 res[r:r + ph, c:c + pw] = out
                 return res
     return None
+
+
+# ── CK-2b: inverse closure -- typed mechanisms form a group ───────────────────
+
+def invert_transform(ttype: str, params: Dict[str, Any]) -> Optional[Tuple[str, Dict[str, Any]]]:
+    """The computable inverse of a typed mechanism, or None if there is none.
+    TRANSLATE negates its deltas; ROTATE(k) -> ROTATE(4-k); REFLECT is self-inverse;
+    COLOUR_PERM reverses its pairs (injective by construction, checked anyway);
+    SCALE swaps up<->down with the same factors. Anything else -- raw atoms, NONE,
+    malformed params -- is not cleanly invertible: None, never a guess. Pure."""
+    p = dict(params or {})
+    if ttype == "TRANSLATE":
+        return ("TRANSLATE", {"dx": -int(p.get("dx", 0)), "dy": -int(p.get("dy", 0)),
+                              "fill": int(p.get("fill", 0))})
+    if ttype == "ROTATE":
+        return ("ROTATE", {"k": (4 - int(p.get("k", 0))) % 4})
+    if ttype == "REFLECT":
+        axis = p.get("axis")
+        if axis not in ("h", "v"):
+            return None
+        return ("REFLECT", {"axis": axis})
+    if ttype == "COLOUR_PERM":
+        mapping = p.get("mapping") or []
+        try:
+            inv = sorted([int(d), int(s)] for s, d in mapping)
+        except (TypeError, ValueError):
+            return None
+        if not inv or len({d for d, _ in inv}) != len(inv):
+            return None                                   # colours merged: no inverse map
+        return ("COLOUR_PERM", {"mapping": inv})
+    if ttype == "SCALE":
+        fx, fy = int(p.get("fx", 0)), int(p.get("fy", 0))
+        mode = p.get("mode")
+        if fx < 1 or fy < 1 or mode not in ("up", "down"):
+            return None
+        return ("SCALE", {"fx": fx, "fy": fy, "mode": "down" if mode == "up" else "up"})
+    return None
+
+
+def apply_inverse(atom: Dict[str, Any], frame: np.ndarray) -> Optional[np.ndarray]:
+    """Step a frame BACKWARD through a typed atom: build the inverse atom (after-patch
+    becomes the context, the mechanism inverted) and run it through apply_effect. Raw
+    atoms name no mechanism -- nothing to invert -> None. Pure; None on any failure.
+    A caller planning backward should verify the forward replay (apply_effect of the
+    original atom on the result) -- application is context-dependent, inversion is not
+    a proof."""
+    if not atom or atom.get("kind") != "EFFECT":
+        return None
+    ttype = atom.get("ttype")
+    if not ttype or ttype == "NONE":
+        return None                                       # raw atoms are not invertible
+    inv = invert_transform(ttype, atom.get("params") or {})
+    if inv is None:
+        return None
+    inv_ttype, inv_params = inv
+    transform = atom.get("transform") or {}
+    ctx, out = atom.get("context"), transform.get("after")
+    if ctx is None or out is None:
+        return None
+    inv_atom = {
+        "kind": "EFFECT",
+        "action": atom.get("action"),
+        "context": out,                                   # the inverse acts on the AFTER patch
+        "transform": {"before": out, "after": ctx},
+        "changed": atom.get("changed"),
+        "ttype": inv_ttype,
+        "params": inv_params,
+    }
+    try:
+        return apply_effect(inv_atom, np.asarray(frame))
+    except Exception:
+        return None                                       # inversion must never break a caller
 
 
 # ── Gamma: the typed hierarchical store on the fabric ─────────────────────────
