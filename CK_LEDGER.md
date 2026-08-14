@@ -222,3 +222,36 @@ AUDIT OF OUR GROUNDS (2026-08-13):
   the reputation reading partly owned by its beneficiary. The consumer build MUST
   exclude or down-weight self/kin echoes in reputation, or the import economy mints
   status from self-dealing.
+
+## BUILD-PROCESS GAP AUDIT (2026-08-14, Isaiah's "no more gaps" directive)
+Gaps in the BUILDING process itself, priority order, each with its instrument:
+G1 THE SWALLOW HOLE (top gap — our own house style fails ground-test 3): blanket
+   try/except is containment law, so errors VANISH silently. Instrument: bounded
+   exception counters per guarded block (enum'd like starvation, [SWALLOW] narration,
+   <=1 record/block/episode to personal fabric). The style stays; its blindness goes.
+G2 VERDICTS ARE NOT YET CAUSAL: registered verdicts (g4 rises, g7 moves...) are read
+   off the live swarm — confounded with time, budget, luck. Instrument: CONTROL-ARM
+   PROTOCOL — paired boxes, old sha vs new sha, same games/seeds, verdicts read as
+   deltas between arms (the C33 three-arm affect control, generalized to every wave).
+G3 VERDICT DEBT: registered verdicts have no deadline and no default action. Rule:
+   every prereg verdict carries a beat deadline; past-deadline unconfirmed = default
+   REVERT or an explicit waiver in PORT_LOG. Monotone, like the consumer gate.
+G4 FABRIC SCHEMA COMPAT: builders extend record shapes (ttype, params, w); old books
+   must stay readable forever (Kaggle seed-mounts are old books BY DEFINITION).
+   Instrument: frozen fixture pack of real earlier-era fabric records + a gate test
+   ("new code reads old books"); a compat crash today would be SWALLOWED (see G1).
+G5 INSTRUMENT PINNING: ground-test 2 requires the rules not to move — ruff/vulture/
+   hypothesis versions pinned; upgrades are deliberate commits, never ambient.
+G6 GRADE THE GRADERS: gate-suite quality is unmeasured; mutation testing (mutmut)
+   nightly, findings feed test-writing. Deferred, queued.
+
+## THE SHIP-CLEAN LAW (Kaggle modularity — the answer to "does it break without them")
+Instruments are scaffolding around the building, never parts of it: dev-time tools
+analyze source and are NEVER IMPORTED by agent code. Ship-cleanliness is an INVARIANT,
+not a convention, enforced twice:
+1. IMPORT LINT (gate): production sources (engines/, cognitive_*.py, tools shipped)
+   must import only stdlib + numpy — pytest/hypothesis/ruff/pydantic/etc. in a
+   production import is a red gate.
+2. COLD-SHIP SMOKE (periodic): run the entry point in a BARE venv (stdlib+numpy only,
+   no dev deps, no network) against a seed-mounted fabric — the Kaggle parity test.
+   If it runs there, absence of instruments can never break it anywhere.
