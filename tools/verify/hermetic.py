@@ -872,7 +872,7 @@ def _sandbox(tag: str, reuse: bool = False) -> str:
     try:
         compile(SITECUSTOMIZE, "sitecustomize.py", "exec")
     except SyntaxError as e:
-        raise SystemExit("hermetic.py: injected sitecustomize does not compile (line %s): %s"
+        raise SystemExit("hermetic.py: injected sitecustomize does not compile (line %s): %s"  # noqa: B904 -- the SystemExit message IS the report; chained traceback unwanted
                          % (e.lineno, e.msg))
     with open(os.path.join(d, "sitecustomize.py"), "w", encoding="utf-8") as fh:
         fh.write(SITECUSTOMIZE)
@@ -928,7 +928,7 @@ def run(game: str, seed: int, actions: int, mode: str = "normal", tag: str = Non
     try:
         with open(log, "w", encoding="utf-8", errors="replace") as fh:
             p = subprocess.run(cmd, cwd=box, env=env, stdout=fh, stderr=subprocess.STDOUT,
-                               timeout=timeout)
+                               timeout=timeout, check=False)
         if p.returncode != 0:
             status = "exit%d" % p.returncode
     except subprocess.TimeoutExpired:
@@ -946,24 +946,24 @@ def run(game: str, seed: int, actions: int, mode: str = "normal", tag: str = Non
         shutil.copyfile(log, os.path.join(box, "run_s%d.log" % seed))
     except Exception:
         pass
-    return dict(
-        game=game, seed=seed, status=status, secs=round(time.time() - t0, 1),
+    return {
+        "game": game, "seed": seed, "status": status, "secs": round(time.time() - t0, 1),
         # A run that hit REPLAY-MODE re-executed a stored sequence. It is NOT an independent draw and
         # its action count is logged at one line per ten actions, which already produced one false
         # reading in this project. Flagged on every result rather than left for the reader to notice.
-        replayed=bool(REPLAY.search(text)),
-        levels=int(rows[-1][1]) if rows else None,
-        denom=int(rows[-1][2]) if rows else None,
-        actions_reported=int(rows[-1][4]) if rows else None,
-        action_lines=len(acts),
-        seq_sha=hashlib.sha1("|".join(acts).encode()).hexdigest()[:16],
-        no_goal=len(NOGOAL.findall(text)), reasoning_lines=reasoning,
-        fresh_db=fresh_db, log=log, cutwire=cutwire,
-        wipe_failed=os.path.exists(os.path.join(box, "WIPE_PROBE_FAILED.txt")),
-        wiped=(open(os.path.join(box, "wiped.txt"), encoding="utf-8").read().strip().splitlines()
+        "replayed": bool(REPLAY.search(text)),
+        "levels": int(rows[-1][1]) if rows else None,
+        "denom": int(rows[-1][2]) if rows else None,
+        "actions_reported": int(rows[-1][4]) if rows else None,
+        "action_lines": len(acts),
+        "seq_sha": hashlib.sha1("|".join(acts).encode()).hexdigest()[:16],
+        "no_goal": len(NOGOAL.findall(text)), "reasoning_lines": reasoning,
+        "fresh_db": fresh_db, "log": log, "cutwire": cutwire,
+        "wipe_failed": os.path.exists(os.path.join(box, "WIPE_PROBE_FAILED.txt")),
+        "wiped": (open(os.path.join(box, "wiped.txt"), encoding="utf-8").read().strip().splitlines()
                if os.path.exists(os.path.join(box, "wiped.txt")) else []),
-        goal_probe=_read_probe(box),
-    )
+        "goal_probe": _read_probe(box),
+    }
 
 
 def check(game: str, actions: int) -> int:

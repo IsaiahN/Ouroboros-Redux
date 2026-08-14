@@ -22,19 +22,19 @@ THE CONTRACT (CK-1b):
 Run pre-build: the un-gating tests FAILED (level-0 experience evaporated).
 """
 from __future__ import annotations
+
 import os
 import sys
 import textwrap
 
 import numpy as np
-import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-from engines.egocentric.fabric import KnowledgeFabric   # noqa: E402
-from engines.egocentric.frontier import FrontierBook    # noqa: E402
+from engines.egocentric.fabric import KnowledgeFabric  # noqa: E402
+from engines.egocentric.frontier import FrontierBook  # noqa: E402
 
 
 def _src(f):
@@ -83,7 +83,7 @@ def _run_episode_end(loop, game_id, current_levels=0):
 
     ns = {"loop": loop, "game_id": game_id, "current_levels": current_levels,
           "last_obs": None, "GameState": _GS}
-    exec(compile(block, "<episode-end-recorder>", "exec"), ns)
+    exec(compile(block, "<episode-end-recorder>", "exec"), ns)  # noqa: S102 -- deliberately executes the extracted loop block under test
 
 
 class TestLevelZeroAccrual:

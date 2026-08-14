@@ -24,7 +24,9 @@ THE CONTRACT (PREREG_FRONTIER_HARVEST.md):
 Run pre-build: these failed (methods absent).
 """
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
 
 import pytest
 
@@ -32,7 +34,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-from engines.egocentric.fabric import KnowledgeFabric   # noqa: E402
+from engines.egocentric.fabric import KnowledgeFabric  # noqa: E402
 
 
 def _book(tmp_path, name="f", agent="a"):

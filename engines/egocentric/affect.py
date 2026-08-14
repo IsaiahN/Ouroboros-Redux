@@ -36,7 +36,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 
-class AffectGains(object):
+class AffectGains:
     """Two affect channels derived purely from the collective books."""
 
     MINT_BAR_FLOOR = 1.0

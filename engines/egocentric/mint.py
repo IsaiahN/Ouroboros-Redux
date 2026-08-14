@@ -82,7 +82,7 @@ class MDLMint:
         self.errors = 0
         self._split: Dict[str, int] = {"structural": 0, "lexical": 0}
         # (game, level, action, signature) -> times seen; LRU-bounded at seen_cap.
-        self._seen: "OrderedDict[Tuple[str, int, int, str], int]" = OrderedDict()
+        self._seen: OrderedDict[Tuple[str, int, int, str], int] = OrderedDict()
         self._seen_cap = max(1, int(seen_cap))
 
     # -- internals -----------------------------------------------------------------

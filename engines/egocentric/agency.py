@@ -21,8 +21,10 @@ The learned map recovers the STRIDE for free (median axis-aligned shift magnitud
 is expressed at the world's true quantum, not a hardcoded unit. Nothing silent.
 """
 from __future__ import annotations
-from collections import defaultdict, Counter
+
+from collections import Counter, defaultdict
 from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 from scipy import ndimage
 

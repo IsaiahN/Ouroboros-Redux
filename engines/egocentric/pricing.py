@@ -23,8 +23,10 @@ Only the currency function is pluggable (SS7 "only actor/currency/arena bindings
 propose->vote->resolve invariant is fixed.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional
+
 import numpy as np
 
 

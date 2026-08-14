@@ -17,13 +17,15 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-from engines.egocentric.fabric import KnowledgeFabric
 from engines.egocentric import effects as E
+from engines.egocentric.fabric import KnowledgeFabric
 
 
 def _M():
     try:
-        from engines.egocentric.mint import MDLMint
+        from engines.egocentric.mint import (
+            MDLMint,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.mint missing (%s) -- W3a has not landed" % e)
     from engines.egocentric.mint import MDLMint as M
@@ -35,8 +37,10 @@ def _g(tmp_path):
 
 
 def _event():
-    before = np.zeros((5, 5), dtype=int); before[2, 2] = 3
-    after = before.copy(); after[2, 2] = 4
+    before = np.zeros((5, 5), dtype=int)
+    before[2, 2] = 3
+    after = before.copy()
+    after[2, 2] = 4
     return before, after
 
 
@@ -59,7 +63,7 @@ class TestTheGuards:
         g = _g(tmp_path)
         m = _M()(g)
         before, after = _event()
-        first = m.consider(before=before, action=6, after=after, game="g1", level=1)
+        m.consider(before=before, action=6, after=after, game="g1", level=1)
         again = m.consider(before=before, action=6, after=after, game="g1", level=1)
         assert again["verdict"] == "rederivation"
         atoms = [r for r in g.fabric.query("collective", "atoms")

@@ -57,8 +57,10 @@ def _match_translate(b: np.ndarray, a: np.ndarray) -> Optional[Dict[str, Any]]:
     for dx, dy in cands:
         ar0, ar1 = max(0, dx), h + min(0, dx)
         ac0, ac1 = max(0, dy), w + min(0, dy)
-        in_a = np.zeros((h, w), dtype=bool); in_a[ar0:ar1, ac0:ac1] = True
-        in_b = np.zeros((h, w), dtype=bool); in_b[ar0 - dx:ar1 - dx, ac0 - dy:ac1 - dy] = True
+        in_a = np.zeros((h, w), dtype=bool)
+        in_a[ar0:ar1, ac0:ac1] = True
+        in_b = np.zeros((h, w), dtype=bool)
+        in_b[ar0 - dx:ar1 - dx, ac0 - dy:ac1 - dy] = True
         if not (a[in_a] == b[in_b]).all():
             continue
         fills = a[~in_a]
@@ -110,7 +112,7 @@ def classify_transform(before_patch, after_patch) -> Dict[str, Any]:
             return {"ttype": "SCALE", "params": {"fx": int(fx), "fy": int(fy), "mode": "down"}}
     if same:                                              # COLOUR_PERM: same geometry, injective remap
         mapping: Dict[int, int] = {}
-        for s, d in zip(b.ravel().tolist(), a.ravel().tolist()):
+        for s, d in zip(b.ravel().tolist(), a.ravel().tolist(), strict=False):
             if mapping.setdefault(int(s), int(d)) != int(d):
                 return none                               # one colour, two fates: not a map
         if len(set(mapping.values())) != len(mapping):

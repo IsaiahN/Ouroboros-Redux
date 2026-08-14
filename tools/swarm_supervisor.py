@@ -73,7 +73,7 @@ def db_gc(box, log):
         if os.path.getsize(db) / 1e6 > DB_HARD_CAP_MB:
             for t in TELEMETRY_TABLES:
                 try:
-                    con.execute("DELETE FROM [%s]" % t)
+                    con.execute("DELETE FROM [%s]" % t)  # noqa: S608 -- t from the fixed TELEMETRY_TABLES list, not input
                 except Exception:
                     pass
             con.commit()
@@ -125,7 +125,7 @@ def working_sets():
         out = subprocess.run(
             ["wmic", "process", "where", "name='python.exe'",
              "get", "ProcessId,ParentProcessId,WorkingSetSize", "/format:csv"],
-            capture_output=True, text=True, timeout=50)
+            capture_output=True, text=True, timeout=50, check=False)
         m = {}
         for line in out.stdout.splitlines():
             parts = line.strip().split(",")
@@ -143,7 +143,7 @@ def working_sets():
              "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
              "ForEach-Object { \"$($_.ProcessId) $($_.ParentProcessId) "
              "$($_.WorkingSetSize)\" }"],
-            capture_output=True, text=True, timeout=50)
+            capture_output=True, text=True, timeout=50, check=False)
         m = {}
         for line in out.stdout.splitlines():
             parts = line.split()
@@ -176,7 +176,7 @@ def kill_tree(pid):
     worker -- the double-riding catastrophe. taskkill /T takes the tree."""
     try:
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
-                       capture_output=True, timeout=30)
+                       capture_output=True, timeout=30, check=False)
     except Exception:
         pass
 

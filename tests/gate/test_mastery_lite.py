@@ -4,18 +4,24 @@
 levels keeps its high replay rate; a bank that starts failing decays back to exploration.
 """
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
 import pytest
+
 from engines.egocentric.fabric import KnowledgeFabric
 
 
 def _m(tmp_path, name="f"):
     try:
-        from engines.egocentric.mastery import MasteryLite
+        from engines.egocentric.mastery import (
+            MasteryLite,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.mastery missing (%s)" % e)
     from engines.egocentric.mastery import MasteryLite as ML

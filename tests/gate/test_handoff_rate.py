@@ -5,7 +5,11 @@ p=0.2 means 80% of a banked game's episodes blindly re-solve L1. Bank-aware prob
 the RNG stream must not shift (containment is byte-identity on fresh boxes).
 """
 from __future__ import annotations
-import os, sys, re
+
+import os
+import re
+import sys
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)

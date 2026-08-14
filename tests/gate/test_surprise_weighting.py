@@ -23,8 +23,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-from engines.egocentric.fabric import KnowledgeFabric
 from engines.egocentric import effects as E
+from engines.egocentric.fabric import KnowledgeFabric
 from engines.egocentric.mint import MDLMint
 
 

@@ -24,7 +24,10 @@ THE CONTRACT (PREREG_MARKETPLACE_MERGE.md):
 Run pre-build: these failed (modules absent).
 """
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 import numpy as np
 import pytest
 
@@ -37,7 +40,7 @@ from engines.egocentric.fabric import KnowledgeFabric
 
 def _mods():
     try:
-        from engines.egocentric import pricing, betting  # noqa: F401
+        from engines.egocentric import betting, pricing  # noqa: F401
     except Exception as e:
         pytest.fail("pricing/betting missing (%s) — the merge has not landed" % e)
     from engines.egocentric import pricing as P
@@ -55,14 +58,18 @@ class TestThePricingCore:
     def test_no_change_predictor_scores_zero_on_a_changed_frame(self):
         P, _ = _mods()
         before = np.zeros((4, 4), dtype=int)
-        after = before.copy(); after[1, 1] = 5
+        after = before.copy()
+        after[1, 1] = 5
         assert P.informative_salience(before, before.copy(), after) == 0.0
 
     def test_hallucination_is_penalised(self):
         P, _ = _mods()
         before = np.zeros((4, 4), dtype=int)
-        after = before.copy(); after[1, 1] = 5
-        pred = before.copy(); pred[1, 1] = 5; pred[2, 2] = 7   # right + invented
+        after = before.copy()
+        after[1, 1] = 5
+        pred = before.copy()  # right + invented
+        pred[1, 1] = 5
+        pred[2, 2] = 7
         assert P.informative_salience(before, pred, after) == 0.0  # (1-1)/1
 
 
@@ -76,7 +83,8 @@ class TestTheLaws:
     def test_a_counterfactual_is_never_priced(self, tmp_path):
         b = self._book(tmp_path)
         before = np.zeros((4, 4), dtype=int)
-        after = before.copy(); after[1, 1] = 5
+        after = before.copy()
+        after[1, 1] = 5
         b.commit(action=6, before=before, paste=before.copy(), transform=None)
         out = b.settle(post=after, executed_action=1)
         assert out is None or out.get("void"), "committed 6, executed 1 — VOID, nothing priced"
@@ -86,7 +94,8 @@ class TestTheLaws:
         b = self._book(tmp_path)
         before = np.zeros((4, 4), dtype=int)
         after = before.copy()                                   # static frame
-        bad_transform = before.copy(); bad_transform[2, 2] = 9  # hallucinates
+        bad_transform = before.copy()  # hallucinates
+        bad_transform[2, 2] = 9
         b.commit(action=6, before=before, paste=before.copy(), transform=bad_transform)
         out = b.settle(post=after, executed_action=6)
         assert out["best"] == 1.0, "the paste's static 1.0 must survive a hallucinating sibling"
@@ -94,7 +103,8 @@ class TestTheLaws:
     def test_settlements_land_in_the_fabric_with_lineage(self, tmp_path):
         b = self._book(tmp_path)
         before = np.zeros((4, 4), dtype=int)
-        after = before.copy(); after[1, 1] = 5
+        after = before.copy()
+        after[1, 1] = 5
         b.commit(action=6, before=before, paste=before.copy(), transform=None)
         b.settle(post=after, executed_action=6)
         recs = b.fabric.query("collective", "settlements")

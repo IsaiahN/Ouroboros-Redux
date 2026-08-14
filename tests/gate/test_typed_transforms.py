@@ -73,7 +73,6 @@ class TestClassification:
         assert t["params"]["mapping"] == [[1, 5], [2, 3]]
 
     def test_colour_merge_is_not_a_perm(self):
-        E = _E()
         t = _E().classify_transform([[1, 2]], [[3, 3]])   # two colours collapse into one
         assert t["ttype"] == "NONE"
 

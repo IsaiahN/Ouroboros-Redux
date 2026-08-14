@@ -1,0 +1,44 @@
+# Deterministic code-quality gate configuration.
+#
+# SCOPE: this config enforces ONLY on our code -- engines/egocentric/, tools/,
+# tests/gate/. The legacy v4 codebase (cognitive_loop.py, engines/consciousness,
+# etc.) is deliberately out of scope: `include` below restricts ruff to the
+# scoped paths, so `ruff check .` at repo root never touches legacy files.
+
+[tool.ruff]
+line-length = 100
+include = [
+    "pyproject.toml",
+    "engines/egocentric/**/*.py",
+    "tools/**/*.py",
+    "tests/gate/**/*.py",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "S", "SIM", "C4", "PLW"]
+# Typing modernization (UP006/UP035/UP045) and %-format (UP031) deferred:
+# do not churn ~380 lines of working code for cosmetic typing updates.
+ignore = ["UP006", "UP035", "UP045", "UP031"]
+
+[tool.ruff.lint.per-file-ignores]
+# HOUSE LAW: EGO code must never crash the host loop. Blanket try/except is a
+# deliberate containment pattern here, not sloppiness. So: BLE001 (blind
+# except), S110 (try-except-pass), S112 (try-except-continue), E722 (bare
+# except) are permitted in engine and tool code. SIM105 (contextlib.suppress)
+# is the same containment pattern flagged under another name -- the explicit
+# try/except-pass is the house idiom. S324: sha1 here is content-addressing
+# (canonical keys, log fingerprints), never cryptography.
+"engines/egocentric/**" = ["BLE001", "S110", "S112", "E722", "SIM105", "S324"]
+# tools/ additionally: E402 (imports after sys.path bootstrap -- moving them
+# breaks resolution), SIM115 (file handles deliberately outlive the expression,
+# e.g. handed to Popen), S603/S607 (launching sibling processes IS these tools'
+# job; commands are fixed argv lists, not user input).
+"tools/**" = ["BLE001", "S110", "S112", "E722", "SIM105", "S324",
+              "E402", "SIM115", "S603", "S607"]
+# Tests legitimately assert (S101) and use non-crypto randomness (S311).
+"tests/**" = ["S101", "S311"]
+# Gate tests bootstrap sys.path before importing the engine (E402) and use
+# short-lived bare open() handles (SIM115) -- pre-existing house style.
+"tests/gate/**" = ["E402", "SIM115"]
+# The instrument gate runs ruff/vulture as subprocesses with fixed argv (S603).
+"tests/gate/test_frame_instruments.py" = ["S603"]

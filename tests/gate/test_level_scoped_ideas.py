@@ -5,13 +5,14 @@ the frontier, fails, and burns budget falsifying them. Ideas now carry the level
 produced; seeding re-scopes on every level change.
 """
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-import json
-import pytest
 from engines.egocentric.fabric import KnowledgeFabric
 
 
@@ -23,8 +24,8 @@ class TestLevelOnIdeas:
 
     def test_mint_stores_level(self, tmp_path):
         f = _f(tmp_path)
-        i = f.mint({"kind": "CLICK_AT", "cell": [1, 1]}, game="g1",
-                   signal={"type": "level_up"}, level=2)
+        f.mint({"kind": "CLICK_AT", "cell": [1, 1]}, game="g1",
+               signal={"type": "level_up"}, level=2)
         recs = f.query("personal", "ideas")
         assert recs and recs[-1].get("level") == 2
 

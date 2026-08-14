@@ -5,7 +5,10 @@ mint starves). The mint's own guards (SUPPORT x NOVELTY x MDL) do the filtering 
 what guards are for.
 """
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)

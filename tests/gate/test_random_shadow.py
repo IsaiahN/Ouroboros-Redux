@@ -5,7 +5,10 @@ crashing every episode of any game whose _act path touches `random.` earlier -- 
 25 games permanently on the fallback stack, 109 crashes across the sealed baseline.
 """
 from __future__ import annotations
-import ast, os, sys
+
+import ast
+import os
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 

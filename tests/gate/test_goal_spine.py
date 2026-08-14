@@ -36,7 +36,9 @@ if REPO not in sys.path:
 
 def _spine():
     try:
-        from engines.egocentric.spine import GoalSpine
+        from engines.egocentric.spine import (
+            GoalSpine,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.spine is missing (%s) — Phase 2 has not landed; see "
                     "PREREG_PHASE2.md" % e)

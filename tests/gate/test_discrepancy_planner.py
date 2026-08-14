@@ -18,13 +18,16 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-from engines.egocentric.fabric import KnowledgeFabric
 from engines.egocentric import effects as E
+from engines.egocentric.fabric import KnowledgeFabric
 
 
 def _D():
     try:
-        from engines.egocentric.discrepancy import compute_d, objective_falsified
+        from engines.egocentric.discrepancy import (  # noqa: F401 -- the import IS the availability probe
+            compute_d,
+            objective_falsified,
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.discrepancy missing (%s) -- W3b has not landed" % e)
     from engines.egocentric import discrepancy as D
@@ -33,7 +36,9 @@ def _D():
 
 def _P():
     try:
-        from engines.egocentric.planner import plan_to_identity
+        from engines.egocentric.planner import (
+            plan_to_identity,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.planner missing (%s) -- W3c has not landed" % e)
     from engines.egocentric import planner as P
@@ -50,8 +55,10 @@ class TestTheObjective:
 
     def test_d_is_axiswise(self):
         D = _D()
-        ws = np.zeros((4, 4), dtype=int); ws[1, 1] = 3
-        ref = np.zeros((4, 4), dtype=int); ref[1, 1] = 5
+        ws = np.zeros((4, 4), dtype=int)
+        ws[1, 1] = 3
+        ref = np.zeros((4, 4), dtype=int)
+        ref[1, 1] = 5
         d = D.compute_d(ws, ref)
         assert d["differing"] == 1
         assert d["by_value"].get((3, 5)) == 1, "d must say WHICH transformation is owed"
@@ -70,8 +77,10 @@ class TestThePlanner:
         g = E.Gamma(KnowledgeFabric(str(tmp_path / "f"), agent_id="a", kin_key="v4"))
         ids = []
         for v in (3, 4):
-            b = np.zeros((5, 5), dtype=int); b[2, 2] = v
-            a = b.copy(); a[2, 2] = v + 1
+            b = np.zeros((5, 5), dtype=int)
+            b[2, 2] = v
+            a = b.copy()
+            a[2, 2] = v + 1
             ids.append(g.add(E.learn_effect(b, 6, a), game="g1", level=1))
         return g, ids
 
@@ -80,8 +89,10 @@ class TestThePlanner:
         in order, found by the stopping test d==0 -- no period was ever learned."""
         P = _P()
         g, _ = self._gamma_with_increment(tmp_path)
-        ws = np.zeros((5, 5), dtype=int); ws[2, 2] = 3
-        ref = np.zeros((5, 5), dtype=int); ref[2, 2] = 5
+        ws = np.zeros((5, 5), dtype=int)
+        ws[2, 2] = 3
+        ref = np.zeros((5, 5), dtype=int)
+        ref[2, 2] = 5
         out = P.plan_to_identity(ws, ref, g, game="g1", level=1,
                                  budget=100, cost_per_action=1)
         assert out is not None and out["feasible"] is True
@@ -90,8 +101,10 @@ class TestThePlanner:
     def test_no_operator_no_plan(self, tmp_path):
         P = _P()
         g = E.Gamma(KnowledgeFabric(str(tmp_path / "e"), agent_id="a", kin_key="v4"))
-        ws = np.zeros((5, 5), dtype=int); ws[2, 2] = 3
-        ref = np.zeros((5, 5), dtype=int); ref[2, 2] = 9
+        ws = np.zeros((5, 5), dtype=int)
+        ws[2, 2] = 3
+        ref = np.zeros((5, 5), dtype=int)
+        ref[2, 2] = 9
         out = P.plan_to_identity(ws, ref, g, game="g1", level=1,
                                  budget=100, cost_per_action=1)
         assert out is None, "a missing operator is an empty slot, not an invented step"
@@ -99,8 +112,10 @@ class TestThePlanner:
     def test_feasibility_against_measured_cost(self, tmp_path):
         P = _P()
         g, _ = self._gamma_with_increment(tmp_path)
-        ws = np.zeros((5, 5), dtype=int); ws[2, 2] = 3
-        ref = np.zeros((5, 5), dtype=int); ref[2, 2] = 5
+        ws = np.zeros((5, 5), dtype=int)
+        ws[2, 2] = 3
+        ref = np.zeros((5, 5), dtype=int)
+        ref[2, 2] = 5
         out = P.plan_to_identity(ws, ref, g, game="g1", level=1,
                                  budget=1, cost_per_action=1)
         assert out is not None and out["feasible"] is False, (

@@ -34,7 +34,9 @@ from engines.egocentric.fabric import KnowledgeFabric
 
 def _B():
     try:
-        from engines.egocentric.starvation import StarvationBook
+        from engines.egocentric.starvation import (
+            StarvationBook,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.starvation missing (%s) -- R1 has not landed; "
                     "see PREREG_READOUTS.md" % e)

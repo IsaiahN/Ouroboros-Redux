@@ -18,7 +18,9 @@ if REPO not in sys.path:
 
 def _B():
     try:
-        from engines.egocentric.binder import RoleBinder
+        from engines.egocentric.binder import (
+            RoleBinder,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.binder missing (%s) -- W1b has not landed" % e)
     from engines.egocentric.binder import RoleBinder as B

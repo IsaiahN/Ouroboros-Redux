@@ -15,8 +15,9 @@ BLOCKED edge decays back to unknown over time (a trigger may have opened it) and
 its target cell's pixels are seen to change (a moving object slid off it). Nothing silent.
 """
 from __future__ import annotations
+
 from collections import deque
-from typing import Dict, Tuple, Optional, Iterable, List, Set
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 Cell = Tuple[int, int]
 Dir = Tuple[int, int]
@@ -65,7 +66,7 @@ class GridNav:
 
     def invalidate(self, changed_cells: Iterable[Cell]) -> None:
         """Reactive dynamism: an edge LEADING INTO a cell whose pixels changed is no longer trusted as a wall."""
-        cc = set((int(r), int(c)) for (r, c) in changed_cells)
+        cc = {(int(r), int(c)) for (r, c) in changed_cells}
         for ek, st in list(self.edge.items()):
             if st is False and (ek[0][0] + ek[1][0], ek[0][1] + ek[1][1]) in cc:
                 del self.edge[ek]
@@ -82,7 +83,8 @@ class GridNav:
         """BFS over the optimistic graph; return the FIRST-step direction of a shortest path to goal, or None.
         The optimistic graph is UNBOUNDED (unmeasured edges are passable), so the search is BOUNDED by
         `max_expand` cells -- past that, give up and let the caller step greedily (prevents a runaway BFS)."""
-        start = (int(start[0]), int(start[1])); goal = (int(goal[0]), int(goal[1]))
+        start = (int(start[0]), int(start[1]))
+        goal = (int(goal[0]), int(goal[1]))
         if start == goal:
             return None
         dirs = list(dirs)
@@ -91,7 +93,8 @@ class GridNav:
         for d in self._passable_dirs(start, dirs):
             nb = (start[0] + d[0], start[1] + d[1])
             if nb not in seen:
-                seen.add(nb); q.append((nb, d))
+                seen.add(nb)
+                q.append((nb, d))
         expanded = 0
         while q and expanded < max_expand:
             node, first = q.popleft()
@@ -101,20 +104,26 @@ class GridNav:
             for d in self._passable_dirs(node, dirs):
                 nb = (node[0] + d[0], node[1] + d[1])
                 if nb not in seen:
-                    seen.add(nb); q.append((nb, first))
+                    seen.add(nb)
+                    q.append((nb, first))
         return None
 
     def _bfs_known_free(self, start: Cell, goal: Cell, dirs: List[Dir]) -> Optional[Dir]:
         """BFS using ONLY edges proven FREE (exploit the map already walked). First-step dir to goal, or None."""
-        start = (int(start[0]), int(start[1])); goal = (int(goal[0]), int(goal[1]))
+        start = (int(start[0]), int(start[1]))
+        goal = (int(goal[0]), int(goal[1]))
         if start == goal:
             return None
-        seen = {start}; q: deque = deque(); first_of = {}
+        seen = {start}
+        q: deque = deque()
+        first_of = {}
         for d in dirs:
             if self.edge.get((start, d)) is True:
                 nb = (start[0] + d[0], start[1] + d[1])
                 if nb not in seen:
-                    seen.add(nb); first_of[nb] = d; q.append(nb)
+                    seen.add(nb)
+                    first_of[nb] = d
+                    q.append(nb)
         while q:
             node = q.popleft()
             if node == goal:
@@ -123,7 +132,9 @@ class GridNav:
                 if self.edge.get((node, d)) is True:
                     nb = (node[0] + d[0], node[1] + d[1])
                     if nb not in seen:
-                        seen.add(nb); first_of[nb] = first_of[node]; q.append(nb)
+                        seen.add(nb)
+                        first_of[nb] = first_of[node]
+                        q.append(nb)
         return None
 
     def _frontier_step(self, start: Cell, goal: Cell, dirs: List[Dir]) -> Optional[Dir]:
@@ -136,12 +147,16 @@ class GridNav:
         untried = [d for d in dirs if (start, d) not in self.edge]
         if untried:
             return min(untried, key=lambda d: abs(start[0] + d[0] - goal[0]) + abs(start[1] + d[1] - goal[1]))
-        seen = {start}; q: deque = deque(); first_of = {}
+        seen = {start}
+        q: deque = deque()
+        first_of = {}
         for d in dirs:
             if self.edge.get((start, d)) is True:
                 nb = (start[0] + d[0], start[1] + d[1])
                 if nb not in seen:
-                    seen.add(nb); first_of[nb] = d; q.append(nb)
+                    seen.add(nb)
+                    first_of[nb] = d
+                    q.append(nb)
         best, best_key = None, None
         while q:
             node = q.popleft()
@@ -153,7 +168,9 @@ class GridNav:
                 if self.edge.get((node, d)) is True:
                     nb = (node[0] + d[0], node[1] + d[1])
                     if nb not in seen:
-                        seen.add(nb); first_of[nb] = first_of[node]; q.append(nb)
+                        seen.add(nb)
+                        first_of[nb] = first_of[node]
+                        q.append(nb)
         return first_of.get(best) if best is not None else None
 
     def step_toward(self, start: Cell, goal: Cell, dirs: Iterable[Dir]) -> Optional[Dir]:

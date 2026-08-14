@@ -16,18 +16,36 @@ Modules (ported byte-identical from Nexus:src/newhorse/, logic untouched):
   * betting     -- BetBook (per-action bet commit/settle on the fabric)           [C33 step 1]
   * effects    -- EFFECT atoms + typed Gamma store (canonically keyed, priced)   [W1a]
 """
-from engines.egocentric import agency, betting, effects, falsified_ledger, goal, navigation, perception, pricing, relations, self_locus  # noqa: F401
-from engines.egocentric.effects import Gamma, apply_effect, encoding_cost_atom, encoding_cost_route, learn_effect  # noqa: F401
+from engines.egocentric import (  # noqa: F401  # noqa: F401
+    agency,
+    betting,
+    discrepancy,
+    effects,
+    falsified_ledger,
+    goal,
+    navigation,
+    perception,
+    planner,
+    pricing,
+    relations,
+    self_locus,
+)
+from engines.egocentric.affect import AffectGains  # noqa: F401
+from engines.egocentric.bank import PredictorBank  # noqa: F401
+from engines.egocentric.binder import RoleBinder  # noqa: F401
+from engines.egocentric.discrepancy import compute_d, is_identity, objective_falsified  # noqa: F401
+from engines.egocentric.effects import (  # noqa: F401
+    Gamma,
+    apply_effect,
+    encoding_cost_atom,
+    encoding_cost_route,
+    learn_effect,
+)
 from engines.egocentric.fabric import KnowledgeFabric  # noqa: F401
 from engines.egocentric.mastery import MasteryLite  # noqa: F401
-from engines.egocentric.observer import EgoObserver  # noqa: F401
-from engines.egocentric.spine import GoalSpine  # noqa: F401
-from engines.egocentric.binder import RoleBinder  # noqa: F401
-from engines.egocentric.router import ResidualRouter  # noqa: F401
-from engines.egocentric.bank import PredictorBank  # noqa: F401
-from engines.egocentric import discrepancy, planner  # noqa: F401
-from engines.egocentric.discrepancy import compute_d, is_identity, objective_falsified  # noqa: F401
-from engines.egocentric.planner import plan_to_identity  # noqa: F401
-from engines.egocentric.verdicts import MuteHandler  # noqa: F401
 from engines.egocentric.mint import MDLMint  # noqa: F401
-from engines.egocentric.affect import AffectGains  # noqa: F401
+from engines.egocentric.observer import EgoObserver  # noqa: F401
+from engines.egocentric.planner import plan_to_identity  # noqa: F401
+from engines.egocentric.router import ResidualRouter  # noqa: F401
+from engines.egocentric.spine import GoalSpine  # noqa: F401
+from engines.egocentric.verdicts import MuteHandler  # noqa: F401

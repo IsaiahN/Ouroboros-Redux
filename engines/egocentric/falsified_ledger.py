@@ -46,9 +46,10 @@ IMMUNE-SYSTEM FAILURE-MODE AUDIT (via the FMap: this problem's F* coords rank ad
     bias saturates below 1 so exploration is never fully suppressed.
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+
 import math
+from dataclasses import dataclass
+from typing import Dict, Optional
 
 
 @dataclass
@@ -78,7 +79,7 @@ class FalsifiedLedger:
             self.bind(store)
 
     # ---- persistence -------------------------------------------------------------------
-    def bind(self, store: dict) -> "FalsifiedLedger":
+    def bind(self, store: dict) -> FalsifiedLedger:
         """Adopt an external dict as backing store (load its contents). Survives across episodes."""
         self._store = {}
         for k, v in (store.get("entries", {}) or {}).items():
@@ -129,7 +130,8 @@ class FalsifiedLedger:
             return "non_trial"                     # Effectiveness gate: a failure to act is not evidence of inertness
         if made_progress:
             if key in self._store:                 # it worked -> it is not a dead idea; drop the reject
-                del self._store[key]; self._flush()
+                del self._store[key]
+                self._flush()
             return "progress_cleared"
         # a real, registered, unrewarded trial -> accumulate rejection weight (on top of the decayed prior)
         prior = self.weight(key, now)
@@ -137,7 +139,9 @@ class FalsifiedLedger:
         if e is None:
             self._store[key] = _Entry(weight=weight, last=now, first=now, trials=1)
         else:
-            e.weight = prior + weight; e.last = now; e.trials += 1
+            e.weight = prior + weight
+            e.last = now
+            e.trials += 1
         self._flush()
         return "refuted"
 
@@ -155,7 +159,8 @@ class FalsifiedLedger:
         if neww < 1e-9:
             del self._store[key]
         else:
-            e.weight = neww; e.last = now
+            e.weight = neww
+            e.last = now
         self._flush()
         return True
 

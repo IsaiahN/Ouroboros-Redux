@@ -19,7 +19,9 @@ if REPO not in sys.path:
 
 def _bank():
     try:
-        from engines.egocentric.bank import PredictorBank
+        from engines.egocentric.bank import (
+            PredictorBank,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.bank missing (%s) -- W2a has not landed" % e)
     from engines.egocentric.bank import PredictorBank as PB
@@ -62,7 +64,8 @@ class TestReferenceAndResource:
         b.commit({"REFERENCE": ref}, action=1)
         out = b.settle({"REFERENCE": ref.copy()})
         assert out["REFERENCE"]["bet"] is True and out["REFERENCE"]["residual"] == 0.0
-        changed = ref.copy(); changed[1, 1] = 9
+        changed = ref.copy()
+        changed[1, 1] = 9
         b.commit({"REFERENCE": ref}, action=2)
         out2 = b.settle({"REFERENCE": changed})
         assert out2["REFERENCE"]["residual"] > 0.0, "a mutated reference is a loud residual"
@@ -86,8 +89,10 @@ class TestWorkspacePredictor:
         from engines.egocentric import effects as E
         from engines.egocentric.fabric import KnowledgeFabric
         g = E.Gamma(KnowledgeFabric(str(tmp_path / "f"), agent_id="a", kin_key="v4"))
-        before = np.zeros((5, 5), dtype=int); before[2, 2] = 3
-        after = before.copy(); after[2, 2] = 4
+        before = np.zeros((5, 5), dtype=int)
+        before[2, 2] = 3
+        after = before.copy()
+        after[2, 2] = 4
         g.add(E.learn_effect(before, 6, after), game="g1", level=1)
         b = _bank()(gamma=g, game="g1", level=1)
         b.commit({"WORKSPACE": before}, action=6)
@@ -100,7 +105,8 @@ class TestWorkspacePredictor:
         from engines.egocentric.fabric import KnowledgeFabric
         g = E.Gamma(KnowledgeFabric(str(tmp_path / "f"), agent_id="a", kin_key="v4"))
         b = _bank()(gamma=g, game="g1", level=1)
-        ws = np.zeros((5, 5), dtype=int); ws[2, 2] = 7
+        ws = np.zeros((5, 5), dtype=int)
+        ws[2, 2] = 7
         b.commit({"WORKSPACE": ws}, action=6)
         out = b.settle({"WORKSPACE": ws.copy()})
         assert "WORKSPACE" not in out or out["WORKSPACE"]["bet"] is False, (

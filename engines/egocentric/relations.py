@@ -19,8 +19,10 @@ true. Each relation yields a NAVIGATION TARGET CELL; the market prices (relation
 confirms the winner, demotes the rest (defeasibly). Nothing silent; never encodes any game's answer.
 """
 from __future__ import annotations
+
 from collections import Counter
 from typing import List, Optional, Tuple
+
 from .perception import Object
 
 Key = Tuple[str, Tuple[int, int]]     # (relation_name, target_cell)
@@ -32,7 +34,8 @@ def _cell(centroid: Tuple[float, float], stride: int) -> Tuple[int, int]:
 
 
 def _bbox(o: Object) -> Tuple[int, int, int, int]:
-    rs = [c[0] for c in o.cells]; cs = [c[1] for c in o.cells]
+    rs = [c[0] for c in o.cells]
+    cs = [c[1] for c in o.cells]
     return min(rs), max(rs), min(cs), max(cs)
 
 
@@ -131,8 +134,10 @@ def candidate_relations(objs: List[Object], cursor_colour: Optional[int], stride
     for o in non_self[:max_objs]:
         for key in (("BE_AT", _onobject_cell(o, stride)), ("TOUCH", _touch_cell(o, stride))):
             if key[1][0] >= 0 and key[1][1] >= 0:       # skip OFF-BOARD targets (e.g. TOUCH above a top-row object
-                out.append((key, rank)); rank += 1      # is row -1) -- an unreachable cell is a stall sink, not a goal
+                out.append((key, rank))  # is row -1) -- an unreachable cell is a stall sink, not a goal
+                rank += 1
         hi = _hollow_interior(o, stride)
         if hi is not None and hi[0] >= 0 and hi[1] >= 0:
-            out.append((("COVER", hi), rank)); rank += 1
+            out.append((("COVER", hi), rank))
+            rank += 1
     return out

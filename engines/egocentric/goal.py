@@ -8,8 +8,10 @@ NEVER ENCODE THE ANSWER: this looks for a generic shape (a unique small non-self
 specific target. If the board has no such cue, it returns None and the agent keeps exploring. Nothing silent.
 """
 from __future__ import annotations
+
 from collections import Counter
-from typing import List, Optional, Dict, Tuple, Iterable
+from typing import Dict, Iterable, List, Optional, Tuple
+
 from .perception import Object
 
 
@@ -121,7 +123,8 @@ def candidate_targets(objs: List[Object], cursor_colour: Optional[int], stride: 
     for rank, o in enumerate(non_self[:max_candidates]):
         cell = (int(round(o.centroid[0] / s)), int(round(o.centroid[1] / s)))
         if cell not in seen:
-            seen.add(cell); out.append((cell, rank))
+            seen.add(cell)
+            out.append((cell, rank))
     return out
 
 

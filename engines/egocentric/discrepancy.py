@@ -29,7 +29,7 @@ def compute_d(workspace: np.ndarray, reference: np.ndarray) -> Dict[str, Any]:
         return {"differing": -1, "by_value": {}}
     diff = ws != ref
     by_value: Dict[Tuple[int, int], int] = {}
-    for frm, to in zip(ws[diff].ravel(), ref[diff].ravel()):
+    for frm, to in zip(ws[diff].ravel(), ref[diff].ravel(), strict=False):
         key = (int(frm), int(to))
         by_value[key] = by_value.get(key, 0) + 1
     return {"differing": int(diff.sum()), "by_value": by_value}

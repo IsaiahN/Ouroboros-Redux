@@ -15,8 +15,10 @@ Principles (MAP SS9.2, grounded via the FMap on Simon's near-decomposability):
   * NOTHING SILENT: the tracker records why each id was born, kept, or retired (`events`).
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import List, Optional, FrozenSet, Tuple, Dict
+
+from dataclasses import dataclass
+from typing import Dict, FrozenSet, List, Optional, Tuple
+
 import numpy as np
 from scipy import ndimage
 
@@ -45,7 +47,8 @@ class Object:
 
     @property
     def centroid(self) -> Tuple[float, float]:
-        rs = [c[0] for c in self.cells]; cs = [c[1] for c in self.cells]
+        rs = [c[0] for c in self.cells]
+        cs = [c[1] for c in self.cells]
         return (sum(rs) / len(rs), sum(cs) / len(cs))
 
 
@@ -65,7 +68,7 @@ def segment(grid: np.ndarray, background: Optional[int] = None, connectivity: in
         lab, n = ndimage.label(g == colour, structure=structure)
         for i in range(1, n + 1):
             ys, xs = np.where(lab == i)
-            cells = frozenset((int(y), int(x)) for y, x in zip(ys, xs))
+            cells = frozenset((int(y), int(x)) for y, x in zip(ys, xs, strict=False))
             objs.append(Object(cells=cells, colours=frozenset({int(colour)})))
     return objs
 
@@ -101,11 +104,13 @@ class ObjectTracker:
                 if j > best_iou:
                     best_oid, best_iou = oid, j
             if best_oid is not None and best_iou >= self.birth_min_overlap:
-                obj.oid = best_oid; used_oids.add(best_oid)          # SAME id -> survives recolour/reshape (overlap, not colour)
+                obj.oid = best_oid  # SAME id -> survives recolour/reshape (overlap, not colour)
+                used_oids.add(best_oid)
                 assigned[best_oid] = obj
                 self.events.append("KEEP  id=%d (iou=%.2f) -- carried through change" % (best_oid, best_iou))
             else:
-                obj.oid = self._next; self._next += 1                 # a genuinely new object -> found a new identity
+                obj.oid = self._next  # a genuinely new object -> found a new identity
+                self._next += 1
                 assigned[obj.oid] = obj
                 self.events.append("BORN  id=%d size=%d" % (obj.oid, obj.size))
         # 2) unmatched prior tracks: DIE only on evidence (cells taken over by others now); else survive (occlusion)

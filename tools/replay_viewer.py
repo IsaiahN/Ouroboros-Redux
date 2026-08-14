@@ -82,10 +82,10 @@ class ReplayViewer:
         final_map = map_completeness[-1] if map_completeness else 0.0
 
         # Strategies used
-        strategies = set(cf.strategy for cf in self._frames)
+        strategies = {cf.strategy for cf in self._frames}
 
         print(f"\n{'=' * 60}")
-        print(f"  GAME REPLAY SUMMARY")
+        print("  GAME REPLAY SUMMARY")
         print(f"{'=' * 60}")
         print(f"  Total actions:    {total}")
         print(f"  Frame changes:    {changes} ({changes/total:.0%})")
@@ -93,7 +93,7 @@ class ReplayViewer:
         print(f"  Unique positions: {len(positions)}")
         print(f"  Final level:      {last.level}")
         print(f"{'-' * 60}")
-        print(f"  Action speeds:")
+        print("  Action speeds:")
         for speed, count in sorted(speeds.items()):
             print(f"    {speed:12s}: {count:3d} ({count/total:.0%})")
         print(f"{'-' * 60}")

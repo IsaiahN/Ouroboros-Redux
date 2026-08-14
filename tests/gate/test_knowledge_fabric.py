@@ -22,7 +22,6 @@ Run pre-build: these failed (module absent).
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
 
@@ -35,7 +34,9 @@ if REPO not in sys.path:
 
 def _F():
     try:
-        from engines.egocentric.fabric import KnowledgeFabric
+        from engines.egocentric.fabric import (
+            KnowledgeFabric,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.fabric missing (%s) — Phase 3a has not landed" % e)
     from engines.egocentric.fabric import KnowledgeFabric as KF

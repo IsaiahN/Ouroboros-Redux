@@ -15,7 +15,7 @@ Discipline (as Phase 1): deterministic (no RNG, no I/O), and EVERY exception is 
 """
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 
 from engines.egocentric.goal import GoalManager
 

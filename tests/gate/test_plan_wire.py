@@ -15,7 +15,7 @@ LOOP = os.path.join(REPO, "cognitive_loop.py")
 
 
 def _src():
-    with open(LOOP, "r", encoding="utf-8") as f:
+    with open(LOOP, encoding="utf-8") as f:
         return f.read()
 
 

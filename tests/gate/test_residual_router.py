@@ -18,7 +18,9 @@ if REPO not in sys.path:
 
 def _R():
     try:
-        from engines.egocentric.router import ResidualRouter
+        from engines.egocentric.router import (
+            ResidualRouter,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.router missing (%s) -- W2b has not landed" % e)
     from engines.egocentric.router import ResidualRouter as R

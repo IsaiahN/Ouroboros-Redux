@@ -23,7 +23,7 @@ NUM_MAP = re.compile(r"\{\s*\d+\s*:\s*\d+\s*,\s*\d+\s*:\s*\d+\s*,\s*\d+\s*:")
 
 def lint(rev_range="HEAD~1..HEAD"):
     out = subprocess.run(["git", "diff", rev_range, "--unified=0"],
-                         capture_output=True, text=True,
+                         capture_output=True, text=True, check=False,
                          encoding="utf-8", errors="replace").stdout
     flags, current = [], None
     for line in out.splitlines():

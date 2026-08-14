@@ -14,7 +14,6 @@ Pure-stdlib JSONL streams under scoped directories -- no database, no wall-clock
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -55,9 +54,9 @@ class KnowledgeFabric:
         out: List[Dict[str, Any]] = []
         if not os.path.isfile(path):
             return out
-        with io.open(path, "r", encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                line = line.strip()
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for raw in fh:
+                line = raw.strip()
                 if not line:
                     continue
                 try:
@@ -88,7 +87,7 @@ class KnowledgeFabric:
         d = os.path.dirname(path)
         if d and not os.path.isdir(d):
             os.makedirs(d)
-        with io.open(path, "a", encoding="utf-8") as fh:
+        with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
         return rec
 

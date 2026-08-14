@@ -22,7 +22,9 @@ from engines.egocentric.fabric import KnowledgeFabric
 
 def _A():
     try:
-        from engines.egocentric.affect import AffectGains
+        from engines.egocentric.affect import (
+            AffectGains,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.affect missing (%s) -- W4a has not landed" % e)
     from engines.egocentric.affect import AffectGains as A
@@ -35,9 +37,9 @@ def _fabric_with_history(tmp_path, name="f", settles=10, nontrivial=5, mints=2, 
         f.append("collective", "settlements",
                  {"agent": "a", "game": "g1", "level": 1, "action": 6,
                   "best": 0.5, "nontrivial": i < nontrivial})
-    for i in range(mints):
+    for _ in range(mints):
         f.append("collective", "mint_verdicts", {"verdict": "mint", "game": "g1"})
-    for i in range(rejects):
+    for _ in range(rejects):
         f.append("collective", "mint_verdicts", {"verdict": "reject", "game": "g1"})
     return f
 

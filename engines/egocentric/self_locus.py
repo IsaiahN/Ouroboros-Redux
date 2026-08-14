@@ -16,11 +16,13 @@ cross-step handle for "the same body" without needing a global tracker here (the
 owns identity; this module only accrues per-colour, per-action displacement evidence). Nothing silent.
 """
 from __future__ import annotations
+
 from typing import Dict, List, Optional
 
 
 def _centroid(cells):
-    rs = [c[0] for c in cells]; cs = [c[1] for c in cells]
+    rs = [c[0] for c in cells]
+    cs = [c[1] for c in cells]
     return (sum(rs) / len(rs), sum(cs) / len(cs))
 
 

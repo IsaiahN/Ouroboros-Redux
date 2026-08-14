@@ -32,7 +32,7 @@ class ResidualRouter:
         self.import_queue: list[dict] = []   # NOVEL -- the endogenous build agenda
         self.refit_queue: list[dict] = []    # BROKEN_REBINDING -- binder re-fits owed
         self.mint_queue: list[dict] = []     # BROKEN_MECHANISM -- atoms owed to the mint
-        self.routed: dict[str, int] = {b: 0 for b in _BINS}
+        self.routed: dict[str, int] = dict.fromkeys(_BINS, 0)
         self.errors: int = 0
 
     def route(self, slot: str, settlement: dict) -> str | None:

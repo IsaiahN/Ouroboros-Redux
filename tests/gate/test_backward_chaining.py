@@ -35,8 +35,8 @@ def _E():
 
 
 def _P():
-    from engines.egocentric.planner import plan_to_identity  # noqa: F401
     from engines.egocentric import planner as P
+    from engines.egocentric.planner import plan_to_identity  # noqa: F401
     return P
 
 
@@ -171,13 +171,16 @@ def _chain_gamma(tmp_path, name: str, n: int, typed: bool):
     from engines.egocentric import effects as E
     g = E.Gamma(KnowledgeFabric(str(tmp_path / name), agent_id="a", kin_key="v4"))
     for v in range(3, 3 + n):
-        b = np.zeros((5, 5), dtype=int); b[2, 2] = v
-        a = b.copy(); a[2, 2] = v + 1
+        b = np.zeros((5, 5), dtype=int)
+        b[2, 2] = v
+        a = b.copy()
+        a[2, 2] = v + 1
         atom = E.learn_effect(b, 6, a)
         if typed:
             assert atom.get("ttype") == "COLOUR_PERM", "chain atoms must be typed"
         else:
-            atom.pop("ttype", None); atom.pop("params", None)
+            atom.pop("ttype", None)
+            atom.pop("params", None)
         g.add(atom, game="g1", level=1)
     return g
 
@@ -186,8 +189,10 @@ class TestBackwardChaining:
     K = 8                                                 # the planner's per-frontier depth
 
     def _boards(self):
-        ws = np.zeros((5, 5), dtype=int); ws[2, 2] = 3
-        ref = np.zeros((5, 5), dtype=int); ref[2, 2] = 3 + 2 * self.K
+        ws = np.zeros((5, 5), dtype=int)
+        ws[2, 2] = 3
+        ref = np.zeros((5, 5), dtype=int)
+        ref[2, 2] = 3 + 2 * self.K
         return ws, ref
 
     def test_forward_only_finds_nothing_at_2k(self, tmp_path):
@@ -225,8 +230,10 @@ class TestBackwardChaining:
         reach -- backward chaining is an extension, never a regression."""
         P = _P()
         g = _chain_gamma(tmp_path, "short", n=2, typed=False)
-        ws = np.zeros((5, 5), dtype=int); ws[2, 2] = 3
-        ref = np.zeros((5, 5), dtype=int); ref[2, 2] = 5
+        ws = np.zeros((5, 5), dtype=int)
+        ws[2, 2] = 3
+        ref = np.zeros((5, 5), dtype=int)
+        ref[2, 2] = 5
         out = P.plan_to_identity(ws, ref, g, game="g1", level=1,
                                  budget=100, cost_per_action=1)
         assert out is not None and len(out["steps"]) == 2 and out["feasible"] is True
@@ -237,10 +244,13 @@ class TestBackwardChaining:
         from engines.egocentric import effects as E
         P = _P()
         g = _chain_gamma(tmp_path, "mixed", n=2 * self.K, typed=True)
-        b = np.zeros((5, 5), dtype=int); b[0, 0] = 1
-        a = b.copy(); a[0, 0] = 2
+        b = np.zeros((5, 5), dtype=int)
+        b[0, 0] = 1
+        a = b.copy()
+        a[0, 0] = 2
         raw = E.learn_effect(b, 6, a)
-        raw.pop("ttype", None); raw.pop("params", None)
+        raw.pop("ttype", None)
+        raw.pop("params", None)
         g.add(raw, game="g1", level=1)                    # an uninvertible bystander
         ws, ref = self._boards()
         out = P.plan_to_identity(ws, ref, g, game="g1", level=1,

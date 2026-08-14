@@ -35,7 +35,7 @@ if REPO not in sys.path:
 def _mods():
     try:
         from engines.egocentric import perception, self_locus  # noqa: F401
-        from engines.egocentric.observer import EgoObserver    # noqa: F401
+        from engines.egocentric.observer import EgoObserver  # noqa: F401
     except Exception as e:
         pytest.fail("engines.egocentric is missing or broken (%s) — Phase 1 has not landed; "
                     "see PREREG_PHASE1.md" % e)
@@ -51,7 +51,8 @@ class TestSegmentationAndTracking:
         P, _, _ = _mods()
         g = np.zeros((10, 10), dtype=int)
         g[2, 2] = 3
-        g[7, 7] = 5; g[7, 8] = 5
+        g[7, 7] = 5
+        g[7, 8] = 5
         objs = P.segment(g, background=0)
         assert len(objs) == 2
         sizes = sorted(o.size for o in objs)
@@ -61,8 +62,12 @@ class TestSegmentationAndTracking:
     def test_tracker_holds_identity_across_a_small_move(self):
         P, _, _ = _mods()
         t = P.ObjectTracker()
-        g1 = np.zeros((10, 10), dtype=int); g1[2, 2] = 3; g1[2, 3] = 3
-        g2 = np.zeros((10, 10), dtype=int); g2[2, 3] = 3; g2[2, 4] = 3
+        g1 = np.zeros((10, 10), dtype=int)
+        g1[2, 2] = 3
+        g1[2, 3] = 3
+        g2 = np.zeros((10, 10), dtype=int)
+        g2[2, 3] = 3
+        g2[2, 4] = 3
         a = t.update(P.segment(g1, background=0))
         b = t.update(P.segment(g2, background=0))
         assert len(a) == 1 and len(b) == 1
@@ -105,7 +110,8 @@ class TestTheObserver:
     def test_first_call_stores_and_returns_none_colour(self):
         _, _, EO = _mods()
         o = EO()
-        g = np.zeros((8, 8), dtype=int); g[1, 1] = 4
+        g = np.zeros((8, 8), dtype=int)
+        g[1, 1] = 4
         r = o.observe(g, "A1")
         assert r is not None and r.get("colour") is None
         assert r.get("objects", -1) >= 1
@@ -116,14 +122,16 @@ class TestTheObserver:
         # colour 4 moves 2 cells under A1, stays under A2 -- across enough steps to clear
         # min_events; the observer must eventually name it.
         pos = 1
-        g = np.zeros((12, 12), dtype=int); g[6, pos] = 4
+        g = np.zeros((12, 12), dtype=int)
+        g[6, pos] = 4
         o.observe(g, "A1")
         named = None
         for i in range(8):
             act = "A1" if i % 2 == 0 else "A2"
             if act == "A1":
                 pos = min(pos + 2, 10)
-            g = np.zeros((12, 12), dtype=int); g[6, pos] = 4
+            g = np.zeros((12, 12), dtype=int)
+            g[6, pos] = 4
             named = o.observe(g, act).get("colour")
         assert named == 4
 
@@ -140,7 +148,8 @@ class TestTheObserver:
             seq = []
             pos = 1
             for i in range(6):
-                g = np.zeros((10, 10), dtype=int); g[3, pos] = 2
+                g = np.zeros((10, 10), dtype=int)
+                g[3, pos] = 2
                 seq.append(str(o.observe(g, "A%d" % (i % 2 + 1))))
                 pos += (1 if i % 2 == 0 else 0)
             return "|".join(seq)

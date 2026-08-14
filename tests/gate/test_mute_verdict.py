@@ -19,7 +19,9 @@ if REPO not in sys.path:
 
 def _V():
     try:
-        from engines.egocentric.verdicts import MuteHandler
+        from engines.egocentric.verdicts import (
+            MuteHandler,  # noqa: F401 -- the import IS the availability probe
+        )
     except Exception as e:
         pytest.fail("engines.egocentric.verdicts missing (%s) -- W4b has not landed" % e)
     from engines.egocentric.verdicts import MuteHandler as V

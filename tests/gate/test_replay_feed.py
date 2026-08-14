@@ -7,17 +7,20 @@ THE LINE THAT MAY NOT BE CROSSED: no credit, no mint from replayed steps (no syn
 signal -- the wheel rule).
 """
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
 from types import SimpleNamespace
+
 import numpy as np
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
-import cognitive_loop as cl                                  # noqa: E402
-from engines.egocentric.observer import EgoObserver          # noqa: E402
-from engines.egocentric.spine import GoalSpine               # noqa: E402
+import cognitive_loop as cl  # noqa: E402
+from engines.egocentric.observer import EgoObserver  # noqa: E402
+from engines.egocentric.spine import GoalSpine  # noqa: E402
 
 
 def _feed():
@@ -37,13 +40,15 @@ class TestTheFeed:
         s = _standin()
         feed = _feed()
         pos = 1
-        g = np.zeros((12, 12), dtype=int); g[6, pos] = 4
+        g = np.zeros((12, 12), dtype=int)
+        g[6, pos] = 4
         feed(s, g, 1)
         for i in range(8):
             act = 1 if i % 2 == 0 else 2
             if act == 1:
                 pos = min(pos + 2, 10)
-            g = np.zeros((12, 12), dtype=int); g[6, pos] = 4
+            g = np.zeros((12, 12), dtype=int)
+            g[6, pos] = 4
             feed(s, g, act)
         assert s._goal_spine.established(), (
             "eight fed steps with contingent motion established nothing -- the feed is not "

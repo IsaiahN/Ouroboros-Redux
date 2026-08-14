@@ -7,7 +7,10 @@ centroid -> bare LEVEL mint. Source-contract tests; the live half is the standin
 live-wire falsifier.
 """
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)

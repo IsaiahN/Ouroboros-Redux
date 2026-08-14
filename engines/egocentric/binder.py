@@ -121,8 +121,8 @@ class RoleBinder:
             mut = bool(mutated)
             hit = False
             if mut:
-                cells = set(tuple(c) for c in (changed_cells or ()))
-                mask = set(tuple(c) for c in (predicted_mask or ()))
+                cells = {tuple(c) for c in (changed_cells or ())}
+                mask = {tuple(c) for c in (predicted_mask or ())}
                 hit = bool(cells & mask)
             self.observe(object_class, action, moved_with_action,
                          mutated_on_contact=(mut and hit),
@@ -152,7 +152,8 @@ class RoleBinder:
                 if level is None:
                     level = getattr(bank, "level", None)
             if gamma is not None and pre_frame is not None:
-                import numpy as _np                # lazy: the floor never pays
+                import numpy as _np  # lazy: the floor never pays
+
                 from engines.egocentric.effects import Gamma as _G
                 from engines.egocentric.effects import apply_effect as _ap
                 _pre = _np.asarray(pre_frame)
