@@ -616,3 +616,26 @@ sequences, and all knowledge stores were never touched (separate files/tables).
 WATCH: re86 + tu93 wrote ZERO new episode rows in ~2h since — the same two games that
 had anomalously few episodes all day. Next beat: read their worker logs (slow-episode or
 stuck-loop diagnosis), now visible precisely because the census survives.
+
+## Entry 34 — CK WAVE 2 LANDS: efference copy, inverse closure, surprise pricing
+
+Three builds, three separate commits (4786759, 3840e20, 9e51b86), all failing-first, suite
+222/222 verified independently, swarm restarted on the new closure.
+- CK-2a EFFERENCE COPY (von Holst): binder attribution = predicted-change-mask subtraction
+  (reafference vs exafference). SEMANTIC CHANGE per prereg: REFERENCE = invariant-under-ME
+  (a single autonomous event no longer blocks the slot forever — defeasibility); BODY
+  guard untouched. Attacks g4=0.
+- CK-2b INVERSE CLOSURE + BACKWARD CHAINING (Klein/Newell-Simon): invert_transform per
+  ttype; planner meet-in-the-middle, inversion proposes / forward replay proves; stitched
+  plans replayed end-to-end. Falsifier: 16-step goal invisible forward-only, found+
+  verified bidirectionally. Attacks g7.
+- CK-2c SURPRISE WEIGHTING (Rescorla-Wagner): mint support weighted 1/(1+seen) per
+  transition signature (coarser than atom key — closes the lp85 same-transition-novel-key
+  grind loophole); N repetitions sum ~ln N. Attacks debasement.
+REGISTERED VERDICTS OPEN: g4 rises where g3 passes (2 beats); g7 moves on typed-atom
+games; lp85/ft09 trivial-mint acceptance falls, structural share holds. CK-3 queue:
+conditional-effect constructor (arity-3, the button-door relation), class-fission socket
+(hidden types), agent-motion predictor family (cat 14, flagged). Laws on the books:
+capacity/content (= the firewall line), composability (one currency, four modes,
+transient-then-durable). Builder-detach lesson: two builders backgrounded their suite
+runs and stopped early — resumed via SendMessage; future briefs say FOREGROUND.
