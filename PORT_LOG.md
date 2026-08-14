@@ -688,3 +688,18 @@ clean, OOD CLEAN. Swarm restarted on the complete hardened closure. Registered v
 (2 beats): g7 > 0; first cross-game import earns TRANSFERRED; [SWALLOW] ~0 baseline;
 movement bias visible. Every bug this build-out found was found by an instrument built
 this week.
+
+## Entry 38 — FULLY BUILT: the final gaps closed; the swarm runs the three-arm control
+
+G-A rho (84e27d2): independence numeric — Jaccard over sigma classes, n_eff, collapse-4
+guard at 0.9; consumer ranks kin-echo then low-rho. G-B bracket (cdf2cdb): R_T round trip
+measured, membrane enforced as code; LIVE FINDING: cn04 re-derived ka59's atom x61 with
+R_T=0 — Fig 8's union surplus observed in the wild. G-C goal abduction (bd6a775):
+structural predicates from level-up deltas, defeasible credibility, planner predicate
+mode for no-reference episodes. G-D LP drive (6a2a1c9): three arms live (fixed 10 /
+random 8 / lp 7 by sha1(game)); fixed/random byte-identical proven; lp merges default-on
+only if it beats random. QA: 561/561, ruff clean, OOD CLEAN. By the figures' checklist
+the system is FULLY BUILT — every mechanism, every metric, drives under controlled test.
+Swarm restarted. Open: live verdicts (g7, import TRANSFERRED, swallow baseline, movement
+bias, now + LP arm comparison + R_T live once verdicts carry episode ids); push to origin
+awaiting Isaiah's word.
