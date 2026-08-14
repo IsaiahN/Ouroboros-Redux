@@ -121,3 +121,15 @@ A3-3 "GAME" HAS TWO GRAINS, BOTH VALID (declare): 4-char prefix (config/role sit
    grain, full id = knowledge grain; never compare across grains.
 A3-4 "WHEN" (already routed): no shared episode key across streams — verdicts need
    episode id + sigma (the bracket's MISSING). Rides the maintenance pass.
+
+## AMENDMENT 4 (2026-08-14): review riders
+A4-1 (G19) HYDRATION READ BOUND: N=500 records/scope (cognitive_loop _hyd_ver).
+   Provenance: DERIVED-from-janitor-retention (100 raw survivors) x safety factor 5 —
+   but the factor is GUESSED. Register G, arm-testable.
+A4-2 WINDOW DEBT (queued maintenance): the .credit/.route char-window gates (7950/8000,
+   19985/20000) are proxies for "the wiring call exists inside record_result" and are
+   now shaping code placement (15-50 chars slack). WHEN THE BUDGET RUNS OUT: an edit
+   inside record_result forces refactor-or-test-amendment. FIX: replace char windows
+   with AST-based wiring assertions (same intent, no character economy). Queued.
+A4-3 EP ORDINAL: confirmed content-free (instance-local counter; no game/session
+   identifiers in logic; OOD lint enforces).
