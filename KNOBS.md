@@ -85,3 +85,16 @@ A6 (SELF-TUNING NULL + RATE LIMIT): the mechanism REQUIRES (a) a losing conditio
    a null move the anchor one way; (b) ONE knob-arm at a time swarm-wide with a
    cooldown (>= one full arm-experiment window) — 25 workers cannot host concurrent
    interfering arms; an uncooled proposer is a random walk charged to throughput.
+
+## AMENDMENT 2 (2026-08-14): THE IDENTITY LADDER (F11 resolved) + honest rho
+The rho_bar=0.000 x153-pairs reading was a PARTITION ARTIFACT, not a measurement —
+n_eff=18 is an upper bound under a grain where correlation is undetectable. VERIFIED
+live: cn04 holds 64 rederivation verdicts for ka59's atom key (cross-mount recognition)
+while atom-set rho reads 0 — two sameness notions in play, only one frozen.
+F11 IS NOW THE LADDER, frozen as a whole, each ROLE pinned to a rung:
+  rung 0 KEY (canonical content hash, position-free) — the novelty guard, the bracket
+  rung 1 SIG_CLASS (sigma + ttype + params) — consumer matching, atom-set rho
+  rung 2+ COARSENED SIGMA (the redescription rungs) — near-miss retry, cross-game lookup
+RHO REPORTING (queued build): rho at rungs 0/1/2 + the REDERIVATION-TRAFFIC channel
+(cross-mount verdict recognition counts) — a distribution, not a partition; a
+measurement of independence must be capable of reading nonzero.
