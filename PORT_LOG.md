@@ -639,3 +639,18 @@ conditional-effect constructor (arity-3, the button-door relation), class-fissio
 capacity/content (= the firewall line), composability (one currency, four modes,
 transient-then-durable). Builder-detach lesson: two builders backgrounded their suite
 runs and stopped early — resumed via SendMessage; future briefs say FOREGROUND.
+
+## Entry 35 — THE THREE READOUTS LIVE: every episode a measurement regardless of outcome
+
+R1 (ecd0a56, SOCKET): starvation codes — fixed six-code enum, StarvationBook pure over
+episode counters, <=1 record/socket/episode to the PERSONAL fabric, [STARVE] narration;
+consumer = affect.starvation_steer widening the mute-probe cap (steers effort, never
+prices; gains() unchanged, gate-asserted). The agent now reads its own residual.
+R2 (9b2e62b, proctor-only): socket-vs-filler lint over builder diffs (grids/game-ids/
+mappings); CK-1a, CK-2, and R1 diffs all verified socket-clean; PORT_LOG entries carry
+SOCKET/CONTENT per build. The agent never reads its grade.
+R3 (3dd1631, SOCKET): produced-but-never-consumed is a GATE — AST inventory, 11 fabric
+topics, every writer needs a reader or a prereg-cited allowlist entry; stale entries
+fail too (monotone tightening). import_queue = the one named orphan (C33 §14-16, CK-3+).
+Suite 244/244 verified independently; failing-first shown for R1 and R3; swarm restarted
+with readouts live. THE LINE, now plumbing: residual in, grade out.
