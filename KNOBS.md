@@ -55,3 +55,33 @@ games, judged on evidence-per-budget vs control ACROSS ALL games, adopted swarm-
 rejected. One value for all games is preserved BY CONSTRUCTION (the arm sets a global,
 never a per-game override). Register F is not reachable by this mechanism: the tuner
 is priced by F and a market cannot price its own currency.
+
+## AMENDMENT 1 (2026-08-14, six-point review — four derived, two imported)
+A1 (F11) SIG_CLASS IS FROZEN: the sigma-projection defining atom identity (rho.py
+   sig_class + consumer INVARIANTS) is REGISTER F — identity decides the NOVELTY guard
+   (phi not-in atoms(Gamma)), rho, collapse-4, and bracket matching. A free identity is
+   a free guard.
+A2 (REGISTER L — MEASURED LATENTS, new): quantities that are PER-REGIME MEASURABLES,
+   never constants and never knobs — estimated online from the ledger by a GLOBAL
+   estimator (the estimator is the socket, the estimate is content; latents are learned
+   state, not game-conditioned tuning). L1: planner cost_per_action (currently 1.0 —
+   measured non-monotonic 1,2,2,1,2,1,2 across one game's levels; must become a per-
+   game+level ledger estimate). AUDIT OPEN: anything keyed to board scale, action cost,
+   or level structure. A latent misfiled as a knob is invisible to the arm mechanism.
+A3 (G8 SPLIT): the mint-bar CEILING is F (an unbounded bar = acceptance-by-starvation,
+   SUPPORT -> 0 kills the guard product); the VALUE within the ceiling stays G.
+A4 (G17/G18 -> G*, self-tuning-excluded): role multipliers + handoff funding decide
+   WHICH EVIDENCE EXISTS — a tuner moving them edits the books it is judged on (the
+   market-currency law one step earlier). They remain arm-testable by the proctor with
+   Isaiah's sign-off; the agent self-tuning mechanism can NEVER reach them.
+A5 (PROVENANCE COLUMN): every G row is marked MEASURED / DERIVED / GUESSED.
+   GUESSED today (will read as settled in a month if unmarked): RHO_COLLAPSE=0.9,
+   LP CEIL=4.0, fission purity=0.75, MOVE_NOOP_RATE=0.8, SALIENT_K=3, replay p=0.2,
+   starvation +0.25/cap 2.0, probe cap 10, consumer budget_n=8, PLAN_N=50/BOOK_N=10.
+   DERIVED: n_eff formula, window laws, Chebyshev adjacency. MEASURED: MAX_NODES=2000
+   (hang repro), SEEN_CAP=4096 (soak), MEM_CAP/RECYCLE (live ops).
+A6 (SELF-TUNING NULL + RATE LIMIT): the mechanism REQUIRES (a) a losing condition —
+   an arm that fails to beat control REVERTS and is logged; adoption criteria without
+   a null move the anchor one way; (b) ONE knob-arm at a time swarm-wide with a
+   cooldown (>= one full arm-experiment window) — 25 workers cannot host concurrent
+   interfering arms; an uncooled proposer is a random walk charged to throughput.
