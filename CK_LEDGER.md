@@ -166,3 +166,13 @@ govern capacities, which precede its evidence.
    the MINT makes a composition durable only when it PAID (a chain that reached d=0 and
    levelled becomes one composite atom — chunking, priced by the n=1 gate as an atom).
 4. LAZY COMPOSITION: compose when a residual demands it; never enumerate eagerly.
+
+## AGE-GATE AMENDMENT v2 (Isaiah, 2026-08-13): YOUNG ADULTHOOD, not four years
+ARC is normed on adult test-takers. The legitimacy gate is now: "Would a typical YOUNG
+ADULT have this, before seeing this game?" — universality across neurotypical young
+adults + non-task-specificity. This DISSOLVES the category 8/9/11 tension (concrete
+operations, WM architecture, search strategies are all adult-universal; the post-core
+tags become moot). The cultural-exclusion list is UNCHANGED and still binding: no
+letters, numerals-as-symbols, colour semantics, HUD conventions, real-world object
+identities, trained games — adults have those too, but they are content/task-specific,
+which is the line that was always doing the work. The capacity/content law is untouched.
