@@ -26,6 +26,16 @@ the Gamma is treated as read-only: atoms are fetched from the fabric once, and e
 (atom, state) application is memoized by state key, so the anchor scans inside
 apply_effect run at most once per pair.
 
+G-C (PREREG_FINAL_GAPS): a SECOND target mode. With `reference=None` and a
+`goal_predicate` (the goal_abduction vocabulary -- region-uniform, colour-count-zero,
+regions-equal), the stopping test becomes PREDICATE SATISFACTION on the state
+(satisfies(goal_predicate, state)) instead of d == 0 against a reference frame. The
+search is forward-only in this mode -- there is no reference frame to walk backward
+from, so the backward frontier simply stays empty (the same degradation as an
+untyped Gamma). No reference AND no predicate -> None: a target is evidence-backed
+or absent, never invented. Everything else -- budget, depth, memoization, replay
+verification, feasibility -- is shared between the two modes.
+
 Deterministic: sorted atom-id expansion order, visited-state dedup, level-by-level
 frontier alternation, no RNG. Stdlib + numpy only.
 """
@@ -39,6 +49,7 @@ import numpy as np
 
 from engines.egocentric.discrepancy import compute_d
 from engines.egocentric.effects import apply_effect, apply_inverse, invert_transform
+from engines.egocentric.goal_abduction import satisfies
 
 __all__ = ["plan_to_identity"]
 
@@ -70,14 +81,33 @@ def _invertible(atom: Optional[Dict[str, Any]]) -> bool:
             and invert_transform(atom["ttype"], atom.get("params") or {}) is not None)
 
 
-def plan_to_identity(workspace: np.ndarray, reference: np.ndarray, gamma,
+def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gamma,
                      game: str, level: int,
-                     budget: float, cost_per_action: float) -> Optional[Dict[str, Any]]:
-    """None | {"steps": [atom ids in order], "feasible": bool}."""
-    ws = np.asarray(workspace)
-    ref = np.asarray(reference)
+                     budget: float, cost_per_action: float,
+                     goal_predicate: Optional[Dict[str, Any]] = None,
+                     ) -> Optional[Dict[str, Any]]:
+    """None | {"steps": [atom ids in order], "feasible": bool}.
 
-    if compute_d(ws, ref)["differing"] == 0:
+    TWO TARGET MODES (G-C): with `reference` an array, the stopping test is
+    compute_d(state, reference)["differing"] == 0 (unchanged). With
+    reference=None and `goal_predicate` an abduced structural predicate, the
+    stopping test is satisfies(goal_predicate, state) and the search runs
+    forward-only (no reference to invert from). Neither target -> None."""
+    ws = np.asarray(workspace)
+    pred_mode = reference is None
+    if pred_mode and goal_predicate is None:
+        return None                       # no target is no plan -- never invented
+    ref = None if pred_mode else np.asarray(reference)
+
+    def _done(state: np.ndarray) -> bool:
+        """The stopping test, per target mode. Reference mode keeps the cheap
+        equality pre-filter with compute_d as the authority (unchanged)."""
+        if pred_mode:
+            return bool(satisfies(goal_predicate, state))
+        return (state.shape == ref.shape and bool((state == ref).all())
+                and compute_d(state, ref)["differing"] == 0)
+
+    if _done(ws):
         return {"steps": [], "feasible": True}
 
     ids = _candidate_ids(gamma, game, level)
@@ -121,26 +151,33 @@ def plan_to_identity(workspace: np.ndarray, reference: np.ndarray, gamma,
         return res
 
     ws_key = _state_key(ws)
-    ref_key = _state_key(ref)
 
     def _finish(steps: List[str]) -> Optional[Dict[str, Any]]:
-        """Replay the stitched plan forward from current; only a plan that reproduces
-        REFERENCE exactly is returned. A failed replay is not a plan -- keep searching."""
+        """Replay the stitched plan forward from current; only a plan that reaches
+        the TARGET (reference identity, or predicate satisfaction in goal mode)
+        is returned. A failed replay is not a plan -- keep searching."""
         cur, ck = ws, ws_key
         for aid in steps:
             cur = _run(aid, cur, ck)
             if cur is None:
                 return None
             ck = _state_key(cur)
-        if compute_d(cur, ref)["differing"] != 0:
+        if not _done(cur):
             return None
         feasible = len(steps) * cost_per_action <= budget
         return {"steps": list(steps), "feasible": bool(feasible)}
 
     fwd_paths = {ws_key: []}                  # state key -> steps from current
-    bwd_paths = {ref_key: []}                 # state key -> forward-direction suffix to REFERENCE
     fwd_frontier = deque([(ws, [], ws_key)])
-    bwd_frontier = deque([(ref, [], ref_key)])
+    # goal mode has no reference frame to invert from: the backward frontier
+    # stays empty and the loop degrades to the exact forward-only BFS
+    if pred_mode:
+        bwd_paths: Dict[str, List[str]] = {}
+        bwd_frontier: deque = deque()
+    else:
+        ref_key = _state_key(ref)
+        bwd_paths = {ref_key: []}             # state key -> forward-direction suffix to REFERENCE
+        bwd_frontier = deque([(ref, [], ref_key)])
     expanded = 0                              # nodes expanded, summed over BOTH frontiers
 
     while fwd_frontier or bwd_frontier:
@@ -161,10 +198,10 @@ def plan_to_identity(workspace: np.ndarray, reference: np.ndarray, gamma,
                     continue
                 path = steps + [aid]
                 fwd_paths[key] = path
-                # cheap equality pre-filter; compute_d stays the stopping test's
-                # authority (differing == 0 iff same shape and every cell equal)
-                if (nxt.shape == ref.shape and (nxt == ref).all()
-                        and compute_d(nxt, ref)["differing"] == 0):
+                # the stopping test, per target mode (_done keeps the cheap
+                # equality pre-filter with compute_d as the reference-mode
+                # authority; goal mode checks predicate satisfaction)
+                if _done(nxt):
                     out = _finish(path)
                     if out is not None:
                         return out

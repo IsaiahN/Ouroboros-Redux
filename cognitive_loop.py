@@ -90,6 +90,31 @@ def _seed_imp(loop) -> None:
         _swal(loop, "OTHER")
 
 
+def _goal_abd(loop, level_changed, post_array) -> None:
+    """G-C (PREREG_FINAL_GAPS): goal abduction's bank site — on a level-up, mine
+    the pre->post frame delta for STRUCTURAL predicates (region-uniform,
+    colour-count-zero, regions-equal; mechanics, never answers) and bank them as
+    game+level-scoped GOAL HYPOTHESES on the collective "goal_hypotheses"
+    stream; a level-up WITHOUT a known predicate falsifies it (credibility
+    drops). One-line call site placed AFTER the .credit/.route anchors by the
+    window law; containment: never raises."""
+    try:
+        _fab = getattr(loop, "_ego_fabric", None)
+        _pre = getattr(loop, "_prev_frame", None)
+        if not level_changed or _fab is None or _pre is None or post_array is None:
+            return
+        if getattr(loop, "_goal_book", None) is None:
+            from engines.egocentric.goal_abduction import GoalBook
+            loop._goal_book = GoalBook(_fab)
+        for _b in loop._goal_book.observe_levelup(
+                str(getattr(loop, "_game_id", "") or "game"),
+                int(getattr(loop, "_ego_level", 0) or 0),
+                np.asarray(_pre), np.asarray(post_array)):
+            print(f"[GOAL] banked {_b.get('sig')} (level-up delta hypothesis)")
+    except Exception:
+        _swal(loop, "SPINE")
+
+
 # =============================================================================
 # PERCEPTUAL BLACKBOARD ADAPTER
 # =============================================================================
@@ -1099,6 +1124,51 @@ class CognitiveLoop:
                                           f"feasible={_plan.get('feasible')} "
                                           f"verified={_verified} veto={_veto} "
                                           f"d={_d.get('differing')}")
+                # ═══ G-C (PREREG_FINAL_GAPS): reference first, then ABDUCED ═══
+                # The g4=0 episodes get a target: with NO reference snapshot but
+                # a credible abduced goal (>= 2 co-occurrences on the collective
+                # "goal_hypotheses" stream), plan toward the predicate. The
+                # DRIVE gates are UNCHANGED — verified (2x TRANSFERRED per step
+                # atom) + site + frontier veto — and anything less is shadow.
+                elif (_gm is not None and _rbind is not None and _refsnap is None
+                        and getattr(self, "_ego_fabric", None) is not None):
+                    _pframe = self._perceiver._to_numpy(frame)
+                    if _pframe is not None:
+                        from engines.egocentric.goal_abduction import (
+                            GoalBook, abduced_plan)
+                        if getattr(self, "_goal_book", None) is None:
+                            self._goal_book = GoalBook(self._ego_fabric)
+                        _fb4 = getattr(self, "_ego_frontier_book", None)
+                        _lv4 = int(getattr(self, "_ego_level", 0) or 0)
+                        _ap = abduced_plan(
+                            _gm, self._goal_book, _pframe,
+                            game=str(self._game_id), level=_lv4 + 1,
+                            budget=float(max(
+                                0, self._max_actions - self._actions_taken)),
+                            verified_counts=getattr(self, "_atom_verified",
+                                                    None) or {},
+                            harvest=(getattr(self, "_ego_harvest_cache", None)
+                                     or {}).get(_lv4),
+                            avoid=(_fb4.avoid_set(
+                                str(getattr(self, "_game_id", "") or "game"),
+                                _lv4) if _fb4 is not None else None))
+                        if _ap is not None:
+                            print(f"[GOAL] plan targets {_ap['sig']} "
+                                  f"cred={_ap['credibility']}")
+                            if (_ap["verified"] and _ap["site"] is not None
+                                    and not _ap["veto"]):
+                                action_num = 6
+                                action_data = {'x': int(_ap["site"][0]),
+                                               'y': int(_ap["site"][1])}
+                                _pg["drive"] += 1
+                                print(f"[PLAN] DRIVE steps={len(_ap['steps'])} "
+                                      f"site={_ap['site']} goal={_ap['sig']}")
+                            else:
+                                _pg["shadow"] += 1
+                                print(f"[PLAN] shadow steps={len(_ap['steps'])} "
+                                      f"feasible={_ap['feasible']} "
+                                      f"verified={_ap['verified']} "
+                                      f"veto={_ap['veto']} goal={_ap['sig']}")
             except Exception:
                 _swal(self, "PLANNER")
             # ═══ C33 STEP 1 (EGO-BET): every action carries a bet — commit at choice ═══
@@ -1596,6 +1666,7 @@ class CognitiveLoop:
                                     break
             except Exception:
                 _swal(self, "BANK_SETTLE")
+            _goal_abd(self, level_changed, post_array)  # G-C: bank the level-up delta
             # W4c-3: THE MINT — bar-gated by affect (picky when desperate).
             try:
                 _rt = getattr(self, "_residual_router", None)
