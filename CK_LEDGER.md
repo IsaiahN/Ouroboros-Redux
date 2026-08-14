@@ -176,3 +176,22 @@ tags become moot). The cultural-exclusion list is UNCHANGED and still binding: n
 letters, numerals-as-symbols, colour semantics, HUD conventions, real-world object
 identities, trained games — adults have those too, but they are content/task-specific,
 which is the line that was always doing the work. The capacity/content law is untouched.
+
+## THE RETRIEVAL LAW + THE REDESCRIPTION LOOP (Gick & Holyoak; Karmiloff-Smith)
+Analogical transfer fails at RETRIEVAL (~30% unaided), not at mapping (~75%+ with a
+cue-shaped hint). Three consequences, binding on the consumer build:
+1. ONE VOCABULARY FOR HOLES AND ATOMS: a residual described in the same type system the
+   atoms carry (ttype/params/slots) is a retrieval cue; a residual described as raw
+   pixels retrieves at base rate. The composability law's one-currency rule extends to
+   DESCRIPTIONS.
+2. THE CONSUMER IS A LOOP, NOT A LOOKUP: on miss, re-describe and retry — near-miss
+   logging (the sigma-vs-Gamma diagnostic) names WHICH invariant to sharpen next. Each
+   description more discriminating than the last; the loop ends at fire or at a
+   defeasible not-found (axis-tagged, reopened on new atoms).
+3. RE-DESCRIBE STALE HOLES WHEN THE VOCABULARY GROWS: import-queue items frozen in an
+   old vocabulary (pre-typed-transform residuals) get re-encoded when Gamma gains new
+   types — yesterday's unnameable hole may be cue-shaped today. Cheap pass, runs with
+   the janitor.
+Karmiloff-Smith's representational redescription is the capacity that makes the others
+accessible: the mint already redescribes procedures into atoms and the trace metaframe
+redescribes the search; item 3 closes the loop by redescribing the FAILURES.
