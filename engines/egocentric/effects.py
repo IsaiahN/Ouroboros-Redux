@@ -16,6 +16,13 @@ Pricing: the atom's encoding cost is the size of its canonical patches (changed-
 NOT the board size; a route's cost scales with its total elements. At n=1 a 1-cell recolour atom
 must already price below a 3-step route -- that inequality is the acceptance gate.
 
+B8: when the whole-bbox classifier is NONE, classify_object_transform segments the changed
+region into connected components and names the ONE-coherent-object mechanism (mover TRANSLATE
+in clutter, OBJ_APPEAR / OBJ_VANISH, shape-bound COLOUR_PERM); shape signatures are normalized
+relative offsets, never absolute coordinates. B9: ConditionalMiner buffers (pre, action, post)
+per action, bounded, and constructs arity-3 EFFECT_IF atoms when the same action diverges under
+a small REMOTE predicate; apply_effect checks the condition and runs the selected branch.
+
 Deterministic throughout: no RNG, no wall-clock. Stdlib + numpy only; atoms are JSON-serializable
 (lists, never ndarrays) so Gamma can store them in the fabric.
 """
@@ -28,6 +35,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 __all__ = ["learn_effect", "apply_effect", "classify_transform", "Gamma",
+           "classify_object_transform", "ConditionalMiner",
            "invert_transform", "apply_inverse",
            "encoding_cost_route", "encoding_cost_atom"]
 
@@ -123,6 +131,117 @@ def classify_transform(before_patch, after_patch) -> Dict[str, Any]:
     return none
 
 
+# ── B8: object-level transform classifier ─────────────────────────────────────
+#
+# classify_transform demands the WHOLE changed-region bbox to transform exactly; one
+# coherent object moving or changing inside cluttered context never satisfies that
+# (typed=3/585 -- the g7 precondition). classify_object_transform segments the CHANGED
+# region into connected components and names the single-object mechanism. Shape
+# signatures are NORMALIZED relative cell offsets [dr, dc, colour] -- never absolute
+# board coordinates: the same object at any position is the same shape.
+
+def _components(mask: np.ndarray) -> List[List[Tuple[int, int]]]:
+    """8-connected components of a boolean mask, in row-major discovery order."""
+    h, w = mask.shape
+    seen = np.zeros((h, w), dtype=bool)
+    comps: List[List[Tuple[int, int]]] = []
+    for r0 in range(h):
+        for c0 in range(w):
+            if not mask[r0, c0] or seen[r0, c0]:
+                continue
+            seen[r0, c0] = True
+            stack = [(r0, c0)]
+            comp: List[Tuple[int, int]] = []
+            while stack:
+                r, c = stack.pop()
+                comp.append((r, c))
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < h and 0 <= nc < w and mask[nr, nc] and not seen[nr, nc]:
+                            seen[nr, nc] = True
+                            stack.append((nr, nc))
+            comps.append(sorted(comp))
+    return comps
+
+
+def _shape_of(cells: List[Tuple[int, int]], grid: np.ndarray) -> List[List[int]]:
+    """Normalized shape signature: [dr, dc, colour] offsets from the component's own
+    origin (min row, min col) -- relative, NEVER absolute coordinates."""
+    r0 = min(r for r, _ in cells)
+    c0 = min(c for _, c in cells)
+    return sorted([r - r0, c - c0, int(grid[r, c])] for r, c in cells)
+
+
+def _match_object_translate(b: np.ndarray, a: np.ndarray,
+                            src: List[Tuple[int, int]],
+                            dst: List[Tuple[int, int]]) -> Optional[Dict[str, Any]]:
+    """A component disappears at src (one uniform fill restored), an identically
+    shaped+coloured component appears at dst where that same fill used to be."""
+    if len(src) != len(dst):
+        return None
+    fills = {int(a[r, c]) for r, c in src}
+    if len(fills) != 1:
+        return None                                       # the vacated ground is not uniform
+    fill = fills.pop()
+    if any(int(b[r, c]) != fill for r, c in dst):
+        return None                                       # the destination was not clear ground
+    shape = _shape_of(src, b)
+    if shape != _shape_of(dst, a):
+        return None                                       # not the same object
+    dx = min(r for r, _ in dst) - min(r for r, _ in src)
+    dy = min(c for _, c in dst) - min(c for _, c in src)
+    return {"ttype": "TRANSLATE",
+            "params": {"dx": int(dx), "dy": int(dy), "fill": fill, "shape": shape}}
+
+
+def classify_object_transform(before, after) -> Dict[str, Any]:
+    """Name the ONE-coherent-object mechanism inside cluttered context, exactly or not
+    at all: mover TRANSLATE (component vanishes at A, identical shape appears at B,
+    background restored) / OBJ_APPEAR / OBJ_VANISH (component present in exactly one
+    frame) / COLOUR_PERM (same cells, colours consistently remapped, injective, bound
+    to the component's shape). Pure, deterministic; NONE on anything else."""
+    none = {"ttype": "NONE", "params": {}}
+    b = np.asarray(before)
+    a = np.asarray(after)
+    if b.ndim != 2 or a.ndim != 2 or b.shape != a.shape or b.size == 0:
+        return none
+    diff = b != a
+    if not diff.any():
+        return none
+    comps = _components(diff)
+
+    if len(comps) == 2:                                   # mover: vanish at A, appear at B
+        for src, dst in ((comps[0], comps[1]), (comps[1], comps[0])):
+            t = _match_object_translate(b, a, src, dst)
+            if t is not None:
+                return t
+        return none
+
+    if len(comps) != 1:
+        return none                                       # not ONE coherent object
+
+    cells = comps[0]
+    bvals = {int(b[r, c]) for r, c in cells}
+    avals = {int(a[r, c]) for r, c in cells}
+    if len(bvals) == 1 and len(avals) > 1:                # content in AFTER only
+        return {"ttype": "OBJ_APPEAR",
+                "params": {"shape": _shape_of(cells, a), "fill": bvals.pop()}}
+    if len(avals) == 1 and len(bvals) > 1:                # content in BEFORE only
+        return {"ttype": "OBJ_VANISH",
+                "params": {"shape": _shape_of(cells, b), "fill": avals.pop()}}
+    mapping: Dict[int, int] = {}                          # same cells, remapped colours
+    for r, c in cells:
+        s, d = int(b[r, c]), int(a[r, c])
+        if mapping.setdefault(s, d) != d:
+            return none                                   # one colour, two fates: not a map
+    if len(set(mapping.values())) != len(mapping):
+        return none                                       # colours merged: not a perm
+    return {"ttype": "COLOUR_PERM",
+            "params": {"mapping": sorted([s, d] for s, d in mapping.items()),
+                       "shape": _shape_of(cells, b)}}
+
+
 def learn_effect(before: np.ndarray, action: int, after: np.ndarray) -> Optional[Dict[str, Any]]:
     """Learn ONE atom from ONE contact event. Empty change -> INERT (ground-priced)."""
     b = np.asarray(before)
@@ -148,6 +267,8 @@ def learn_effect(before: np.ndarray, action: int, after: np.ndarray) -> Optional
         "changed": int(diff.sum()),                       # what pricing is based on
     }
     t = classify_transform(ctx, out)                      # CK-1a: name the mechanism when exact
+    if t["ttype"] == "NONE":
+        t = classify_object_transform(ctx, out)           # B8: one coherent object in clutter
     if t["ttype"] != "NONE":
         atom["ttype"] = t["ttype"]
         atom["params"] = t["params"]
@@ -186,6 +307,78 @@ def _apply_translate(ctx: np.ndarray, params: Dict[str, Any],
     return None
 
 
+def _iter_shape_anchors(b: np.ndarray, shape: List[List[int]]):
+    """Yield (r, c) anchors where every shape cell [dr, dc, colour] matches the frame,
+    row-major. The shape is relative; the anchor supplies the absolute position."""
+    hr = max(s[0] for s in shape)
+    wr = max(s[1] for s in shape)
+    bh, bw = b.shape
+    for r in range(bh - hr):
+        for c in range(bw - wr):
+            if all(int(b[r + dr, c + dc]) == int(v) for dr, dc, v in shape):
+                yield r, c
+
+
+def _apply_shape_translate(shape: List[List[int]], params: Dict[str, Any],
+                           b: np.ndarray) -> Optional[np.ndarray]:
+    """B8: bind the object BY ITS SHAPE wherever it sits -- clutter and all -- vacate the
+    source to fill and land it (dx, dy) away. First anchor whose destination is clear."""
+    dx, dy = int(params.get("dx", 0)), int(params.get("dy", 0))
+    fill = int(params.get("fill", 0))
+    if not shape or (dx, dy) == (0, 0):
+        return None
+    bh, bw = b.shape
+    for r, c in _iter_shape_anchors(b, shape):
+        cells = [(r + dr, c + dc) for dr, dc, _v in shape]
+        tgt = [(rr + dx, cc + dy) for rr, cc in cells]
+        if any(not (0 <= rr < bh and 0 <= cc < bw) for rr, cc in tgt):
+            continue                                      # would shift off the frame
+        res = b.copy()
+        for rr, cc in cells:
+            res[rr, cc] = fill                            # vacate the source
+        if any(int(res[rr, cc]) != fill for rr, cc in tgt):
+            continue                                      # destination blocked
+        for (rr, cc), (_dr, _dc, v) in zip(tgt, shape, strict=True):
+            res[rr, cc] = int(v)
+        return res
+    return None
+
+
+def _apply_object_typed(ttype: str, params: Dict[str, Any],
+                        b: np.ndarray) -> Optional[np.ndarray]:
+    """B8: shape-bound ops. OBJ_APPEAR stamps the shape on the first clear ground of its
+    footprint; OBJ_VANISH erases the first shape occurrence to fill; a shape-carrying
+    COLOUR_PERM remaps ONLY the object's cells, never look-alike clutter."""
+    shape = params.get("shape") or []
+    if not shape:
+        return None
+    fill = int(params.get("fill", 0))
+    if ttype == "OBJ_APPEAR":
+        ground = [[s[0], s[1], fill] for s in shape]
+        for r, c in _iter_shape_anchors(b, ground):
+            res = b.copy()
+            for dr, dc, v in shape:
+                res[r + dr, c + dc] = int(v)
+            return res
+        return None
+    if ttype == "OBJ_VANISH":
+        for r, c in _iter_shape_anchors(b, shape):
+            res = b.copy()
+            for dr, dc, _v in shape:
+                res[r + dr, c + dc] = fill
+            return res
+        return None
+    if ttype == "COLOUR_PERM":
+        mapping = {int(s): int(d) for s, d in (params.get("mapping") or [])}
+        for r, c in _iter_shape_anchors(b, shape):
+            res = b.copy()
+            for dr, dc, v in shape:
+                res[r + dr, c + dc] = mapping.get(int(v), int(v))
+            return res
+        return None
+    return None
+
+
 def _apply_typed(atom: Dict[str, Any], b: np.ndarray) -> Optional[np.ndarray]:
     """PARAMETERIZED application: run the atom's named op at the pattern's position in the
     frame, whatever that position is. None -> caller falls back to the raw exact path."""
@@ -194,7 +387,12 @@ def _apply_typed(atom: Dict[str, Any], b: np.ndarray) -> Optional[np.ndarray]:
     ctx = np.asarray(atom["context"])
     if ctx.ndim != 2 or b.ndim != 2:
         return None
+    if ttype in ("OBJ_APPEAR", "OBJ_VANISH") or (ttype == "COLOUR_PERM"
+                                                 and params.get("shape")):
+        return _apply_object_typed(ttype, params, b)      # B8: shape-bound ops
     if ttype == "TRANSLATE":
+        if params.get("shape"):
+            return _apply_shape_translate(params["shape"], params, b)
         return _apply_translate(ctx, params, b)
     if ttype == "ROTATE":
         rep = np.rot90(ctx, int(params.get("k", 0)) % 4)
@@ -228,8 +426,17 @@ def apply_effect(atom: Dict[str, Any], before: np.ndarray) -> Optional[np.ndarra
     """Match the atom's context patch anywhere in `before` (exact content, any position);
     write the after-patch there. First match in row-major order; None if no match.
     CK-1a: an atom carrying a ttype tries its PARAMETERIZED op first (the mechanism fires
-    in contexts never literally seen); the raw exact-context scan is the fallback."""
-    if not atom or atom.get("kind") != "EFFECT":
+    in contexts never literally seen); the raw exact-context scan is the fallback.
+    B9: an EFFECT_IF atom checks its remote condition cells first and runs the branch
+    the world selected."""
+    if not atom:
+        return None
+    if atom.get("kind") == "EFFECT_IF":
+        try:
+            return _apply_effect_if(atom, np.asarray(before))
+        except Exception:
+            return None                                   # conditionals must never break a caller
+    if atom.get("kind") != "EFFECT":
         return None
     if atom.get("ttype") and atom.get("ttype") != "NONE":
         try:
@@ -262,8 +469,17 @@ def invert_transform(ttype: str, params: Dict[str, Any]) -> Optional[Tuple[str, 
     malformed params -- is not cleanly invertible: None, never a guess. Pure."""
     p = dict(params or {})
     if ttype == "TRANSLATE":
-        return ("TRANSLATE", {"dx": -int(p.get("dx", 0)), "dy": -int(p.get("dy", 0)),
-                              "fill": int(p.get("fill", 0))})
+        out = {"dx": -int(p.get("dx", 0)), "dy": -int(p.get("dy", 0)),
+               "fill": int(p.get("fill", 0))}
+        if p.get("shape"):
+            out["shape"] = [list(s) for s in p["shape"]]  # B8: colours survive a move
+        return ("TRANSLATE", out)
+    if ttype in ("OBJ_APPEAR", "OBJ_VANISH"):             # B8: mutual inverses
+        shape = p.get("shape") or []
+        if not shape:
+            return None
+        return ("OBJ_VANISH" if ttype == "OBJ_APPEAR" else "OBJ_APPEAR",
+                {"shape": [list(s) for s in shape], "fill": int(p.get("fill", 0))})
     if ttype == "ROTATE":
         return ("ROTATE", {"k": (4 - int(p.get("k", 0))) % 4})
     if ttype == "REFLECT":
@@ -279,7 +495,12 @@ def invert_transform(ttype: str, params: Dict[str, Any]) -> Optional[Tuple[str, 
             return None
         if not inv or len({d for d, _ in inv}) != len(inv):
             return None                                   # colours merged: no inverse map
-        return ("COLOUR_PERM", {"mapping": inv})
+        out = {"mapping": inv}
+        if p.get("shape"):                                # B8: the inverse hunts the AFTER colours
+            fwd = {int(s): int(d) for s, d in mapping}
+            out["shape"] = sorted([int(s[0]), int(s[1]), fwd.get(int(s[2]), int(s[2]))]
+                                  for s in p["shape"])
+        return ("COLOUR_PERM", out)
     if ttype == "SCALE":
         fx, fy = int(p.get("fx", 0)), int(p.get("fy", 0))
         mode = p.get("mode")
@@ -324,6 +545,115 @@ def apply_inverse(atom: Dict[str, Any], frame: np.ndarray) -> Optional[np.ndarra
         return None                                       # inversion must never break a caller
 
 
+# ── B9: conditional effects -- arity-3 EFFECT_IF atoms ────────────────────────
+
+def _apply_effect_if(atom: Dict[str, Any], b: np.ndarray) -> Optional[np.ndarray]:
+    """Check the remote condition cells; run then / else. A false condition with no
+    else-transform means the action does nothing: the unchanged frame, not None."""
+    cells = (atom.get("condition") or {}).get("cells") or []
+    if not cells or b.ndim != 2:
+        return None
+    bh, bw = b.shape
+    holds = True
+    for r, c, v in cells:
+        if not (0 <= int(r) < bh and 0 <= int(c) < bw):
+            return None                                   # the predicate is off this frame
+        if int(b[int(r), int(c)]) != int(v):
+            holds = False
+            break
+    branch = atom.get("then") if holds else atom.get("else")
+    if branch is None:
+        return None if holds else b.copy()                # inert else-branch: nothing happens
+    return apply_effect(branch, b)
+
+
+class ConditionalMiner:
+    """B9: the arity-3 constructor. A bounded history of (pre, action, post) frames per
+    action; when the SAME action yields DIVERGENT outcomes and the pre-frames differ only
+    on a small REMOTE cell set (outside both changed regions), that set is the predicate:
+    construct EFFECT_IF {condition: {cells: [[r, c, expected]]}, then, else}. The then
+    branch is the observation that changed the frame; an inert other-branch is else=None.
+    Pure and bounded: no RNG, no wall-clock, history capped per key and across keys."""
+
+    def __init__(self, per_key: int = 8, max_keys: int = 16, max_condition_cells: int = 4):
+        self.per_key = max(2, int(per_key))
+        self.max_keys = max(1, int(max_keys))
+        self.max_condition_cells = max(1, int(max_condition_cells))
+        self._history: Dict[int, List[Tuple[np.ndarray, np.ndarray]]] = {}
+        self.constructed: Dict[str, Dict[str, Any]] = {}  # key -> EFFECT_IF atom
+        self.errors: int = 0
+
+    def history_len(self, action: int) -> int:
+        return len(self._history.get(int(action), []))
+
+    def feed(self, pre_frame, action, post_frame) -> Optional[Dict[str, Any]]:
+        """One observed transition in; at most one newly constructed EFFECT_IF out."""
+        try:
+            pre = np.asarray(pre_frame)
+            post = np.asarray(post_frame)
+            if pre.ndim != 2 or pre.shape != post.shape or pre.size == 0:
+                return None
+            act = int(action)
+            hist = self._history.setdefault(act, [])
+            atom = None
+            for p0, q0 in hist:
+                if p0.shape != pre.shape:
+                    continue
+                atom = self._mine(act, p0, q0, pre, post)
+                if atom is not None:
+                    break
+            hist.append((pre.copy(), post.copy()))
+            del hist[:-self.per_key]                      # bounded per key
+            while len(self._history) > self.max_keys:     # bounded across keys (FIFO)
+                self._history.pop(next(iter(self._history)))
+            if atom is not None and atom["key"] not in self.constructed:
+                self.constructed[atom["key"]] = atom
+                return atom
+            return None
+        except Exception:
+            self.errors += 1
+            return None
+
+    def _mine(self, action: int, pre1: np.ndarray, post1: np.ndarray,
+              pre2: np.ndarray, post2: np.ndarray) -> Optional[Dict[str, Any]]:
+        d1 = pre1 != post1
+        d2 = pre2 != post2
+        sig1 = sorted((int(r), int(c), int(pre1[r, c]), int(post1[r, c]))
+                      for r, c in np.argwhere(d1))
+        sig2 = sorted((int(r), int(c), int(pre2[r, c]), int(post2[r, c]))
+                      for r, c in np.argwhere(d2))
+        if sig1 == sig2:
+            return None                                   # same outcome: nothing conditional
+        cond = [(int(r), int(c)) for r, c in np.argwhere(pre1 != pre2)]
+        if not cond or len(cond) > self.max_condition_cells:
+            return None                                   # no predicate, or not a SMALL one
+        if any(d1[r, c] or d2[r, c] for r, c in cond):
+            return None                                   # the predicate must be REMOTE
+        if d1.any():                                      # then = the branch that changed things
+            then_pre, then_post, else_pre, else_post = pre1, post1, pre2, post2
+        else:
+            then_pre, then_post, else_pre, else_post = pre2, post2, pre1, post1
+        then_atom = learn_effect(then_pre, action, then_post)
+        if then_atom is None or then_atom.get("kind") != "EFFECT":
+            return None
+        else_atom = learn_effect(else_pre, action, else_post)
+        if else_atom is not None and else_atom.get("kind") != "EFFECT":
+            else_atom = None                              # INERT: no else transform
+        cells = sorted([r, c, int(then_pre[r, c])] for r, c in cond)
+        blob = json.dumps({"action": action, "cells": cells, "then": then_atom["key"]},
+                          sort_keys=True, separators=(",", ":"))
+        return {
+            "kind": "EFFECT_IF",
+            "arity": 3,
+            "key": "effif-" + hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16],
+            "action": action,
+            "condition": {"cells": cells},
+            "then": then_atom,
+            "else": else_atom,
+            "changed": int(then_atom.get("changed", 0)),
+        }
+
+
 # ── Gamma: the typed hierarchical store on the fabric ─────────────────────────
 
 class Gamma:
@@ -342,7 +672,9 @@ class Gamma:
         return len(self.fabric.query("collective", self.TOPIC))
 
     def add(self, atom: Dict[str, Any], game: str, level: int) -> str:
-        typ = "structural" if atom.get("transform") is not None else "lexical"
+        typ = ("structural"
+               if (atom.get("transform") is not None or atom.get("kind") == "EFFECT_IF")
+               else "lexical")
         aid = "%s:%d" % (atom.get("key", atom.get("kind", "atom")), self._next_ordinal())
         self.fabric.append("collective", self.TOPIC, {
             "id": aid, "type": typ, "game": str(game), "level": int(level),
@@ -383,7 +715,7 @@ class Gamma:
                 if cur is None:
                     return None
             return cur
-        if atom.get("kind") == "EFFECT":
+        if atom.get("kind") in ("EFFECT", "EFFECT_IF"):
             return apply_effect(atom, before)
         return None                                       # INERT / lexical: nothing to run
 

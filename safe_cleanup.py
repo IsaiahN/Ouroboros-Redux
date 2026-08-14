@@ -682,8 +682,17 @@ class SafeDatabaseCleaner:
         """
         evidence = ('(final_score > 0 OR win_detected = 1 '
                     'OR level_completions > 0)')
-        c.execute('SELECT MAX(generation) FROM game_results')
-        row = c.fetchone()
+        try:
+            c.execute('SELECT MAX(generation) FROM game_results')
+            row = c.fetchone()
+        except sqlite3.OperationalError:
+            # Legacy schema without a generation column: the generation-based
+            # retention rule cannot tell old rows from current ones, so it
+            # degrades to keep-all (conservative) instead of raising.
+            if verbose:
+                print('   game_results has no generation column '
+                      '(legacy schema); keeping all')
+            return {'found': 0, 'deleted': 0}
         max_gen = row[0] if row and row[0] is not None else None
         retention = int(getattr(self, 'raw_data_generation_retention', 10) or 10)
         if max_gen is None or max_gen < retention:

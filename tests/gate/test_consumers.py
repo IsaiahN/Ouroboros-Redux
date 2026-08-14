@@ -17,7 +17,9 @@ has a real consumer; a stream nothing ever queries does not.
 Topic literals are resolved through module- and class-level string constants
 (`TOPIC = "atoms"` etc.); unresolvable dynamic topics are outside this gate's reach.
 
-KNOWN OPEN TODAY: import_queue (consumer specced C33 §14-16, queued CK-3+).
+KNOWN OPEN TODAY: none — the allowlist is EMPTY. import_queue's consumer landed
+(B12, engines/egocentric/consumer.py — the triangulation consumer) and its entry
+was deleted per the monotone rule; this gate asserts the reader by name below.
 "starvation" is NOT allowlisted — R1's seed-bias reader (AffectGains.starvation_steer)
 is its consumer, and this gate asserts that by name.
 """
@@ -33,9 +35,8 @@ if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
 # topic -> prereg citation. DELETE the entry when the consumer lands.
-ALLOWLIST = {
-    "import_queue": "C33 §14-16, consumer queued CK-3+",
-}
+# B15: import_queue's entry DELETED — the triangulation consumer (B12) reads it.
+ALLOWLIST: Dict[str, str] = {}
 
 # Production sources only: tests are fixtures, not consumers; caches/vendored
 # trees are noise; docs and any proctor material are off-limits by firewall.
@@ -180,13 +181,16 @@ class TestTheGate:
                 "allowlist entry %r carries no citation -- an open socket is a "
                 "named promise, not silence" % (topic,))
 
-    def test_import_queue_is_the_named_open_socket(self):
+    def test_import_queue_has_its_consumer_and_no_entry(self):
+        """B15 (the monotone tightening): the triangulation consumer (B12) reads
+        the queue now — the reader must exist BY NAME and the entry must be gone."""
+        assert "import_queue" not in ALLOWLIST
         writes, reads = _scan()
         assert "import_queue" in writes, "the import_queue writer vanished"
-        assert not _outside_readers("import_queue", writes, reads), (
-            "import_queue has a consumer now -- DELETE its allowlist entry "
-            "(the gate tightens monotonically)")
-        assert "C33" in ALLOWLIST["import_queue"]
+        outside = _outside_readers("import_queue", writes, reads)
+        assert outside, "import_queue lost its consumer (the triangulation consumer)"
+        assert any("consumer" in path for path, _fn in outside), (
+            "the import_queue reader is not the triangulation consumer")
 
     def test_starvation_is_consumed_and_not_allowlisted(self):
         """R1's stream must live by consumption, not by promise."""

@@ -5,7 +5,7 @@ os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 """
 Symbolic Reasoning Engine for Complex ARC Games
 ================================================
-Provides world modeling and goal-directed planning for games like lp85
+Provides world modeling and goal-directed planning for complex games
 that require symbolic reasoning rather than pattern matching.
 
 Core Capabilities:
@@ -195,7 +195,7 @@ class Goal:
 class CompositionalGoal:
     """
     Compositional goal with AND/OR logic.
-    For lp85-type games where multiple conditions must be satisfied.
+    For games where multiple conditions must all (or any) be satisfied.
     """
     subgoals: List[Goal]
     logic: str = "AND"  # "AND" or "OR"
@@ -1941,7 +1941,7 @@ class SymbolicReasoningEngine:
     Main interface for symbolic reasoning in complex games.
 
     Usage:
-        engine = SymbolicReasoningEngine('lp85')
+        engine = SymbolicReasoningEngine('some_game')
         engine.initialize(initial_frame)
 
         while not done:
@@ -2246,28 +2246,27 @@ class SymbolicReasoningEngine:
 
 
 # Integration with existing system
-def create_symbolic_engine_for_game(game_type: str, level: int = 1) -> SymbolicReasoningEngine:
+def create_symbolic_engine_for_game(
+    game_type: str,
+    level: int = 1,
+    color_mappings: Optional[Dict[int, ObjectType]] = None,
+    min_learning_actions: Optional[int] = None,
+) -> SymbolicReasoningEngine:
     """
-    Factory function to create appropriate symbolic engine for game type.
+    Factory function to create a symbolic engine for a game.
 
-    Different games may need different:
-    - Color mappings
-    - Goal inference heuristics
-    - Action effect mappings
+    Configuration is caller-supplied DATA (learned or observed at runtime),
+    never keyed on a game id:
+    - color_mappings: an observed color -> ObjectType mapping, when one exists
+    - min_learning_actions: how long to stay in learning mode (complex,
+      multi-object worlds may warrant a longer learning phase)
     """
     engine = SymbolicReasoningEngine(game_type, level)
 
-    # Game-specific configuration
-    if game_type == "lp85":
-        # lp85 specific settings - multi-object tracking game
-        engine.parser = ConnectedComponentParser(color_mappings={
-            1: ObjectType.AGENT,
-            2: ObjectType.GOAL,
-            3: ObjectType.OBSTACLE,
-            4: ObjectType.COLLECTIBLE,
-            5: ObjectType.MOVABLE,
-        })
-        engine.min_learning_actions = 12  # Need more learning for complex games
+    if color_mappings is not None:
+        engine.parser = ConnectedComponentParser(color_mappings=dict(color_mappings))
+    if min_learning_actions is not None:
+        engine.min_learning_actions = int(min_learning_actions)
 
     return engine
 
@@ -2278,12 +2277,15 @@ class SymbolicGameplayIntegration:
 
     This bridges the gap between the existing core_gameplay.py and
     the new symbolic reasoning engine.
+
+    Disabled by default: the caller opts in (constructor parameter), it is
+    never keyed on which game is being played.
     """
 
-    def __init__(self, game_type: str):
+    def __init__(self, game_type: str, enabled: bool = False):
         self.game_type = game_type
         self.engines: Dict[int, SymbolicReasoningEngine] = {}  # level -> engine
-        self.enabled = game_type in ['lp85']  # Only enabled for complex games
+        self.enabled = bool(enabled)  # caller opts in; no game-id list
 
     def should_use_symbolic(self, level: int) -> bool:
         """Check if symbolic reasoning should be used for this level."""
@@ -2402,7 +2404,7 @@ if __name__ == "__main__":
     print(f"\n5. Database: Connected to {db.db_path}")
 
     # 6. Test integration
-    integration = SymbolicGameplayIntegration('lp85')
+    integration = SymbolicGameplayIntegration('test_game', enabled=True)
     print(f"\n6. Integration: Enabled={integration.enabled}")
 
     print()
@@ -2420,7 +2422,7 @@ if __name__ == "__main__":
     print("  7. SymbolicReasoningEngine - Main interface")
     print("  8. SymbolicGameplayIntegration - Integration with core_gameplay.py")
     print()
-    print("For lp85 and other complex games requiring:")
+    print("For complex multi-object games requiring:")
     print("  - Multi-object tracking")
     print("  - Compositional goals")
     print("  - Causal simulation")

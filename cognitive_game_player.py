@@ -315,6 +315,37 @@ class CognitiveGamePlayer:
             # If replay returned None (no sequences found), fall through
             # to normal cognitive loop.
 
+        # ═══ B7 (BUILD_PROGRAM_2 W1): salient-prefix replay — PLAYBACK CHANNEL ═══
+        # A banked near-miss prefix for this game+level occasionally (p=0.2,
+        # the mastery-lite mirror) replays BEFORE exploring, with divergence
+        # detection. The random draw happens ONLY when a prefix exists, so
+        # fresh boxes never shift the RNG stream. DB-side only, never the
+        # fabric (membrane law).
+        try:
+            _sal = self._load_salient_prefix(game_id, int(prev_levels))
+            if _sal and random.random() < self._SALIENT_REPLAY_P:
+                _staken, _sobs = self._replay_salient_prefix(
+                    env, game_id, int(prev_levels), _sal, loop)
+                actions_taken += _staken
+                for _sst in (_sal.get('steps') or [])[:_staken]:
+                    _sen = {'action': _sst.get('action')}
+                    if _sst.get('data'):
+                        _sen['data'] = _sst['data']
+                    action_sequence.append(_sen)
+                level_start_action_index = len(action_sequence)
+                if _sobs is not None:
+                    last_obs = _sobs
+                    prev_levels = getattr(_sobs, 'levels_completed', 0) or prev_levels
+                    prev_score = (prev_levels / win_levels
+                                  if win_levels > 0 else 0.0)
+        except Exception:
+            pass
+
+        # B2/B7 per-episode ledgers (banked at episode end, playback side)
+        _ep_moves: dict = {}      # action (1-5) -> [changed, unchanged]
+        _sal_steps: List[dict] = []   # per-step {action, data, post_hash, changed}
+        _ep_start_levels = int(prev_levels)
+
         # ========== COGNITIVE GAME LOOP ==========
         while actions_taken < action_budget:
             if not is_running_fn():
@@ -382,6 +413,16 @@ class CognitiveGamePlayer:
                 total_coord_attempts += 1
                 if frame_changed:
                     total_coord_successes += 1
+
+            # B2 (BUILD_PROGRAM_2 W1): movement affordance outcomes (actions 1-5)
+            if 1 <= action_num <= 5:
+                _mv = _ep_moves.setdefault(action_num, [0, 0])
+                _mv[0 if frame_changed else 1] += 1
+            # B7 (BUILD_PROGRAM_2 W1): the salient-step ledger (playback channel)
+            _sal_steps.append({'action': action_num,
+                               'data': dict(action_data) if action_data else None,
+                               'post_hash': frame_hash_after,
+                               'changed': bool(frame_changed)})
 
             # Track level progress
             current_levels = getattr(new_obs, 'levels_completed', 0) or 0
@@ -721,6 +762,32 @@ class CognitiveGamePlayer:
                 print(f"    [EGO-FRONTIER] harvested level={_hlevel} "
                       f"dead={len(_hdead)} effects={len(_heff)} "
                       f"fatal={_hfatal} deltas={len(_hdeltas)}")
+        except Exception:
+            pass
+
+        # ═══ B2 (BUILD_PROGRAM_2 W1): bank the movement affordances ═══
+        # SAME stream as the harvest, "kind":"move" discriminator — per-action
+        # (1-5) counts of frame-changed vs unchanged outcomes this episode.
+        try:
+            _book = getattr(loop, '_ego_frontier_book', None)
+            if _book is not None and _ep_moves:
+                _mlevel = max(int(getattr(loop, '_ego_level', 0) or 0),
+                              int(prev_levels))
+                _book.record_moves(
+                    str(getattr(loop, '_game_id', '') or game_id), _mlevel,
+                    _ep_moves)
+                print(f"    [EGO-MOVES] banked {len(_ep_moves)} actions "
+                      f"level={_mlevel}")
+        except Exception:
+            pass
+
+        # ═══ B7 (BUILD_PROGRAM_2 W1): the salient-prefix bank ═══
+        # No level-up this episode but >= K nontrivial frame changes: the
+        # prefix up to the last effectful action banks DB-side, deduped by
+        # outcome-state hash. Playback channel ONLY — never the fabric.
+        try:
+            if int(prev_levels) <= _ep_start_levels:
+                self._bank_salient_prefix(game_id, int(prev_levels), _sal_steps)
         except Exception:
             pass
 
@@ -1371,6 +1438,129 @@ class CognitiveGamePlayer:
     def _replay_probability(has_bank) -> float:
         """Bank-aware replay probability: 0.8 with a banked L1, 0.2 otherwise."""
         return 0.8 if has_bank else 0.2
+
+    # ═══════════════════════════════════════════════════════════════════
+    # B7 (BUILD_PROGRAM_2 W1): SALIENT-PREFIX BANK — playback channel ONLY
+    # ═══════════════════════════════════════════════════════════════════
+    # K = 3: an episode whose actions produced >= 3 nontrivial frame changes
+    # did real work even without a level-up — below that, a prefix is noise
+    # (a single lucky toggle re-banked forever). The membrane law: this bank
+    # lives in the box DB beside winning_sequences and NEVER writes a fabric
+    # stream — replay material is playback, not knowledge.
+
+    _SALIENT_K = 3          # nontrivial frame changes that make a prefix salient
+    _SALIENT_REPLAY_P = 0.2  # the mastery-lite mirror: fresh-rate replay draw
+
+    def _ensure_salient_table(self):
+        """Create the playback-channel table if absent (box DB side)."""
+        self._gp.db.execute_query("""
+            CREATE TABLE IF NOT EXISTS salient_prefixes (
+                game_id TEXT NOT NULL,
+                level INTEGER NOT NULL,
+                prefix_json TEXT NOT NULL,
+                outcome_hash TEXT NOT NULL,
+                uses INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (game_id, level, outcome_hash)
+            )
+        """)
+
+    def _bank_salient_prefix(self, game_id, level, steps) -> bool:
+        """Bank the prefix up to the LAST effectful action when the episode
+        produced >= _SALIENT_K nontrivial frame changes (caller guarantees the
+        no-level-up condition). DEDUP: the outcome-state hash — the frame hash
+        after the last effectful action — is part of the primary key, so the
+        same outcome banks once (INSERT OR IGNORE)."""
+        _steps = [s for s in (steps or []) if isinstance(s, dict)]
+        _chg = [i for i, s in enumerate(_steps) if s.get('changed')]
+        if len(_chg) < self._SALIENT_K:
+            return False
+        _prefix = _steps[:_chg[-1] + 1]
+        _oh = str(_prefix[-1].get('post_hash') or '')
+        if not _oh:
+            return False
+        self._ensure_salient_table()
+        self._gp.db.execute_query("""
+            INSERT OR IGNORE INTO salient_prefixes (
+                game_id, level, prefix_json, outcome_hash, uses, created_at
+            ) VALUES (?, ?, ?, ?, 0, datetime('now'))
+        """, (str(game_id), int(level), _json.dumps(_prefix), _oh))
+        print(f"    [SALIENT] banked prefix len={len(_prefix)} "
+              f"changes={len(_chg)} level={int(level)} hash={_oh[:8]}")
+        return True
+
+    def _load_salient_prefix(self, game_id, level):
+        """The most-used banked prefix for game+level, or None."""
+        try:
+            self._ensure_salient_table()
+            rows = self._gp.db.execute_query("""
+                SELECT prefix_json, outcome_hash FROM salient_prefixes
+                WHERE game_id = ? AND level = ?
+                ORDER BY uses DESC, created_at ASC LIMIT 1
+            """, (str(game_id), int(level)))
+            if not rows:
+                return None
+            row = rows[0]
+            _pj = row.get('prefix_json') if isinstance(row, dict) else row[0]
+            _oh = row.get('outcome_hash') if isinstance(row, dict) else row[1]
+            _steps = _json.loads(_pj) if isinstance(_pj, str) else list(_pj or [])
+            return ({'steps': _steps, 'outcome_hash': str(_oh)}
+                    if _steps else None)
+        except Exception:
+            return None
+
+    def _replay_salient_prefix(self, env, game_id, level, prefix, loop=None):
+        """Replay a banked prefix with DIVERGENCE DETECTION: if the frame after
+        step i differs from the banked expectation, STOP replaying and bank the
+        divergence point (the observed fork, same salience rule, same dedup).
+        Playback channel only: replayed steps teach via _ego_feed (observe-only,
+        as the winning-sequence replay) and never write any fabric stream."""
+        _steps = list((prefix or {}).get('steps') or [])
+        _taken, _obs, _seen, _prev_h = 0, None, [], None
+        print(f"    [SALIENT] replaying banked prefix len={len(_steps)} "
+              f"level={int(level)}")
+        for _st in _steps:
+            _a = int(_st.get('action', 1) or 1)
+            _d = _st.get('data') or None
+            _ga = getattr(GameAction, f'ACTION{_a}', GameAction.ACTION1)
+            try:
+                _obs = env.step(_ga, data=_d)
+            except Exception:
+                break
+            if _obs is None:
+                break
+            _taken += 1
+            _h = self._compute_frame_hash(_obs)
+            _seen.append({'action': _a, 'data': _d, 'post_hash': _h,
+                          'changed': _h != _prev_h})
+            _prev_h = _h
+            try:
+                if loop is not None:
+                    _fr = self._get_frame_array(_obs)
+                    if _fr is not None:
+                        loop._ego_feed(_fr, _a)
+            except Exception:
+                pass
+            if _h != str(_st.get('post_hash') or ''):
+                print(f"    [SALIENT] divergence at step {_taken} — "
+                      f"banking the fork")
+                try:
+                    self._bank_salient_prefix(game_id, level, _seen)
+                except Exception:
+                    pass
+                break
+            if getattr(_obs, 'state', None) in (GameState.WIN,
+                                                GameState.GAME_OVER):
+                break
+        try:
+            self._gp.db.execute_query("""
+                UPDATE salient_prefixes SET uses = uses + 1
+                WHERE game_id = ? AND level = ? AND outcome_hash = ?
+            """, (str(game_id), int(level),
+                  str((prefix or {}).get('outcome_hash') or '')))
+        except Exception:
+            pass
+        return _taken, _obs
 
     def _load_fallback_sequence(self, game_type: str, level_number: int) -> List:
         """Load the best winning sequence for a specific game type and level.

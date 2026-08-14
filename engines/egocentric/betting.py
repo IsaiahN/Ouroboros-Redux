@@ -14,8 +14,10 @@ LAWS baked in from commit one (the three paid-for laws of the iced branch):
     unsettled one.
 
 Settlements land on the fabric's collective "settlements" topic with LINEAGE fields
-(agent, game, level, action, members, best + the fabric's own seq) -- rho_deriv needs
-lineage from birth -- and the DEBASEMENT field `nontrivial` (n_changed > 0): high
+(agent, game, level, action, members, best + the fabric's own seq, plus the additive
+atom-identity pair atom_key/atom_bin naming WHICH known atom bet and how it settled;
+null when no atom rode the step) -- rho_deriv needs lineage from birth -- and the
+DEBASEMENT field `nontrivial` (n_changed > 0): high
 settlement volume with a near-zero non-trivial rate is pricing the board's inertia
 (the beat-104 receipt).
 
@@ -59,9 +61,16 @@ class BetBook:
 
     # ── settle: price the family against the EXECUTED action's next frame ──
 
-    def settle(self, post: Optional[np.ndarray],
-               executed_action: int) -> Optional[Dict[str, Any]]:
-        """Pop the pending bet and settle it; None if there is no pending or no frame."""
+    def settle(self, post: Optional[np.ndarray], executed_action: int,
+               atom_key: Optional[str] = None,
+               atom_bin: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Pop the pending bet and settle it; None if there is no pending or no frame.
+
+        atom_key/atom_bin (additive, null when absent): when this step's bank
+        settlement stemmed from a KNOWN atom bet, the caller threads the atom's
+        id and the router bin it landed in ("TRANSFERRED", ...) so the fabric
+        settlement record carries atom identity — the n=1 metric's linkage.
+        """
         pending, self.pending = self.pending, None
         if pending is None or post is None:
             return None
@@ -92,6 +101,7 @@ class BetBook:
             "members": len(members),
             "best": best,
             "nontrivial": nontrivial,
+            "atom_key": atom_key,
         }
         # One compact fabric line per settle (the ledger the replay test needs).
         try:
@@ -103,6 +113,8 @@ class BetBook:
                 "members": len(members),
                 "best": best,
                 "nontrivial": nontrivial,
+                "atom_key": atom_key,     # WHICH atom the bank's bet rode (null: none)
+                "atom_bin": atom_bin,     # how that atom bet settled (e.g. TRANSFERRED)
             })
         except Exception:
             self.errors += 1

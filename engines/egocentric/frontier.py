@@ -17,6 +17,49 @@ from typing import Any, Dict, Optional, Set, Tuple
 TOPIC = "frontier_paths"
 HARVEST_TOPIC = "frontier_harvest"
 
+# ── B2 (BUILD_PROGRAM_2 W1): movement-affordance bias constants ──────────────
+MOVE_KIND = "move"    # the discriminator riding the SAME harvest stream
+MOVE_NOOP_MIN = 3     # observations before an action is judged at all
+MOVE_NOOP_RATE = 0.8  # no-op fraction that marks an action deprioritized
+MOVE_BIAS = 3         # bounded bias: preferred actions weighted 3x -- never a veto
+
+
+def bias_moves(candidates, moves) -> list:
+    """B2 consumer: a WEIGHTED candidate list for the blind 1-5 chooser.
+
+    An action with >= MOVE_NOOP_MIN banked outcomes and a no-op rate >=
+    MOVE_NOOP_RATE keeps weight 1; every other candidate appears MOVE_BIAS
+    times. Every candidate stays present (a bounded bias, not a veto);
+    no data -> uniform; garbage -> the candidates unchanged.
+    """
+    try:
+        out = []
+        for a in candidates:
+            ch, un = ((moves or {}).get(str(a)) or (0, 0))[:2]
+            n = int(ch) + int(un)
+            noop = n >= MOVE_NOOP_MIN and int(un) >= MOVE_NOOP_RATE * n
+            out.extend([a] * (1 if noop else MOVE_BIAS))
+        return out or list(candidates)
+    except Exception:
+        return list(candidates)
+
+
+def plan_veto(site, harvest, avoid=None) -> bool:
+    """B3: PURE frontier veto for the planner's DRIVE click -- True iff the
+    planned target sits in the loaded harvest's fatal/dead sets or the banked
+    avoid-set. None/empty inputs never veto; garbage never raises (the book
+    must never crash the loop it advises)."""
+    try:
+        if site is None:
+            return False
+        _c = (int(site[0]), int(site[1]))
+        _h = harvest if isinstance(harvest, dict) else {}
+        return bool(_c in (_h.get("fatal") or set())
+                    or _c in (_h.get("dead") or set())
+                    or _c in (avoid or set()))
+    except Exception:
+        return False
+
 
 class FrontierBook:
     """Fabric-backed ledger of fatal openings, keyed by (game, level)."""
@@ -81,6 +124,44 @@ class FrontierBook:
         except Exception:
             self.errors += 1
 
+    # ── B2 (BUILD_PROGRAM_2 W1): movement affordances -- record_moves/load_moves
+    # mirror record_harvest/load_harvest on the SAME stream, "kind"-discriminated.
+
+    def record_moves(self, game: str, level: int, moves) -> None:
+        """Bank one episode's movement outcomes: per-action (1-5) counts of
+        frame-changed vs unchanged results, {action: (changed, unchanged)}.
+        Observations, never signal -- nothing here opens the wheel."""
+        try:
+            self.fabric.append("collective", HARVEST_TOPIC, {
+                "game": str(game),
+                "level": int(level),
+                "kind": MOVE_KIND,
+                "moves": {str(a): [int(c[0]), int(c[1])]
+                          for a, c in (moves or {}).items()},
+            })
+        except Exception:
+            self.errors += 1
+
+    def load_moves(self, game: str, level: int) -> Dict[str, Tuple[int, int]]:
+        """Sum banked movement outcomes for game+level across ALL move records
+        (seeds+local): {action: (changed_total, unchanged_total)}. Non-move
+        records are ignored; deterministic; empty dict on error."""
+        try:
+            g, lv = str(game), int(level)
+            out: Dict[str, Tuple[int, int]] = {}
+            for rec in self.fabric.query(
+                    "collective", HARVEST_TOPIC,
+                    where=lambda r: (r.get("game") == g and r.get("level") == lv
+                                     and r.get("kind") == MOVE_KIND)):
+                for a, c in (rec.get("moves") or {}).items():
+                    if len(c) == 2:
+                        prev = out.get(str(a), (0, 0))
+                        out[str(a)] = (prev[0] + int(c[0]), prev[1] + int(c[1]))
+            return out
+        except Exception:
+            self.errors += 1
+            return {}
+
     def load_harvest(self, game: str, level: int) -> Dict[str, Any]:
         """Merge ALL harvest records for game+level (seeds+local): effects and
         fatal are unions; dead is CONSERVATIVE (reported dead in >=2 independent
@@ -97,7 +178,8 @@ class FrontierBook:
             deltas: Dict[str, Tuple[int, int]] = {}
             for rec in self.fabric.query(
                     "collective", HARVEST_TOPIC,
-                    where=lambda r: (r.get("game") == g and r.get("level") == lv)):
+                    where=lambda r: (r.get("game") == g and r.get("level") == lv
+                                     and r.get("kind") != MOVE_KIND)):
                 for c in rec.get("dead") or []:
                     if len(c) == 2:
                         cell = (int(c[0]), int(c[1]))

@@ -135,6 +135,39 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Fallback board extent when the context carries no frame to measure.
+_DEFAULT_BOARD_SHAPE = (64, 64)
+
+
+def _board_center(game_state: Dict[str, Any]) -> Tuple[int, int]:
+    """Center cell of the actual board: (h // 2, w // 2).
+
+    The context builder substitutes the board's center for 'player_position'
+    when the player localizer found nothing, so the center is the
+    "not localised" sentinel. Derive it from the current frame's shape so any
+    board size works; fall back to the default extent only when the context
+    carries no frame.
+    """
+    h, w = _DEFAULT_BOARD_SHAPE
+    grid = game_state.get('frame_data')
+    try:
+        shape = getattr(grid, 'shape', None)
+        if shape is not None and len(shape) >= 2:
+            h, w = int(shape[-2]), int(shape[-1])
+        else:
+            # Raw API frames arrive as (possibly nested) lists: unwrap
+            # animation layers until `grid` is a 2-D grid of cells.
+            while (isinstance(grid, (list, tuple)) and grid
+                   and isinstance(grid[0], (list, tuple)) and grid[0]
+                   and isinstance(grid[0][0], (list, tuple))):
+                grid = grid[-1]
+            if (isinstance(grid, (list, tuple)) and grid
+                    and isinstance(grid[0], (list, tuple)) and grid[0]):
+                h, w = len(grid), len(grid[0])
+    except (TypeError, IndexError):
+        pass
+    return (h // 2, w // 2)
+
 
 # =============================================================================
 # TRANSITION RESPONSE MAP - loaded from config/transition_responses.json
@@ -1853,9 +1886,12 @@ class CognitiveRouter:
         if self.blackboard.get('controlled_object') is None:
             controlled = game_state.get('controlled_object')
             if controlled is None:
-                # Derive from player_position: default (32,32) is sentinel
+                # Derive from player_position: the board-center default the
+                # context builder substitutes when no localization exists is
+                # the sentinel — derived from the board's own shape, never a
+                # memorized coordinate.
                 pos = game_state.get('player_position')
-                if pos is not None and tuple(pos) != (32, 32):
+                if pos is not None and tuple(pos) != _board_center(game_state):
                     controlled = f"player_at_{pos[0]}_{pos[1]}"
             if controlled is not None:
                 self.blackboard.slot('controlled_object', controlled)

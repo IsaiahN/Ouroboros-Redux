@@ -1,0 +1,5 @@
+{"agent": "agent_oldbook01", "game": "og42-deadbeef01", "level": 0, "action": 4, "members": 1, "best": 0.0, "nontrivial": true, "seq": 1}
+{"agent": "agent_oldbook01", "game": "og42-deadbeef01", "level": 0, "action": 6, "members": 1, "best": 1.0, "nontrivial": false, "seq": 2}
+{"agent": "agent_oldbook01", "game": "og42-deadbeef01", "level": 1, "action": 2, "members": 2, "best": 0.25, "nontrivial": true, "seq": 3}
+{"agent": "agent_oldbook02", "game": "og42-deadbeef01", "level": 1, "action": 6, "members": 2, "best": 0.75, "nontrivial": true, "seq": 4}
+{"agent": "agent_oldbook02", "game": "og42-deadbeef01", "level": 2, "action": 1, "members": 1, "best": 0.5, "nontrivial": false, "seq": 5}

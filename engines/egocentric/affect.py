@@ -125,3 +125,30 @@ class AffectGains:
                               if r.get("code")}))
         boost = min(self.STARVE_CEIL, 1.0 + self.STARVE_STEP * len(codes))
         return {"explore_boost": boost, "codes": codes}
+
+    # ── B5 (BUILD_PROGRAM_2 W1): the APPLIED seed bias at the loop's site ─────
+
+    SWALLOW_STEP = 0.1   # each distinct swallowed block adds +10% widening (B4 consumer)
+
+    def seed_gain(self, game) -> Dict[str, Any]:
+        """The seed bias the loop actually APPLIES: gains()["seed_bias"]
+        widened MULTIPLICATIVELY when the agent's own starvation codes exist,
+        plus SWALLOW_STEP per distinct swallowed block (B4's consumer, the
+        same one-currency read path) -- boost capped at STARVE_CEIL, applied
+        capped into [0, 1]. A SEPARATE method by contract: gains() keys stay
+        exactly {seed_bias, mint_bar} and are untouched by these streams.
+        Pure function of the stream prefixes (the replay requirement)."""
+        g = self.gains()
+        st = self.starvation_steer(game)
+        try:
+            rows = self.fabric.query("personal", "swallow")
+        except Exception:
+            self.errors += 1
+            rows = []
+        blocks = {str(r.get("block")) for r in rows[-self.STARVE_WINDOW:]
+                  if r.get("block")}
+        boost = min(self.STARVE_CEIL,
+                    float(st["explore_boost"]) + self.SWALLOW_STEP * len(blocks))
+        return {"base": g["seed_bias"], "boost": boost,
+                "applied": min(1.0, g["seed_bias"] * boost),
+                "codes": st["codes"], "swallowed": tuple(sorted(blocks))}

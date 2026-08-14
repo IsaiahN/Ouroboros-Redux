@@ -20,7 +20,58 @@ from dataclasses import dataclass
 from typing import Dict, FrozenSet, List, Optional, Tuple
 
 import numpy as np
-from scipy import ndimage
+
+try:                                    # scipy is a dev-box convenience, NOT a ship dependency
+    from scipy import ndimage as _ndimage
+except ImportError:                     # bare interpreter (Kaggle): the pure-numpy path below
+    _ndimage = None
+
+
+def _label_pure(mask: np.ndarray, connectivity: int = 1) -> Tuple[np.ndarray, int]:
+    """Pure-numpy connected-component labeling, scipy.ndimage.label-equivalent.
+
+    connectivity=1 -> 4-connected, connectivity>=2 -> 8-connected (the two
+    structures ndimage.generate_binary_structure(2, c) yields). Components are
+    numbered 1..n in row-major discovery order, matching scipy's numbering.
+    """
+    m = np.asarray(mask, dtype=bool)
+    labels = np.zeros(m.shape, dtype=np.int32)
+    h, w = m.shape
+    if connectivity >= 2:
+        neigh = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
+    else:
+        neigh = ((-1, 0), (1, 0), (0, -1), (0, 1))
+    n = 0
+    for r0 in range(h):
+        for c0 in range(w):
+            if not m[r0, c0] or labels[r0, c0]:
+                continue
+            n += 1
+            labels[r0, c0] = n
+            stack = [(r0, c0)]
+            while stack:
+                r, c = stack.pop()
+                for dr, dc in neigh:
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < h and 0 <= nc < w and m[nr, nc] and not labels[nr, nc]:
+                        labels[nr, nc] = n
+                        stack.append((nr, nc))
+    return labels, n
+
+
+def label_components(mask: np.ndarray, connectivity: int = 1) -> Tuple[np.ndarray, int]:
+    """(labels, n) like scipy.ndimage.label with generate_binary_structure(2, connectivity).
+
+    Dispatches to scipy when it is installed; otherwise the behaviorally
+    equivalent pure-numpy fallback (same counts, same membership, same
+    row-major label numbering).
+    """
+    m = np.asarray(mask, dtype=bool)
+    if _ndimage is not None:
+        structure = _ndimage.generate_binary_structure(2, connectivity)
+        labels, n = _ndimage.label(m, structure=structure)
+        return labels, int(n)
+    return _label_pure(m, connectivity)
 
 
 class DownsampleError(ValueError):
@@ -60,12 +111,11 @@ def segment(grid: np.ndarray, background: Optional[int] = None, connectivity: in
         raise ValueError("grid must be 2-D at full resolution")
     if background is None:
         background = int(np.bincount(g.ravel()).argmax())
-    structure = ndimage.generate_binary_structure(2, connectivity)
     objs: List[Object] = []
     for colour in np.unique(g):
         if int(colour) == background:
             continue
-        lab, n = ndimage.label(g == colour, structure=structure)
+        lab, n = label_components(g == colour, connectivity)
         for i in range(1, n + 1):
             ys, xs = np.where(lab == i)
             cells = frozenset((int(y), int(x)) for y, x in zip(ys, xs, strict=False))

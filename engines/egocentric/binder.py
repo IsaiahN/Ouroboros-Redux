@@ -250,3 +250,12 @@ class RoleBinder:
             self._evidence = {}
         except Exception:
             self.errors += 1
+
+    def on_fission(self, object_class):
+        """B10: the class fissioned (bank.ClassFissionSocket) -- the parent identity's
+        evidence conflated two hidden types and is stale. Drop it; the subclass
+        identities (class__a / class__b) re-earn their own bindings from scratch."""
+        try:
+            self._evidence.pop(object_class, None)
+        except Exception:
+            self.errors += 1

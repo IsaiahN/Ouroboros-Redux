@@ -4,7 +4,13 @@ TRANSFERRED confirms; NOVEL extends perception (the import queue); BROKEN·rebin
 the binder; BROKEN·mechanism owes the mint one atom. The router is the loop's boundary diff:
 where to look, decided by what kind of surprise arrived.
 
-Deterministic, stdlib only.
+B9: the router is also where DIVERGENCE becomes visible -- the same action settling
+TRANSFERRED in one episode and BROKEN·mechanism in another. A settlement that carries its
+frames ("committed", "observed", "action" -- the workspace predictor supplies them) feeds an
+attached effects.ConditionalMiner; a constructed EFFECT_IF lands in ``conditional_atoms``
+for the caller to read.
+
+Deterministic, stdlib only (the optional miner is caller-supplied, never imported here).
 """
 from __future__ import annotations
 
@@ -27,11 +33,13 @@ class ResidualRouter:
       5. otherwise         -> NOVEL (extend perception)  [import_queue]
     """
 
-    def __init__(self, eps: float = 1e-9):
+    def __init__(self, eps: float = 1e-9, miner=None):
         self.eps = float(eps)
+        self.miner = miner                   # B9: optional effects.ConditionalMiner
         self.import_queue: list[dict] = []   # NOVEL -- the endogenous build agenda
         self.refit_queue: list[dict] = []    # BROKEN_REBINDING -- binder re-fits owed
         self.mint_queue: list[dict] = []     # BROKEN_MECHANISM -- atoms owed to the mint
+        self.conditional_atoms: list[dict] = []   # B9: constructed EFFECT_IF atoms
         self.routed: dict[str, int] = dict.fromkeys(_BINS, 0)
         self.errors: int = 0
 
@@ -47,6 +55,8 @@ class ResidualRouter:
         except (TypeError, ValueError, AttributeError):
             self.errors += 1
             return None
+
+        self._mine(settlement)               # B9: every frame-carrying bet is divergence food
 
         if residual <= self.eps:
             self.routed[TRANSFERRED] += 1
@@ -67,6 +77,24 @@ class ResidualRouter:
         self.import_queue.append(item)
         self.routed[NOVEL] += 1
         return NOVEL
+
+    def _mine(self, settlement: dict) -> None:
+        """B9: feed the attached miner from a settlement carrying its (pre, action, post)
+        frames; a constructed EFFECT_IF lands in ``conditional_atoms``. Never raises --
+        mining is a bonus, never a tax on routing."""
+        if self.miner is None:
+            return
+        try:
+            pre = settlement.get("committed")
+            post = settlement.get("observed")
+            action = settlement.get("action")
+            if pre is None or post is None or action is None:
+                return
+            atom = self.miner.feed(pre, action, post)
+            if atom is not None:
+                self.conditional_atoms.append(atom)
+        except Exception:
+            self.errors += 1
 
     def import_queue_ranked(self) -> list[dict]:
         """The import queue by unexplained residual, biggest debt first (stable)."""

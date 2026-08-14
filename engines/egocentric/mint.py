@@ -47,6 +47,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
+from engines.egocentric import consumer as _consumer
 from engines.egocentric import effects as _effects
 
 __all__ = ["MDLMint"]
@@ -201,6 +202,11 @@ class MDLMint:
         if not compresses:
             self._record("reject", game, level, key=key)
             return {"verdict": "reject", "id": None}
+
+        # B13: SIGMA AT MINT TIME -- the atom's prediction-signature (the consumer's
+        # shared vocabulary, computed from the full before/after frames) travels with
+        # the record; recognition later is a lookup, not an application loop.
+        phi["sigma"] = _consumer.sigma_of(b, a)
 
         # Mint: pay the cost, cash the pocket. Full-surprise support is ledgered as w.
         aid = self.gamma.add(phi, game, level)

@@ -26,7 +26,11 @@ from collections import Counter, defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy import ndimage
+
+# scipy-free by construction: label_components dispatches to scipy.ndimage.label
+# when scipy is installed and to a behaviorally equivalent pure-numpy fallback
+# on a bare (Kaggle) interpreter.
+from engines.egocentric.perception import label_components
 
 
 class CursorAgency:
@@ -51,10 +55,10 @@ class CursorAgency:
         mask = np.asarray(frame) == colour
         if not mask.any():
             return None
-        lab, k = ndimage.label(mask)
+        lab, k = label_components(mask, connectivity=1)
         if k == 0:
             return None
-        sizes = ndimage.sum(mask, lab, range(1, k + 1))
+        sizes = np.bincount(lab.ravel(), minlength=k + 1)[1:]
         idx = int(np.argmax(sizes)) + 1
         if sizes[idx - 1] > self.max_cursor_cells:          # largest component too big to be a cursor
             return None

@@ -46,10 +46,27 @@ import numpy as np
 from engines.cognition.causal_map import CausalMap, PlannedAction
 from engines.cognition.cognitive_frame import CognitiveFrame
 from engines.cognition.phenomenology_layer import FeltState, PhenomenologyLayer, Valence
+from engines.egocentric.swallow import swallow_note as _swal  # B4: swallow counter
 from engines.perception.perceiver import Perceiver
 from engines.perception.perceptual_field import PerceptualField
 
 logger = logging.getLogger(__name__)
+
+
+def _neg_feed(loop, mut) -> None:
+    """B6 (BUILD_PROGRAM_2 W1): the negative-evidence feeder — every W4c-1
+    class comparison examined counts neg_tried; an UNMUTATED comparison IS a
+    negative instance accrued (neg_passed). Feeds the reserved
+    NO_NEGATIVE_INSTANCES starvation socket (R1). One-line call site by the
+    .credit/.route window law; containment: never raises."""
+    try:
+        _c = getattr(loop, "_w4c_counters", None)
+        if _c is not None:
+            _c["neg_tried"] = _c.get("neg_tried", 0) + 1
+            if not mut:
+                _c["neg_passed"] = _c.get("neg_passed", 0) + 1
+    except Exception:
+        pass
 
 
 # =============================================================================
@@ -447,7 +464,22 @@ class CognitiveLoop:
                     budget_spent=int(getattr(self, "_actions_taken", 0) or 0))
                 self._starve_settled = True
         except Exception:
-            pass
+            _swal(self, "STARVATION")
+        # ═══ B4 (BUILD_PROGRAM_2 W1): the SAME boundary settles the swallow book ═══
+        # <= 1 enum-coded record per guarded block per episode to the PERSONAL
+        # "swallow" stream, [SWALLOW]-narrated — a pure function of the counts
+        # the instrumented except-branches accrued via _swal.
+        try:
+            _swfab = getattr(self, "_ego_fabric", None)
+            if _swfab is not None and not getattr(self, "_swallow_settled", False):
+                from engines.egocentric.swallow import SwallowBook
+                SwallowBook(_swfab).settle_episode(
+                    getattr(self, "_swallow_counts", None) or {},
+                    game=str(getattr(self, "_game_id", "") or "game"),
+                    level=int(getattr(self, "_ego_level", 0) or 0))
+                self._swallow_settled = True
+        except Exception:
+            _swal(self, "OTHER")
         if self._verbose and self._frames:
             print(f"\n[COGNITIVE-LOOP] Game ended: {self._game_id}")
             print(f"    Actions: {self._actions_taken}")
@@ -891,8 +923,10 @@ class CognitiveLoop:
                                   int(getattr(obs, 'levels_completed', 0) or 0))
             _book = getattr(self, "_ego_frontier_book", None)
             _shape = getattr(self, "_ego_frame_shape", None)
+            # B1 (BUILD_PROGRAM_2 W1): level 0 admitted — the CK-1b write was
+            # un-gated; the read side now matches (same conservative rules).
             if (_book is not None and _shape is not None and _spine is not None
-                    and self._ego_level >= 1 and int(action_num) == 6
+                    and self._ego_level >= 0 and int(action_num) == 6
                     and action_data and action_data.get('x') is not None
                     and action_data.get('y') is not None):
                 _fcell = (int(action_data['x']), int(action_data['y']))
@@ -996,7 +1030,21 @@ class CognitiveLoop:
                                                     break
                                             if _site is not None:
                                                 break
-                                if _verified and _site is not None:
+                                # B3 (BUILD_PROGRAM_2 W1): the frontier veto —
+                                # a banked fatal/dead target never drives; the
+                                # plan falls back to the shadow narration.
+                                from engines.egocentric.frontier import plan_veto
+                                _fb3 = getattr(self, "_ego_frontier_book", None)
+                                _veto = plan_veto(
+                                    _site,
+                                    (getattr(self, "_ego_harvest_cache", None)
+                                     or {}).get(self._ego_level),
+                                    avoid=(_fb3.avoid_set(
+                                        str(getattr(self, "_game_id", "")
+                                            or "game"),
+                                        int(getattr(self, "_ego_level", 0) or 0))
+                                        if _fb3 is not None else None))
+                                if _verified and _site is not None and not _veto:
                                     action_num = 6
                                     action_data = {'x': int(_site[0]),
                                                    'y': int(_site[1])}
@@ -1007,10 +1055,10 @@ class CognitiveLoop:
                                     _pg["shadow"] += 1
                                     print(f"[PLAN] shadow steps={len(_plan['steps'])} "
                                           f"feasible={_plan.get('feasible')} "
-                                          f"verified={_verified} "
+                                          f"verified={_verified} veto={_veto} "
                                           f"d={_d.get('differing')}")
             except Exception:
-                pass
+                _swal(self, "PLANNER")
             # ═══ C33 STEP 1 (EGO-BET): every action carries a bet — commit at choice ═══
             # A prediction family is committed on the FINAL action (after every
             # pre-empt) and settled in record_result. NO CONSUMER in this step:
@@ -1044,7 +1092,7 @@ class CognitiveLoop:
                         self._bet_book.commit(action=_bact, before=_bframe,
                                               paste=_paste, transform=None)
             except Exception:
-                pass
+                _swal(self, "OTHER")
             # ═══ W4c (EGO-BANK): every capable slot bets the FINAL settled action ═══
             # Committed at choice; settled (and routed) in record_result.
             try:
@@ -1071,9 +1119,9 @@ class CognitiveLoop:
                         # retain the committed pre-frame: the mint's `before`
                         self._w4c_pre_frame = _cframe.copy()
             except Exception:
-                pass
+                _swal(self, "BANK_SETTLE")
         except Exception:
-            pass
+            _swal(self, "SPINE")
 
         # Store frame and action info for next cycle
         frame_array = self._perceiver._to_numpy(frame)
@@ -1136,6 +1184,7 @@ class CognitiveLoop:
             self._ego_prev_centroid = _cen
         except Exception:
             self._ego_feed_errors = getattr(self, "_ego_feed_errors", 0) + 1
+            _swal(self, "OBSERVER")
 
     def record_result(
         self,
@@ -1199,7 +1248,7 @@ class CognitiveLoop:
             if self._ego_observer.calls % 10 == 0:
                 print(f"[EGO] colour={info.get('colour')} objects={info.get('objects')}")
         except Exception:
-            pass
+            _swal(self, "OBSERVER")
 
         # ═══ PHASE 2 (EGO-GOAL): the goal spine — confirmed reward earns the wheel ═══
         # Accrue the per-action centroid delta map (the means), propose candidate cells
@@ -1393,11 +1442,12 @@ class CognitiveLoop:
                     self._atom_verified = {}  # atom id -> TRANSFERRED count
                     # R1: per-episode mint/bank socket counters (StarvationBook)
                     self._w4c_counters = {"mint_tried": 0, "mint_passed": 0,
-                                          "bank_tried": 0, "bank_passed": 0}
+                                          "bank_tried": 0, "bank_passed": 0,
+                                          "neg_tried": 0, "neg_passed": 0}
                     self._w4c_calls = 0
                     self._w4c_cls_prev = None
             except Exception:
-                pass
+                _swal(self, "FABRIC")
             # W4c-1: FEED THE BINDER — per-step, per-class invariance evidence.
             try:
                 _rb = getattr(self, "_role_binder", None)
@@ -1433,6 +1483,7 @@ class CognitiveLoop:
                             _moved = (int(round(_cn[0])) != int(round(_cp[0]))
                                       or int(round(_cn[1])) != int(round(_cp[1])))
                             _mut = _wcells != _pcells
+                            _neg_feed(self, _mut)  # B6: negative evidence
                             # CK-2a: subtract the efference copy — self-caused
                             # iff the change intersects the predicted mask
                             self._role_binder.observe_attributed(
@@ -1441,7 +1492,7 @@ class CognitiveLoop:
                                 _pcells ^ _wcells, _pmask, 0)
                     self._w4c_cls_prev = _now
             except Exception:
-                pass
+                _swal(self, "BINDER_FEED")
             # W4c-2: THE BANK settles at result; EVERY settlement routes.
             try:
                 _pb = getattr(self, "_predictor_bank", None)
@@ -1468,8 +1519,14 @@ class CognitiveLoop:
                         if any(_sv.get("bet") and _sk != "REFERENCE"
                                for _sk, _sv in out.items()):
                             _wct["bank_passed"] += 1
+                    # F4 n=1 linkage: this step's known-atom bet (id, bin)
+                    self._w4c_step_atom = (None, None)
                     for _slot, _stl in out.items():
                         _bin = self._residual_router.route(_slot, _stl)
+                        if (_slot == "WORKSPACE"
+                                and _stl.get("from_known_atom")
+                                and _stl.get("atom_key") is not None):
+                            self._w4c_step_atom = (_stl.get("atom_key"), _bin)
                         # the wheel rule's ledger: a TRANSFERRED WORKSPACE
                         # settlement from a known atom verifies WHICH atom bet
                         # (re-scan gamma: whose apply reproduces the post frame)
@@ -1495,7 +1552,7 @@ class CognitiveLoop:
                                         self._atom_verified.get(_aid2, 0) + 1)
                                     break
             except Exception:
-                pass
+                _swal(self, "BANK_SETTLE")
             # W4c-3: THE MINT — bar-gated by affect (picky when desperate).
             try:
                 _rt = getattr(self, "_residual_router", None)
@@ -1572,7 +1629,7 @@ class CognitiveLoop:
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')} (primal)")
             except Exception:
-                pass
+                _swal(self, "MINT_DRAIN")
             # W4c-4: NOVEL items persist — the endogenous agenda stays visible.
             try:
                 _rt = getattr(self, "_residual_router", None)
@@ -1584,15 +1641,23 @@ class CognitiveLoop:
                                      {"slot": _wit.get("slot"),
                                       "residual": float(_wit.get("residual", 0.0))})
             except Exception:
-                pass
+                _swal(self, "MINT_DRAIN")
             # W4c-6: AFFECT NARRATES — no channel moves without the state emitted.
+            # B5 (BUILD_PROGRAM_2 W1): the SEED-BIAS consumption site — the
+            # APPLIED bias (seed_gain: starvation+swallow-widened, bounded,
+            # multiplicative) feeds the explore rotation and rides the line.
             try:
                 if getattr(self, "_affect", None) is not None:
                     self._w4c_calls = int(getattr(self, "_w4c_calls", 0)) + 1
+                    _sg = self._affect.seed_gain(
+                        str(getattr(self, "_game_id", "") or "game"))
+                    self._ego_explore_widen = float(_sg["boost"])
                     if self._w4c_calls % 25 == 0:
-                        print("[AFFECT] " + self._affect.narrate())
+                        print("[AFFECT] " + self._affect.narrate()
+                              + " seed_applied=%.4f widen=%.2f"
+                              % (_sg["applied"], _sg["boost"]))
             except Exception:
-                pass
+                _swal(self, "AFFECT")
             # ═══ PHASE 3a: FALSIFY write-back — a seeded cell reached WITHOUT reward ═══
             _seeded = getattr(self, "_ego_seeded", None)
             if _seeded and not level_changed and _cen is not None:
@@ -1677,7 +1742,7 @@ class CognitiveLoop:
                     self._w4c_seed_ids = _cur_ids
                     self._w4c_seed_lvl = _slv_now
             except Exception:
-                pass
+                _swal(self, "OTHER")
             # ═══ 3d-i (EGO-FRONTIER): frontier level + first post-frontier click ═══
             # Per-episode by construction (the loop instance is per-episode).
             # The fatal-opening book rides the fabric (lazy, once per episode).
@@ -1689,6 +1754,7 @@ class CognitiveLoop:
                         FrontierBook(_fab) if _fab is not None else None)
                 except Exception:
                     self._ego_frontier_book = None
+                    _swal(self, "FRONTIER")
                 # 3d-ii: per-episode harvest material (banked at episode end)
                 self._ego_frontier_dead = []      # frontier clicks with NO effect
                 self._ego_frontier_effects = []   # frontier clicks that changed the frame
@@ -1739,7 +1805,7 @@ class CognitiveLoop:
                     print(f"[EGO-SEED] level={_plv} n="
                           f"{len(self._ego_seeded) + len(self._ego_seeded_clicks)}")
             except Exception:
-                pass
+                _swal(self, "FABRIC")
             # The FIRST click made AT the frontier (not the one that opened it):
             # a level-up step's click belongs to the level below, so it is skipped.
             if (not level_changed and self._ego_level >= 1
@@ -1760,7 +1826,10 @@ class CognitiveLoop:
             # ═══ 3d-ii (EGO-FRONTIER): consume the population harvest, ONCE per level ═══
             # deltas pre-establish the spine's move-map (means, not signal — drive still
             # requires a confirmed goal); dead/fatal/tried feed the pre-empt veto.
-            if self._ego_frontier_book is not None and self._ego_level >= 1:
+            # B1 (BUILD_PROGRAM_2 W1): _ego_level >= 0 — level-0 records load
+            # too (18 level-0 games banked harvests nobody consumed); the
+            # conservative >=2-report dead rule lives in load_harvest itself.
+            if self._ego_frontier_book is not None and self._ego_level >= 0:
                 if not hasattr(self, "_ego_harvest_cache"):
                     self._ego_harvest_cache = {}
                 if self._ego_level not in self._ego_harvest_cache:
@@ -1788,7 +1857,13 @@ class CognitiveLoop:
                     _bexec = int((getattr(self, "_last_action_info", None)
                                   or {}).get('type', 0) or 0)
                     _bbefore = _bb.pending.get("before")
-                    _bout = _bb.settle(post=post_array, executed_action=_bexec)
+                    # F4: thread this step's known-atom bet (id + bin) from the
+                    # bank settle above into the settlement record; consume it
+                    # so a stale key never rides a later settle.
+                    _wsa = getattr(self, "_w4c_step_atom", None) or (None, None)
+                    self._w4c_step_atom = (None, None)
+                    _bout = _bb.settle(post=post_array, executed_action=_bexec,
+                                       atom_key=_wsa[0], atom_bin=_wsa[1])
                     if _bout is not None and _bbefore is not None:
                         if not hasattr(self, "_bet_transitions"):
                             self._bet_transitions = {}
@@ -1797,13 +1872,13 @@ class CognitiveLoop:
                         print(f"[BET] settles={_bb.settled} voids={_bb.voided} "
                               f"actions={len(_bb.records)} errors={_bb.errors}")
             except Exception:
-                pass
+                _swal(self, "BANK_SETTLE")
             if self._ego_observer.calls % 25 == 0:
                 print(f"[EGO-GOAL] confirmed={self._goal_spine.has_confirmed()} "
                       f"candidates={len(self._goal_spine.manager.price)} "
                       f"established={sorted(self._goal_spine.established())}")
         except Exception:
-            pass
+            _swal(self, "SPINE")
 
         # ═══ GAP 4: Rich action outcome computation ═══
         self._compute_rich_outcome(cf, post_array)
@@ -3070,6 +3145,24 @@ class CognitiveLoop:
 
         return None
 
+    def _movebias(self, _cands):
+        """B2 (BUILD_PROGRAM_2 W1): banked movement affordances deprioritize
+        actions with many observed no-op outcomes for this game+level — a
+        bounded bias, never a veto (frontier.bias_moves weights, no removal).
+        Loaded once per level through the frontier book; neutral without one."""
+        try:
+            from engines.egocentric.frontier import bias_moves
+            _bk = getattr(self, "_ego_frontier_book", None)
+            _lv = int(getattr(self, "_ego_level", 0) or 0)
+            _mc = getattr(self, "_ego_moves_cache", None)
+            if _bk is not None and (_mc is None or _mc[0] != _lv):
+                _mc = (_lv, _bk.load_moves(
+                    str(getattr(self, "_game_id", "") or "game"), _lv))
+                self._ego_moves_cache = _mc
+            return bias_moves(_cands, _mc[1] if _mc else {})
+        except Exception:
+            return list(_cands)
+
     def _act(
         self,
         percept: PerceptualField,
@@ -3218,8 +3311,11 @@ class CognitiveLoop:
         if self._causal_map and 6 in self._available_actions:
             productive = self._causal_map.get_productive_targets()
             if productive and self._goal_cells_total > 0:
-                # Rotate among top-3 productive positions
-                top_n = min(3, len(productive))
+                # Rotate among the top productive positions. B5: starvation
+                # widens the rotation window (bounded, STARVE_CEIL caps at x2).
+                top_n = min(max(1, int(round(
+                    3 * getattr(self, "_ego_explore_widen", 1.0)))),
+                    len(productive))
                 idx = self._productive_rotation_index % top_n
                 self._productive_rotation_index += 1
                 chosen_pos = productive[idx][0]
@@ -3311,16 +3407,17 @@ class CognitiveLoop:
                 else:
                     unknown_dirs.append(a)
 
-            # Prefer unknown directions (exploration), then open ones
+            # Prefer unknown directions (exploration), then open ones.
+            # B2: every blind draw passes through the banked-move bias.
             if unknown_dirs:
-                action_num = random.choice(unknown_dirs)
+                action_num = random.choice(self._movebias(unknown_dirs))
                 cf.action_reason = "Explore: unknown direction"
             elif open_dirs:
-                action_num = random.choice(open_dirs)
+                action_num = random.choice(self._movebias(open_dirs))
                 cf.action_reason = "Explore: open path"
             else:
                 # All known walls from here - try any direction
-                action_num = random.choice(movement_actions)
+                action_num = random.choice(self._movebias(movement_actions))
                 cf.action_reason = "Explore: all-walls-retry"
 
             cf.action_speed = "explore"
@@ -3331,8 +3428,8 @@ class CognitiveLoop:
             )
             return action_num, None
 
-        # Absolute fallback: random available action
-        action_num = random.choice(self._available_actions)
+        # Absolute fallback: random available action (B2: bias-weighted)
+        action_num = random.choice(self._movebias(self._available_actions))
         cf.action_speed = "random"
         cf.action_type = action_num
         cf.action_reason = "random fallback"
