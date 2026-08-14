@@ -430,6 +430,24 @@ class CognitiveLoop:
 
     def end_game(self) -> List[CognitiveFrame]:
         """End the game and return the replay."""
+        # ═══ R1 (EGO-STARVE): the episode boundary settles the starvation book ═══
+        # PREREG_READOUTS.md: a socket exercised all episode with ZERO passes
+        # emits ONE enum-coded record to the PERSONAL "starvation" stream —
+        # pure function of the counters (plan gates + mint/bank), narrated,
+        # <= 1 per socket per episode (guarded by the settled flag).
+        try:
+            _sfab = getattr(self, "_ego_fabric", None)
+            if _sfab is not None and not getattr(self, "_starve_settled", False):
+                from engines.egocentric.starvation import StarvationBook
+                _sc = dict(getattr(self, "_plan_gate", None) or {})
+                _sc.update(getattr(self, "_w4c_counters", None) or {})
+                StarvationBook(_sfab).settle_episode(
+                    _sc, game=str(getattr(self, "_game_id", "") or "game"),
+                    level=int(getattr(self, "_ego_level", 0) or 0),
+                    budget_spent=int(getattr(self, "_actions_taken", 0) or 0))
+                self._starve_settled = True
+        except Exception:
+            pass
         if self._verbose and self._frames:
             print(f"\n[COGNITIVE-LOOP] Game ended: {self._game_id}")
             print(f"    Actions: {self._actions_taken}")
@@ -1373,6 +1391,9 @@ class CognitiveLoop:
                     self._affect = AffectGains(_wfab)
                     self._mute = MuteHandler()
                     self._atom_verified = {}  # atom id -> TRANSFERRED count
+                    # R1: per-episode mint/bank socket counters (StarvationBook)
+                    self._w4c_counters = {"mint_tried": 0, "mint_passed": 0,
+                                          "bank_tried": 0, "bank_passed": 0}
                     self._w4c_calls = 0
                     self._w4c_cls_prev = None
             except Exception:
@@ -1439,6 +1460,14 @@ class CognitiveLoop:
                                   or {}).get('type', 0) or 0)
                     _wpre = getattr(self, "_w4c_pre_frame", None)
                     out = self._predictor_bank.settle(_obs_states)
+                    # R1: bank socket counters — a non-REFERENCE bet is a
+                    # learned family (REFERENCE's identity bet is free)
+                    _wct = getattr(self, "_w4c_counters", None)
+                    if _wct is not None:
+                        _wct["bank_tried"] += 1
+                        if any(_sv.get("bet") and _sk != "REFERENCE"
+                               for _sk, _sv in out.items()):
+                            _wct["bank_passed"] += 1
                     for _slot, _stl in out.items():
                         _bin = self._residual_router.route(_slot, _stl)
                         # the wheel rule's ledger: a TRANSFERRED WORKSPACE
@@ -1474,6 +1503,9 @@ class CognitiveLoop:
                 if (getattr(self, "_mdl_mint", None) is not None
                         and _rt is not None and _aff is not None):
                     _bar = float(_aff.gains()["mint_bar"])
+                    # R1: mint socket counters ride every offer below (readout
+                    # only — no verdict, bar, or support is touched)
+                    _wct = getattr(self, "_w4c_counters", None)
                     _wpre = getattr(self, "_w4c_pre_frame", None)
                     _wexec = int((getattr(self, "_last_action_info", None)
                                   or {}).get('type', 0) or 0)
@@ -1492,6 +1524,10 @@ class CognitiveLoop:
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
                                 level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                            if _wct is not None:
+                                _wct["mint_tried"] += 1
+                                _wct["mint_passed"] += (
+                                    1 if _wv.get("verdict") == "mint" else 0)
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')} (NOVEL bootstrap)")
                     while _rt.mint_queue:
@@ -1503,6 +1539,10 @@ class CognitiveLoop:
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
                                 level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                            if _wct is not None:
+                                _wct["mint_tried"] += 1
+                                _wct["mint_passed"] += (
+                                    1 if _wv.get("verdict") == "mint" else 0)
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')}")
                         # below the bar: dropped — desperation makes the
@@ -1525,6 +1565,10 @@ class CognitiveLoop:
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
                                 level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                            if _wct is not None:
+                                _wct["mint_tried"] += 1
+                                _wct["mint_passed"] += (
+                                    1 if _wv.get("verdict") == "mint" else 0)
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')} (primal)")
             except Exception:
@@ -1601,14 +1645,28 @@ class CognitiveLoop:
                             _tried2 = _hh.get("tried") or set()
                             _shape3 = (getattr(self, "_ego_frame_shape", None)
                                        or (64, 64))
-                            _cands = []  # up to 5 untried cells from the harvest
+                            # R1 CONSUMER (one-currency law): the agent's own
+                            # starvation records STEER exploration effort —
+                            # a bounded multiplicative widening of the probe's
+                            # candidate budget. Never a bar/support/price.
+                            _scap = 5
+                            try:
+                                _aff3 = getattr(self, "_affect", None)
+                                if _aff3 is not None:
+                                    _scap = int(round(5 * float(
+                                        _aff3.starvation_steer(
+                                            str(getattr(self, "_game_id", "")
+                                                or "game"))["explore_boost"])))
+                            except Exception:
+                                _scap = 5
+                            _cands = []  # untried cells from the harvest
                             for _my in range(4, int(_shape3[0]), 8):
                                 for _mx in range(4, int(_shape3[1]), 8):
-                                    if len(_cands) >= 5:
+                                    if len(_cands) >= _scap:
                                         break
                                     if (_mx, _my) not in _tried2:
                                         _cands.append((_mx, _my))
-                                if len(_cands) >= 5:
+                                if len(_cands) >= _scap:
                                     break
                             _pv = self._mute.mute(
                                 item={"id": _mid, "kind": "objective"},

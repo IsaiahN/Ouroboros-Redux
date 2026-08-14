@@ -96,3 +96,32 @@ class AffectGains(object):
                 % (g["seed_bias"], g["mint_bar"], self.WINDOW,
                    mints, len(verdicts), self.errors))
         return line
+
+    # ── R1 CONSUMER (PREREG_READOUTS.md): starvation STEERS, never prices ─────
+
+    STARVE_WINDOW = 6     # <= 1 record/socket/episode: the trailing episode's block
+    STARVE_STEP = 0.25    # one starved socket -> +25% exploration effort
+    STARVE_CEIL = 2.0     # the boost is bounded: at most double, never a takeover
+
+    def starvation_steer(self, game) -> Dict[str, Any]:
+        """The one-currency law: the agent's own starvation records (PERSONAL
+        stream "starvation", written by StarvationBook at the episode boundary)
+        may STEER exploration effort on the starved dimension -- a bounded
+        multiplicative boost -- and nothing else. No mint_bar, no support, no
+        pricing, no reputation: gains() is untouched by this stream.
+
+        Pure function of the stream prefix (the replay requirement): the last
+        STARVE_WINDOW records for `game`, distinct codes counted, boost =
+        min(STARVE_CEIL, 1 + STARVE_STEP * #codes). Empty stream -> neutral 1.0.
+        """
+        try:
+            rows = self.fabric.query("personal", "starvation")
+        except Exception:
+            self.errors += 1
+            rows = []
+        g = str(game)
+        recent = [r for r in rows if r.get("game") == g][-self.STARVE_WINDOW:]
+        codes = tuple(sorted({str(r.get("code")) for r in recent
+                              if r.get("code")}))
+        boost = min(self.STARVE_CEIL, 1.0 + self.STARVE_STEP * len(codes))
+        return {"explore_boost": boost, "codes": codes}
