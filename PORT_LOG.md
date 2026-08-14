@@ -703,3 +703,15 @@ the system is FULLY BUILT — every mechanism, every metric, drives under contro
 Swarm restarted. Open: live verdicts (g7, import TRANSFERRED, swallow baseline, movement
 bias, now + LP arm comparison + R_T live once verdicts carry episode ids); push to origin
 awaiting Isaiah's word.
+
+## Entry 39 — THE GRAIN FIXES LIVE: verified is book-derived; rho is a distribution
+
+Isaiah's class-of-error audit (KNOBS amendments 2-3) closed in full (fdd37f1, 9e05be3):
+verdict stamps (ep + sigma, all four kinds); multi-rung rho r0/r1/r2 + rederivation
+traffic — live: cn04-ka59 r*=0.0 on atom sets, traffic=65 (the correlation channel
+found); VERIFIED IS BOOK-DERIVED (hydrated from settlements at loop init, cross-episode;
+an imported atom verified on the books DRIVES on a fresh episode, test-proven). BONUS
+DEFECT caught by the registered level convention DURING the fix: settlements were
+written at bare level while consumers read playing level — hydration would have been
+unreadable. The registry paid for itself in hours. QA: 602/602, ruff clean, OOD CLEAN.
+Swarm restarted with the grain fixes live; the import verdict loses its asterisk.
