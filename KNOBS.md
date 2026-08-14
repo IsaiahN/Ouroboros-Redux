@@ -98,3 +98,26 @@ F11 IS NOW THE LADDER, frozen as a whole, each ROLE pinned to a rung:
 RHO REPORTING (queued build): rho at rungs 0/1/2 + the REDERIVATION-TRAFFIC channel
 (cross-mount verdict recognition counts) — a distribution, not a partition; a
 measurement of independence must be capable of reading nonzero.
+
+## AMENDMENT 3 (2026-08-14): THE GRAIN AUDIT — same class as the identity ladder
+Audited: every concept operationalized by 2+ components. Findings:
+A3-1 "VERIFIED" HAS TWO STORES, ONLY ONE CONSULTED (DEFECT, fix queued): settlements
+   now persist atom_key + atom_bin (TRANSFERRED...) but the planner's DRIVE gate reads
+   ONLY the in-memory _atom_verified, which RESETS every episode. Consequence: any atom
+   — imported atoms especially — must earn 2x TRANSFERRED within a single episode or
+   never drives; cross-episode verification evaporates. FIX: hydrate verified counts
+   from the books (settlements, game+level-scoped) at loop init; "verified" becomes
+   book-derived — one definition, persistent, auditable. The import verdict is
+   handicapped until this lands.
+A3-2 "LEVEL" HAS TWO CONVENTIONS, UNDECLARED (register): bare _ego_level (harvest/
+   frontier context: the completed level; level-up click belongs below) vs
+   _ego_level+1 (mint/bank/consumer/goal: the playing level). Both intentional, never
+   registered. REGISTERED NOW: streams atoms/verdicts/settlements/import*/goal_
+   hypotheses carry PLAYING level; frontier streams carry COMPLETED level. A gate test
+   should pin each stream's declared convention.
+A3-3 "GAME" HAS TWO GRAINS, BOTH VALID (declare): 4-char prefix (config/role sites,
+   game_id[:4]) vs full version id (all knowledge streams). Suffix VERIFIED stable per
+   game (ar25-0c556536 across all sessions) — no reset bug. Declared: prefix = ops
+   grain, full id = knowledge grain; never compare across grains.
+A3-4 "WHEN" (already routed): no shared episode key across streams — verdicts need
+   episode id + sigma (the bracket's MISSING). Rides the maintenance pass.
