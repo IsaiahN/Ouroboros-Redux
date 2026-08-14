@@ -135,3 +135,34 @@ WIRING SHAPE (flagged, usage-logged): an agent-motion PREDICTOR FAMILY in the ba
 classify mover as agent (animacy), infer goal by approach vector (rational action),
 predict next step by efficiency, exploit the input function (occlusion breaks pursuit).
 Settlements decide whether a mover is policy-driven or mechanical; no game specifics.
+
+## THE CAPACITY/CONTENT LAW (Isaiah, 2026-08-13) — what is built vs what is minted
+THE TEST: "Can this be built from evidence available at the moment it is needed, out of
+things already present? Yes -> LAZY (agent mints it). No — it is needed to OBTAIN that
+evidence -> EAGER (builders wire it)." A capacity cannot be lazily acquired because it is
+upstream of the evidence that would justify it (EFFECT: you cannot notice before/after
+transforms without the capacity to represent a before/after pair). Content composes on
+demand; eager content is the elaboration trap (the letters wall, measured 160:1).
+CONVERGENCE: the capacity/content line IS the firewall line — builders wire sockets
+(capacities, families, formats), agents mint members (transforms, affordances, rankings,
+fissions, policies). A builder writing content is encoding answers.
+RESOLUTION FOR AMBIGUOUS PRIORS: each ledger category contributes a FAMILY (eager: the
+predictor/representational shape) and INSTANCES (lazy: per-game parameters). Gravity =
+motion-extrapolation family (eager) + per-game dynamics (lazy).
+RETROSPECTIVE CHECK: every measured failure was a capacity gap (no before/after percept ->
+mint starvation; no parameters -> g7=0; no self/world attribution -> g4=0); every success
+was content through a wired socket (504 atoms). The wheel rule governs content; it cannot
+govern capacities, which precede its evidence.
+
+## THE COMPOSABILITY LAW — how minted content composes
+1. ONE CURRENCY: every capacity emits into the shared typed atom space (Gamma / fabric
+   records with ttype+params+slots). A capacity with a side-channel output is a dead end —
+   standing builder constraint.
+2. FOUR COMPOSITION MODES cover the benchmark's composite space (arity <= 4, Halford):
+   SEQUENCE (plans chain atoms), CONDITION (effect-at-X-given-state-at-Y — the arity-3
+   constructor, queued CK-3), PARAMETER ABSTRACTION (dx=2, dx=3 -> dx=n; Marcus
+   generalization over fillers), INVERSION (CK-2b group structure).
+3. TRANSIENT THEN DURABLE: the planner composes ephemerally (plans cost nothing durable);
+   the MINT makes a composition durable only when it PAID (a chain that reached d=0 and
+   levelled becomes one composite atom — chunking, priced by the n=1 gate as an atom).
+4. LAZY COMPOSITION: compose when a residual demands it; never enumerate eagerly.
