@@ -27,6 +27,15 @@ hits are DOWN-WEIGHTED in ranking (a stranger's equal atom always outranks kin's
 Lineage is read from the atom record's "agent"/"by"/"kin" fields where present; the
 candidate's `kin_echo` flag makes the down-weight auditable.
 
+THE RHO RANKING (G-A, PREREG_FINAL_GAPS.md): mounted fabrics are correlated
+witnesses. Below the kin-echo key, multi-source hits prefer the LOW-rho source
+(lowest weighted-Jaccard correlation with the HOME fabric's own atoms --
+independence is the gate, Fig 8's debit); the COLLAPSE-4 GUARD folds source
+fabrics with rho >= rho_mod.RHO_COLLAPSE into one witness cluster whose
+agreement counts ONCE (the candidate's "rho" block carries k / rho_bar / n_eff /
+clusters / support), and each consume pass narrates one [RHO] line. Ranking and
+bookkeeping only -- no behavior change outside consumer ranking.
+
 Deterministic, stdlib + numpy only; failures degrade, never raise (house containment).
 """
 from __future__ import annotations
@@ -34,6 +43,8 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
+
+from engines.egocentric import rho as rho_mod
 
 __all__ = ["sigma_of", "describe", "match", "consume", "seed_imports",
            "pending", "open_not_found", "candidates", "INVARIANTS"]
@@ -251,13 +262,78 @@ def _same_lineage(rec: Dict[str, Any], fabric) -> bool:
     return kin is not None and str(kin) == str(fabric.kin_key)
 
 
+def _rho_context(fabric, atoms: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Per-pass rho bookkeeping (G-A): atoms grouped by source game, each group's
+    rho against the HOME fabric's OWN atoms (the independence debit the ranking
+    reads), and the pairwise rho matrix the collapse-4 guard reads. Computed once
+    per consume pass; degrades to an empty context, never raises."""
+    ctx: Dict[str, Any] = {"src_rho": {}, "pairs": {}, "k": 0, "rho_bar": 0.0,
+                           "n_eff": 0.0, "collapsed_pairs": 0}
+    try:
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for r in atoms:
+            groups.setdefault(str(r.get("game")), []).append(r)
+        home = _local(fabric).query("collective", ATOMS_TOPIC)
+        ctx["src_rho"] = {g: rho_mod.rho(rows, home) for g, rows in groups.items()}
+        names = sorted(groups)
+        for i, ga in enumerate(names):
+            for gb in names[i + 1:]:
+                ctx["pairs"][(ga, gb)] = rho_mod.rho(groups[ga], groups[gb])
+        pairs = ctx["pairs"]
+        ctx["k"] = len(names)
+        ctx["rho_bar"] = (sum(pairs.values()) / len(pairs)) if pairs else 0.0
+        ctx["n_eff"] = rho_mod.n_eff(ctx["k"], ctx["rho_bar"])
+        ctx["collapsed_pairs"] = sum(1 for v in pairs.values()
+                                     if v >= rho_mod.RHO_COLLAPSE)
+    except Exception:
+        pass
+    return ctx
+
+
+def _pair_rho(ctx: Dict[str, Any]):
+    pairs = ctx.get("pairs") or {}
+
+    def pr(a: str, b: str) -> float:
+        return float(pairs.get((a, b), pairs.get((b, a), 0.0)))
+    return pr
+
+
+def _rho_block(hits: List[Dict[str, Any]], best: Dict[str, Any],
+               ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """The candidate's G-A support block: k distinct source fabrics agreed with
+    mean pairwise correlation rho_bar -> n_eff effective witnesses; the
+    COLLAPSE-4 GUARD then folds rho >= RHO_COLLAPSE sources into clusters so a
+    replicated fabric's agreement counts ONCE (support = n_eff over clusters)."""
+    pr = _pair_rho(ctx)
+    sources = sorted({str(r.get("game")) for r in hits})
+    k = len(sources)
+    vals = [pr(a, b) for i, a in enumerate(sources) for b in sources[i + 1:]]
+    rho_bar = sum(vals) / len(vals) if vals else 0.0
+    clusters = rho_mod.collapse(sources, pr)
+    reps = sorted(c[0] for c in clusters)
+    cvals = [pr(a, b) for i, a in enumerate(reps) for b in reps[i + 1:]]
+    crho = sum(cvals) / len(cvals) if cvals else 0.0
+    src_rho = ctx.get("src_rho") or {}
+    return {"source_rho": round(float(src_rho.get(str(best.get("game")), 0.0)), 4),
+            "sources": sources, "k": k, "rho_bar": round(rho_bar, 4),
+            "n_eff": round(rho_mod.n_eff(k, rho_bar), 4),
+            "clusters": len(clusters),
+            "support": round(rho_mod.n_eff(len(clusters), crho), 4),
+            "collapsed": len(clusters) < k}
+
+
 def _close_hit(fabric, game, level, src_seq: int, sigma: Dict[str, Any],
                hits: List[Dict[str, Any]], near: List[Dict[str, Any]],
-               priority_seq: int, axis: Optional[str] = None) -> None:
-    """Rank hits (KIN-ECHO LAW: same-lineage last, then earliest mint), write the
-    consumed marker (its seq IS the match seq), then the candidate; echo the origin
-    author only across lineages."""
+               priority_seq: int, axis: Optional[str] = None,
+               rho_ctx: Optional[Dict[str, Any]] = None) -> None:
+    """Rank hits (KIN-ECHO LAW first: same-lineage last; then the G-A rho key:
+    LOW correlation with home preferred -- independence is the gate; then
+    earliest mint), write the consumed marker (its seq IS the match seq), then
+    the candidate; echo the origin author only across lineages."""
+    ctx = rho_ctx if isinstance(rho_ctx, dict) else {}
+    src_rho = ctx.get("src_rho") or {}
     ranked = sorted(hits, key=lambda r: (_same_lineage(r, fabric),
+                                         float(src_rho.get(str(r.get("game")), 0.0)),
                                          int(r.get("seq", 0)), str(r.get("id"))))
     best = ranked[0]
     kin = _same_lineage(best, fabric)
@@ -276,6 +352,7 @@ def _close_hit(fabric, game, level, src_seq: int, sigma: Dict[str, Any],
         "near_misses": list(near),
         "kin_echo": bool(kin),
         "redescribed_axis": axis,
+        "rho": _rho_block(hits, best, ctx),
     })
     idea_id = best.get("idea_id")
     if idea_id and not kin:                                 # never pay self or kin
@@ -326,6 +403,7 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
     budget = max(0, int(budget_n))
     used = 0
     atoms = all_atoms(fabric)
+    rho_ctx = _rho_context(fabric, atoms)                   # G-A: once per pass
 
     for nf in open_not_found(fabric):                       # PHASE 1: the re-look trigger
         if used >= budget:
@@ -349,7 +427,7 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
             redesc = axis if hits else None
         if hits:
             _close_hit(fabric, game, level, src_seq, sigma, hits, near,
-                       priority_seq, axis=redesc)
+                       priority_seq, axis=redesc, rho_ctx=rho_ctx)
             report["candidates"] += 1
         else:
             _not_found(fabric, game, level, src_seq, sigma, axis,
@@ -375,7 +453,7 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
             hits, _ = match(sigma, atoms, coarse_axes=(axis,))
         if hits:
             _close_hit(fabric, game, level, src_seq, sigma, hits, near,
-                       priority_seq, axis=axis)
+                       priority_seq, axis=axis, rho_ctx=rho_ctx)
             report["candidates"] += 1
         else:
             if axis is None:
@@ -384,6 +462,13 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
             _not_found(fabric, game, level, src_seq, sigma, axis,
                        priority_seq, near, len(atoms))
             report["not_found"] += 1
+    try:                                                    # G-A: one [RHO] line per pass
+        print("[RHO] sources=%d rho_bar=%.3f n_eff=%.2f collapsed_pairs=%d candidates=%d"
+              % (rho_ctx.get("k", 0), rho_ctx.get("rho_bar", 0.0),
+                 rho_ctx.get("n_eff", 0.0), rho_ctx.get("collapsed_pairs", 0),
+                 report["candidates"]))
+    except Exception:
+        pass
     return report
 
 
