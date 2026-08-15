@@ -139,3 +139,19 @@ STRUCK: mutmut nightly, pyright ratchet, cloud heartbeat, alpha/EWMA precision u
 alpha/EWMA RE-ENTRY CONDITION (the only way back): family-selection churn in the books —
 the same bank family oscillating TRANSFERRED/BROKEN across episodes on stable mechanics
 (the stale-averaging signature). Absent that, it stays struck.
+
+## AMENDMENT 6 (2026-08-14, four flags)
+A6-1 alpha/EWMA RE-ENTRY CORRECTED: not churn (that is averaging-too-fast — EWMA fixes
+   the OPPOSITE). Trigger: a family whose STANDING STAYS HIGH while its recent-window
+   settlement rate DIVERGES from lifetime rate — stuck-trusted, recent BROKENs, no
+   oscillation.
+A6-2 R_T READABILITY PRE-REGISTERED: R_T is citable only at >= 100 stamped verdicts
+   spanning >= 5 games; below that the number is reported as ACCRUING, never as the
+   answer. (5 stamped verdicts is not a measurement.)
+A6-3 The Register L sweep is run TO LOOK, not to confirm: every board-scale/level-
+   structure/action-cost constant gets checked against the RECORD (the ls20 treatment),
+   expected-answer-one notwithstanding.
+A6-4 PRE-STAGED READ: if cn04 adoption has not occurred by its verdict deadline, the
+   immediate next read is the REJECT/NOT-FOUND REASONS on the 66 — does the wheel
+   refuse for a readable reason, or does the offer never arrive (consumer never
+   matched vs matched-but-unverified vs seeded-but-never-planned).
