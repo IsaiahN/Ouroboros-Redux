@@ -24,6 +24,7 @@ Run pre-build: these failed (module absent), per the beat-49 rule.
 """
 from __future__ import annotations
 
+import ast
 import os
 import sys
 
@@ -123,13 +124,20 @@ class TestTheWiring:
             "the pre-empt site does not gate on non-None — a None drive must change NOTHING")
 
     def test_reward_wires_to_credit(self):
-        src = self._src()
-        i = src.find("def record_result")
-        body = src[i:i + 8000]
-        assert ".credit(" in body, (
+        """AST wiring assertion (KNOBS A4-2): the .credit(...) call exists inside
+        def record_result's body — same intent as the old 8000-char window, with
+        no character economy shaping code placement."""
+        fns = [n for n in ast.walk(ast.parse(self._src()))
+               if isinstance(n, ast.FunctionDef) and n.name == "record_result"]
+        assert fns, "def record_result is missing from cognitive_loop"
+        nodes = [n for fn in fns for n in ast.walk(fn)]
+        assert any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                   and n.func.attr == "credit" for n in nodes), (
             "record_result never credits the spine on a level-up — reward-disposes is the ONLY "
             "confirmation path and it is unwired (starvation).")
-        assert "level_changed" in body
+        names = {a.arg for fn in fns for a in fn.args.args}
+        names |= {n.id for n in nodes if isinstance(n, ast.Name)}
+        assert "level_changed" in names
 
     def test_the_goal_log_exists(self):
         assert "[EGO-GOAL]" in self._src()

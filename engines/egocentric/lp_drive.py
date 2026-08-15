@@ -74,12 +74,19 @@ def arm() -> str:
     return v if v in ARMS else "fixed"
 
 
-def assign_arm(name: str) -> str:
-    """Deterministic per-worker assignment for the supervisor: sha1(name) mod 3.
-    sha1 (content-addressing, not cryptography), never the salted builtin hash:
-    the same game gets the same arm in every process, restart and reboot."""
+def assign_arm(name: str, recycle_count: int = 0) -> str:
+    """Deterministic per-worker assignment for the supervisor, ROTATING per
+    recycle: ARMS[(sha1(name) + recycle_count) mod 3]. sha1 (content-addressing,
+    not cryptography), never the salted builtin hash: the same (game, recycle)
+    pair gets the same arm in every process, restart and reboot.
+
+    The rotation kills the arm/game confound: a worker that carries one arm
+    forever makes its game's verdict an arm verdict too. With the recycle
+    counter added before the mod, every game visits EVERY arm across any 3
+    consecutive recycles, and recycle_count=0 reproduces the original static
+    assignment exactly (no history rewritten)."""
     h = hashlib.sha1(str(name).encode("utf-8"), usedforsecurity=False).hexdigest()
-    return ARMS[int(h, 16) % len(ARMS)]
+    return ARMS[(int(h, 16) + int(recycle_count)) % len(ARMS)]
 
 
 class LPDrive:

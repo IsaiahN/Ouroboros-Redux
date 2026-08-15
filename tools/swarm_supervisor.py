@@ -108,13 +108,17 @@ def spawn(g):
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["OURO_FABRIC_SEEDS"] = ";".join(d for d in seed_dirs
                                         if d != os.path.join(box, "ego_fabric"))
-    # G-D (PREREG_FINAL_GAPS): the three-arm LP-drive control runs LIVE — each
-    # worker carries ONE arm for its whole life, assigned deterministically by
-    # game name (sha1 mod 3: stable across restarts, recycles and supervisor
-    # reboots), so fixed/random/lp populations are comparable at equal compute.
-    env["LP_DRIVE_ARM"] = assign_arm(g)
+    # G-D (PREREG_FINAL_GAPS) + ROTATION: the three-arm LP-drive control runs
+    # LIVE, and the arm ROTATES per recycle -- assign_arm(game, recycles) =
+    # ARMS[(sha1(game) + recycles) mod 3] -- so every game visits every arm
+    # across 3 recycles (the arm/game confound dies) while assignment stays
+    # deterministic across restarts, recycles and supervisor reboots. Crash
+    # restarts and mem-kills keep the arm (only the bounded-lifetime recycle
+    # counter rotates it); recycles=0 is the original static assignment.
+    env["LP_DRIVE_ARM"] = assign_arm(g, stats[g]["recycles"])
     logf = open(os.path.join(box, "worker.log"), "a", encoding="utf-8", errors="replace")
-    logf.write("[SUPERVISOR] LP_DRIVE_ARM=%s\n" % env["LP_DRIVE_ARM"])
+    logf.write("[SUPERVISOR] LP_DRIVE_ARM=%s recycles=%d\n"
+               % (env["LP_DRIVE_ARM"], stats[g]["recycles"]))
     p = subprocess.Popen([PY, os.path.join(REDUX, "evolution_runner.py"), "--verbose",
                           "--game", g, "--population", "6", "--agents-per-gen", "4",
                           "--games-per-gen", "1", "--max-generations", "50"],

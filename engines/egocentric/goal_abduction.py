@@ -38,9 +38,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 __all__ = ["GoalBook", "extract_predicates", "satisfies", "signature",
-           "abduced_plan", "TOPIC", "MIN_CO"]
+           "abduced_plan", "TOPIC", "FRAMES_TOPIC", "MIN_CO"]
 
 TOPIC = "goal_hypotheses"
+FRAMES_TOPIC = "levelup_frames"   # VICTORY_PROTOCOL: the raw pre/post record
 MIN_CO = 2                    # co-occurrences before a hypothesis may become a target
 
 _QUADS = ("q0", "q1", "q2", "q3")
@@ -146,9 +147,24 @@ class GoalBook:
         co-occurrence record; every KNOWN hypothesis at (game, level) whose
         predicate does NOT hold in the post frame appends a miss (a level-up
         occurred WITHOUT it -- falsified, credibility drops). Returns the
-        banked [{"pred", "sig"}]; [] on error or no delta (never invented)."""
+        banked [{"pred", "sig"}]; [] on error or no delta (never invented).
+
+        RECORD-KEEPING (VICTORY_PROTOCOL): the pre/post frames themselves are
+        persisted to the PERSONAL "levelup_frames" stream, exactly ONE record
+        per level-up, BEFORE predicate extraction -- the frames are
+        unrecoverable later, the predicates merely derivable from them. A
+        level-up whose delta yields no hypothesis still keeps its snapshot;
+        absent frames keep nothing (never invented)."""
         try:
             g, lv = str(game), int(level)
+            if pre is not None and post is not None:
+                try:
+                    self.fabric.append("personal", FRAMES_TOPIC, {
+                        "game": g, "level": lv,
+                        "pre": np.asarray(pre).tolist(),
+                        "post": np.asarray(post).tolist()})
+                except Exception:
+                    self.errors += 1        # the frame record must never block banking
             preds = extract_predicates(pre, post)
             known: Dict[str, Dict[str, Any]] = {}
             for rec in self.fabric.query(

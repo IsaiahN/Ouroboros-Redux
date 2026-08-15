@@ -30,6 +30,14 @@ atom_narrowings, ideas, idea_events (priors/credibility/reputation), frontier_pa
 frontier_harvest, starvation, import_candidates, replay_outcomes. Seed roots are
 read-only mounts and are never touched; only the LOCAL root is rewritten.
 
+THE ARCHIVE LAW (VICTORY_PROTOCOL.md record-keeping): the janitor ARCHIVES before it
+folds, strips or drops -- every record a sweep removes is appended VERBATIM (the
+original line, never re-serialized) to <stream>.archive.jsonl BEFORE the stream is
+rewritten. The archive is append-only, sits outside the size trigger (the trigger
+stats only <topic>.jsonl) and outside every policy (never compacted, never read back
+by consumers). FALSIFIER: archive + surviving original lines == the original stream,
+as a multiset of verbatim lines -- compaction now loses NOTHING, it relocates.
+
 Rewrites are atomic with a .bak (write tmp -> original becomes .bak -> tmp replaces
 original); kept records are copied byte-verbatim (original lines, never re-serialized);
 unparseable lines are preserved as-is (a crash mid-write is evidence, not garbage).
@@ -41,6 +49,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
 
 __all__ = ["FabricJanitor"]
@@ -103,6 +112,28 @@ class FabricJanitor:
     @staticmethod
     def _dump(rec: Dict[str, Any]) -> str:
         return json.dumps(rec, ensure_ascii=False)
+
+    @staticmethod
+    def _archive_removed(path: str, original: List[Line],
+                         kept: List[str]) -> int:
+        """THE ARCHIVE LAW: append every original line NOT surviving verbatim in
+        `kept` to <stream>.archive.jsonl (multiset-aware -- duplicates archived
+        exactly as many times as they were removed), BEFORE the rewrite touches
+        the stream: a crash between archive and rewrite duplicates a line into
+        the archive at worst, it never loses one. Returns the archived count."""
+        budget = Counter(kept)                       # kept lines still unclaimed
+        removed: List[str] = []
+        for line, _r in original:
+            if budget[line] > 0:
+                budget[line] -= 1                    # a verbatim survivor
+            else:
+                removed.append(line)
+        if removed:
+            base = path[:-6] if path.endswith(".jsonl") else path
+            with open(base + ".archive.jsonl", "a", encoding="utf-8") as fh:
+                for line in removed:
+                    fh.write(line + "\n")
+        return len(removed)
 
     # ── per-stream policies: (kept lines, manifest note) ─────────────────────
 
@@ -207,6 +238,9 @@ class FabricJanitor:
                 if kept == [line for line, _r in lines]:
                     entry["action"] = "nothing-to-drop"
                 else:
+                    # ARCHIVE FIRST (VICTORY_PROTOCOL): removed records land in
+                    # <stream>.archive.jsonl before the stream is rewritten.
+                    entry["archived"] = self._archive_removed(path, lines, kept)
                     self._rewrite(path, kept)
                     entry["action"] = "compacted"
                     entry["bytes_after"] = os.path.getsize(path)

@@ -17,9 +17,12 @@ has a real consumer; a stream nothing ever queries does not.
 Topic literals are resolved through module- and class-level string constants
 (`TOPIC = "atoms"` etc.); unresolvable dynamic topics are outside this gate's reach.
 
-KNOWN OPEN TODAY: none — the allowlist is EMPTY. import_queue's consumer landed
-(B12, engines/egocentric/consumer.py — the triangulation consumer) and its entry
-was deleted per the monotone rule; this gate asserts the reader by name below.
+KNOWN OPEN TODAY: "levelup_frames" (VICTORY_PROTOCOL.md record-keeping) — written by
+GoalBook.observe_levelup so the level-up pre/post snapshots survive; its consumer is
+the OFF-LINE 25/25 victory census (archive + annotate), not runtime code, so the
+entry stands as a cited promise. import_queue's consumer landed (B12,
+engines/egocentric/consumer.py — the triangulation consumer) and its entry was
+deleted per the monotone rule; this gate asserts the reader by name below.
 "starvation" is NOT allowlisted — R1's seed-bias reader (AffectGains.starvation_steer)
 is its consumer, and this gate asserts that by name.
 """
@@ -36,7 +39,12 @@ if REPO not in sys.path:
 
 # topic -> prereg citation. DELETE the entry when the consumer lands.
 # B15: import_queue's entry DELETED — the triangulation consumer (B12) reads it.
-ALLOWLIST: Dict[str, str] = {}
+ALLOWLIST: Dict[str, str] = {
+    "levelup_frames": (
+        "VICTORY_PROTOCOL.md (records kept NOW, unrecoverable later): level-up "
+        "pre/post frame snapshots, persisted by GoalBook.observe_levelup; the "
+        "consumer is the off-line 25/25 victory census (archive + annotate)"),
+}
 
 # Production sources only: tests are fixtures, not consumers; caches/vendored
 # trees are noise; docs and any proctor material are off-limits by firewall.

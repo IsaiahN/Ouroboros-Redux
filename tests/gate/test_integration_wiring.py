@@ -10,6 +10,7 @@ so nothing ever drives.
 """
 from __future__ import annotations
 
+import ast
 import os
 import sys
 
@@ -45,11 +46,18 @@ class TestTheProducersFeed:
             "the bank never settles at result time")
 
     def test_every_settlement_routes(self):
+        """AST wiring assertion (KNOBS A4-2): the .route(...) call exists inside
+        def record_result's body — same intent as the old 20000-char window,
+        with no character economy shaping code placement."""
         src = _src()
-        i = src.find("def record_result")
-        body = src[i:i + 20000]
         assert "_residual_router" in src or "ResidualRouter" in src
-        assert ".route(" in body, "settlements never reach the router"
+        fns = [n for n in ast.walk(ast.parse(src))
+               if isinstance(n, ast.FunctionDef) and n.name == "record_result"]
+        assert fns, "def record_result is missing from cognitive_loop"
+        assert any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                   and n.func.attr == "route"
+                   for fn in fns for n in ast.walk(fn)), (
+            "settlements never reach the router")
 
     def test_broken_mechanism_reaches_the_mint(self):
         src = _src()

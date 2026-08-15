@@ -478,7 +478,12 @@ def seed_imports(gamma, fabric, game, level) -> int:
     """Enter this agent's import_candidates for (game, level) into Gamma, each
     atom flagged imported=True. Planner verification is UNCHANGED -- the wheel
     rule outranks imports: an imported atom still earns its 2x TRANSFERRED before
-    the planner trusts it. Idempotent per atom key; returns the count entered."""
+    the planner trusts it. Idempotent per atom key; returns the count entered.
+
+    RECORD-KEEPING (VICTORY_PROTOCOL): the seeded atom RETAINS its provenance --
+    the candidate's source_game is written into the atom (ADDITIVE: only when
+    the atom does not already carry one), so the 25/25 census can name every
+    atom's native + imported source."""
     have = set()
     for rec in _local(gamma.fabric).query("collective", ATOMS_TOPIC):
         atom = rec.get("atom") or {}
@@ -491,6 +496,9 @@ def seed_imports(gamma, fabric, game, level) -> int:
         if not atom or (key and key in have):
             continue
         atom["imported"] = True
+        src_game = cand.get("source_game")
+        if src_game is not None and "source_game" not in atom:
+            atom["source_game"] = src_game          # provenance retained, additively
         try:
             gamma.add(atom, str(game), int(level))
         except Exception:

@@ -36,6 +36,16 @@ untyped Gamma). No reference AND no predicate -> None: a target is evidence-back
 or absent, never invented. Everything else -- budget, depth, memoization, replay
 verification, feasibility -- is shared between the two modes.
 
+L1 (KNOBS A2, REGISTER L): cost_per_action is a MEASURED LATENT, not a
+constant. A caller may still pass an explicit cost (behavior and the returned
+dict byte-identical to current); with cost_per_action=None the planner asks
+the GLOBAL latents.ESTIMATOR for the (game, level) estimate from the books
+(gamma.fabric's collective settlements -- see latents.py for the discovered
+evidence source and the completion-run derivation) and reports the estimate ON
+the plan as data ("cost_per_action", "cost_missing" -- the honest fallback of
+1.0 rides a MISSING flag, never silence). Estimates price feasibility only --
+the DRIVE gates (verification, site, veto) are untouched.
+
 Deterministic: sorted atom-id expansion order, visited-state dedup, level-by-level
 frontier alternation, no RNG. Stdlib + numpy only.
 """
@@ -83,7 +93,7 @@ def _invertible(atom: Optional[Dict[str, Any]]) -> bool:
 
 def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gamma,
                      game: str, level: int,
-                     budget: float, cost_per_action: float,
+                     budget: float, cost_per_action: Optional[float],
                      goal_predicate: Optional[Dict[str, Any]] = None,
                      ) -> Optional[Dict[str, Any]]:
     """None | {"steps": [atom ids in order], "feasible": bool}.
@@ -92,7 +102,24 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
     compute_d(state, reference)["differing"] == 0 (unchanged). With
     reference=None and `goal_predicate` an abduced structural predicate, the
     stopping test is satisfies(goal_predicate, state) and the search runs
-    forward-only (no reference to invert from). Neither target -> None."""
+    forward-only (no reference to invert from). Neither target -> None.
+
+    L1: cost_per_action=None -> the global latents.ESTIMATOR prices steps from
+    the books (gamma.fabric) and the plan dict additionally carries
+    "cost_per_action" + "cost_missing" (estimates are data). An explicit cost
+    keeps the exact current behavior and dict shape."""
+    estimate: Optional[Dict[str, Any]] = None
+    if cost_per_action is None:
+        from engines.egocentric.latents import ESTIMATOR  # late: no import cycle
+        estimate = ESTIMATOR.cost_per_action(gamma.fabric, game, level)
+        cost_per_action = float(estimate["cost"])
+
+    def _annotate(plan: Dict[str, Any]) -> Dict[str, Any]:
+        if estimate is not None:
+            plan["cost_per_action"] = float(cost_per_action)
+            plan["cost_missing"] = bool(estimate["missing"])
+        return plan
+
     ws = np.asarray(workspace)
     pred_mode = reference is None
     if pred_mode and goal_predicate is None:
@@ -108,7 +135,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
                 and compute_d(state, ref)["differing"] == 0)
 
     if _done(ws):
-        return {"steps": [], "feasible": True}
+        return _annotate({"steps": [], "feasible": True})
 
     ids = _candidate_ids(gamma, game, level)
     if not ids:
@@ -165,7 +192,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
         if not _done(cur):
             return None
         feasible = len(steps) * cost_per_action <= budget
-        return {"steps": list(steps), "feasible": bool(feasible)}
+        return _annotate({"steps": list(steps), "feasible": bool(feasible)})
 
     fwd_paths = {ws_key: []}                  # state key -> steps from current
     fwd_frontier = deque([(ws, [], ws_key)])
