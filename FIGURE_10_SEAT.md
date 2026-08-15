@@ -39,3 +39,22 @@ findings) — never instances (logs, game specifics); what crosses DOWN is remad
 never executed verbatim; (4) NEW DIAGNOSTIC: a LOSSLESS round trip is the signature of
 an INSTANCE leaking, not a generator crossing — R_T = 0.000 exactly should raise the
 same eyebrow as rho = 0.000 did; too-perfect is the tell.
+
+## CORRECTION (2026-08-15, logged): addendum item (4) RETRACTED
+"A lossless round trip flags instance leakage" was wrong — in the R_T=0.000 case NO
+round trip occurred: the key is derived from sigma, so the tool compared a thing to
+itself. Arithmetic, guaranteed, no crossing. "Too-perfect means leakage" as a standing
+check is a FILTER THAT REMOVES THE ANSWER (a genuinely well-surviving generator would
+be flagged as contamination — the failure with no error signal). The correct trap-check
+is the ladder's existing one: COULD THIS NUMBER HAVE BEEN ANYTHING ELSE? — never "is it
+too clean." Also: T_A.T_E != I is an inequality about the transform, not a
+per-measurement expectation; no threshold is licensed. Items (1)-(3) stand.
+
+## THE ROVING-POOL GATE, PINNED (before it can fire)
+GATE = one IMPORTED atom accumulating >= 2x TRANSFERRED on the books (the wheel-earning
+standard). A single TRANSFERRED bin instance is explicitly NOT the gate (weaker event);
+a DRIVE is explicitly NOT required (drive adds planner conditions unrelated to whether
+the transfer channel works). SECOND JUSTIFICATION, recorded for the decision: rho=0 at
+every rung + candidates=0 means the surplus may be UNSPENDABLE through cross-mounts —
+the pool would then be the transfer mechanism of last resort, bought by SPENDING
+INDEPENDENCE. Decide on those grounds, not Figure 7 alone.
