@@ -133,3 +133,9 @@ A4-2 WINDOW DEBT (queued maintenance): the .credit/.route char-window gates (795
    with AST-based wiring assertions (same intent, no character economy). Queued.
 A4-3 EP ORDINAL: confirmed content-free (instance-local counter; no game/session
    identifiers in logic; OOD lint enforces).
+
+## AMENDMENT 5 (2026-08-14, Isaiah): DEFERRED LIST CLEARED
+STRUCK: mutmut nightly, pyright ratchet, cloud heartbeat, alpha/EWMA precision upgrade.
+alpha/EWMA RE-ENTRY CONDITION (the only way back): family-selection churn in the books —
+the same bank family oscillating TRANSFERRED/BROKEN across episodes on stable mechanics
+(the stale-averaging signature). Absent that, it stays struck.
