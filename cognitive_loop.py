@@ -1795,21 +1795,31 @@ class CognitiveLoop:
             except Exception:
                 _swal(self, "MINT_DRAIN")
             # W4c-4: NOVEL items persist — the endogenous agenda stays visible.
+            # Fig 9: a residual is CHARACTERIZED, not named — with before/after
+            # in hand the record also carries sigma (the enqueue-time
+            # description, the priority condition) + bounded bbox patches
+            # (consumer.characterize; oversized regions keep sigma only).
             try:
                 _rt = getattr(self, "_residual_router", None)
                 _wfab = getattr(self, "_ego_fabric", None)
                 if _rt is not None and _wfab is not None:
+                    from engines.egocentric import consumer as _con9
+                    _wpre = getattr(self, "_w4c_pre_frame", None)
                     while _rt.import_queue:
                         _wit = _rt.import_queue.pop(0)
                         # A3-2 CONVENTION (PLAYING level): import_queue records
                         # carry game (full-id grain) + the level being played.
-                        _wfab.append("collective", "import_queue",
-                                     {"slot": _wit.get("slot"),
-                                      "residual": float(_wit.get("residual", 0.0)),
-                                      "game": str(getattr(self, "_game_id", "")
-                                                  or "game"),
-                                      "level": int(getattr(self, "_ego_level", 0)
-                                                   or 0) + 1})
+                        _wrec = {"slot": _wit.get("slot"),
+                                 "residual": float(_wit.get("residual", 0.0)),
+                                 "game": str(getattr(self, "_game_id", "")
+                                             or "game"),
+                                 "level": int(getattr(self, "_ego_level", 0)
+                                              or 0) + 1}
+                        if _wpre is not None and post_array is not None:
+                            _wrec.update(_con9.characterize(
+                                _wpre, post_array, slot=_wrec["slot"],
+                                residual=_wrec["residual"]))
+                        _wfab.append("collective", "import_queue", _wrec)
             except Exception:
                 _swal(self, "MINT_DRAIN")
             # W4c-6: AFFECT NARRATES — no channel moves without the state emitted.

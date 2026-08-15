@@ -83,11 +83,15 @@ def _incompressible_pair():
 
 
 def _enqueue(fab, before, after, residual):
-    return fab.append("collective", "import_queue", {
-        "slot": "WORKSPACE", "residual": float(residual),
-        "before": [[int(v) for v in row] for row in np.asarray(before)],
-        "after": [[int(v) for v in row] for row in np.asarray(after)],
-    })
+    """One NOVEL-bin record in the POST-FIX live shape (Fig 9,
+    test_queue_characterization.py): sigma always, bbox-cropped patches when
+    the changed region is a pocket -- exactly what W4c-4 writes. Sigma-less
+    records are structurally inert to the drive (the arm-clock restart)."""
+    from engines.egocentric import consumer
+    rec = {"slot": "WORKSPACE", "residual": float(residual)}
+    rec.update(consumer.characterize(before, after, slot="WORKSPACE",
+                                     residual=residual))
+    return fab.append("collective", "import_queue", rec)
 
 
 def _armed_fabric(tmp_path, name="f"):

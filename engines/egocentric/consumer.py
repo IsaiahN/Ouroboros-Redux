@@ -6,6 +6,12 @@ stream before any match attempt, and matched against the prediction-signatures a
 carry from mint time (B13) -- a one-pass lookup over every mounted fabric's atoms,
 no application loop. Game ids are runtime keys throughout; nothing here names a game.
 
+FIG 9 (a residual is CHARACTERIZED, not named): live queue records are written with
+`characterize` at the W4c-4 persist site -- sigma at ENQUEUE time plus bounded
+bbox-cropped pre/post patches (PATCH_BOARD_FRACTION) -- and `describe` returns a
+record's persisted sigma verbatim (no recompute; the persisted description is the
+one whose seq proves priority). Sigma-less legacy records still recompute (compat).
+
 THE THREE CONDITIONS are seq-provable from append-only ordering and travel on every
 candidate: (1) priority -- sigma's processing-entry seq precedes the consumed marker's
 (same stream, strictly ordered); (2) prior existence -- the atom's mint seq (its own
@@ -46,12 +52,19 @@ import numpy as np
 
 from engines.egocentric import rho as rho_mod
 
-__all__ = ["sigma_of", "describe", "match", "consume", "seed_imports",
-           "pending", "open_not_found", "candidates", "INVARIANTS"]
+__all__ = ["sigma_of", "describe", "characterize", "match", "consume",
+           "seed_imports", "pending", "open_not_found", "candidates",
+           "INVARIANTS", "PATCH_BOARD_FRACTION"]
 
 QUEUE_TOPIC = "import_queue"
 CAND_TOPIC = "import_candidates"
 ATOMS_TOPIC = "atoms"
+
+# Fig 9 (the characterization law): evidence patches persist only for POCKET-sized
+# changed regions -- bbox area <= this fraction of the board. Stricter than the
+# mint's MAX_BBOX_BOARD_FRACTION (0.5), so a patch-carrying record has already
+# passed the mint's bbox pocket test by construction. Sigma is kept ALWAYS.
+PATCH_BOARD_FRACTION = 0.25
 
 # The match invariants (C33 §16): both sides must carry ALL of them for a verdict;
 # "slot" and "mag" are frame-local descriptors, never compared across frames.
@@ -126,9 +139,16 @@ def sigma_of(before=None, after=None, slot=None, residual=None) -> Dict[str, Any
 
 
 def describe(residual_record: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Candidate-blind sigma for one import-queue record (slot, residual magnitude,
-    and -- when the record carries before/after patches -- the full invariant set)."""
+    """Candidate-blind sigma for one import-queue record. A record carrying a
+    PERSISTED sigma (the Fig-9 characterization written at enqueue time) is
+    returned verbatim -- no recompute: the enqueue-time description is the one
+    whose seq precedes the match (the priority condition). Otherwise the sigma
+    is computed from the record's before/after frames where present (legacy
+    synthetic shape), degrading to slot + magnitude class without them."""
     rec = residual_record or {}
+    sig = rec.get("sigma")
+    if isinstance(sig, dict):
+        return dict(sig)
     residual = rec.get("residual")
     try:
         residual = None if residual is None else float(residual)
@@ -136,6 +156,38 @@ def describe(residual_record: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         residual = None
     return sigma_of(rec.get("before"), rec.get("after"),
                     slot=rec.get("slot"), residual=residual)
+
+
+def characterize(before, after, slot=None, residual=None) -> Dict[str, Any]:
+    """Fig 9: the enqueue-time CHARACTERIZATION of one residual -- the fields
+    the W4c-4 persist site adds to a live import_queue record when before/after
+    evidence is in hand. Always {"sigma": sigma_of(before, after, ...)} (the
+    description step, the priority condition); plus compact bbox-cropped
+    {"pre", "post"} patches and the absolute {"bbox": [r0, c0, r1, c1]} when
+    the changed region is a pocket (bbox area <= PATCH_BOARD_FRACTION * board
+    -- oversized regions keep sigma, skip patches). Pure, JSON-native,
+    degrades to sigma-only, never raises (house containment)."""
+    out: Dict[str, Any] = {"sigma": sigma_of(before, after, slot=slot,
+                                             residual=residual)}
+    try:
+        b = np.asarray(before)
+        a = np.asarray(after)
+        if b.ndim == 2 and b.shape == a.shape and b.size:
+            diff = b != a
+            if bool(diff.any()):
+                rows = np.flatnonzero(diff.any(axis=1))
+                cols = np.flatnonzero(diff.any(axis=0))
+                r0, r1 = int(rows[0]), int(rows[-1])
+                c0, c1 = int(cols[0]), int(cols[-1])
+                if (r1 - r0 + 1) * (c1 - c0 + 1) <= PATCH_BOARD_FRACTION * b.size:
+                    out["bbox"] = [r0, c0, r1, c1]
+                    out["pre"] = [[int(v) for v in row]
+                                  for row in b[r0:r1 + 1, c0:c1 + 1]]
+                    out["post"] = [[int(v) for v in row]
+                                   for row in a[r0:r1 + 1, c0:c1 + 1]]
+    except Exception:
+        pass                    # malformed evidence degrades to sigma-only
+    return out
 
 
 # ── the match: signature equality, one pass, no application loop ──────────────

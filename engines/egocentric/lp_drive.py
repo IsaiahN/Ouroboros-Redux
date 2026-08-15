@@ -17,7 +17,7 @@ supervisor assigns it deterministically, sha1(game) mod 3 -- assign_arm below):
 THE SIGNAL (pure, bounded, replayable -- affect's replay law, lp(t) =
 f(ledger[0:t])): signal() reads the last WINDOW records of the collective
 "import_queue" stream (the router's NOVEL bin, persisted by W4c-4) and, for
-each record carrying before/after evidence, scores its changed-cell bbox:
+each SIGMA-CARRYING record with evidence, scores its changed-cell bbox:
 
     weight = clamp(residual * margin * w_bar, 0, CEIL)
 
@@ -31,6 +31,20 @@ attracts the drive) -- and `w_bar` is the mean ledgered surprise-support "w"
 over the last VERDICT_WINDOW mint_verdicts rows for the game (neutral 1.0
 when absent). The mint's output AIMS exploration here; it is never a metric:
 no price, no mint_bar, no support, no verification is touched.
+
+THE CUTOFF SEMANTIC (Fig 9, the characterization law): only records carrying
+a persisted "sigma" -- the enqueue-time characterization written at the W4c-4
+persist site (consumer.characterize) -- are scoreable. Records persisted
+BEFORE the characterization landed carry no sigma and are STRUCTURALLY INERT:
+they contribute nothing, so the LP ARM's evidence CLOCK RESTARTS automatically
+at the fix boundary (no migration, no flag day -- the WINDOW simply refills
+with characterized records). Evidence, in preference order: the live shape's
+bbox-cropped "pre"/"post" patches with the absolute "bbox" (patches persist
+only when the changed region is <= consumer.PATCH_BOARD_FRACTION (0.25) of
+the board -- stricter than MAX_BBOX_BOARD_FRACTION, so the bbox pocket test
+is certified at write time; a sigma-only record, its region oversized, is
+silently unscoreable), or full "before"/"after" frames (synthetic/back-compat
+writers), pocket-tested in place.
 
 WRITE-CONTRACT (house law, exposed to the loop via AffectGains.lp_steer):
 derived from the ledger only (this module is a PURE READ -- it never appends),
@@ -102,8 +116,10 @@ class LPDrive:
     def signal(self, game) -> List[Dict[str, Any]]:
         """Scored NOVEL residual sites from the last WINDOW import_queue records,
         in ledger order: [{"slot", "bbox": [r0, c0, r1, c1], "residual",
-        "weight"}]. Records without before/after evidence, with no changed
-        cells, or failing the mint's MDL pocket inequality contribute nothing."""
+        "weight"}]. THE CUTOFF: sigma-less records (pre-characterization) are
+        structurally inert; so are records without evidence (patches or
+        frames), with no changed cells, or failing the mint's MDL pocket
+        inequality -- each contributes nothing."""
         try:
             rows = self.fabric.query("collective", "import_queue")
         except Exception:
@@ -131,31 +147,50 @@ class LPDrive:
         return (sum(ws) / len(ws)) if ws else 1.0
 
     def _score(self, q: Dict[str, Any], w_bar: float) -> Optional[Dict[str, Any]]:
-        """One import_queue record -> a bounded site weight, or None. The
-        compressibility test is the mint's own published inequality (imported
-        constants): cost + 0 < R, cost < MDL_MARGIN * R, bbox a pocket."""
+        """One import_queue record -> a bounded site weight, or None. THE
+        CUTOFF gates first: no persisted sigma, no score (pre-characterization
+        records are inert -- the arm clock's automatic restart). Evidence is
+        the live shape's bbox-cropped pre/post patches (+ absolute bbox; the
+        pocket test was certified at write time by the stricter
+        PATCH_BOARD_FRACTION bound) or a full before/after frame pair
+        (synthetic/back-compat), pocket-tested here. The compressibility test
+        is the mint's own published inequality (imported constants):
+        cost + 0 < R, cost < MDL_MARGIN * R, bbox a pocket."""
         try:
-            if q.get("before") is None or q.get("after") is None:
-                return None
-            b = np.asarray(q["before"])
-            a = np.asarray(q["after"])
-            if b.ndim != 2 or b.shape != a.shape or b.size == 0:
-                return None
-            diff = b != a
-            changed = int(diff.sum())
+            if not isinstance(q.get("sigma"), dict):
+                return None                          # the Fig-9 cutoff: inert
+            if q.get("pre") is not None and q.get("post") is not None:
+                b = np.asarray(q["pre"])
+                a = np.asarray(q["post"])
+                box = q.get("bbox")
+                if (b.ndim != 2 or b.shape != a.shape or b.size == 0
+                        or not isinstance(box, (list, tuple)) or len(box) != 4):
+                    return None
+                changed = int((b != a).sum())
+                r0, c0, r1, c1 = (int(v) for v in box)
+                pocket = True                        # certified at write time
+            elif q.get("before") is not None and q.get("after") is not None:
+                b = np.asarray(q["before"])
+                a = np.asarray(q["after"])
+                if b.ndim != 2 or b.shape != a.shape or b.size == 0:
+                    return None
+                diff = b != a
+                changed = int(diff.sum())
+                if changed == 0:
+                    return None
+                rr = np.flatnonzero(diff.any(axis=1))
+                cc = np.flatnonzero(diff.any(axis=0))
+                r0, r1 = int(rr[0]), int(rr[-1])
+                c0, c1 = int(cc[0]), int(cc[-1])
+                bbox_area = (r1 - r0 + 1) * (c1 - c0 + 1)
+                pocket = bbox_area < MAX_BBOX_BOARD_FRACTION * b.size
+            else:
+                return None                          # sigma without evidence
             if changed == 0:
                 return None
-            rr = np.flatnonzero(diff.any(axis=1))
-            cc = np.flatnonzero(diff.any(axis=0))
-            r0, r1 = int(rr[0]), int(rr[-1])
-            c0, c1 = int(cc[0]), int(cc[-1])
-            bbox_area = (r1 - r0 + 1) * (c1 - c0 + 1)
             cost = 1.0 + changed                     # encoding_cost_atom's price
             big_r = RESIDUAL_CELL_COST * changed + UNEXPLAINED_PREMIUM
-            compresses = (cost < big_r
-                          and cost < MDL_MARGIN * big_r
-                          and bbox_area < MAX_BBOX_BOARD_FRACTION * b.size)
-            if not compresses:
+            if not (pocket and cost < big_r and cost < MDL_MARGIN * big_r):
                 return None
             margin = 1.0 - cost / (MDL_MARGIN * big_r)      # headroom in (0, 1]
             mag = float(q.get("residual", changed))

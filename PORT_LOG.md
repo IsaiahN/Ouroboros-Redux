@@ -715,3 +715,16 @@ DEFECT caught by the registered level convention DURING the fix: settlements wer
 written at bare level while consumers read playing level — hydration would have been
 unreadable. The registry paid for itself in hours. QA: 602/602, ruff clean, OOD CLEAN.
 Swarm restarted with the grain fixes live; the import verdict loses its asterisk.
+
+## Entry 40 — THE DESCRIPTION STEP: residuals characterized at enqueue (Fig 9 closed)
+
+Isaiah's call on the sweep's Finding 1: import_queue records carried {slot,residual,seq}
+— named, never characterized (collapse-5 literal). Fixed: sigma computed AT ENQUEUE
+(the priority condition where it belongs) + bounded bbox patches (0.25 board fraction,
+stricter than the mint's 0.5). Consumer uses persisted sigma verbatim (seq = priority
+proof). LP ARM CLOCK RESTARTED automatically: signal scores only sigma-carrying records
+— all pre-fix data structurally inert; CUTOFF = this deploy. L1 verified against ls20's
+known ground truth (recovers 1,2,2,1,2,1,2 untold) — live cost wiring remains a separate
+decision. QA independent: 641/641, ruff clean. POST-DEPLOY READS QUEUED: re-read rungs
+r1/r2 once sigma-carrying records accrue (before any rung-3 design); cn04 adoption watch
+continues with the pre-staged reject-reason read.

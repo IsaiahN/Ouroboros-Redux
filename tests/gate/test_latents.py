@@ -113,6 +113,29 @@ class TestTheEstimate:
         assert lat.ESTIMATOR.cost_per_action(fab, "other", 1)["missing"] is True
         assert lat.ESTIMATOR.cost_per_action(fab, GAME, 3)["missing"] is True
 
+    def test_the_measured_ground_truth_sequence_is_recovered(self, tmp_path):
+        """A2/A6-3 VERIFICATION (pre-wiring condition): against a synthetic
+        ledger reproducing the KNOWN measured ground truth -- completion runs
+        costing 1,2,2,1,2,1,2 across seven levels (the A2 reading) -- the
+        estimator recovers exactly that sequence, level by level. The live
+        cost call sites still pass explicit costs; flipping them to the
+        estimate is a SEPARATE decision, gated on this test."""
+        lat = _L()
+        fab = KnowledgeFabric(str(tmp_path / "gt"), agent_id="a", kin_key="v4")
+        truth = [1, 2, 2, 1, 2, 1, 2]
+        for lv, cost in enumerate(truth, start=1):
+            # cost c == actions/effective: 2 effective clicks + 2*(c-1) misses
+            _settle(fab, "a1", lv, nontrivial=True, n=2)
+            if cost > 1:
+                _settle(fab, "a1", lv, nontrivial=False, n=2 * (cost - 1))
+        _settle(fab, "a1", len(truth) + 1, nontrivial=True, n=1)   # close L7's run
+        got = [lat.ESTIMATOR.cost_per_action(fab, GAME, lv)
+               for lv in range(1, len(truth) + 1)]
+        assert all(e["missing"] is False and e["completions"] == 1 for e in got)
+        assert [e["cost"] for e in got] == [float(c) for c in truth], (
+            "the estimator must read back the non-monotonic measured sequence "
+            "exactly -- a latent, never a constant")
+
     def test_pure_bounded_replayable(self, tmp_path):
         """Two estimator instances over the same ledger prefix agree, call after
         call (the replay law), and the read is windowed by MAX_RECORDS."""
