@@ -37,7 +37,50 @@ import numpy as np
 __all__ = ["learn_effect", "apply_effect", "classify_transform", "Gamma",
            "classify_object_transform", "ConditionalMiner",
            "invert_transform", "apply_inverse",
-           "encoding_cost_route", "encoding_cost_atom"]
+           "encoding_cost_route", "encoding_cost_atom",
+           "NONE_REASONS", "none_reasons", "none_summary"]
+
+
+# ── INSTRUMENT (proctor-named): why did classify_object_transform say NONE? ───
+#
+# NONE was silent -- an unstructured diff and a near-miss (mover onto occupied
+# ground, non-uniform vacated fill) counted identically. Every NONE branch now
+# bumps a bounded module counter (fixed key set, values capped, no free strings,
+# game-agnostic). Zero behavior change: same returns, counting is a side channel.
+#   NO_DIFF          the frames are identical -- nothing changed
+#   FRAME_MISMATCH   malformed input: not 2-D, empty, or shapes differ
+#   MULTI_COMPONENT  the changed region is 3+ components -- not ONE coherent object
+#   SHAPE_MISMATCH   two components that are not the same object (size or signature)
+#   FILL_VIOLATION   a mover's vacated ground is not one uniform fill
+#   NO_CLEAR_GROUND  a mover's destination was not clear ground before
+#   COLOUR_CONFLICT  one colour with two fates, or colours merged -- not a perm
+# Two-component failures record the FIRST ordering attempt's reason (deterministic).
+
+NONE_REASONS = ("NO_DIFF", "FRAME_MISMATCH", "MULTI_COMPONENT", "SHAPE_MISMATCH",
+                "FILL_VIOLATION", "NO_CLEAR_GROUND", "COLOUR_CONFLICT")
+NONE_COUNT_CAP = 10 ** 9
+_NONE_COUNTS: Dict[str, int] = dict.fromkeys(NONE_REASONS, 0)
+
+
+def _count_none(reason: str) -> None:
+    if reason not in _NONE_COUNTS:
+        raise ValueError("free-string NONE reason refused: %r" % (reason,))
+    _NONE_COUNTS[reason] = min(_NONE_COUNTS[reason] + 1, NONE_COUNT_CAP)
+
+
+def none_reasons() -> Dict[str, int]:
+    """Pure read: a copy of the bounded NONE-reason counters."""
+    return dict(_NONE_COUNTS)
+
+
+def none_summary() -> str:
+    """Fixed tokens for the [PLAN-GATE]/[VOCAB] narration line. Pure read."""
+    c = _NONE_COUNTS
+    return ("v_nodiff=%d v_frame=%d v_multi=%d v_shape=%d v_fill=%d v_ground=%d "
+            "v_colour=%d"
+            % (c["NO_DIFF"], c["FRAME_MISMATCH"], c["MULTI_COMPONENT"],
+               c["SHAPE_MISMATCH"], c["FILL_VIOLATION"], c["NO_CLEAR_GROUND"],
+               c["COLOUR_CONFLICT"]))
 
 
 # ── canonical patches and keys ────────────────────────────────────────────────
@@ -175,19 +218,28 @@ def _shape_of(cells: List[Tuple[int, int]], grid: np.ndarray) -> List[List[int]]
 
 def _match_object_translate(b: np.ndarray, a: np.ndarray,
                             src: List[Tuple[int, int]],
-                            dst: List[Tuple[int, int]]) -> Optional[Dict[str, Any]]:
+                            dst: List[Tuple[int, int]],
+                            why: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
     """A component disappears at src (one uniform fill restored), an identically
-    shaped+coloured component appears at dst where that same fill used to be."""
+    shaped+coloured component appears at dst where that same fill used to be.
+    On failure, appends exactly one NONE_REASONS entry to `why` (instrument only)."""
+    def _fail(reason: str) -> None:
+        if why is not None:
+            why.append(reason)
     if len(src) != len(dst):
+        _fail("SHAPE_MISMATCH")
         return None
     fills = {int(a[r, c]) for r, c in src}
     if len(fills) != 1:
+        _fail("FILL_VIOLATION")
         return None                                       # the vacated ground is not uniform
     fill = fills.pop()
     if any(int(b[r, c]) != fill for r, c in dst):
+        _fail("NO_CLEAR_GROUND")
         return None                                       # the destination was not clear ground
     shape = _shape_of(src, b)
     if shape != _shape_of(dst, a):
+        _fail("SHAPE_MISMATCH")
         return None                                       # not the same object
     dx = min(r for r, _ in dst) - min(r for r, _ in src)
     dy = min(c for _, c in dst) - min(c for _, c in src)
@@ -200,25 +252,32 @@ def classify_object_transform(before, after) -> Dict[str, Any]:
     at all: mover TRANSLATE (component vanishes at A, identical shape appears at B,
     background restored) / OBJ_APPEAR / OBJ_VANISH (component present in exactly one
     frame) / COLOUR_PERM (same cells, colours consistently remapped, injective, bound
-    to the component's shape). Pure, deterministic; NONE on anything else."""
+    to the component's shape). Pure, deterministic; NONE on anything else.
+    INSTRUMENT: every NONE branch bumps the bounded module counter (none_reasons())
+    -- narration only, the returned value is unchanged."""
     none = {"ttype": "NONE", "params": {}}
     b = np.asarray(before)
     a = np.asarray(after)
     if b.ndim != 2 or a.ndim != 2 or b.shape != a.shape or b.size == 0:
+        _count_none("FRAME_MISMATCH")
         return none
     diff = b != a
     if not diff.any():
+        _count_none("NO_DIFF")
         return none
     comps = _components(diff)
 
     if len(comps) == 2:                                   # mover: vanish at A, appear at B
+        whys: List[str] = []
         for src, dst in ((comps[0], comps[1]), (comps[1], comps[0])):
-            t = _match_object_translate(b, a, src, dst)
+            t = _match_object_translate(b, a, src, dst, why=whys)
             if t is not None:
                 return t
+        _count_none(whys[0] if whys else "SHAPE_MISMATCH")  # first attempt's reason
         return none
 
     if len(comps) != 1:
+        _count_none("MULTI_COMPONENT")
         return none                                       # not ONE coherent object
 
     cells = comps[0]
@@ -234,8 +293,10 @@ def classify_object_transform(before, after) -> Dict[str, Any]:
     for r, c in cells:
         s, d = int(b[r, c]), int(a[r, c])
         if mapping.setdefault(s, d) != d:
+            _count_none("COLOUR_CONFLICT")
             return none                                   # one colour, two fates: not a map
     if len(set(mapping.values())) != len(mapping):
+        _count_none("COLOUR_CONFLICT")
         return none                                       # colours merged: not a perm
     return {"ttype": "COLOUR_PERM",
             "params": {"mapping": sorted([s, d] for s, d in mapping.items()),

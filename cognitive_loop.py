@@ -1085,7 +1085,9 @@ class CognitiveLoop:
                     print(f"[PLAN-GATE] cyc={_pg['cycles']} g1={_pg['g1']} "
                           f"g2={_pg['g2']} g3={_pg['g3']} g4={_pg['g4']} "
                           f"g5={_pg['g5']} g6={_pg['g6']} g7={_pg['g7']} "
-                          f"shadow={_pg['shadow']} drive={_pg['drive']}")
+                          f"shadow={_pg['shadow']} drive={_pg['drive']} "
+                          f"{__import__('engines.egocentric.planner', fromlist=['gate_summary']).gate_summary()} "
+                          f"{__import__('engines.egocentric.effects', fromlist=['none_summary']).none_summary()}")
                 _gm = getattr(self, "_gamma", None)
                 _rbind = getattr(self, "_role_binder", None)
                 _refsnap = getattr(self, "_reference_snapshot", None)

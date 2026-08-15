@@ -61,10 +61,62 @@ from engines.egocentric.discrepancy import compute_d
 from engines.egocentric.effects import apply_effect, apply_inverse, invert_transform
 from engines.egocentric.goal_abduction import satisfies
 
-__all__ = ["plan_to_identity"]
+__all__ = ["plan_to_identity", "NONE_REASONS", "last_reason", "reason_counts",
+           "gate_summary"]
 
 _MAX_DEPTH = 8
 _MAX_NODES = 2000       # hard node-expansion budget, spent across BOTH frontiers
+
+
+# ── INSTRUMENT (proctor-named): why was the outcome empty? ────────────────────
+#
+# plan_to_identity's None/empty returns were indistinguishable -- NOTHING ARRIVED
+# and ARRIVED-AND-REJECTED read identically in every log. Every empty outcome now
+# names its reason on an OUT-OF-BAND channel (module-level, never in the returned
+# dict -- behavior byte-identical). Fixed enum, game-agnostic, no free strings:
+#   NO_APPLICABLE_ATOMS  Gamma holds no valid entries for (game, level)
+#   BUDGET_EXHAUSTED     the _MAX_NODES expansion cap was spent (either frontier)
+#   NO_MEET              applications fired but the frontiers drained without meeting
+#   ANCHOR_MISS          no target given (no reference AND no predicate), OR atoms
+#                        exist but ZERO applications fired on this frame across both
+#                        frontiers -- nothing anchored
+#   INFEASIBLE_COST      a plan WAS found and returned, but priced over budget
+#                        (empty for driving purposes; the dict is unchanged)
+# last_reason() reflects the most recently COMPLETED call (None after a feasible
+# plan). Counts are bounded: fixed key set, values capped at NONE_COUNT_CAP.
+
+NONE_REASONS = ("NO_APPLICABLE_ATOMS", "BUDGET_EXHAUSTED", "NO_MEET",
+                "ANCHOR_MISS", "INFEASIBLE_COST")
+NONE_COUNT_CAP = 10 ** 9
+_LAST_REASON: List[Optional[str]] = [None]    # 1-slot holder (house rule: no `global`)
+_REASON_COUNTS: Dict[str, int] = dict.fromkeys(NONE_REASONS, 0)
+
+
+def _set_reason(reason: Optional[str]) -> None:
+    """Record the outcome of one completed call. None clears (feasible plan)."""
+    if reason is not None and reason not in _REASON_COUNTS:
+        raise ValueError("free-string reason refused: %r" % (reason,))
+    _LAST_REASON[0] = reason
+    if reason is not None:
+        _REASON_COUNTS[reason] = min(_REASON_COUNTS[reason] + 1, NONE_COUNT_CAP)
+
+
+def last_reason() -> Optional[str]:
+    """Pure read: the reason of the last completed call's empty outcome (or None)."""
+    return _LAST_REASON[0]
+
+
+def reason_counts() -> Dict[str, int]:
+    """Pure read: a copy of the bounded reason counters."""
+    return dict(_REASON_COUNTS)
+
+
+def gate_summary() -> str:
+    """Fixed tokens for the [PLAN-GATE] narration line. Pure read."""
+    c = _REASON_COUNTS
+    return ("r_noat=%d r_budget=%d r_meet=%d r_anchor=%d r_cost=%d"
+            % (c["NO_APPLICABLE_ATOMS"], c["BUDGET_EXHAUSTED"], c["NO_MEET"],
+               c["ANCHOR_MISS"], c["INFEASIBLE_COST"]))
 
 
 def _state_key(state: np.ndarray) -> str:
@@ -120,9 +172,16 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
             plan["cost_missing"] = bool(estimate["missing"])
         return plan
 
+    def _ret(plan: Dict[str, Any]) -> Dict[str, Any]:
+        """INSTRUMENT: a returned-but-unaffordable plan is an empty outcome for
+        driving purposes -- name it out-of-band; the dict itself is untouched."""
+        _set_reason(None if plan.get("feasible") else "INFEASIBLE_COST")
+        return plan
+
     ws = np.asarray(workspace)
     pred_mode = reference is None
     if pred_mode and goal_predicate is None:
+        _set_reason("ANCHOR_MISS")        # no target: nothing to anchor a plan to
         return None                       # no target is no plan -- never invented
     ref = None if pred_mode else np.asarray(reference)
 
@@ -135,10 +194,11 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
                 and compute_d(state, ref)["differing"] == 0)
 
     if _done(ws):
-        return _annotate({"steps": [], "feasible": True})
+        return _ret(_annotate({"steps": [], "feasible": True}))
 
     ids = _candidate_ids(gamma, game, level)
     if not ids:
+        _set_reason("NO_APPLICABLE_ATOMS")
         return None
     atoms = {aid: gamma.get(aid) for aid in ids}
     inv_ids = [aid for aid in ids if _invertible(atoms[aid])]
@@ -192,7 +252,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
         if not _done(cur):
             return None
         feasible = len(steps) * cost_per_action <= budget
-        return _annotate({"steps": list(steps), "feasible": bool(feasible)})
+        return _ret(_annotate({"steps": list(steps), "feasible": bool(feasible)}))
 
     fwd_paths = {ws_key: []}                  # state key -> steps from current
     fwd_frontier = deque([(ws, [], ws_key)])
@@ -206,6 +266,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
         bwd_paths = {ref_key: []}             # state key -> forward-direction suffix to REFERENCE
         bwd_frontier = deque([(ref, [], ref_key)])
     expanded = 0                              # nodes expanded, summed over BOTH frontiers
+    applied = 0                               # INSTRUMENT: successful applications, both frontiers
 
     while fwd_frontier or bwd_frontier:
         # -- forward level: current outward via apply_effect ------------------------
@@ -214,12 +275,14 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
             if len(steps) >= _MAX_DEPTH:
                 continue
             if expanded >= _MAX_NODES:
+                _set_reason("BUDGET_EXHAUSTED")
                 return None                   # budget spent: a shadow, not a stall
             expanded += 1
             for aid in ids:
                 nxt = _run(aid, state, skey)
                 if nxt is None:
                     continue
+                applied += 1
                 key = _state_key(nxt)
                 if key in fwd_paths:
                     continue
@@ -245,6 +308,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
             if len(suffix) >= _MAX_DEPTH:
                 continue
             if expanded >= _MAX_NODES:
+                _set_reason("BUDGET_EXHAUSTED")
                 return None                   # budget spent: a shadow, not a stall
             expanded += 1
             for aid in inv_ids:
@@ -258,6 +322,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
                 if (redo is None or redo.shape != state.shape
                         or not (redo == state).all()):
                     continue
+                applied += 1                              # a verified backward application
                 sfx = [aid] + suffix
                 bwd_paths[key] = sfx
                 if key in fwd_paths:                      # the meet: stitch and verify
@@ -265,4 +330,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
                     if out is not None:
                         return out
                 bwd_frontier.append((prev, sfx, key))
+    # frontiers drained: ZERO applications means nothing ever anchored to this
+    # frame (ANCHOR_MISS); otherwise the search ran and never met (NO_MEET)
+    _set_reason("ANCHOR_MISS" if applied == 0 else "NO_MEET")
     return None
