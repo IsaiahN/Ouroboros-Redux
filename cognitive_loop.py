@@ -1122,7 +1122,16 @@ class CognitiveLoop:
                                 level=int(getattr(self, "_ego_level", 0) or 0) + 1,
                                 budget=float(max(
                                     0, self._max_actions - self._actions_taken)),
-                                cost_per_action=1.0)
+                                cost_per_action=None)  # L1 LIVE: the books price it
+                            if _plan is not None and "cost_per_action" in _plan:
+                                # L1 narration -- BOTH values on the line: the
+                                # estimate AND the 1.0 constant it replaced.
+                                if _plan.get("cost_missing"):
+                                    print("[COST] fallback=1.0")
+                                else:
+                                    print(f"[COST] "
+                                          f"est={_plan['cost_per_action']:.2f} "
+                                          f"(was 1.0)")
                             if _plan is not None and _plan.get("steps"):
                                 _pg["g7"] += 1
                                 _av = getattr(self, "_atom_verified", None) or {}

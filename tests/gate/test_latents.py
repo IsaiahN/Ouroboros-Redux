@@ -19,7 +19,8 @@ completion runs -- the ledgered price, in budget actions, of one EFFECTIVE
 always >= 1 when effective clicks exist; ls20-style 2-click moves read ~2.
 
 FALSIFIERS pinned here: no completion evidence -> cost 1.0 with an honest
-MISSING flag (never invented); synthetic completion runs -> the exact ratio;
+MISSING flag (never invented; fewer than MIN_OBS=3 runs fails closed the same
+way -- pinned in test_cost_flip.py); synthetic completion runs -> the exact ratio;
 non-completing exploration contributes nothing; pure + bounded (replayable,
 windowed read); the planner uses the estimator ONLY when the caller passes
 cost_per_action=None -- explicit costs leave behavior and the returned plan
@@ -63,13 +64,20 @@ def _settle(fab, agent, level, nontrivial=True, game=GAME, n=1):
             "nontrivial": bool(nontrivial), "atom_key": None, "atom_bin": None})
 
 
+def _run_a1(fab, times=3):
+    """`times` completion runs by a1 at playing level 1, each 4 actions
+    (3 nontrivial) -- 3 runs meets the MIN_OBS fail-closed support bar."""
+    for _ in range(times):
+        _settle(fab, "a1", 1, nontrivial=True, n=3)
+        _settle(fab, "a1", 1, nontrivial=False, n=1)
+        _settle(fab, "a1", 2, nontrivial=True, n=1)  # the level-up: run closed
+
+
 def _completion_fabric(tmp_path, name="f"):
-    """agent a1 completes playing level 1 in 4 actions (3 nontrivial); agent a2
-    explores level 1 forever (10 actions) and never completes it."""
+    """agent a1 completes playing level 1 three times, 4 actions (3 nontrivial)
+    each; agent a2 explores level 1 forever (10 actions), never completing."""
     fab = KnowledgeFabric(str(tmp_path / name), agent_id="a", kin_key="v4")
-    _settle(fab, "a1", 1, nontrivial=True, n=3)
-    _settle(fab, "a1", 1, nontrivial=False, n=1)
-    _settle(fab, "a1", 2, nontrivial=True, n=1)     # the level-up: run closed
+    _run_a1(fab)
     _settle(fab, "a2", 1, nontrivial=True, n=10)    # never reaches level 2
     return fab
 
@@ -85,12 +93,13 @@ class TestTheEstimate:
         assert est["completions"] == 0
 
     def test_completion_run_yields_the_exact_ratio(self, tmp_path):
-        """One completion run: 4 actions, 3 nontrivial -> cost 4/3, not missing."""
+        """Three completion runs: 12 actions, 9 nontrivial -> cost 4/3, not
+        missing (3 runs meets the MIN_OBS support bar)."""
         lat = _L()
         fab = _completion_fabric(tmp_path)
         est = lat.ESTIMATOR.cost_per_action(fab, GAME, 1)
-        assert est["missing"] is False and est["completions"] == 1
-        assert est["actions"] == 4 and est["effective"] == 3
+        assert est["missing"] is False and est["completions"] == 3
+        assert est["actions"] == 12 and est["effective"] == 9
         assert abs(est["cost"] - 4.0 / 3.0) < 1e-12
 
     def test_non_completing_exploration_contributes_nothing(self, tmp_path):
@@ -99,9 +108,7 @@ class TestTheEstimate:
         lat = _L()
         fab = _completion_fabric(tmp_path)
         solo = KnowledgeFabric(str(tmp_path / "solo"), agent_id="a", kin_key="v4")
-        _settle(solo, "a1", 1, nontrivial=True, n=3)
-        _settle(solo, "a1", 1, nontrivial=False, n=1)
-        _settle(solo, "a1", 2, nontrivial=True, n=1)
+        _run_a1(solo)
         assert (lat.ESTIMATOR.cost_per_action(fab, GAME, 1)
                 == lat.ESTIMATOR.cost_per_action(solo, GAME, 1))
 
@@ -118,20 +125,22 @@ class TestTheEstimate:
         ledger reproducing the KNOWN measured ground truth -- completion runs
         costing 1,2,2,1,2,1,2 across seven levels (the A2 reading) -- the
         estimator recovers exactly that sequence, level by level. The live
-        cost call sites still pass explicit costs; flipping them to the
-        estimate is a SEPARATE decision, gated on this test."""
+        call sites now pass cost_per_action=None (the flip this test gated;
+        pinned in test_cost_flip.py), so the ladder is walked three times:
+        MIN_OBS completion runs per level, the fail-closed support bar."""
         lat = _L()
         fab = KnowledgeFabric(str(tmp_path / "gt"), agent_id="a", kin_key="v4")
         truth = [1, 2, 2, 1, 2, 1, 2]
-        for lv, cost in enumerate(truth, start=1):
-            # cost c == actions/effective: 2 effective clicks + 2*(c-1) misses
-            _settle(fab, "a1", lv, nontrivial=True, n=2)
-            if cost > 1:
-                _settle(fab, "a1", lv, nontrivial=False, n=2 * (cost - 1))
-        _settle(fab, "a1", len(truth) + 1, nontrivial=True, n=1)   # close L7's run
+        for _ in range(3):                       # MIN_OBS runs per (game, level)
+            for lv, cost in enumerate(truth, start=1):
+                # cost c == actions/effective: 2 effective clicks + 2*(c-1) misses
+                _settle(fab, "a1", lv, nontrivial=True, n=2)
+                if cost > 1:
+                    _settle(fab, "a1", lv, nontrivial=False, n=2 * (cost - 1))
+            _settle(fab, "a1", len(truth) + 1, nontrivial=True, n=1)  # close L7
         got = [lat.ESTIMATOR.cost_per_action(fab, GAME, lv)
                for lv in range(1, len(truth) + 1)]
-        assert all(e["missing"] is False and e["completions"] == 1 for e in got)
+        assert all(e["missing"] is False and e["completions"] == 3 for e in got)
         assert [e["cost"] for e in got] == [float(c) for c in truth], (
             "the estimator must read back the non-monotonic measured sequence "
             "exactly -- a latent, never a constant")

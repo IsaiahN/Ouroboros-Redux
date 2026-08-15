@@ -728,3 +728,11 @@ known ground truth (recovers 1,2,2,1,2,1,2 untold) — live cost wiring remains 
 decision. QA independent: 641/641, ruff clean. POST-DEPLOY READS QUEUED: re-read rungs
 r1/r2 once sigma-carrying records accrue (before any rung-3 design); cn04 adoption watch
 continues with the pre-staged reject-reason read.
+
+## Entry 41 — THE COST FLIP (beat boundary: readings after this are post-flip populations)
+
+L1 wired live per Isaiah's three conditions (fail-closed MIN_OBS=3; [COST] logs estimate
+AND the replaced 1.0 per site; this entry IS the as-of boundary). Feasibility is now
+priced by measured cost — in the games where 1.0 was fiction (measured 33-225), plans
+that could never finish stop being approved. Next g7/feasibility reads are two
+populations: pre/post this deploy. QA independent: 651/651, ruff clean.

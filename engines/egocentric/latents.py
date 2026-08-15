@@ -25,8 +25,10 @@ NONTRIVIAL actions across the (game, L) completion runs. Unit-honest: a plan
 step presumes one EFFECTIVE (frame-changing) click, and the ratio is the
 ledgered number of budget actions one effective click cost during play that
 actually completed the level (>= 1 whenever an effective click exists;
-2-click-per-move games read ~2). No completion runs -> cost 1.0 with an
-honest MISSING flag -- the fallback is the old constant, never a fabrication.
+2-click-per-move games read ~2). FAIL CLOSED: fewer than MIN_OBS completion
+runs (or none at all) -> cost 1.0 with an honest MISSING flag -- the fallback
+is the old constant, never a fabrication, and a thin book never moves the
+price.
 
 Write-contract (the affect law): PURE (a function of the ledger prefix and the
 (game, level) key -- no RNG, no wall-clock, no instance state), BOUNDED (the
@@ -39,13 +41,19 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-__all__ = ["ActionCostEstimator", "ESTIMATOR", "FALLBACK", "MAX_RECORDS", "TOPIC"]
+__all__ = ["ActionCostEstimator", "ESTIMATOR", "FALLBACK", "MAX_RECORDS",
+           "MIN_OBS", "TOPIC"]
 
 TOPIC = "settlements"
 MAX_RECORDS = 4000     # bounded read: the janitor keeps ~100 raw + archive; 4000
                        # covers every survivor of a long-lived stream without an
                        # unbounded scan (same windowing idiom as lp_drive)
 FALLBACK = 1.0         # the old constant -- returned ONLY with missing=True
+MIN_OBS = 3            # FAIL-CLOSED support bar: an estimate resting on fewer
+                       # completion runs than this is untrusted -- the flagged
+                       # FALLBACK stands and the honest counts still report.
+                       # Register G, provenance GUESSED (KNOBS A5): 3 is picked,
+                       # not measured; arm-tunable, unlike the estimator's law.
 
 
 class ActionCostEstimator:
@@ -88,10 +96,12 @@ class ActionCostEstimator:
             if runs:                                 # open runs are not evidence
                 actions = sum(r["actions"] for r in runs)
                 effective = sum(r["effective"] for r in runs)
-                out.update({
-                    "cost": float(actions) / float(max(1, effective)),
-                    "missing": False, "completions": len(runs),
-                    "actions": int(actions), "effective": int(effective)})
+                out.update({"completions": len(runs), "actions": int(actions),
+                            "effective": int(effective)})
+                if len(runs) >= int(MIN_OBS):        # FAIL CLOSED below the bar
+                    out.update({
+                        "cost": float(actions) / float(max(1, effective)),
+                        "missing": False})
         except Exception:
             pass                                     # the flagged fallback stands
         return out

@@ -244,7 +244,12 @@ def abduced_plan(gamma: Any, book: GoalBook, frame: Any, game: str, level: int,
     plan_to_identity's predicate mode. None when there is no credible
     hypothesis, no plan, or nothing left to do (never invented). Otherwise
     {"pred", "sig", "credibility", "steps", "feasible", "verified", "site",
-    "veto"} with the DRIVE gates UNCHANGED: verified = every step atom carries
+    "veto", "cost_per_action", "cost_missing"} -- the plan is priced by the
+    L1 measured latent (cost_per_action=None: the planner consumes the global
+    latents.ESTIMATOR; below MIN_OBS completion runs it fails closed to the
+    flagged 1.0) and this site narrates the [COST] line, both values (the
+    estimate and the 1.0 it replaced) -- with the DRIVE gates UNCHANGED:
+    verified = every step atom carries
     >= 2 TRANSFERRED settlements; site = the first atom's context anchor in
     `frame` (derived, never memorized); veto = the frontier fatal/dead/avoid
     check. WHETHER to drive stays the loop's decision -- this function only
@@ -256,9 +261,17 @@ def abduced_plan(gamma: Any, book: GoalBook, frame: Any, game: str, level: int,
         from engines.egocentric.planner import plan_to_identity  # late: no import cycle
         f = np.asarray(frame)
         plan = plan_to_identity(f, None, gamma, game=str(game), level=int(level),
-                                budget=float(budget), cost_per_action=1.0,
+                                budget=float(budget), cost_per_action=None,
                                 goal_predicate=top["pred"])
-        if plan is None or not plan.get("steps"):
+        if plan is None:
+            return None
+        # L1 narration -- BOTH values on the line: the estimate AND the 1.0
+        # constant it replaced ([COST] per call site; fallback never silent).
+        if plan.get("cost_missing"):
+            print("[COST] fallback=1.0")
+        else:
+            print("[COST] est=%.2f (was 1.0)" % float(plan["cost_per_action"]))
+        if not plan.get("steps"):
             return None
         av = verified_counts or {}
         verified = all(int(av.get(sid, 0)) >= 2 for sid in plan["steps"])
@@ -280,6 +293,8 @@ def abduced_plan(gamma: Any, book: GoalBook, frame: Any, game: str, level: int,
                 "credibility": int(top["credibility"]),
                 "steps": list(plan["steps"]), "feasible": bool(plan["feasible"]),
                 "verified": bool(verified), "site": site,
-                "veto": bool(plan_veto(site, harvest, avoid=avoid))}
+                "veto": bool(plan_veto(site, harvest, avoid=avoid)),
+                "cost_per_action": float(plan.get("cost_per_action", 1.0)),
+                "cost_missing": bool(plan.get("cost_missing", True))}
     except Exception:
         return None
