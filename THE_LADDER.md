@@ -137,3 +137,10 @@ SELECTION (offer path firing correctly, candidates simply not what the wheel wan
 everything green, counter flat; on the list so it is not mistaken for a machinery bug).
 WORDING LAW: rung 4 failing means the machine is OBSERVABLE, not healthy — "healthy"
 invites looking elsewhere for the cause.
+
+## THE INEXPRESSIBLE-STATE GENUS (canon, 2026-08-16 — three instances name it):
+Anywhere a state can occur that the vocabulary cannot express, it will be attributed
+to the nearest expressible neighbour, SILENTLY. Instances: level meaning two things;
+R_T's arithmetic zero; not_found as a union of never-matched and declined. THE SWEEP
+THAT FALLS OUT (cheap, mechanical, predicts where to look): for each enum in the
+system, ask WHAT STATES CAN IT NOT REPRESENT. Same move that found this one.
