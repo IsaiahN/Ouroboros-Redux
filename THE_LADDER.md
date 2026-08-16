@@ -144,3 +144,16 @@ to the nearest expressible neighbour, SILENTLY. Instances: level meaning two thi
 R_T's arithmetic zero; not_found as a union of never-matched and declined. THE SWEEP
 THAT FALLS OUT (cheap, mechanical, predicts where to look): for each enum in the
 system, ask WHAT STATES CAN IT NOT REPRESENT. Same move that found this one.
+
+## THE JOIN-READ SPEC (reviewer riders, 2026-08-16 — pinned before the read):
+The enum finding was bigger than the enum: RUNG 4'S TWO HALVES LIVE IN DIFFERENT
+STREAMS WITH NO SHARED RECORD (the seam class again — one implied handoff, nothing
+stating it). (1) THE JOIN KEY, pinned: candidate/consumer records join settlements on
+ATOM KEY (rung-0 canonical, NOT sig_class) + full game id + PLAYING level; episode via
+the ep stamp where present. Grain mismatch silently drops/duplicates rows and returns
+a number that looks fine — verify both streams carry the key at the same grain BEFORE
+trusting the join. (2) AS-OF ON THE READING ITSELF: not_found means strictly
+never-matched only from 27cb247 — the read tail-scopes to post-deploy drains; pre/post
+pooling mixes two semantics. (3) THE NUMBER OUTRANKING THE BREAKDOWN: if traffic is
+still climbing with adoptions zero at next reading, that is a loop that SURVIVED A FIX
+AIMED AT IT — report that above the branch distribution.
