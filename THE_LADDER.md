@@ -170,3 +170,16 @@ every beat re-litigates sufficiency, which is the state the ladder exists to pre
 RECORD CORRECTION: "the framework survived its first full contact" is retracted —
 LOCATED A CAUSE, NOT SURVIVED CONTACT: two sealed calls unscored, the counter unmoved,
 rung 4's fix unproven.
+
+## THE TESTIMONY SOURCE (2026-08-16 — a source, not a rung; standing in every beat)
+THE FAILURE, owned: 21,500 reasoning steps were on disk and the seat never read them —
+the agents' own testimony (P:/T:/goal/cert stream) was produced and never consumed, ONE
+LEVEL UP: the seat violated its own R3 law against its own inputs. Three defects hid in
+plain text. Fig 10 panel 2 failure: the channel existed and nobody was on it.
+STANDING READ ADOPTED: every beat samples the reasoning streams en masse — goal|tactic
+distribution, contradiction scan (no-goal|exploit, vacuous-goal|any, completed-goal|
+driving), role-tag census — beside the counters, before the rungs. The books include
+what the agent says about itself. KNOWN INSTRUMENT DEFECT until F6 lands: the P:
+summary is frozen pre-enrichment (audit 1h) — testimony is read WITH that caveat.
+LAW GENERALIZED: every produced stream needs a named consumer INCLUDING THE SEAT'S OWN
+SOURCES — the beat protocol is the testimony stream's consumer, by name, from now on.
