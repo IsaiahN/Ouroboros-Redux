@@ -121,3 +121,19 @@ error one level up. (4) PASSPORT PRECISION (framing corrected): seq-stamps prove
 existed-before-match ONLY; not-authored is carried separately by the firewall + source
 stamps (a lint rule) — the passport partly depends on the lint, and that dependency is
 now on the record: the day the firewall weakens, victories stop being evidence.
+
+## RUNG-4 READ PREP (2026-08-16, reviewer riders — checked BEFORE the read):
+THE NUMBER: 86 -> 123 traffic with holds=0, candidates=0 — an ACTIVE LOOP PRODUCING
+NOTHING, same shape as pre-hydration 65. STATED PLAINLY: hydration was expected to
+close this and did not (or fixed a different link). THE FOURTH BRANCH CHECKED: the
+consumer's outcome enum is {consumed, not_found, candidates} — MATCHED-AND-REJECTED
+DOES NOT EXIST in the vocabulary (the only decline-like path is an impoverished-
+description skip). THE ABSENCE IS ITSELF A FINDING: the instrument cannot express "the
+offer arrived and something declined it"; wheel-level declines are visible only via
+verification counts, not consumer records. Read outcomes now number FIVE: never-
+matched / matched-but-unverified / seeded-but-never-planned / matched-and-rejected
+(currently inexpressible — its appearance requires the enum extension) / TARGET-
+SELECTION (offer path firing correctly, candidates simply not what the wheel wants —
+everything green, counter flat; on the list so it is not mistaken for a machinery bug).
+WORDING LAW: rung 4 failing means the machine is OBSERVABLE, not healthy — "healthy"
+invites looking elsewhere for the cause.
