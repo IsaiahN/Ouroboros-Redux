@@ -155,3 +155,19 @@ A6-4 PRE-STAGED READ: if cn04 adoption has not occurred by its verdict deadline,
    immediate next read is the REJECT/NOT-FOUND REASONS on the 66 — does the wheel
    refuse for a readable reason, or does the offer never arrive (consumer never
    matched vs matched-but-unverified vs seeded-but-never-planned).
+
+## AMENDMENT 7 (2026-08-15): FIGURE 2 REV — constitutive anchors vs instruments
+"An anchor is legitimate when the question is CONSTITUTIVELY about it. Where it
+estimates a fact outside itself it is an INSTRUMENT, and instruments can be wrong on
+axes they do not measure."
+REGISTER F SPLITS ACCORDINGLY: CONSTITUTIVE (the question is the anchor — level wins,
+win_detected semantics, the gate suite for gate-passing, git history for what-landed):
+infallible BY DEFINITION, need no violation detector, must never update. FROZEN
+INSTRUMENTS (estimate something outside themselves — F11 sig_class estimates sameness;
+the MDL inequality estimates worth; the dead-cell rule estimates deadness): frozen for
+stability, NOT infallible — each OWES a violation detector (the metamer read is
+sig_class's), and each CAN be wrong on unmeasured axes. THE WEEK'S ERROR CLASS NAMED:
+every guaranteed-number failure (rho=0, R_T=0, rss=0) was an instrument read as a
+constitutive anchor. The ladder's trap-check ("could this number have been anything
+else?") is exactly the instrument test — constitutive reads are exempt from it,
+instrument reads never are.
