@@ -24,6 +24,17 @@ axis coarsened; the give-up is an axis-tagged DEFEASIBLE not-found. THE CHAITIN 
 an empty search never closes an item -- not-founds reopen when new atoms touch their
 axis (the recorded watermark is the visible-atom count).
 
+THE FOURTH BRANCH (RUNG-4, instrument only): the outcome enum {consumed, not_found,
+candidates} could not express DECLINE -- a drain where atoms were PRESENT but every
+comparison was refused by a match guard fell through to not_found, making
+"never-matched" the union of two states. Such an exit now persists an axis-tagged
+kind="declined" record whose reason comes from the FIXED DECLINE_REASONS enum
+(currently one member: DECLINED_IMPOVERISHED, match()'s base-rate description guard,
+previously silent); not_found henceforth means STRICTLY never-matched -- an empty
+search or a fully-evaluated miss. Declined items ride the Chaitin reopen path exactly
+as their not_found ancestors did (pending/open_not_found read both kinds): observation
+only, zero behavior change.
+
 THE KIN-ECHO LAW (CK_LEDGER ground criterion, the consumer-prereg flag): echo pays the
 origin author, and cross-mounted fabrics let an author's own offspring/kin echo its
 atoms -- a reputation reading partly owned by its beneficiary. Rule, in full: any
@@ -54,7 +65,8 @@ from engines.egocentric import rho as rho_mod
 
 __all__ = ["sigma_of", "describe", "characterize", "match", "consume",
            "seed_imports", "pending", "open_not_found", "candidates",
-           "INVARIANTS", "PATCH_BOARD_FRACTION"]
+           "INVARIANTS", "PATCH_BOARD_FRACTION",
+           "KIND_DECLINED", "DECLINED_IMPOVERISHED", "DECLINE_REASONS"]
 
 QUEUE_TOPIC = "import_queue"
 CAND_TOPIC = "import_candidates"
@@ -69,6 +81,14 @@ PATCH_BOARD_FRACTION = 0.25
 # The match invariants (C33 §16): both sides must carry ALL of them for a verdict;
 # "slot" and "mag" are frame-local descriptors, never compared across frames.
 INVARIANTS = ("arity", "bbox", "changed", "colour_delta", "conserved")
+
+# THE FOURTH BRANCH (RUNG-4): the decline vocabulary -- a FIXED enum. A match
+# guard that refuses a comparison while atoms are present must name its reason
+# here and route to _declined, never fall through to _not_found (not_found
+# means STRICTLY never-matched: an empty search or a fully-evaluated miss).
+KIND_DECLINED = "declined"
+DECLINED_IMPOVERISHED = "impoverished"  # match()'s base-rate guard: an INVARIANT missing on either side
+DECLINE_REASONS = (DECLINED_IMPOVERISHED,)
 
 
 # ── the shared sigma vocabulary (one currency for holes AND atoms) ────────────
@@ -214,19 +234,30 @@ def _coarse(axis: str, value):
 
 
 def match(sigma: Dict[str, Any], atoms: Iterable[Dict[str, Any]],
-          coarse_axes: Sequence[str] = ()) -> Tuple[List[Dict[str, Any]],
-                                                    List[Dict[str, Any]]]:
+          coarse_axes: Sequence[str] = (),
+          stats: Optional[Dict[str, int]] = None) -> Tuple[List[Dict[str, Any]],
+                                                           List[Dict[str, Any]]]:
     """(hits, near_misses) over atom RECORDS: a hit matches every invariant; a
     near-miss matches all but exactly ONE, and names the failing invariant.
-    Signature-first: nothing is applied, one pass, no candidate frames touched."""
+    Signature-first: nothing is applied, one pass, no candidate frames touched.
+
+    THE FOURTH BRANCH's tally (instrument only, matching unchanged): when
+    `stats` is a dict it is filled ADDITIVELY with the walk's exits --
+    "evaluated" (full comparisons), "declined" (the impoverished-description
+    guard refused: an INVARIANT missing on either side -- previously a silent
+    skip), "unsigmad" (no signature at all: nothing was offered)."""
     hits: List[Dict[str, Any]] = []
     near: List[Dict[str, Any]] = []
+    tally = {"evaluated": 0, "declined": 0, "unsigmad": 0}
     for rec in atoms:
         asig = _atom_sigma(rec)
         if asig is None:
+            tally["unsigmad"] += 1
             continue                    # an unsigma'd atom cannot be recognized (backfill)
         if any(k not in sigma or k not in asig for k in INVARIANTS):
+            tally["declined"] += 1
             continue                    # impoverished description: base-rate, no verdict
+        tally["evaluated"] += 1
         failed: List[str] = []
         for k in INVARIANTS:
             va, vb = sigma[k], asig[k]
@@ -241,6 +272,9 @@ def match(sigma: Dict[str, Any], atoms: Iterable[Dict[str, Any]],
         elif len(failed) == 1:
             near.append({"id": rec.get("id"), "key": (rec.get("atom") or {}).get("key"),
                          "source_game": rec.get("game"), "failed": failed[0]})
+    if isinstance(stats, dict):
+        for k, v in tally.items():
+            stats[k] = int(stats.get(k, 0)) + v
     return hits, near
 
 
@@ -261,23 +295,26 @@ def all_atoms(fabric) -> List[Dict[str, Any]]:
 
 def pending(fabric) -> List[Dict[str, Any]]:
     """Unconsumed raw queue records, oldest first. Raw = no "kind" field;
-    closed = a consumed marker or a not-found (the latter lives on the reopen path)."""
+    closed = a consumed marker, a not-found, or a declined (the latter two
+    live on the reopen path)."""
     rows = _local(fabric).query("collective", QUEUE_TOPIC)
     closed = {int(r.get("src_seq", -1)) for r in rows
-              if r.get("kind") in ("consumed", "not_found")}
+              if r.get("kind") in ("consumed", "not_found", KIND_DECLINED)}
     raws = [r for r in rows if "kind" not in r]
     return sorted((r for r in raws if int(r.get("seq", 0)) not in closed),
                   key=lambda r: int(r.get("seq", 0)))
 
 
 def open_not_found(fabric) -> List[Dict[str, Any]]:
-    """The LATEST not-found per src_seq, minus items later closed by a candidate --
-    the standing axis-tagged eliminations (defeasible, reversible, never load-bearing)."""
+    """The LATEST give-up (not-found OR declined) per src_seq, minus items later
+    closed by a candidate -- the standing axis-tagged eliminations (defeasible,
+    reversible, never load-bearing). Declined records ride the same reopen path:
+    their shape is a not_found superset (kind/reason added, additively)."""
     rows = _local(fabric).query("collective", QUEUE_TOPIC)
     done = {int(r.get("src_seq", -1)) for r in rows if r.get("kind") == "consumed"}
     latest: Dict[int, Dict[str, Any]] = {}
     for r in rows:
-        if r.get("kind") == "not_found":
+        if r.get("kind") in ("not_found", KIND_DECLINED):
             latest[int(r.get("src_seq", -1))] = r
     return [latest[k] for k in sorted(latest) if k not in done]
 
@@ -294,7 +331,7 @@ def candidates(fabric, game, level) -> List[Dict[str, Any]]:
 
 def _persist(fabric, entry: Dict[str, Any]) -> Dict[str, Any]:
     """THE single write site for queue processing entries (sigma / consumed /
-    not_found); the returned record's seq is the proof timestamp."""
+    not_found / declined); the returned record's seq is the proof timestamp."""
     return fabric.append("collective", QUEUE_TOPIC, entry)
 
 
@@ -414,15 +451,53 @@ def _close_hit(fabric, game, level, src_seq: int, sigma: Dict[str, Any],
             pass
 
 
+def _counts(entry: Dict[str, Any], stats: Optional[Dict[str, int]]) -> Dict[str, Any]:
+    """Additive audit counts from a match() stats tally (records additive)."""
+    if isinstance(stats, dict):
+        entry["evaluated_atoms"] = int(stats.get("evaluated", 0))
+        entry["declined_atoms"] = int(stats.get("declined", 0))
+        entry["unsigmad_atoms"] = int(stats.get("unsigmad", 0))
+    return entry
+
+
 def _not_found(fabric, game, level, src_seq: int, sigma: Dict[str, Any],
                axis: str, priority_seq: int, near: List[Dict[str, Any]],
-               atoms_seen: int) -> None:
-    _persist(fabric, {"kind": "not_found", "src_seq": int(src_seq),
-                      "sigma": dict(sigma), "axis": str(axis),
-                      "atoms_seen": int(atoms_seen),
-                      "priority_seq": int(priority_seq),
-                      "near_misses": list(near),
-                      "game": str(game), "level": int(level)})
+               atoms_seen: int, stats: Optional[Dict[str, int]] = None) -> None:
+    """STRICTLY never-matched: an empty search (no sigma-carrying atoms -- the
+    Chaitin case) or a fully-evaluated miss. A refused comparison with atoms
+    present is NOT this -- that routes to _declined (the fourth branch)."""
+    _persist(fabric, _counts({"kind": "not_found", "src_seq": int(src_seq),
+                              "sigma": dict(sigma), "axis": str(axis),
+                              "atoms_seen": int(atoms_seen),
+                              "priority_seq": int(priority_seq),
+                              "near_misses": list(near),
+                              "game": str(game), "level": int(level)}, stats))
+
+
+def _declined(fabric, game, level, src_seq: int, sigma: Dict[str, Any],
+              axis: str, priority_seq: int, near: List[Dict[str, Any]],
+              atoms_seen: int, reason: str,
+              stats: Optional[Dict[str, int]] = None) -> None:
+    """THE FOURTH BRANCH's single write site: atoms were PRESENT and a match
+    guard refused every comparison -- no verdict was ever reached. `reason`
+    comes from the FIXED DECLINE_REASONS enum. The record is an additive
+    not_found superset (kind/reason/counts added), so the Chaitin reopen
+    machinery reads it unchanged."""
+    _persist(fabric, _counts({"kind": KIND_DECLINED, "reason": str(reason),
+                              "src_seq": int(src_seq),
+                              "sigma": dict(sigma), "axis": str(axis),
+                              "atoms_seen": int(atoms_seen),
+                              "priority_seq": int(priority_seq),
+                              "near_misses": list(near),
+                              "game": str(game), "level": int(level)}, stats))
+
+
+def _is_decline(stats: Dict[str, int]) -> bool:
+    """The routing law: DECLINED iff comparisons were refused and NONE was ever
+    fully evaluated (atoms present, verdict withheld on every one). An empty
+    search -- no atoms, or none carrying sigma -- is not_found (silence is
+    never a decline verdict); any fully-evaluated miss is not_found too."""
+    return int(stats.get("evaluated", 0)) == 0 and int(stats.get("declined", 0)) > 0
 
 
 def _retry_axis(near: List[Dict[str, Any]]) -> str:
@@ -449,8 +524,11 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
     the Chaitin rule -- then pending raws, oldest first): describe -> persist
     sigma -> match across ALL mounted fabrics' atoms; hit -> import_candidates
     record with the three conditions; miss with near-misses -> ONE redescription
-    retry on the named axis; give up -> axis-tagged defeasible not-found."""
-    report = {"drained": 0, "candidates": 0, "not_found": 0,
+    retry on the named axis; give up -> axis-tagged defeasible not-found, UNLESS
+    atoms were present and every comparison was refused by a match guard --
+    that give-up is the FOURTH BRANCH, an axis-tagged kind="declined" record
+    with its reason from DECLINE_REASONS (same reopen path, observation only)."""
+    report = {"drained": 0, "candidates": 0, "not_found": 0, "declined": 0,
               "reopened": 0, "retried": 0}
     budget = max(0, int(budget_n))
     used = 0
@@ -471,7 +549,8 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
         sigma = nf.get("sigma") or {}
         src_seq = int(nf.get("src_seq", 0))
         priority_seq = int(nf.get("priority_seq", nf.get("seq", 0)))
-        hits, near = match(sigma, atoms)
+        stats: Dict[str, int] = {}
+        hits, near = match(sigma, atoms, stats=stats)
         redesc = None
         if not hits and axis in INVARIANTS:
             report["retried"] += 1
@@ -481,9 +560,14 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
             _close_hit(fabric, game, level, src_seq, sigma, hits, near,
                        priority_seq, axis=redesc, rho_ctx=rho_ctx)
             report["candidates"] += 1
+        elif _is_decline(stats):                        # the FOURTH BRANCH
+            _declined(fabric, game, level, src_seq, sigma, axis,
+                      priority_seq, near, len(atoms),
+                      DECLINED_IMPOVERISHED, stats)
+            report["declined"] += 1
         else:
             _not_found(fabric, game, level, src_seq, sigma, axis,
-                       priority_seq, near, len(atoms))
+                       priority_seq, near, len(atoms), stats)
             report["not_found"] += 1
 
     for raw in pending(fabric):                             # PHASE 2: the fresh agenda
@@ -497,7 +581,8 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
                                     "sigma": dict(sigma),
                                     "game": str(game), "level": int(level)})
         priority_seq = int(sig_rec.get("seq", 0))           # condition 1, on disk
-        hits, near = match(sigma, atoms)
+        stats = {}
+        hits, near = match(sigma, atoms, stats=stats)
         axis: Optional[str] = None
         if not hits and near:
             axis = _retry_axis(near)
@@ -511,9 +596,15 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
             if axis is None:
                 axis = ("any" if all(k in sigma for k in INVARIANTS)
                         else "vocabulary")
-            _not_found(fabric, game, level, src_seq, sigma, axis,
-                       priority_seq, near, len(atoms))
-            report["not_found"] += 1
+            if _is_decline(stats):                          # the FOURTH BRANCH
+                _declined(fabric, game, level, src_seq, sigma, axis,
+                          priority_seq, near, len(atoms),
+                          DECLINED_IMPOVERISHED, stats)
+                report["declined"] += 1
+            else:
+                _not_found(fabric, game, level, src_seq, sigma, axis,
+                           priority_seq, near, len(atoms), stats)
+                report["not_found"] += 1
     try:                                                    # G-A: one [RHO] line per pass
         print("[RHO] sources=%d rho_bar=%.3f n_eff=%.2f collapsed_pairs=%d candidates=%d"
               % (rho_ctx.get("k", 0), rho_ctx.get("rho_bar", 0.0),

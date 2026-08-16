@@ -579,6 +579,7 @@ class CognitiveLoop:
                     print(f"[IMPORT] consumed drained={_crep['drained']} "
                           f"candidates={_crep['candidates']} "
                           f"not_found={_crep['not_found']} "
+                          f"declined={_crep.get('declined', 0)} "
                           f"reopened={_crep['reopened']}")
         except Exception:
             _swal(self, "OTHER")
