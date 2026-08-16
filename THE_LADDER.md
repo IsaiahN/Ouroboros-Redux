@@ -54,3 +54,20 @@ Separate reports, separate turns — the G* split: the diagnosing path and the b
 path never run in one process. And if the proctor's finding is "I can't tell which
 stage failed" — that is the MOST VALUABLE answer available: an instrument is missing,
 which is a build you can do without ever looking at a board.
+
+## THE METAMER TRAP (canon, 2026-08-15 — extends Q8/Q9 and F11)
+Two failure classes, not one: a MISSING atom (no slot — nothing composes, invisible as
+absence) and a METAMER atom (a slot that is already an AGGREGATE — structure collapsed
+before any signal existed; presents as a clean primitive from every position inside).
+The second is worse: it looks like signal. sig_class IS a collapse: structurally
+different atoms with equal signatures are metamers — indistinguishable by construction,
+and near-miss logging cannot see them (they agree on ALL invariants). CONSEQUENCE FOR
+rho: 0.000 at every rung is undecidable from inside the projection — independence OR
+the projection discarding the very axis on which fabrics would match. THE OUTSIDE TEST
+(named, not yet run): same-signature atoms whose SETTLEMENT STATISTICS diverge — the
+class-fission move applied at the signature layer; behavioral divergence within a
+signature class is the violation detector the sig_class convention owes (Fig 10:
+install what can be violated). A frame's limit is not an edge it can approach; its
+atoms may already be aggregates. RLHF LOOP (recorded): a repair channel drawn from the
+closure that produced the gap cannot supply the missing axis — only the ground and
+behavioral divergence can.
