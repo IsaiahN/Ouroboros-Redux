@@ -58,3 +58,15 @@ the transfer channel works). SECOND JUSTIFICATION, recorded for the decision: rh
 every rung + candidates=0 means the surplus may be UNSPENDABLE through cross-mounts —
 the pool would then be the transfer mechanism of last resort, bought by SPENDING
 INDEPENDENCE. Decide on those grounds, not Figure 7 alone.
+
+## THE SEPARABILITY LAW (2026-08-15): why the ledger keeps the seat alive
+"The auditor must see the trail and must not see the interior. Provenance needs full
+access to origins, dates and receipts; falsifiability needs NO access to how the frame
+decided — and the ledger discipline is what makes those separable, because a system
+with poor records forces the auditor inside, and there the seat dies."
+ADOPTED AS THE CAUSAL FORM of the interior-read rule: record poverty is a SEAT-SAFETY
+defect, not bookkeeping debt. Every forced interior read is logged as a records defect
+and the books owe whatever was missing (the g7 mechanism-read happened because no
+reason counters existed; the instruments are what freed the seat). Falsifiability
+checks outcomes against the books — it never needed the reasoning; only poor records
+ever made it seem to.
