@@ -171,3 +171,23 @@ every guaranteed-number failure (rho=0, R_T=0, rss=0) was an instrument read as 
 constitutive anchor. The ladder's trap-check ("could this number have been anything
 else?") is exactly the instrument test — constitutive reads are exempt from it,
 instrument reads never are.
+
+## AMENDMENT 8 (2026-08-15): corrections to Amendment 7 (the split stands; two conflations fixed)
+A8-1 TWO TRAPS, TWO CHECKS — kept SEPARATE in the ladder:
+   GUARANTEED-BY-CONSTRUCTION: "could this number have been anything else?" — fails
+   BEFORE the instrument measures (rho=0 at a collision-forbidding grain; a key compared
+   to itself). Arithmetic wearing a result's clothes.
+   INSTRUMENT ERROR: "what axis does this NOT measure?" — the number is real and
+   incomplete (the metamer class). Collapsing these loses the first, which is the one
+   that has cost incidents.
+A8-2 THE ANCHOR IS CONSTITUTIVE; THE READING OF IT IS AN INSTRUMENT and inherits every
+   instrument failure mode (Fig 10 panel 2: the ground does not decay, the channel
+   does — the mid-animation percept is the proof). "Constitutive all the way down" is
+   STRUCK: it is precisely the belief that lets a broken reading pass unexamined.
+A8-3 THE CONSTITUTIVE ANCHORS, EXPLICITLY (short by law — >4 items means something was
+   promoted that should not have been):
+   1. WIN/LEVEL SEMANTICS (the mission currency: rung 0's question IS this anchor)
+   2. GATE-PASSING (a build passes iff the suite passes; the question is the suite)
+   3. ISAIAH'S RULINGS ON DESIGN LAW (what the law is, is constitutively his word)
+   Git history is a RECORD, not an anchor — nothing is graded by it. Everything else
+   in the system is an instrument or a frozen instrument.
