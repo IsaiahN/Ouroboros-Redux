@@ -157,3 +157,16 @@ never-matched only from 27cb247 — the read tail-scopes to post-deploy drains; 
 pooling mixes two semantics. (3) THE NUMBER OUTRANKING THE BREAKDOWN: if traffic is
 still climbing with adoptions zero at next reading, that is a loop that SURVIVED A FIX
 AIMED AT IT — report that above the branch distribution.
+
+## RUNG 0b — EXPOSURE (adopted 2026-08-16, sits ABOVE rung 1):
+Throughput is channel health (Fig 10 panel 2): episodes are the channel to the anchor.
+Reads: episodes/hour, actions/episode, completion rate, sec/action. STOP RULE: if
+exposure is below the floor, DO NOT READ RUNG 1 OR BELOW — a residual measured over
+four episodes is not a small residual, it is an UNMEASURED one; 0b is the first rung
+that can INVALIDATE every reading beneath it. FLOOR (Register G, provenance GUESSED,
+G20): MIN_EXPOSURE = 20 completed episodes per game within the read window; below it
+the beat reports "UNMEASURED — exposure N/20" and stops. An unnamed threshold means
+every beat re-litigates sufficiency, which is the state the ladder exists to prevent.
+RECORD CORRECTION: "the framework survived its first full contact" is retracted —
+LOCATED A CAUSE, NOT SURVIVED CONTACT: two sealed calls unscored, the counter unmoved,
+rung 4's fix unproven.
