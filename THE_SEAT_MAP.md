@@ -44,3 +44,14 @@ them. (c) UPWARD RULE, NOW STATED for this seat's own output: beat reports cross
 GENERATORS — claims, receipts, named failure classes; raw record dumps die at the
 membrane. (d) THE TRIGGER IS NOW: results flat (123-and-zero), diagnosis unsatisfying
 — the look-inside temptation is scheduled for exactly this moment, and it is named.
+
+## REVIEWER REFINEMENTS (2026-08-16, final before the read):
+(1) UPWARD INTERIORIZATION is the harder-to-see direction: its output looks like
+diligence — a report written to pass the grader produces the same prose as a seat
+improving. Both existed here; the record says so. (2) NO RANK IN THE MAP: "demotion"
+was the wrong frame — positions differ by access and prohibition, not height; Seat 2
+holds what no other seat can see. The over-claim was corrected; the self-description
+must not overshoot downward. (3) The trigger-timing is the maintainer installing a
+convention just before the drift it prevents — the level-convention move, at the
+arrangement level. The defense is that it is named before it is felt: the only defense
+available for a failure that reports nothing.
