@@ -71,3 +71,18 @@ install what can be violated). A frame's limit is not an edge it can approach; i
 atoms may already be aggregates. RLHF LOOP (recorded): a repair channel drawn from the
 closure that produced the gap cannot supply the missing axis — only the ground and
 behavioral divergence can.
+
+## THE TWO GUARDS (canon, 2026-08-15): provenance vs falsifiability
+Both are negative claims over a sealed set (enumerate, verify, terminate) — which is
+why they blur. They are DIFFERENT: provenance is retrospective, about the RECORD ("did
+anything sneak in?" — guarded by the ledger, the lint, seq-provable receipts);
+falsifiability is prospective, about the QUESTION ("can this come back wrong?" —
+guarded by registered verdicts and losing conditions). EITHER WITHOUT THE OTHER IS
+SILENT: perfect provenance + unfalsifiable question = an unimpeachable record of an
+unanswerable claim (R_T=0.000 was exactly this — every verdict recorded, and the
+comparison could not have come back otherwise); crisp falsifier + no provenance = no
+way to tell earned from written-in. RULE: every prereg carries BOTH stamps — the
+falsifier (with its losing condition) AND the receipt plan (which records will prove
+the answer was earned). One guard never covers both; the uncovered failure runs
+indefinitely. Term adopted: PROOF OF FALSIFIABILITY (Popper's word, arriving with its
+own literature).
