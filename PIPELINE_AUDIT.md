@@ -53,3 +53,23 @@ S2 ConditionalMiner/EFFECT_IF (B9, the arity-3 button-door constructor): live ro
    conditional_atoms never populated in production. Built, tested, dead.
 Chunk A otherwise: wiring/source-scan families all live; bet-spine, click-economy,
 efference, decline, cost-flip wires confirmed receiving real inputs. Chunks B/C pending.
+
+## THE FULL SWEEP (2026-08-16): ELEVEN severed organs behind green tests
+S-list (worst first): 1 role multiplier fed None forever (known, unfixed). 2 R_T=0.000
+is a PRINTED CONSTANT (bracket_rt.py:484-490 hardcodes the string on a key-to-itself
+join) — not arithmetic, a literal. 3 AGENT_MOTION family: never fed (animacy never
+runs live). 4 ConditionalMiner: live router built minerless (loop:1612). 5 Class-
+FissionSocket: zero production callers. 6 MUTE PROBE (W4b, old): observed_counts
+hardcoded all-zeros, probe only PRINTED — steers nothing, release never called.
+7 FABRICJANITOR: NEVER CONSTRUCTED IN PRODUCTION — compaction has never run (explains
+268k-line queues); supervisor docstring defers to a janitor nothing runs. 8 rho
+Amendment-2 ladder (rho_at/traffic/report): zero callers — the partition-artifact fix
+is unmeasured live. 9 BROKEN_REBINDING bin unreachable (binding_stale never produced,
+refit_queue never drained). 10 SymbolicGameplayIntegration never constructed.
+11 FalsifiedLedger never constructed (the __init__ re-export hid it from vulture).
+Minor: mint ep kwarg uncalled. LISTS 2/3: recent wiring-scan + effect families all
+verified LIVE (the AST-wiring discipline works; the severed set predates or bypassed
+it). CONSEQUENCE FOR THE WAVE: before behavioral singles, each severed organ gets a
+RECONNECT-OR-REMOVE ruling (a wire that was never alive is not a regression to
+restore by default — it is an unproven organ entering as a fresh arm), and the
+soundness law applies: tests that green on dead organs get effect-upgrades.
