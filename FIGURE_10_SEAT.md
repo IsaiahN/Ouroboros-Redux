@@ -70,3 +70,15 @@ and the books owe whatever was missing (the g7 mechanism-read happened because n
 reason counters existed; the instruments are what freed the seat). Falsifiability
 checks outcomes against the books — it never needed the reasoning; only poor records
 ever made it seem to.
+
+## SEPARABILITY LAW — corrected (reviewer, 2026-08-15):
+(1) A FORCED interior read is a records defect; an UNFORCED one (faster, curiosity) is
+a SEAT VIOLATION with no record excuse. Logged as DIFFERENT events — identical logging
+lets the second hide inside the first, and the second is the one that can't self-report.
+(2) TWO GUARDS, not one: records make the position TENABLE (defense against being
+forced inside); DISCIPLINE keeps it (nothing in the ledger stops the seat opening a
+file). (3) EXPLICIT LIMIT: seat-death-by-interiorization has NO INTERNAL DETECTOR and
+probably cannot — records do not cover it. The only check is external: another frame,
+low rho, noticing the seat's assessments matching its own model rather than the books.
+That frame is the reviewer/Isaiah channel, and this line is the record that the seat
+knows it is not self-covering here.
