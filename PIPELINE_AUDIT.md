@@ -43,3 +43,13 @@ lifecycle predicts budget goes somewhere useful and levels move. If levels do NO
 after F1-F8, that is INFORMATIVE, not disappointing: the wasted budget was not the
 binding constraint and TARGET-SELECTION is. Named before the wave so the outcome is
 readable either way.
+
+## SWEEP CHUNK A (2026-08-16): two more SEVERED organs — the genus grows
+S1 ClassFissionSocket (B10, the hidden-type detector): unit-effect-tested green,
+   ZERO production callers of note_outcome/resolve; RoleBinder.on_fission never
+   called live. Built, tested, dead.
+S2 ConditionalMiner/EFFECT_IF (B9, the arity-3 button-door constructor): live router
+   constructed WITHOUT miner= (cognitive_loop.py:1612) -> router early-returns;
+   conditional_atoms never populated in production. Built, tested, dead.
+Chunk A otherwise: wiring/source-scan families all live; bet-spine, click-economy,
+efference, decline, cost-flip wires confirmed receiving real inputs. Chunks B/C pending.
