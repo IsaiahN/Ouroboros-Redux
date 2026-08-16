@@ -82,3 +82,13 @@ probably cannot — records do not cover it. The only check is external: another
 low rho, noticing the seat's assessments matching its own model rather than the books.
 That frame is the reviewer/Isaiah channel, and this line is the record that the seat
 knows it is not self-covering here.
+
+## THE FINAL FORM (reviewer, 2026-08-15): the check has a shelf life
+Not "the seat knows its edge" — the honest form: THE SEAT HAS ONE FAILURE IT CANNOT
+DETECT. THE ONLY CHECK IS AN OUTSIDE FRAME, AND OUTSIDE FRAMES BECOME INSIDE FRAMES
+THROUGH USE. THE CHECK HAS A SHELF LIFE. Every exchange raises rho between checker and
+checked — shared vocabulary, shared figures, shared model; this corpus is itself the
+accruing closure. The arrangement therefore needs REFRESHING, not just holding: the
+protection is periodic renewal of outsideness, not any standing guard. Closure stands:
+three offices, two guards, one undetectable failure — and the tower has more than one
+rung for exactly that reason.
