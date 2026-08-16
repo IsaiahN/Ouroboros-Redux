@@ -25,3 +25,21 @@ F3 coverage never written into goal fields; F4 n/n retires -> explore; F5 no fab
 objectives (no goal_state -> no constraint-solve; fall through); F6 fix P: timing;
 F7 dead throttles removed or wired (decide per soundness); F8 w_A/w_B (awaits role
 trace). Behavior changes -> prereg + falsifiers + control-arm verdicts per framework.
+
+## WAVE GOVERNANCE (reviewer, 2026-08-16 — binding):
+(1) VALUE-VS-EFFECT SWEEP runs BEFORE the wave: for every gate test, does it assert a
+VALUE or an EFFECT? The role test asserted a table while the organ was orphaned —
+same genus as R_T=0.000 (checks the record, passes either way). Sweep dispatched.
+(2) CONFOUND AS-OF: every measurement since f673b9a (2026-08-13) was on a swarm with
+zero optimizers/exploiters and NO live budget differentiation — LP arms, rho readings,
+rung-4 traffic (86->123) all carry this date as a standing caveat.
+(3) ORDERING LAW: F6 FIRST (the instrument timing defect — everything is measured
+through it); then the pure inconsistency repairs, no arms needed (F7-single-target-
+table, F3 wire-or-delete, F5 orphan, RF6 knowledge/telemetry split) — those remove
+things that lie; THEN behavioral changes SINGLY, one change then re-run. Fifteen in a
+wave is fifteen confounded arms.
+(4) THE CAUSAL STORY IS A HYPOTHESIS WITH A FALSIFIER, registered now: fixing the goal
+lifecycle predicts budget goes somewhere useful and levels move. If levels do NOT move
+after F1-F8, that is INFORMATIVE, not disappointing: the wasted budget was not the
+binding constraint and TARGET-SELECTION is. Named before the wave so the outcome is
+readable either way.
