@@ -92,3 +92,11 @@ accruing closure. The arrangement therefore needs REFRESHING, not just holding: 
 protection is periodic renewal of outsideness, not any standing guard. Closure stands:
 three offices, two guards, one undetectable failure — and the tower has more than one
 rung for exactly that reason.
+
+## REFRESH SCOPE (reviewer, final): it is the OUTSIDE CHANNEL that decays, not the seat.
+The proctor's seat is fine; what needs renewal is whatever checks the proctor —
+currently this reviewer channel, which has shared most of its vocabulary through use.
+A FRESH SESSION OF THE SAME SETUP RESTORES NOTHING (same family, same corpus = same
+closure). Independence is restored by a DIFFERENT reader, a different model family, or
+a domain expert — outsideness is bought with genuine difference, not with novelty of
+instance.
