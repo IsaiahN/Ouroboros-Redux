@@ -108,3 +108,16 @@ wheel gate stops unverified imports DRIVING, but nothing EVICTS a never-verified
 import — it persists in Gamma, planner-considered, indistinguishable from untried.
 NAMED GAP (for Isaiah, not built): an expiry/quarantine losing-condition for imports
 that fail to verify within a bounded window.
+
+## EVICTION SPEC RIDERS (reviewer, 2026-08-15 — held with the gap, not built):
+(1) the expiry window is a dangerous knob: unit = OPPORTUNITIES (times eligible and not
+selected), never wall-clock/episodes (that would be a latent); Register G, GUESSED,
+wants an ARM not a chosen value. (2) eviction = SCOPED, never deletion: failed imports
+go to pariah with receipts intact, revivable when a new atom touches their axis (the
+evidence-only-added law; deleting loses the was-tried fact the next cycle needs).
+(3) the eviction mechanism itself needs BOTH stamps: falsifier = does eviction improve
+evidence-per-budget, or just shrink Gamma? — adopted without a control is the same
+error one level up. (4) PASSPORT PRECISION (framing corrected): seq-stamps prove
+existed-before-match ONLY; not-authored is carried separately by the firewall + source
+stamps (a lint rule) — the passport partly depends on the lint, and that dependency is
+now on the record: the day the firewall weakens, victories stop being evidence.
