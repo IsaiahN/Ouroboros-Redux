@@ -86,3 +86,25 @@ falsifier (with its losing condition) AND the receipt plan (which records will p
 the answer was earned). One guard never covers both; the uncovered failure runs
 indefinitely. Term adopted: PROOF OF FALSIFIABILITY (Popper's word, arriving with its
 own literature).
+
+## THE PASSPORT AND THE RETURN TICKET (canon, 2026-08-15): why import needs BOTH guards
+Import is the one operation that adds what composition cannot check — so both guards
+fire BEFORE it lands. PROVENANCE guards condition 2 (existed in B for B's own reasons,
+before the link): without it, import and invention are indistinguishable by inspection
+— a well-made fit looks like a discovery. This is the seat's specific exposure: the
+ledger is what keeps carrying from becoming authoring (EFFECT traced to its citation is
+an import; the same atom proposed because a game needs it is content in a prior's
+clothes). FALSIFIABILITY guards the settlement: an import must be REJECTABLE — the
+residual it was carried for shrinks or it doesn't; without a settlement path an
+imported atom sits in Gamma forever, priced by nothing, its failure identical to
+not-yet-tried (the 65-and-zero state). Failures are opposite and silent: clean lineage
++ unfalsifiable claim (invention-proof, help-unknowable) vs paying atom + no lineage
+(the composition claim gone at the moment it looks like success — THE MORE DANGEROUS,
+it arrives as a win). An atom failing the first is an INVENTION; failing the second, a
+PERMANENT GUEST. Composition inside closure needs neither; only the thing crossing the
+wall needs a passport and a return ticket.
+OUR AUDIT: passport = three_conditions seq-stamps (BUILT). Ticket half-built: the
+wheel gate stops unverified imports DRIVING, but nothing EVICTS a never-verified
+import — it persists in Gamma, planner-considered, indistinguishable from untried.
+NAMED GAP (for Isaiah, not built): an expiry/quarantine losing-condition for imports
+that fail to verify within a bounded window.
