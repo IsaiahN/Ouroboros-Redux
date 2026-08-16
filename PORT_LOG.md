@@ -736,3 +736,12 @@ AND the replaced 1.0 per site; this entry IS the as-of boundary). Feasibility is
 priced by measured cost — in the games where 1.0 was fiction (measured 33-225), plans
 that could never finish stop being approved. Next g7/feasibility reads are two
 populations: pre/post this deploy. QA independent: 651/651, ruff clean.
+
+## Entry 42 — BEAT (monitor-only): no depth delta; reason counters not yet surfaced
+
+GAMES WON: 0/25. Depth holds (ar25 L2; cd82/cn04/ft09/lp85/r11l/sp80 L1). Herd clean:
+25/25, 5 recycles, zero kills. The None-instrument read returned EMPTY at 60KB tails
+across 5 workers — either the 200-cycle cadence hasn't fired within the tail window or
+verbose logs swamp it; next beat greps deploy-scoped full logs (the as-of rule applies
+to log depth too). No changes made — monitor-only. Named reads still pending: reason
+distributions, rung re-read, metamer read, cn04 adoption.
