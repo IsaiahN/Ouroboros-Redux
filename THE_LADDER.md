@@ -338,3 +338,28 @@ common, which stops the bank collecting. A fabric that is SUCCEEDING accumulates
 of one evidence kind than fabrics that are not — a coupling nobody designed, running
 the wrong direction. Read: what consumes salient prefixes, and does the suppression
 matter?
+
+## THE FIRST REAL-EPISODE COVERAGE READ (2026-08-17, operator mode, ar25, 21 gens)
+15 EXECUTED (demonstrated, not merely claimed): mint-core, affect-seed-steer,
+starvation-settle, swallow-settle, consumer-drain, DRAIN-RANKED, ORIGIN-MARKER,
+consumer-seed, decline-branch, hydration, goal-abduction-book, goal-abduction-plan,
+harvest, CURSOR-AGENCY, GRID-NAV. Wave 1 and the movement stack are confirmed EXECUTING
+IN A REAL GAME, not just committed.
+6 "SEVERED-EMPIRICAL": affect-starvation-steer, lp-steer, plan-veto, movement-bias,
+cost-flip, rho-ladder — receipt exists, symbol referenced, LINE NEVER EXECUTED in this
+episode.
+INTERPRETATION RULE (recorded so the number is not over-read in either direction): ONE
+EPISODE CANNOT DISTINGUISH SEVERED FROM CONDITIONAL-AND-UNEXERCISED. Every one of the
+six is a conditional path (lp-steer needs the lp arm; plan-veto needs a plan targeting
+a vetoed cell; movement-bias needs banked move records; cost-flip needs the estimator
+path; rho-ladder needs a drain that MATCHES; starvation-steer needs starvation records).
+The honest status is WIRED-BUT-UNEXERCISED-IN-THIS-EPISODE, which is weaker than LIVE
+and stronger than SEVERED. Distinguishing them needs a diff ACROSS many episodes and
+arms — queued as the multi-episode accumulation, not asserted now.
+NOTABLE ANYWAY: RHO-LADDER never fired in a 21-generation real run — the grain
+instrument wired to measure per drain has not taken a live reading, consistent with
+candidates=0 (no drain matched).
+TOOL SCOPE GAP (fix queued): the diff measures engines/egocentric + cognitive_loop.py
+ONLY, so salient-prefix, CORPSE-GUARD and mastery-lite came back UNMEASURED — including
+the fix shipped this hour. Widen the tool's scope to cognitive_game_player.py before the
+next coverage read, or the strongest layer cannot see the organ it most needs to check.
