@@ -73,3 +73,30 @@ it). CONSEQUENCE FOR THE WAVE: before behavioral singles, each severed organ get
 RECONNECT-OR-REMOVE ruling (a wire that was never alive is not a regression to
 restore by default — it is an unproven organ entering as a fresh arm), and the
 soundness law applies: tests that green on dead organs get effect-upgrades.
+
+## SEAT CORRECTION + TOOLING PROGRAM (2026-08-16)
+OWNED: beat reports systematically over-reported capability — the verification standard
+was "does the test pass," not "DOES THE WIRE CARRY." Four inert organs were reported as
+capability landings (EFFECT_IF, fission, agent-motion, rho ladder); the multi-rung
+r0/r1/r2 readings were a tool run BY HAND in a report, never a measurement the system
+takes. Same class as the testimony stream: the instrument existed and measured the
+wrong thing. NEW STANDARD: a capability is reported landed only with its wire-carry
+receipt (a live call site + an effect observed in the books).
+TRIAGE (reviewer): DELETE SymbolicGameplayIntegration + FalsifiedLedger (dead weight).
+WIRE FIRST the rho ladder (measurement — before anyone reasons about grain again).
+NEAR FRONT: ConditionalMiner + ClassFission (absence explains measured failures).
+Every reconnection is a FIRST ACTIVATION, not a fix — enters as a fresh arm, singly.
+TOOLING (framework-consistent): (1) SEAM CONTRACTS as plain asserts (stdlib — icontract
+/pydantic violate ship-clean; the DETECTOR matters, not the library): goal validity,
+role-reaches-purse, budget. Converts silent semantic death into a loud crash. (2)
+HYPOTHESIS EFFECT-PROPERTIES replacing value assertions ("for any agent, purse ==
+multiplier(assigned role)" — fails the day role/specialization diverge). (3) THE R3
+AST PASS, mechanized: every field written has a read; every stream a named consumer
+(catches specialization/role, sensation rows, frustration table, testimony). (4)
+VULTURE RE-EXPORT BLIND SPOT: __init__ re-exports count as uses — the no-orphans
+signal was never trustworthy; configure or replace with the AST pass. (5) COVERAGE
+--branch on a live episode (never-taken branches = unreachable-by-construction, e.g.
+int(6*0.15)=0). (6) MUTMUT UNSTRUCK, scoped to gate suite only: do these tests fail
+when the thing they test breaks. CEILING (stated): tools catch inertness; only
+conventions catch drift — a frozen instrument owes a violation detector; these are
+six-months-to-six-minutes trades, the only trade available.
