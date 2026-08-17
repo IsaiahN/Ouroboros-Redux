@@ -337,3 +337,28 @@ gain primitives; a frame gains ACCESS. Composition explores what the operators r
 INSTRUMENTS EXTEND WHAT CAN BE REPRESENTED AT ALL. And: some unreachability is DEPTH,
 some is GENUINE ABSENCE, and FROM INSIDE THE FRAME THE TWO LOOK THE SAME (distinct
 from the metamer trap: that is a wrong axis; this is a far-vs-missing ambiguity).
+
+## 19. FIGURE 8 REV — SHARED ATOMS ARE NOT THE SIGNATURE (a retraction)
+"Two frames can hold the same atom BY CONVERGENCE, reaching it separately, which is
+corroboration at maximum independence. Convergent minting and adopted import look
+IDENTICAL IN THE CONTENTS. Only PROVENANCE separates them, and THE SURPLUS LIVES ONLY
+WHERE THE CLOSURES DIFFER."
+RETRACTION (mine, load-bearing): I reported cn04's re-derivation of ka59's atom key
+(65 -> 130 verdicts) as "Figure 8's union surplus observed in the wild." That is
+EXACTLY BACKWARDS. A shared atom is the INTERSECTION, not the union's extra: it is the
+one place where import can add nothing, because the receiving frame demonstrably
+reaches it alone. What the traffic channel measures is OVERLAP — the complement of the
+region where imports have value.
+CONSEQUENCES: (1) holds=0 on that atom is NOT an adoption failure — cn04 need never
+adopt what its own ground yields; the rung-4 verdict must not be keyed on shared-atom
+adoption. (2) The import channel's value is measurable ONLY on atoms the receiver could
+NOT have derived, which requires PROVENANCE DISCRIMINATION — the seq-stamps
+(priority < match, mint < match, source_game) are exactly that instrument, and they
+become load-bearing rather than hygienic. (3) The claim (CLAIM.md) must separate
+CONVERGENT from IMPORTED atoms: a win in which every atom was independently derivable
+is a materially weaker finding than one where imports were load-bearing, and the books
+can tell them apart only by provenance. (4) A more hopeful reading of the same numbers,
+stated honestly: rho~0 at sig_class means THE SURPLUS IS REAL (closures genuinely
+differ), and occasional key-level convergence shows the grounds are compatible enough
+to corroborate. The precondition for valuable import is satisfied; the channel simply
+has not been tried yet (the drain never reaches characterized residuals).

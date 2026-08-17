@@ -36,3 +36,10 @@ behind the liars group, priced before built).
 
 ## RECEIPT RULE: no row advances without ledger provenance + registry link + off-arm
 ## test id. This file is read every beat the claim changes; silence = no change.
+
+## PROVENANCE REQUIREMENT (Fig 8 REV, 2026-08-17): every claimed atom is classified
+CONVERGENT (the frame's own ground reached it; corroboration, no surplus) or IMPORTED
+(carried across a closure difference; provenance-proven by seq-stamps + source_game).
+Contents cannot distinguish them. A finding built on convergent atoms is a claim about
+CORROBORATION; only imported atoms support a claim about the union surplus. The
+inventory gains this column when the first import verifies.
