@@ -100,3 +100,25 @@ A FRESH SESSION OF THE SAME SETUP RESTORES NOTHING (same family, same corpus = s
 closure). Independence is restored by a DIFFERENT reader, a different model family, or
 a domain expert — outsideness is bought with genuine difference, not with novelty of
 instance.
+
+## REV(2)/REV(8) DELTAS (2026-08-17, canonized on receipt):
+FIG 2 NEW LAW — CORRELATION HAS VALENCE BY OBJECT: "High correlation is disqualifying
+for a verdict and efficient for a convention. Agreement about the world is worthless
+when the agreeing frames share an evidence pool. Agreement about a shared meaning IS
+the product." Plus the BUDGET RULE: "Buy independence in proportion to the cost of
+being wrong." Rho readings are henceforth valence-tagged: high rho on seams = working;
+high rho on verdict-sources = disqualifying. The Fig-10 guard closes it: a convention
+that decides an outcome has smuggled correlation into verdict territory.
+FIG 10 NEW LAWS — (1) THE ROOM-COMPOSITION LAW: "The room composition is a function of
+the question. When the question changes, the room should change. A room that stays
+fixed while the question moves IS the failure; the correlation is only its symptom."
+Refresh is not periodic maintenance — it is triggered by QUESTION CHANGE (e.g. when
+the sequence moves from machinery-repair to target-selection, the checking room should
+recompose for that question). (2) DIVERGENCE REGENERATES UNEVENLY: frames renewed by
+SEPARATE EXPERIENCE (the 25 game-fabrics, separate grounds) are MAINTAINABLE; frames
+whose correlation is FIXED AT ORIGIN (same family, same corpus — the reviewer channel
+and this seat) can only be rotated, never de-correlated: REPLACEMENT IS THE ONLY
+REFRESH. This generalizes "a fresh session restores nothing" into taxonomy. (3)
+Soundness law now in-figure; see-also ZERO-KNOWLEDGE PROOFS: the verifier's non-access
+to the witness is what makes verification SOUND — the seat's ignorance is mechanism,
+not tolerated limitation, and it has a formal literature.
