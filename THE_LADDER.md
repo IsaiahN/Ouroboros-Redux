@@ -309,3 +309,32 @@ ORDERING OF THE FIVE (five behavior changes at once = five confounded arms):
     one-time archive-and-truncate of the pre-fix backlog (archive law: verbatim first).
   WAVE 3: registry INSTRUMENT status (vocabulary, no behavior).
   ITEM 4: NO BUILD — replay verified firing; it gains a toggle clause only.
+
+## THE GATE IS REFERENCE-LEVEL, NOT REACHABILITY-LEVEL (2026-08-17, tested)
+CHECKED: tests/gate/test_wiring_registry.py asserts a symbol appears as an
+ast.Name/ast.Attribute in a PRODUCTION FILE. It does NOT assert the reference is
+REACHED BY THE RUNNING LOOP. A symbol referenced inside a function nobody calls, a
+class nobody constructs, or a branch that never executes still reads LIVE.
+CONSEQUENCE, owned: the 35 LIVE rows are CLAIMED, not DEMONSTRATED. The empirical half
+(tools/live_coverage_diff.py) is the tightener and HAS NEVER RUN IN ITS STRONG MODE —
+only the synthetic floor, whose severed count=5 I already labelled a drive-pattern
+artifact. So rung 0c currently has the deterministic layer loose BY DESIGN and the
+layer that closes it unrun. SAME CLASS as vulture's re-export blind spot, one level up.
+ORDERED: run live_coverage_diff in operator mode (--coverage-file, a real episode)
+BEFORE any segmentation work; if LIVE rows fall out, the eleven-organ sweep is re-run
+under the tighter definition.
+## A THIRD FAILURE CATEGORY, NAMED: schema-never-written and code-never-called are
+BUILDER failures covered by the wire-receipt standard. winning_sequences.
+times_referenced=0 WHILE REPLAY FIRES EVERY EPISODE is neither — it is a REPORTING
+failure between two LIVE organs (the user does not tell the used). Same shape as the
+wheel writing nothing into the consumer's vocabulary. NOT covered by any current rule.
+RULE PROPOSED (for the maintainer): an organ that CONSUMES another's artifact must
+record the consumption on that artifact (a use-count, a last-used seq) — otherwise
+selection pressure, reuse statistics, and quality ranking all run on zeros.
+## NAMED READ (promoted from a side line): SUCCESS SUPPRESSES AN EVIDENCE CHANNEL.
+lp85 = 15 winning sequences / 0 salient prefixes; ar25 and r11l = 14 each. The salient
+bank only collects on episodes WITHOUT a level-up, so replay clearing L1 makes level-ups
+common, which stops the bank collecting. A fabric that is SUCCEEDING accumulates less
+of one evidence kind than fabrics that are not — a coupling nobody designed, running
+the wrong direction. Read: what consumes salient prefixes, and does the suppression
+matter?

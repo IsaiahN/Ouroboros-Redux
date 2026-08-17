@@ -59,3 +59,22 @@ schema already carries `verified_removable` — the exact field, never written.
 (kills the corpse replay); (b) the per-entry dead count (4x over-blacklist); (c)
 uses-DESC lock-in (7 banked alternatives unreachable). Each is alternatives-generating
 on its own.
+
+## FRAMING CORRECTIONS (reviewer, 2026-08-17) — before any segmentation work
+(1) THE ~60-ACTION RECOVERY IS A BOUND, NOT A FIGURE: the reference is ONE PLAYER'S
+WIN (distance-to-that-player, per the one-run label), never a bar.
+(2) PRODUCTIVITY-AT-BANK-TIME IS NOT PRODUCTIVITY-IN-REPLAY: an action that changed a
+frame during the winning run may be inert on a redrawn board. Segmented replay must
+therefore FAIL CLOSED PER SEGMENT, not per sequence — otherwise it is a faster path to
+a wrong state with finer granularity.
+(3) ORDERING: segmentation CHANGES REPLAY BEHAVIOUR, which changes the baseline pinned
+at 1bec793 — the reference every subsequent reading compares against. It cannot ship
+before wave 1's verdict without invalidating the comparison that verdict depends on.
+(4) WAVE-1 CONFOUND CLEARED (checked): the origin marker writes to the ATOMS stream via
+Gamma.add; the drain reads QUEUE_TOPIC="import_queue" (consumer.py:103). Separate
+streams, separate files — the marker cannot affect the drain's shape or ordering. The
+pairing holds.
+(5) ROUTING ARTIFACT #2: material referencing an "EpisodeMemory" organ (900 lines,
+2026-08-16, segmentation + near-miss capture) crossed to the reviewer but not to this
+seat. CHECKED: `class EpisodeMemory` DOES NOT EXIST in this repository and appears
+nowhere in the registry. The finding does not apply here.
