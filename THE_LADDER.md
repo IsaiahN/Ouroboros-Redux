@@ -200,3 +200,15 @@ N>0 is the first wrong rung and everything below is uninterpretable: a residual 
 a system with dead organs is a residual from a DIFFERENT SYSTEM than the one
 described. Plus seam contracts (stdlib require()) at construction sites so a missing
 dependency raises the day it happens, not six months later.
+
+## TWO RULES (reviewer, 2026-08-17):
+(1) NO PERMANENT RED: the 7 known-red legacy tests (4 stale vs supervisor-v2 rework,
+3 live-DB drift) are tests that no longer test what they name — the mild genus. Each
+gets a registry-style disposition (fix to current reality, or delete with a dated
+note) rather than sitting known-red: a permanently-red suite trains people to skip
+the line. Queued into the liars group.
+(2) ONE BUILDER PER REGISTRY-TOUCHING TASK: concurrent editors in one tree make
+receipts point at moving targets — the condition under which the rot-guard fires
+spuriously or, worse, gets patched away as noise. Registry-touching work is serialized
+from now on; parallel builders only when neither touches the registry or line-bearing
+receipts.
