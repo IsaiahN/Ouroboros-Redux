@@ -363,3 +363,20 @@ TOOL SCOPE GAP (fix queued): the diff measures engines/egocentric + cognitive_lo
 ONLY, so salient-prefix, CORPSE-GUARD and mastery-lite came back UNMEASURED — including
 the fix shipped this hour. Widen the tool's scope to cognitive_game_player.py before the
 next coverage read, or the strongest layer cannot see the organ it most needs to check.
+
+## BASELINE RECORD AMENDED (2026-08-17, reviewer): the 1bec793 baseline includes
+REPLAY-WITH-NO-OUTCOME-CHECK. So "72% of budget to the frontier" reads healthy while
+THE OTHER 28% IS BUYING A CORPSE — the known-level allocation was spent on a path that
+terminates, and 13/13 replays ended in death while the loop kept choosing them. Any
+frontier-budget number quoted from that baseline carries this caveat.
+## EVIDENCE-INDEPENDENCE RULE (reviewer): three findings from THE SAME AUDIT FAMILY
+LOOKING AT THE SAME ORGAN are ONE INSTRUMENT AT THREE RESOLUTIONS, not three
+independent lines. Convergence phrasing must not imply corroboration strength that
+correlated evidence cannot carry — the n_eff arithmetic applied to our own findings.
+Independent lines require DIFFERENT INSTRUMENTS.
+## THE THIRD SHAPE, NOW NAMED (its third instance in three beats): PRODUCED, RECORDED,
+AND NOT READ. Distinct from produced-and-not-recorded (the wire-receipt standard covers
+that). Instances: the wheel writing nothing into the consumer's vocabulary;
+times_referenced=0 on a firing replay; and a replay gate that reads availability while
+813 recorded outcomes sit unconsulted. THE INSTRUMENTS KEEP FINDING THIS ONE LAST
+because the evidence exists — nothing looks missing.
