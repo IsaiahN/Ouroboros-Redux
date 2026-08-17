@@ -43,3 +43,12 @@ CONVERGENT (the frame's own ground reached it; corroboration, no surplus) or IMP
 Contents cannot distinguish them. A finding built on convergent atoms is a claim about
 CORROBORATION; only imported atoms support a claim about the union surplus. The
 inventory gains this column when the first import verifies.
+
+## THE CLASSIFICATION IS EXPIRABLE — IT JOINS THE BINDING CLAUSE SET (2026-08-17)
+Reclassified from "gains this column when the first import verifies" to a WAVE-BRIEF
+CLAUSE alongside the ablation constraint: atoms must be classified CONVERGENT vs
+IMPORTED **as they are minted/seeded** (source_game + imported flag + the seq-stamps
+recorded at the event). If classification is not recorded at mint time it CANNOT BE
+RECONSTRUCTED AFTERWARD — the contents are identical and only provenance separates
+them. Same expiry logic as ablation-readiness: a finding that cannot be split into
+corroboration vs surplus is a weaker claim than the project set out to make.

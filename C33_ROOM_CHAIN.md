@@ -362,3 +362,26 @@ stated honestly: rho~0 at sig_class means THE SURPLUS IS REAL (closures genuinel
 differ), and occasional key-level convergence shows the grounds are compatible enough
 to corroborate. The precondition for valuable import is satisfied; the channel simply
 has not been tried yet (the drain never reaches characterized residuals).
+
+## 19a. CORRECTIONS TO §18/§19 (reviewer, 2026-08-17)
+(1) THE "SURPLUS IS REAL" CLAIM IS RETRACTED. I wrote: rho~0 at sig_class means the
+closures genuinely differ. But that zero was produced by a projection that FORBIDS
+COLLISIONS AT EVERY RUNG, gated on an inward completeness demand — a number that could
+not have come back otherwise. Third instance of the guaranteed-number trap, and mine.
+STANDING: the sig_class zero is evidence of NOTHING until an outward description
+exists; the key-level convergence is real evidence of something else. The drain-order
+ruling stands ON THE DECLINE TALLIES ALONE and must not be propped up by this number.
+(2) §18's "hold the description LOOSE" is SUPERSEDED even though the figure says it:
+the outward object is PRECISE IN EFFECT TERMS (contact, delta, what was conserved),
+not less precise. A projection that drops invariants is DEGRADED INWARD — rung-2.5
+under a new name — and would look like progress while being the retired coarsening.
+(3) RHO READINGS OWE PROVENANCE FROM THE START: two fabrics holding one atom is either
+CONVERGENT MINTING (corroboration at max independence) or ADOPTED IMPORT (surplus
+spent) — opposite meanings, identical rho_sig, separable only by source_game +
+atom.imported. Derivable today from the atom records; the readings must SURFACE it.
+Rider on the next consumer-touching brief.
+(4) BASELINE ORDERING — seat's call, stated: BASELINE NOW, labelled INWARD-TRACK. The
+readings are live and free to continue; the outward track is gated on a ruling that may
+never come; and the two-track law forbids pooling them anyway, so an inward baseline
+cannot be contaminated by an instrument that reports separately. If the outward track
+is ever built it gets its OWN stream, never a redefinition of this one.
