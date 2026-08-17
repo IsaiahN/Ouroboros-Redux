@@ -295,3 +295,17 @@ zero, INCLUDING THE WELCOME ONES. Mechanism of the failure it prevents: the test
 applied to numbers that arrive as CLAIMS and skipped on numbers that arrive as RELIEF
 (demonstrated: I ran it all week, then leaned on rho~0 the moment it supported a
 hopeful story). Not triggered — unconditional.
+
+## BASELINE PINNED BEFORE THE FIVE SHIP (2026-08-17)
+THE BASELINE READING is the current deploy AS-OF commit 1bec793: replay ON, drain FIFO
+oldest-first, janitor NOT running, no origin markers, registry without INSTRUMENT
+status. Every subsequent reading is compared to THIS. Note the reviewer's point: a
+level count with replay ON and one with replay OFF ARE DIFFERENT QUANTITIES — they are
+never pooled, and any ablation run states its replay state in the reading.
+ORDERING OF THE FIVE (five behavior changes at once = five confounded arms):
+  WAVE 1 (now): ranked drain [behavior] + origin marker [instrumentation, cannot
+    confound] -> read the decline rate + candidates.
+  WAVE 2 (after wave-1 verdict): janitor un-ice (cap = Register G, GUESSED, high) +
+    one-time archive-and-truncate of the pre-fix backlog (archive law: verbatim first).
+  WAVE 3: registry INSTRUMENT status (vocabulary, no behavior).
+  ITEM 4: NO BUILD — replay verified firing; it gains a toggle clause only.

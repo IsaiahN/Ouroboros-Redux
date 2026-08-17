@@ -64,3 +64,20 @@ collapses SILENTLY and retrospectively.
 REQUIREMENT (tightened): the clause demands a POSITIVE ORIGIN MARKER WRITTEN AT MINT
 TIME — origin=local|imported plus the minting seq — on every atom, not the absence of
 import fields. Provenance recorded positively at write time or not at all.
+
+## REPLAY IS AN EXPOSURE INSTRUMENT, NOT A CAPABILITY (2026-08-17, reviewer)
+VERIFIED FIRING: lp85 [REPLAY-DONE] 1/8 in 83 actions -> [REPLAY-HANDOFF] 217 of 300
+remaining spent cognitively; replay_outcomes recorded in 8 games. The
+speedrun-known/explore-frontier mechanism EXISTS AND WORKS — no build.
+BUT IT FORECLOSES THE ABLATION, so REPLAY JOINS THE TOGGLE LIST as a day-one clause:
+if known levels are always replayed, we never observe whether the CURRENT PRIOR SET
+solves them — only that a cached route does. THE IRREDUCIBILITY TEST REQUIRES REPLAY
+OFF. Replay buys frontier exposure (rung 0b: exposure at the boundary is the scarce
+resource) and PROVES NOTHING ABOUT COMPOSITION; the claim's evidence comes from runs
+with it OFF.
+TWO STANDING CONSTRAINTS (figure-derived): (1) MEMBRANE — a stored sequence is an
+INSTANCE: replayable as a route, never promoted into Gamma, never seeding anything
+(already statically tested). (2) FAIL CLOSED AND DETECTABLE — a sequence that no longer
+applies must ABORT LOUDLY, never degrade into random actions, or it is a fast path to a
+wrong state that reads as exploration (verify next beat; divergence detection exists on
+the salient-prefix path).
