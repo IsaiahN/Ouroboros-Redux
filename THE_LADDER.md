@@ -183,3 +183,20 @@ what the agent says about itself. KNOWN INSTRUMENT DEFECT until F6 lands: the P:
 summary is frozen pre-enrichment (audit 1h) — testimony is read WITH that caveat.
 LAW GENERALIZED: every produced stream needs a named consumer INCLUDING THE SEAT'S OWN
 SOURCES — the beat protocol is the testimony stream's consumer, by name, from now on.
+
+## RUNG 0c — WIRING (2026-08-16, above rung 1 beside 0b) + THE DONE STANDARD
+THE STANDARD: a build is DONE when something in the live path calls it with real
+inputs. No receipt, no ship — and the receipt is checked by CI, not by the reviewer.
+THREE LAYERS: (1) THE WIRING REGISTRY — a declaration per organ: claimed live-path
+file:line receipt, date, status. A registry alone is a convention nothing can check
+(the last eleven receipt-claims were all wrong); hence: (2) CI GATE (deterministic):
+for each entry, the claimed site exists and the symbol is referenced from a production
+module — receipts that rot when code moves go red; a new organ with no receipt is
+UNSHIPPABLE. (3) LIVE-RUN COVERAGE DIFF (empirical): branch coverage from a real
+episode diffed against the registry — an entry with a receipt and ZERO executions is
+SEVERED (catches ResidualRouter() built minerless: line exists, symbol referenced,
+branch never runs). LADDER RUNG: the proctor reads only the output — severed count=N;
+N>0 is the first wrong rung and everything below is uninterpretable: a residual from
+a system with dead organs is a residual from a DIFFERENT SYSTEM than the one
+described. Plus seam contracts (stdlib require()) at construction sites so a missing
+dependency raises the day it happens, not six months later.
