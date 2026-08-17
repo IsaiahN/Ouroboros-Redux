@@ -78,3 +78,17 @@ pairing holds.
 2026-08-16, segmentation + near-miss capture) crossed to the reviewer but not to this
 seat. CHECKED: `class EpisodeMemory` DOES NOT EXIST in this repository and appears
 nowhere in the registry. The finding does not apply here.
+
+## THE GUARD INVERSION (reviewer, 2026-08-17): DOES IT STILL WIN, NOT DOES IT STILL APPLY
+The fail-closed clause was specified against DEGRADATION (a stale sequence going
+random). The measured failure is the OPPOSITE: the sequence applies perfectly and what
+it faithfully reproduces is a death. So DIVERGENCE DETECTION IS THE WRONG GUARD — a
+replay that runs clean to GAME_OVER passes every fidelity test and fails the only thing
+that matters. THE CHECK IS OUTCOME, NOT FIDELITY. And it goes IN FRONT of segmentation:
+segmenting a sequence that reliably ends in death buys frontier actions on a path that
+terminates.
+## THE CONSUMPTION RULE, SCOPED (reviewer): unbounded "every read writes back" is too
+much. THE SCOPE THAT MATTERS: ANY ARTIFACT SUBJECT TO SELECTION MUST CARRY ITS
+CONSUMPTION RECORD, OR THE SELECTION IS RUNNING ON A CONSTANT. Concrete harm today:
+ORDER BY uses DESC on a column nothing increments. Where nothing ranks, the record is
+optional. Checkable, bounded, names the failure rather than the practice.
