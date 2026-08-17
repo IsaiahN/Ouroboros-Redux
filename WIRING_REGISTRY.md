@@ -73,6 +73,27 @@ build-scan the same day.
 | grid-nav | engines.egocentric.navigation:GridNav | cognitive_loop.py:2149 | LIVE | 2026-08-16 | FIRST ACTIVATION (with cursor-agency): traversability from the agency's map + observed frames in record_result; BFS next-step steers the blind 1-4 draw as a capped bias (NAV_BIAS_P<=0.5, Register G GUESSED), narrated [NAV], never a veto |
 | rho-ladder | engines.egocentric.rho:rho_report | engines/egocentric/consumer.py:480 | LIVE | 2026-08-16 | S8 FLIPPED (was WIRE FIRST): consume() persists per-pass {r0,r1,r2,traffic} per matched source to collective "rho_readings" (consumer._persist_rho_readings, called consumer.py:700) via rho_report — which drives the whole trio, rho_at (rho.py:174) at rungs 0/1/2 + rederivation_traffic (rho.py:190) both ways, on live books; [RHO] line narrates r0/r2/traffic; stream consumer = the beat protocol (THE_LADDER rung 4); gate tests/gate/test_rho_ladder_live.py |
 
+## INSTRUMENTS (rung-0 reads; invoked by the BEAT PROTOCOL, never by the live path)
+
+An instrument's receipt is not a live-path call site — it is a NAMED CONSUMER in
+the read protocol (THE_LADDER.md: "every produced stream needs a named consumer
+INCLUDING THE SEAT'S OWN SOURCES — the beat protocol is the stream's consumer, by
+name"). The gate's status vocabulary has three words and none of them is
+INSTRUMENT, so these rows carry the status the gate can CHECK — SEVERED, i.e. no
+production module references the symbol — with `[instrument]` naming the reason
+(the same idiom as `marketplace-iced`: severed BY DESIGN, stated not hidden).
+That is not a workaround, it is the right guard here: for the efficiency read a
+production reference would BE the prohibited state (a rung-0 read becoming a
+knob inside the loop), so the inverse-reference assert going red is exactly the
+alarm the ITEM-2 QUALIFICATION asks for. Registry vocabulary gap recorded under
+THE_LADDER's INEXPRESSIBLE-STATE GENUS; expressing it is the maintainer's call,
+not this build's.
+
+| name | symbol | site | status | date | note |
+|------|--------|------|--------|------|------|
+| efficiency-read | tools.efficiency_read:efficiency_report | tools/efficiency_read.py:310 | SEVERED | 2026-08-17 | [instrument] ITEM 2 (THE_GOALS.md ITEM-2 QUALIFICATION): rung-0 RESOLUTION read — distance-to-that-player per game+level, reference read off disk from replay metadata baseline_actions, observed = MIN over banked winning_sequences/archived_sequences, tail-scoped. Registered READ, NEVER TARGET: no knob, no arm objective, until levels move — a production reference to this symbol IS the prohibited state and this row's inverse-reference assert is the alarm. Every output line carries "one reference run, not a reference distribution" (EXECUTION RIDER 2). Invocation site = the beat protocol (THE_LADDER.md rung 0, levels_completed); output feeds beat reports only. Read-only on every book. Gate tests/gate/test_efficiency_read.py |
+| regen-series | tools.regen_series:regen_snapshot | tools/regen_series.py:218 | SEVERED | 2026-08-17 | [instrument] ITEM 3 (THE_LADDER.md THE REPORT FORMAT rider 2, "THE RATIO HAS ONE TERM"): appends one per-fabric SELF-rho snapshot per invocation to .runs/regen_series.jsonl — drift of fabric-now vs fabric-at-its-last-snapshot at rho.rho_at rungs 0/1/2, never averaged. Named consumer = the roving-pool gate pricing, whose second term (regeneration rate) is uncollectable without this series; adoption of that gate is still zero, so it ships as a BEAT-READ COMPONENT and the series accumulates meanwhile. Bounded (max_fabrics/max_atoms/max_digest, truncation flagged), read-only on fabrics, append-only + torn-tail-safe on the series, NO wall clock in the record (stamp passed in — a clock index would be a latent, EVICTION SPEC RIDER 1). Invocation site = the beat protocol (THE_LADDER.md rung 0b/beat read). Gate tests/gate/test_regen_series.py |
+
 ## SEVERED ORGANS (the sweep's eleven, + minor, + build-scan finds)
 
 | name | symbol | site | status | date | note |
