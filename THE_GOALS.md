@@ -83,3 +83,10 @@ an EXPLICIT PROHIBITION on being a knob target or arm objective until levels mov
 General form (the week's shape, one more time): an instrument that reads a state you
 have not reached returns a number that means nothing, and someone will act on it
 anyway.
+
+## CLOSING NOTES KEPT (reviewer, 2026-08-17): "the temptation to celebrate arrives
+pre-deflated" — label the constraint AT THE INSTRUMENT, not at the reading: THE
+CONVENTION DOES THE REMEMBERING. And three-constraints-from-three-seats (resolution
+read / one-run label / never-a-target) is an ARRANGEMENT ARTIFACT, not a nicety:
+each closes a failure invisible from the seats that caught the others — the tower
+producing what no single position would have.
