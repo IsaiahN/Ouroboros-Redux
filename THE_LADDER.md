@@ -212,3 +212,20 @@ receipts point at moving targets — the condition under which the rot-guard fir
 spuriously or, worse, gets patched away as noise. Registry-touching work is serialized
 from now on; parallel builders only when neither touches the registry or line-bearing
 receipts.
+
+## THE REPORT FORMAT (Isaiah, 2026-08-17 — binding on every report):
+LEAD with the numbers/metrics that CHANGED; for each: could this number have been
+anything else, and what would that have meant — NAME IT; or state plainly "nothing
+this beat." Prose after that is free. SUGGESTIONS only if evidenced, non-zero, and
+carrying a live-path receipt or a plan for one (a strong hunch the seat is willing to
+check — nothing else crosses).
+RIDERS (reviewer): (1) ANTI-FLUENCY GUARD REFINED: unwelcome content is gameable by
+ritual confession — the guard is that the unwelcome thing is LOAD-BEARING AND SPECIFIC
+(a number that changes a decision, a retraction that costs something, a claim
+withdrawn not softened). Self-criticism that changes nothing scores nothing. (2) THE
+RATIO HAS ONE TERM: rho_readings gives crossing-spend; REGENERATION RATE (rho drift
+over time within a fabric vs its own ground) needs a time series nobody collects —
+the roving-pool gate fires with one term missing unless the series starts. (3) TRIGGER
+CONFLATION CORRECTED: the REFRESH trigger is "the question moved"; the MACHINERY
+trigger is "wave landed + counter spoken." They may coincide; they are not the same
+condition.
