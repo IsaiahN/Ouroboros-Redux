@@ -122,3 +122,16 @@ REFRESH. This generalizes "a fresh session restores nothing" into taxonomy. (3)
 Soundness law now in-figure; see-also ZERO-KNOWLEDGE PROOFS: the verifier's non-access
 to the witness is what makes verification SOUND — the seat's ignorance is mechanism,
 not tolerated limitation, and it has a formal literature.
+
+## CORRECTIONS TO THE REV READING (reviewer, 2026-08-17):
+(1) THE QUESTION HAS NOT MOVED — "nearly answered" retracted: the machinery question
+is NEARLY DIAGNOSED AND BARELY FIXED (F1-F8 unbuilt, RF1-RF7 unbuilt, 13 organs still
+severed, coverage number still a drive-pattern artifact). THE RECOMPOSITION TRIGGER,
+PINNED CHECKABLY: the wave is LANDED and the counter has SPOKEN either way. "About to
+move" is not a condition; composing the room early builds it for a question not yet
+reached.
+(2) FABRIC TAXONOMY REFINED: maintainable but NOT FREE — fabric independence
+regenerates against each game's own ground and DEPLETES WITH EVERY ATOM THAT CROSSES
+(cross-mounts, imports; exactly what the roving pool would spend). The pricing rule
+one level down: the roving-pool decision turns on the number regeneration-rate vs
+crossing-spend — not on Figure 7, not on the transfer argument alone.
