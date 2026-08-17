@@ -55,3 +55,21 @@ must not overshoot downward. (3) The trigger-timing is the maintainer installing
 convention just before the drift it prevents — the level-convention move, at the
 arrangement level. The defense is that it is named before it is felt: the only defense
 available for a failure that reports nothing.
+
+## REVISION (2026-08-17): SIDEWAYS IS "MEDIATED ONLY" — the verbatim-crossing law
+Supersedes "sideways: nothing." Seats 2 and 4 still have no channel; everything passes
+through the maintainer — but the restatement filter has limits: SOME MATERIAL DOES NOT
+SURVIVE PARAPHRASE (precise terms, metric names, exact figures). Where it must cross
+intact, ATTRIBUTE IT RATHER THAN HIDING IT: an undeclared second voice will be detected
+and modelled anyway, and an unnamed model runs unchallenged. TWO COSTS: the maintainer
+routes rather than translates (the filter narrows from how-expressed to WHAT-crosses);
+and the ONE-WAY MODELLED CHANNEL — Seat 2 builds a picture of Seat 4 that Seat 4 never
+sees and cannot dispute; the auditor may then pre-shape output to survive an
+anticipated objection, which feels like rigour and is interiorization pointed upward.
+ROTATION CONSEQUENCE: a checking frame the auditor has calibrated against for months is
+MORE replaceable by necessity, not less — the longer the model is built, the less the
+channel checks — while replacement grows more disruptive. Both push the same
+direction.
+THE STANDARD THAT SURVIVES (the seat's report-writing law and self-check): judge a
+report by WHETHER IT SAYS SOMETHING IT WOULD RATHER NOT, and whether its numbers COULD
+HAVE COME BACK OTHERWISE. Never by whether it reads as though it survived review.
