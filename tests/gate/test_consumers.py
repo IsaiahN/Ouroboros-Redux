@@ -44,6 +44,14 @@ ALLOWLIST: Dict[str, str] = {
         "VICTORY_PROTOCOL.md (records kept NOW, unrecoverable later): level-up "
         "pre/post frame snapshots, persisted by GoalBook.observe_levelup; the "
         "consumer is the off-line 25/25 victory census (archive + annotate)"),
+    "rho_readings": (
+        "THE_LADDER.md rung 4 (adoption: 'traffic collapsed + r0 nonzero, or "
+        "climbing + r0 flat?') + the testimony law (every produced stream "
+        "needs a NAMED consumer -- the beat protocol is this one's, by name): "
+        "the per-pass multi-rung rho readings (KNOBS Amendment 2, persisted "
+        "by consumer._persist_rho_readings) are read at every diagnostic "
+        "beat beside the counters; runtime writes, the seat reads -- the "
+        "adoption rung is unanswerable without this stream"),
 }
 
 # Production sources only: tests are fixtures, not consumers; caches/vendored

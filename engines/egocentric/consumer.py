@@ -53,6 +53,20 @@ agreement counts ONCE (the candidate's "rho" block carries k / rho_bar / n_eff /
 clusters / support), and each consume pass narrates one [RHO] line. Ranking and
 bookkeeping only -- no behavior change outside consumer ranking.
 
+THE MULTI-RUNG LADDER, LIVE (KNOBS Amendment 2 x THE_LADDER rung 0c): a consume
+pass that matched anything PERSISTS the identity-ladder reading the hand-run
+tools used to produce off-line -- one compact record per pass on the collective
+"rho_readings" stream (additive, seq'd, game + PLAYING level per A3-2):
+{source_game: {r0, r1, r2, traffic}} vs the HOME fabric's own books, computed by
+rho_mod.rho_report (which drives rho_at at every rung plus the
+rederivation-traffic channel, both directions), BOUNDED to the sources this
+pass actually matched against (hits or near-misses; hard cap
+RHO_READING_SOURCES) -- so the partition-artifact fix is a measurement THE
+SYSTEM TAKES, not a report artifact. The [RHO] line narrates r0/r2/traffic
+beside the rung-1 aggregate. The stream's named consumer is the diagnostic beat
+protocol (THE_LADDER rung 4: "traffic collapsed + r0 nonzero, or climbing +
+r0 flat?"); gate: tests/gate/test_rho_ladder_live.py.
+
 Deterministic, stdlib + numpy only; failures degrade, never raise (house containment).
 """
 from __future__ import annotations
@@ -71,6 +85,12 @@ __all__ = ["sigma_of", "describe", "characterize", "match", "consume",
 QUEUE_TOPIC = "import_queue"
 CAND_TOPIC = "import_candidates"
 ATOMS_TOPIC = "atoms"
+RHO_TOPIC = "rho_readings"          # the ladder's live measurement (Amendment 2)
+VERDICTS_TOPIC = "mint_verdicts"    # the rederivation-traffic channel's source
+
+# The per-pass reading is BOUNDED: only sources with hits or near-misses this
+# pass are read, and never more than this many (sorted, deterministic).
+RHO_READING_SOURCES = 8
 
 # Fig 9 (the characterization law): evidence patches persist only for POCKET-sized
 # changed regions -- bbox area <= this fraction of the board. Stricter than the
@@ -411,6 +431,73 @@ def _rho_block(hits: List[Dict[str, Any]], best: Dict[str, Any],
             "collapsed": len(clusters) < k}
 
 
+def _note_sources(touched: set, hits: List[Dict[str, Any]],
+                  near: List[Dict[str, Any]]) -> None:
+    """Record which source fabrics this item ACTUALLY matched against (hits or
+    near-misses) -- the bound on the per-pass rho reading."""
+    for r in hits:
+        g = r.get("game")
+        if g is not None:
+            touched.add(str(g))
+    for n in near:
+        g = n.get("source_game")
+        if g is not None:
+            touched.add(str(g))
+
+
+def _persist_rho_readings(fabric, game, level, touched: set,
+                          atoms: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """THE LADDER'S LIVE MEASUREMENT (Amendment 2 x rung 0c): one compact
+    multi-rung reading per consume pass, appended to the collective
+    "rho_readings" stream -- {source_game: {r0, r1, r2, traffic}} vs the HOME
+    fabric's own books, via rho_mod.rho_report (rho_at at rungs 0/1/2 plus the
+    rederivation-traffic channel, counted BOTH directions: home's verdict
+    stream vs the source's atom keys, and the source game's seed-mounted
+    verdicts vs home's). Bounded to `touched` (sources with hits or
+    near-misses this pass, capped at RHO_READING_SOURCES); a pass that matched
+    nothing persists NOTHING (the stream grows with matches, not with passes).
+    Returns the appended record, or None; degrades, never raises."""
+    srcs = sorted(str(g) for g in touched)[:RHO_READING_SOURCES]
+    if not srcs:
+        return None
+    try:
+        home_atoms = _local(fabric).query("collective", ATOMS_TOPIC)
+        home_verds = _local(fabric).query("collective", VERDICTS_TOPIC)
+        all_verds = fabric.query("collective", VERDICTS_TOPIC)
+        # seed mounts are queried FIRST, local LAST (fabric.query's documented
+        # order): the seed-side verdicts are the prefix.
+        seed_verds = (all_verds[:len(all_verds) - len(home_verds)]
+                      if home_verds else all_verds)
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for r in atoms:
+            groups.setdefault(str(r.get("game")), []).append(r)
+        vgroups: Dict[str, List[Dict[str, Any]]] = {}
+        for v in seed_verds:
+            if isinstance(v, dict):
+                vgroups.setdefault(str(v.get("game")), []).append(v)
+        readings: Dict[str, Dict[str, Any]] = {}
+        for g in srcs:
+            rep = rho_mod.rho_report({
+                "home": {"atoms": home_atoms, "verdicts": home_verds},
+                "src": {"atoms": groups.get(g) or [],
+                        "verdicts": vgroups.get(g) or []},
+            }).get(("home", "src"))
+            if not rep:
+                continue
+            readings[g] = {"r0": round(float(rep.get("r0", 0.0)), 4),
+                           "r1": round(float(rep.get("r1", 0.0)), 4),
+                           "r2": round(float(rep.get("r2", 0.0)), 4),
+                           "traffic": int(rep.get("traffic", 0))}
+        if not readings:
+            return None
+        return fabric.append("collective", RHO_TOPIC, {
+            "game": str(game), "level": int(level),      # A3-2: PLAYING level
+            "readings": readings,
+            "home_atoms": len(home_atoms), "atoms_seen": len(atoms)})
+    except Exception:
+        return None                     # a failed reading degrades, never raises
+
+
 def _close_hit(fabric, game, level, src_seq: int, sigma: Dict[str, Any],
                hits: List[Dict[str, Any]], near: List[Dict[str, Any]],
                priority_seq: int, axis: Optional[str] = None,
@@ -534,6 +621,7 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
     used = 0
     atoms = all_atoms(fabric)
     rho_ctx = _rho_context(fabric, atoms)                   # G-A: once per pass
+    touched: set = set()                # sources matched this pass (the bound)
 
     for nf in open_not_found(fabric):                       # PHASE 1: the re-look trigger
         if used >= budget:
@@ -556,6 +644,7 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
             report["retried"] += 1
             hits, _ = match(sigma, atoms, coarse_axes=(axis,))
             redesc = axis if hits else None
+        _note_sources(touched, hits, near)                  # the reading's bound
         if hits:
             _close_hit(fabric, game, level, src_seq, sigma, hits, near,
                        priority_seq, axis=redesc, rho_ctx=rho_ctx)
@@ -588,6 +677,7 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
             axis = _retry_axis(near)
             report["retried"] += 1                          # exactly ONE retry
             hits, _ = match(sigma, atoms, coarse_axes=(axis,))
+        _note_sources(touched, hits, near)                  # the reading's bound
         if hits:
             _close_hit(fabric, game, level, src_seq, sigma, hits, near,
                        priority_seq, axis=axis, rho_ctx=rho_ctx)
@@ -605,11 +695,19 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
                 _not_found(fabric, game, level, src_seq, sigma, axis,
                            priority_seq, near, len(atoms), stats)
                 report["not_found"] += 1
+    # Amendment 2 x rung 0c: the pass PERSISTS its multi-rung reading (bounded
+    # to matched sources; a matchless pass persists nothing), then narrates.
+    reading = _persist_rho_readings(fabric, game, level, touched, atoms)
     try:                                                    # G-A: one [RHO] line per pass
-        print("[RHO] sources=%d rho_bar=%.3f n_eff=%.2f collapsed_pairs=%d candidates=%d"
+        rungs = (reading or {}).get("readings") or {}
+        r0 = max((float(v.get("r0", 0.0)) for v in rungs.values()), default=0.0)
+        r2 = max((float(v.get("r2", 0.0)) for v in rungs.values()), default=0.0)
+        traffic = sum(int(v.get("traffic", 0)) for v in rungs.values())
+        print("[RHO] sources=%d rho_bar=%.3f n_eff=%.2f collapsed_pairs=%d "
+              "candidates=%d r0=%.3f r2=%.3f traffic=%d"
               % (rho_ctx.get("k", 0), rho_ctx.get("rho_bar", 0.0),
                  rho_ctx.get("n_eff", 0.0), rho_ctx.get("collapsed_pairs", 0),
-                 report["candidates"]))
+                 report["candidates"], r0, r2, traffic))
     except Exception:
         pass
     return report
