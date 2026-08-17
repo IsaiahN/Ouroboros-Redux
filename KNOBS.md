@@ -39,6 +39,11 @@ G13 planner: MAX_DEPTH=8, MAX_NODES=2000                                 (planne
 G14 consumer: budget_n=8/episode; near-miss = all-but-one; 1 retry       (consumer.py)
 G15 rho: RHO_COLLAPSE=0.9                                                (rho.py)
 G16 starvation thresholds: PLAN_N=50, BOOK_N=10                          (starvation.py)
+G22 CORPSE GUARD: CORPSE_GUARD=True [GUESSED] — the salient-prefix death guard
+    (never bank a terminal step; refuse selecting a prefix whose LAST RECORDED
+    OUTCOME was `died`). Env CORPSE_GUARD outranks the class flag
+    CognitiveGamePlayer.CORPSE_GUARD; =0/false/no/off restores pre-guard banking AND
+    selection byte-identically. Amendment 11. (cognitive_game_player.py)
 G21 RANKED DRAIN: DRAIN_WINDOW=512 [GUESSED] newest pending records ranked per pass;
     key [GUESSED] = (1) CHARACTERIZED FIRST (all 5 INVARIANTS present)
     (2) LARGEST RESIDUAL (3) RECENCY. Toggle DRAIN_RANKED (env outranks the
@@ -243,3 +248,31 @@ A10-5 NOT A KNOB (recorded so it is not mistaken for one): the ORIGIN MARKER shi
    the same wave writes origin/mint_seq/source_game at mint and seed time. It has no
    tunable value and no arm — it is instrumentation, and its absence-reads-UNKNOWN law
    is a Register F-adjacent semantic (a default that says "local" would be the defect).
+
+## AMENDMENT 11 (2026-08-17): THE CORPSE GUARD (G22) — one toggle, no numeric dial
+A11-1 CORPSE_GUARD = True (cognitive_game_player.py). Provenance: GUESSED, Register G,
+   arm-testable. IT IS A TOGGLE, NOT A VALUE: the build deliberately introduces NO
+   numeric knob — no candidate-scan bound (the alternatives per game+level are single
+   digits; a bound would silently make older prefixes unreachable, the DRAIN_WINDOW
+   failure mode one organ over), no decay, no death-count threshold. ONE recorded death
+   refuses; the value that could have been tuned (how many deaths before refusal) is
+   fixed at 1 BY THE PREREG, and moving it would be a new arm, not a tuning.
+A11-2 THE OFF-ARM IS THE RECEIPT (CLAIM.md's ablation constraint): the environment
+   variable CORPSE_GUARD outranks the class flag; 0/false/no/off/empty reproduces
+   PRE-GUARD behaviour byte-identically on BOTH sides — banking (the death step banks;
+   prefix_json bytes unchanged, because the `terminal` marker is stripped before
+   serialization in BOTH arms) and selection (the original ORDER BY uses DESC,
+   created_at ASC LIMIT 1 runs verbatim under the off branch). Shipped as PASSING tests
+   (tests/gate/test_corpse_guard.py::TestTheOffArm), not a future intention.
+A11-3 REGISTERED VERDICT (PREREG_CORPSE_GUARD, 2 beats): [SALIENT] replays stop
+   terminating in GAME_OVER on the first cognitive action; cognitive actions available
+   at the frontier rise above 1. LOSING CONDITION, stated: if replays still end in death
+   with the guard ON, the death is not coming from the banked prefix — the diagnosis was
+   wrong; REVERT, do not extend the guard. NOT-MEASURED CONDITION: a beat below rung-0b's
+   MIN_EXPOSURE floor reads UNMEASURED, never "no effect".
+A11-4 NOT A KNOB, recorded so it is not mistaken for one: the OUTCOME VOCABULARY
+   (reached_level / died / aborted) is a SEMANTIC, and `aborted` is a UNION (divergence,
+   API break, and a clean run that neither died nor levelled) — an instance of the
+   INEXPRESSIBLE-STATE GENUS, logged rather than hidden. Only `died` is load-bearing
+   today (it is the only value that refuses selection), so the conflation costs nothing
+   until someone asks how often replays merely fizzle; splitting it needs its own prereg.

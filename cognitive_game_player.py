@@ -419,10 +419,17 @@ class CognitiveGamePlayer:
                 _mv = _ep_moves.setdefault(action_num, [0, 0])
                 _mv[0 if frame_changed else 1] += 1
             # B7 (BUILD_PROGRAM_2 W1): the salient-step ledger (playback channel)
+            # PREREG_CORPSE_GUARD.md A: `terminal` is stamped AT THE STEP THAT
+            # PRODUCED IT — a death cannot be reconstructed afterwards (dying
+            # CHANGES THE FRAME, so the death step looks like the most
+            # effectful step in the ledger). The bank truncates on this flag;
+            # it is never serialized into the banked prefix.
             _sal_steps.append({'action': action_num,
                                'data': dict(action_data) if action_data else None,
                                'post_hash': frame_hash_after,
-                               'changed': bool(frame_changed)})
+                               'changed': bool(frame_changed),
+                               'terminal': bool(
+                                   new_obs.state == GameState.GAME_OVER)})
 
             # Track level progress
             current_levels = getattr(new_obs, 'levels_completed', 0) or 0
@@ -1451,8 +1458,51 @@ class CognitiveGamePlayer:
     _SALIENT_K = 3          # nontrivial frame changes that make a prefix salient
     _SALIENT_REPLAY_P = 0.2  # the mastery-lite mirror: fresh-rate replay draw
 
+    # ═══ THE CORPSE GUARD (PREREG_CORPSE_GUARD.md; KNOBS G22) ═══════════
+    # MEASURED HARM (ar25, FRONTIER_AUDIT F-1): 13 of 13 salient replays ended
+    # in GAME_OVER on the FIRST cognitive action after playback and divergence
+    # fired ZERO times — the replay was FAITHFUL and what it faithfully
+    # reproduced was the death. A death CHANGES THE FRAME, so the death step
+    # was the terminal "effectful" step and the fidelity check matched the
+    # corpse's own post-hash.
+    # A. never bank a terminal step (truncate before it; refuse if nothing
+    #    salient remains).  B. the guard is OUTCOME, not FIDELITY: each replay
+    #    writes its outcome + consumption ordinal onto the prefix row, and a
+    #    prefix whose LAST recorded outcome was DEATH is refused at selection.
+    #    C. banked corpses are never deleted — unselected, on disk (archive
+    #    law). Rotation over the uses-DESC lock-in is a SEPARATE item and is
+    #    deliberately not built here; the death refusal breaks the lock-in only
+    #    as a side effect.
+    # CORPSE_GUARD is the MODULE FLAG; the environment variable of the same
+    # name OUTRANKS it, so the off-arm runs without editing code (CLAIM.md's
+    # ablation clause). Off => pre-guard behaviour, byte-identical, both sides.
+    CORPSE_GUARD = True
+    _GUARD_OFF_WORDS = ("0", "false", "no", "off", "")
+    # The outcome vocabulary. NOTE (THE_LADDER's INEXPRESSIBLE-STATE GENUS,
+    # recorded not hidden): ABORTED is a UNION — divergence, API break, and a
+    # clean run that neither died nor levelled all land in it. Only DIED is
+    # load-bearing (it is the only value that refuses selection), so the
+    # conflation costs nothing today; splitting it needs its own prereg.
+    _OUTCOME_REACHED = 'reached_level'
+    _OUTCOME_DIED = 'died'
+    _OUTCOME_ABORTED = 'aborted'
+
+    @classmethod
+    def _corpse_guard_enabled(cls) -> bool:
+        """The toggle, read at every bank/select/replay: the CORPSE_GUARD
+        environment variable when set (0/false/no/off/empty => the off-arm),
+        else the module flag."""
+        raw = os.environ.get('CORPSE_GUARD')
+        if raw is None:
+            return bool(cls.CORPSE_GUARD)
+        return str(raw).strip().lower() not in cls._GUARD_OFF_WORDS
+
     def _ensure_salient_table(self):
-        """Create the playback-channel table if absent (box DB side)."""
+        """Create the playback-channel table if absent (box DB side), and
+        MIGRATE legacy tables to carry the consumption record (outcome +
+        last_used_seq). The migration is UNGATED by the toggle: a schema
+        column is not behaviour — under the off-arm both columns simply stay
+        NULL, and the pre-guard rows on disk are untouched (archive law)."""
         self._gp.db.execute_query("""
             CREATE TABLE IF NOT EXISTS salient_prefixes (
                 game_id TEXT NOT NULL,
@@ -1461,23 +1511,58 @@ class CognitiveGamePlayer:
                 outcome_hash TEXT NOT NULL,
                 uses INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT (datetime('now')),
+                outcome TEXT,
+                last_used_seq INTEGER,
                 PRIMARY KEY (game_id, level, outcome_hash)
             )
         """)
+        try:
+            _have = {str(r.get('name')) for r in (self._gp.db.execute_query(
+                "PRAGMA table_info(salient_prefixes)") or [])}
+            for _col, _decl in (('outcome', 'TEXT'),
+                                ('last_used_seq', 'INTEGER')):
+                if _col not in _have:
+                    self._gp.db.execute_query(
+                        "ALTER TABLE salient_prefixes ADD COLUMN "
+                        + _col + " " + _decl)
+        except Exception:
+            pass
 
     def _bank_salient_prefix(self, game_id, level, steps) -> bool:
         """Bank the prefix up to the LAST effectful action when the episode
         produced >= _SALIENT_K nontrivial frame changes (caller guarantees the
         no-level-up condition). DEDUP: the outcome-state hash — the frame hash
         after the last effectful action — is part of the primary key, so the
-        same outcome banks once (INSERT OR IGNORE)."""
+        same outcome banks once (INSERT OR IGNORE).
+
+        THE CORPSE GUARD (A): a step marked `terminal` (its observation was
+        GAME_OVER) and everything after it is TRUNCATED AWAY before the
+        salience rule runs; if nothing salient survives, banking is REFUSED.
+        Both outcomes are narrated. The `terminal` marker itself is never
+        serialized — the banked bytes stay exactly what they were."""
         _steps = [s for s in (steps or []) if isinstance(s, dict)]
+        _cut = False
+        if self._corpse_guard_enabled():
+            _term = next((i for i, s in enumerate(_steps) if s.get('terminal')),
+                         None)
+            if _term is not None:
+                _cut = True
+                _steps = _steps[:_term]
+                print(f"    [SALIENT] truncated before the terminal step "
+                      f"(idx={_term}) — a death is never banked")
         _chg = [i for i, s in enumerate(_steps) if s.get('changed')]
         if len(_chg) < self._SALIENT_K:
+            if _cut:
+                print(f"    [SALIENT] refused: only {len(_chg)} salient "
+                      f"changes survive the truncation (K={self._SALIENT_K})")
             return False
-        _prefix = _steps[:_chg[-1] + 1]
+        _prefix = [{k: v for k, v in s.items() if k != 'terminal'}
+                   for s in _steps[:_chg[-1] + 1]]
         _oh = str(_prefix[-1].get('post_hash') or '')
         if not _oh:
+            if _cut:
+                print("    [SALIENT] refused: no outcome hash survives the "
+                      "truncation")
             return False
         self._ensure_salient_table()
         self._gp.db.execute_query("""
@@ -1490,14 +1575,43 @@ class CognitiveGamePlayer:
         return True
 
     def _load_salient_prefix(self, game_id, level):
-        """The most-used banked prefix for game+level, or None."""
+        """The most-used banked prefix for game+level, or None.
+
+        THE CORPSE GUARD (B): a prefix whose LAST RECORDED OUTCOME was DEATH is
+        REFUSED and the next alternative is taken — the question is "does this
+        still WIN", not "does this still APPLY". Refusals are narrated and
+        counted; the refused rows stay on disk untouched (archive law, C).
+        Under the off-arm the ORIGINAL argmax query runs VERBATIM."""
         try:
             self._ensure_salient_table()
-            rows = self._gp.db.execute_query("""
-                SELECT prefix_json, outcome_hash FROM salient_prefixes
-                WHERE game_id = ? AND level = ?
-                ORDER BY uses DESC, created_at ASC LIMIT 1
-            """, (str(game_id), int(level)))
+            if not self._corpse_guard_enabled():
+                rows = self._gp.db.execute_query("""
+                    SELECT prefix_json, outcome_hash FROM salient_prefixes
+                    WHERE game_id = ? AND level = ?
+                    ORDER BY uses DESC, created_at ASC LIMIT 1
+                """, (str(game_id), int(level)))
+            else:
+                _all = self._gp.db.execute_query("""
+                    SELECT prefix_json, outcome_hash, outcome
+                    FROM salient_prefixes
+                    WHERE game_id = ? AND level = ?
+                    ORDER BY uses DESC, created_at ASC
+                """, (str(game_id), int(level)))
+                rows, _refused = [], 0
+                for _r in (_all or []):
+                    _oc = (_r.get('outcome') if isinstance(_r, dict)
+                           else _r[2])
+                    if str(_oc or '') == self._OUTCOME_DIED:
+                        _refused += 1
+                        continue
+                    rows = [_r]
+                    break
+                if _refused:
+                    print(f"    [SALIENT] refused {_refused} banked "
+                          f"corpse(s) (last outcome={self._OUTCOME_DIED}) "
+                          f"level={int(level)} — "
+                          + ("taking the next alternative" if rows
+                             else "no live alternative, exploring instead"))
             if not rows:
                 return None
             row = rows[0]
@@ -1532,7 +1646,9 @@ class CognitiveGamePlayer:
             _taken += 1
             _h = self._compute_frame_hash(_obs)
             _seen.append({'action': _a, 'data': _d, 'post_hash': _h,
-                          'changed': _h != _prev_h})
+                          'changed': _h != _prev_h,
+                          'terminal': getattr(_obs, 'state', None)
+                          == GameState.GAME_OVER})
             _prev_h = _h
             try:
                 if loop is not None:
@@ -1552,12 +1668,34 @@ class CognitiveGamePlayer:
             if getattr(_obs, 'state', None) in (GameState.WIN,
                                                 GameState.GAME_OVER):
                 break
+        # THE CONSUMPTION RECORD (PREREG_CORPSE_GUARD.md B; the scoped rule:
+        # an artifact SUBJECT TO SELECTION carries its consumption record or
+        # the selection runs on a constant). The outcome answers "did this
+        # still WIN": died > reached_level > aborted, death first because a
+        # replay that levelled AND then died is still a corpse.
         try:
-            self._gp.db.execute_query("""
-                UPDATE salient_prefixes SET uses = uses + 1
-                WHERE game_id = ? AND level = ? AND outcome_hash = ?
-            """, (str(game_id), int(level),
-                  str((prefix or {}).get('outcome_hash') or '')))
+            if not self._corpse_guard_enabled():
+                self._gp.db.execute_query("""
+                    UPDATE salient_prefixes SET uses = uses + 1
+                    WHERE game_id = ? AND level = ? AND outcome_hash = ?
+                """, (str(game_id), int(level),
+                      str((prefix or {}).get('outcome_hash') or '')))
+            else:
+                _out = self._OUTCOME_ABORTED
+                if getattr(_obs, 'state', None) == GameState.GAME_OVER:
+                    _out = self._OUTCOME_DIED
+                elif int(getattr(_obs, 'levels_completed', 0) or 0) > int(level):
+                    _out = self._OUTCOME_REACHED
+                # last_used_seq reads the PRE-update uses (SQL semantics), so
+                # it is the ordinal of THIS consumption.
+                self._gp.db.execute_query("""
+                    UPDATE salient_prefixes
+                    SET uses = uses + 1, outcome = ?, last_used_seq = uses + 1
+                    WHERE game_id = ? AND level = ? AND outcome_hash = ?
+                """, (_out, str(game_id), int(level),
+                      str((prefix or {}).get('outcome_hash') or '')))
+                print(f"    [SALIENT] replay outcome={_out} steps={_taken} "
+                      f"level={int(level)}")
         except Exception:
             pass
         return _taken, _obs
