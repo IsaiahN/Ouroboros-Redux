@@ -60,3 +60,14 @@ READ, not vigilance. TARGET SELECTION: empty because NO READOUT — the counter 
 3rd REGENERATION SERIES — passive collector, cheapest, but its decision-consumer (the
     roving-pool gate) is furthest away (adoption still zero). Start as a beat-read
     component when convenient; third by decision-impact.
+
+## EXECUTION RIDERS (reviewer, 2026-08-17):
+(1) TOGGLE RECEIPTS: "individually toggleable" decays without a receipt — a toggle is
+not a toggle until something has RUN with it off. Each activation's prereg includes
+the OFF-ARM AS A PASSING TEST at ship time (not a future intention); registry-linked
+like every wire. Else the ablation study discovers non-working flags at the end — the
+genus in its newest costume.
+(2) ONE RUN IS NOT A BAR: the ls20 expert counts are a SINGLE win replay; RHAE
+normalizes against upper-median best human. The efficiency read is labelled in the
+books as DISTANCE-TO-THAT-PLAYER (one reference run, not a reference distribution) —
+else the first close-looking number gets read as closer to the bar than it is.
