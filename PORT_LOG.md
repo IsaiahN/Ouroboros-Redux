@@ -745,3 +745,16 @@ across 5 workers — either the 200-cycle cadence hasn't fired within the tail w
 verbose logs swamp it; next beat greps deploy-scoped full logs (the as-of rule applies
 to log depth too). No changes made — monitor-only. Named reads still pending: reason
 distributions, rung re-read, metamer read, cn04 adoption.
+
+## Entry 43 — FIRST ACTIVATIONS DEPLOYED: the movement stack lives; rho measures itself
+
+Movement stack (fb8a7ba): CursorAgency + GridNav LIVE for the first time ever — fed
+real move outcomes, [NAV] steering as a capped narrated bias (wheel rule pinned byte-
+identical incl. RNG stream at no-confidence); comparative verdict registered (WORSE is
+reportable). bump_episode + [RESET] counter shipped instrumentation-only per the split
+(guard enters singly only if the counter reports spam). Rho ladder LIVE: multi-rung
+readings persisted per drain — grain measurement the system takes itself. Registry gate
+caught 17 rotted receipts mid-build and forced refresh (the machinery working). QA
+independent: 881/881, ruff clean, OOD CLEAN. Swarm restarted. SEQUENCE NEXT: the liars
+(R_T printed constant + pinning test removed; mute probe fed-or-deleted), role
+multiplier fix, refit queue + AGENT_MOTION activations, then goal-lifecycle singles.
