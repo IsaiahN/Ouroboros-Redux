@@ -100,3 +100,24 @@ int(6*0.15)=0). (6) MUTMUT UNSTRUCK, scoped to gate suite only: do these tests f
 when the thing they test breaks. CEILING (stated): tools catch inertness; only
 conventions catch drift — a frozen instrument owes a violation detector; these are
 six-months-to-six-minutes trades, the only trade available.
+
+## TRIAGE RULINGS (Isaiah, 2026-08-16):
+WIRE: AGENT_MOTION (yes); BROKEN_REBINDING/refit queue (yes); rho ladder FIRST
+(measurement before grain reasoning); ConditionalMiner + ClassFission near front
+(first activations, singly). FIX+INCLUDE: role_multiplier. LIARS (remove, F6 group):
+R_T printed constant (bracket_rt.py:484 + the test pinning it); mute probe (degenerate
+input + unconsumed output — feed real counts + consume, or delete the call). DELETE:
+SymbolicGameplayIntegration, FalsifiedLedger (+_Entry dies with its parent). ICE,
+DECIDE LATER: FabricJanitor (build trust too low to delete or activate — registered
+ICED). LEAVE ICED: Marketplace pair (by design). REVIEWER FLAGS ADOPTED: severed
+count=5 is a DRIVE-PATTERN ARTIFACT, not a reading — beat line states it so until the
+operator --coverage-file real-game run exists and runs first; UNMEASURED becomes an
+explicit registry state (scope gap is not a status).
+FOUR UNKNOWNS IDENTIFIED (git-dated): _Entry = FalsifiedLedger's internal decay record
+(2026-08-10) — dies with parent. CursorAgency (2026-08-10, Phase 1 port) = own-avatar
+displacement-map learner; GridNav (2026-08-10, Phase 2 port) = BFS board navigator —
+TOGETHER THE UNWIRED MOVEMENT-GAME STACK (their use case = the six click-less L0
+games); nothing currently calls either; surfaced as a pair-decision, not dead weight.
+bump_episode (2026-08-12) = explicit ep advance for same-level retries the (game,level)
+ordinal cannot see — one cheap call at the episode boundary makes R_T ep stamps
+retry-precise; recommend wire-with-stamps.
