@@ -90,3 +90,40 @@ CONVENTION DOES THE REMEMBERING. And three-constraints-from-three-seats (resolut
 read / one-run label / never-a-target) is an ARRANGEMENT ARTIFACT, not a nicety:
 each closes a failure invisible from the seats that caught the others — the tower
 producing what no single position would have.
+
+## CITATION CORRECTION (2026-08-17, found by the instrument on its first run):
+THE CITED ls20 REFERENCE WAS WRONG ON SIX OF SEVEN LEVELS. Cited in this file:
+(21,123,39,92,54,108,109). ON DISK (environment_files/ls20/*/metadata.json ->
+baseline_actions, identical across hash dirs and the swarm box copy):
+[22,123,73,84,96,192,186]. Only level 2 and the length agree; levels 1,3,4,5,6,7 are
+off by 20-80%. Any beat that had hardcoded the cited tuple would have measured against
+fiction. The instrument READS FROM DISK and prints CITED-CHECK match=False every run;
+it never falls back to the cited constant. COULD IT HAVE BEEN OTHERWISE: yes —
+match=True was fully reachable and would have meant the citation was faithful.
+AND THE DATA IS 25x LARGER THAN THE RULING ASSUMED: baseline_actions exists in EVERY
+game's metadata.json (25 games, 6-10 levels each) — the "ls20 only" framing understated
+availability by 24 games.
+
+## FIRST RESOLUTION READINGS (rung 0, distance-to-that-player, one reference run):
+8/25 games measurable, 9 level comparisons. THREE GAMES BELOW REFERENCE: cd82 L1 x0.67,
+r11l L1 x0.41, sp80 L1 x0.49. Above: ar25 L1 x1.31 / L2 x1.16, ft09 x1.49, cn04 x2.34,
+m0r0 x3.67, lp85 x4.88. Zero- and negative-distance were both reachable, so these are
+measurements, not construction.
+THE INSTRUMENT'S PURPOSE, DEMONSTRATED ON REAL DATA: ar25 L1 went 63 actions (gen 8,
+08-13) -> 42 (gen 42, 08-17); distance +31 -> +10 WHILE levels_completed stayed at 2.
+Closer-without-a-level, readable for the first time. THE OPPOSITE READING WAS EQUALLY
+AVAILABLE and also fired: lp85 has 15 banked L1 replays across 08-12..08-17, all 83-85
+actions vs reference 17 (~5x, drifting slightly WORSE) — an active replay channel
+producing no efficiency movement at all.
+AS-OF RULE ON THIS INSTRUMENT: run with --since pinned to the current deploy every
+beat, never all-time (all-time 8 games measurable vs 3 since 08-15; ar25 L2 drops out
+entirely) — pooling them is the two-populations defect.
+NOTED GAPS (honest, not hidden): settlements carry no action counts, so game_results is
+the only source and only as an upper bound; m0r0 shows a cross-stream as-of gap
+(winning_sequences window != game_results window) reported as absent, not invented.
+REGISTRY GENUS INSTANCE (maintainer's call): the rung-0c registry has no INSTRUMENT
+status — LIVE is impossible for a read-only tool (a production reference to the
+efficiency read would BE the prohibited state), so both rows ship SEVERED with an
+[instrument] marker and a stated section. The vocabulary cannot express the state; it
+was recorded rather than absorbed. Useful side effect: any production reference to the
+efficiency read turns the gate RED — the read-never-target alarm, mechanized.
