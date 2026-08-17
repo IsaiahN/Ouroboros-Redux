@@ -229,3 +229,15 @@ the roving-pool gate fires with one term missing unless the series starts. (3) T
 CONFLATION CORRECTED: the REFRESH trigger is "the question moved"; the MACHINERY
 trigger is "wave landed + counter spoken." They may coincide; they are not the same
 condition.
+
+## RUNG-4 REINTERPRETED (Fig 6 REV, 2026-08-17 — before the next reading):
+candidates=0 and r0=r1=r2=0 were read as ONE question. They are two, and the tracks
+must never be read against each other. The 1,664 declines are ALL at the
+impoverished-invariant guard — i.e. the OUTWARD lookup is gated on the INWARD
+completeness demand (every invariant present on both sides). Per Fig 6 that is the
+outward instrument's named failure: sharpened into terms only we can read. STANDING
+RULE: rung-4 readings are reported per TRACK (inward: is our vocabulary adequate;
+outward: did anything cross) and never averaged, differenced, or used as evidence
+about each other. DEPTH vs ABSENCE: unreachability has two causes indistinguishable
+from inside — far-at-budget vs not-in-closure — so no rung-4 zero licenses an absence
+claim (the imported-witness law, arriving from a second direction).

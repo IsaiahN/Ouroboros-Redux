@@ -314,3 +314,26 @@ WHAT TRANSFERS:
     it every miss reads as an unearned negative verdict (the §15 sin).
 (c) BUILD ORDER CONFIRMED: sigma is the load-bearing artifact — the residual must speak
     before any consumer has an input. Mint signature field -> backfill -> consumer.
+
+## 18. FIGURE 6 REV — REACHABILITY SPLITS IN TWO, AND THE INSTRUMENTS ARE OPPOSED
+"Is the atom reachable" is TWO questions, not one:
+  INWARD — is our representation adequate to hold it? The instrument extends access.
+    FAILS BY refining forever on an axis that cannot carry it.
+    DISCIPLINE: sharpen the description in OUR OWN TERMS.
+  OUTWARD — does another frame already hold it? The description travels.
+    FAILS BY being sharpened into terms ONLY WE CAN READ.
+    DISCIPLINE: hold the description LOOSE enough to be re-interpreted.
+"Neither answer tells you much about the other. Run them as two tracks, and never read
+one against the other."
+CORRECTION TO §16: signature-first recognition described ONE sigma serving both roles.
+Our sigma is built to the INWARD discipline (bbox class, changed count, colour-delta,
+conservation — maximally discriminating in our vocabulary) and is used as the OUTWARD
+lookup key. That is the named outward failure mode verbatim. The consumer therefore
+owes TWO descriptions with OPPOSED disciplines, not one sigma at a tunable grain — and
+the rung-3 "coarsen further" framing was the wrong shape: coarsening an inward
+instrument does not produce an outward one.
+ALSO ADDED (Fig 6 + Fig 8): an import adds NO ATOM TO THE WORLD — the world does not
+gain primitives; a frame gains ACCESS. Composition explores what the operators reach;
+INSTRUMENTS EXTEND WHAT CAN BE REPRESENTED AT ALL. And: some unreachability is DEPTH,
+some is GENUINE ABSENCE, and FROM INSIDE THE FRAME THE TWO LOOK THE SAME (distinct
+from the metamer trap: that is a wrong axis; this is a far-vs-missing ambiguity).

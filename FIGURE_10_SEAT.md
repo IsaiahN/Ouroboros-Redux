@@ -135,3 +135,9 @@ regenerates against each game's own ground and DEPLETES WITH EVERY ATOM THAT CRO
 (cross-mounts, imports; exactly what the roving pool would spend). The pricing rule
 one level down: the roving-pool decision turns on the number regeneration-rate vs
 crossing-spend — not on Figure 7, not on the transfer argument alone.
+
+## REV(9) DELTA: the branching evidence
+"If levels were copies there would be ONE LINEAGE DRIFTING AND NO BRANCHES. The tree of
+life is what a non-invertible transform looks like from outside." The heterogeneity
+claim gains an external retrodiction: branching IS the observable signature of a lossy
+T. Copies drift; non-invertible transforms speciate.
