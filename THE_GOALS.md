@@ -71,3 +71,15 @@ genus in its newest costume.
 normalizes against upper-median best human. The efficiency read is labelled in the
 books as DISTANCE-TO-THAT-PLAYER (one reference run, not a reference distribution) —
 else the first close-looking number gets read as closer to the bar than it is.
+
+## ITEM-2 QUALIFICATION (maintainer, 2026-08-17 — binding on the efficiency read):
+READ, NEVER TARGET. Solve first, optimize second — correct HERE (not universally)
+because RHAE is a ratio against a solution: UNDEFINED AT ZERO LEVELS. Optimizing it
+before solving is optimizing a quantity that does not exist yet — the elaboration
+trap with a scoring rule attached. What the read buys is RESOLUTION ON A ZERO
+(closer-without-a-level becomes readable — which matters precisely because the goal
+is solving games, not scoring them). REGISTERED: a rung-0 resolution instrument with
+an EXPLICIT PROHIBITION on being a knob target or arm objective until levels move.
+General form (the week's shape, one more time): an instrument that reads a state you
+have not reached returns a number that means nothing, and someone will act on it
+anyway.
