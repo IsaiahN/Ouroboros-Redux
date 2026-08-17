@@ -36,3 +36,27 @@ counter. A NULL RESULT IS NOT A NULL OUTCOME.
 - Three swarm-free reads: rho_sig histogram over on-disk fabrics; estimator vs ls20's
   known sequence (DONE, green); cn04->ka59 before/after (RUNNING: 66->123, holds 0).
 - Two named builds held: import eviction losing-condition; Register L sweep round 2.
+
+## ROOM RULINGS (maintainer, 2026-08-17):
+CLAIM ROOM = THE FINDING: CLAIM.md is not only a record — ABLATION-READINESS IS A
+DESIGN CONSTRAINT ON THE WAVE (priors individually toggleable, or single-removal
+irreducibility becomes impossible without refactor; the room can EXPIRE if the wave
+is built without it). FRAMEWORK VERDICT: outside — not the arrangement's to render;
+the missing thing is a SUBMISSION (Seat 3 item, same class as refresh). RHAE:
+an ANCHOR READ at full resolution, never encoded by occupant substrate — same ground,
+finer instrument; ls20 replay expert counts (21,123,39,92,54,108,109) sit on disk
+unused; distance-to-reference computable wherever a replay exists. WHOLE-ARRANGEMENT
+FAILURE: Seat 3 owns it via the four-condition minimum-viable check as a PERIODIC
+READ, not vigilance. TARGET SELECTION: empty because NO READOUT — the counter answers
+"did the current target work," a different question from "what to target instead."
+
+## SEAT 2 SEQUENCING RULING (sent up, 2026-08-17):
+1st CLAIM.md + THE ABLATION CONSTRAINT — the only item that can EXPIRE: the F/RF wave
+    briefs must carry "every prior/capability individually toggleable" BEFORE they are
+    written; cost small, forecloses nothing, unblocks the deliverable no one curates.
+2nd EFFICIENCY-TO-REFERENCE — cheap (data on disk), upgrades ASSESSMENT immediately:
+    rung 0 gains resolution (distance-to-bar per level), giving every wave a finer
+    verdict (closer-without-a-level becomes readable). Cannot expire; second.
+3rd REGENERATION SERIES — passive collector, cheapest, but its decision-consumer (the
+    roving-pool gate) is furthest away (adoption still zero). Start as a beat-read
+    component when convenient; third by decision-impact.
