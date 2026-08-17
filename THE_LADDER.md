@@ -241,3 +241,28 @@ outward: did anything cross) and never averaged, differenced, or used as evidenc
 about each other. DEPTH vs ABSENCE: unreachability has two causes indistinguishable
 from inside — far-at-budget vs not-in-closure — so no rung-4 zero licenses an absence
 claim (the imported-witness law, arriving from a second direction).
+
+## THE COMPLETENESS TALLY (2026-08-17) — a retraction and a relocated defect
+READ (free, ordered before any build): 5,632 declines — 100% reason=impoverished, 100%
+axis=vocabulary (RESIDUAL side), and bbox/changed/colour_delta/conserved missing in
+5,632/5,632; arity (the only frame-free invariant) is the sole one ever present; ZERO
+declines had a complete own-sigma. COULD IT HAVE BEEN OTHERWISE: yes — a spread would
+have implicated the invariant SET; axis=any would have implicated the ATOMS' sigmas;
+a mix would have implicated grain. A single 100% pattern implicates the PIPELINE.
+RETRACTION (mine, load-bearing): "residuals are now characterized, not named — 5,550
+sigma-carrying records" counted THE PRESENCE OF A SIGMA FIELD, not whether the sigma
+discriminates. The genus from this seat: checked the record, not the question. The
+description step ships a sigma whose patch-derived invariants are absent in live
+operation.
+CONSEQUENCE FOR THE QUEUE: the two-track/outward-instrument question is DOWNSTREAM of
+this — an outward description cannot be built on descriptions carrying one invariant.
+Next: locate why patch-derived invariants are absent at the persist site (frames not in
+hand vs bbox-fraction skip vs degraded sigma_of path) — as a READ/instrument question
+first, per the interior-read rule.
+## REVIEWER CORRECTION (2026-08-17): "LOOSE" IS STRUCK from the outward spec (my error,
+propagated from the source): the outward description is NOT less precise — it is
+precise in EFFECT TERMS rather than machinery terms. A projection that drops invariants
+is a DEGRADED INWARD instrument (the coarsening just retired), not an outward one.
+The genuinely outward object describes WHAT HAPPENED — contact, delta, what was
+conserved — cast so a fabric with different atoms can re-read it. A different
+construction, not a relaxed one. C33 §18's spec is corrected accordingly.
