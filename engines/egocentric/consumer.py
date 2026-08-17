@@ -44,6 +44,21 @@ hits are DOWN-WEIGHTED in ranking (a stranger's equal atom always outranks kin's
 Lineage is read from the atom record's "agent"/"by"/"kin" fields where present; the
 candidate's `kin_echo` flag makes the down-weight auditable.
 
+THE RANKED DRAIN (PREREG_DRAIN_ORIGIN.md §A; KNOBS G21): the PHASE-2 agenda is a
+BOUNDED RANKED SELECTION, not FIFO. The queue-order defect (THE_LADDER, "CORRECTION
+TO THE TALLY READING"): 388,184 records of which 82,301 carry a COMPLETE sigma, while
+a ~370k PRE-CHARACTERIZATION backlog of {slot,residual,seq} records sat at the FRONT --
+describe() can only recompute the frame-free subset of those, so they fail the
+completeness guard BY CONSTRUCTION and the complete descriptions were ~46,000 episodes
+away at budget_n=8. `_drain_order` ranks the NEWEST `DRAIN_WINDOW` pending records by
+  (1) CHARACTERIZED FIRST (all INVARIANTS present in describe()'s sigma)
+  (2) then LARGEST RESIDUAL (most unexplained first)
+  (3) then RECENCY (newest first) as the tiebreak
+and never sorts the whole queue -- the window IS the bound (Register G, GUESSED).
+THE OFF-ARM (CLAIM.md's ablation constraint, shipped as a PASSING test): DRAIN_RANKED=0
+in the environment, or DRAIN_RANKED=False on this module, returns `pending(fabric)`
+VERBATIM -- oldest-first, byte-identical on disk (tests/gate/test_ranked_drain.py).
+
 THE RHO RANKING (G-A, PREREG_FINAL_GAPS.md): mounted fabrics are correlated
 witnesses. Below the kin-echo key, multi-source hits prefer the LOW-rho source
 (lowest weighted-Jaccard correlation with the HOME fabric's own atoms --
@@ -71,16 +86,19 @@ Deterministic, stdlib + numpy only; failures degrade, never raise (house contain
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+from engines.egocentric import effects as effects_mod
 from engines.egocentric import rho as rho_mod
 
 __all__ = ["sigma_of", "describe", "characterize", "match", "consume",
            "seed_imports", "pending", "open_not_found", "candidates",
            "INVARIANTS", "PATCH_BOARD_FRACTION",
-           "KIND_DECLINED", "DECLINED_IMPOVERISHED", "DECLINE_REASONS"]
+           "KIND_DECLINED", "DECLINED_IMPOVERISHED", "DECLINE_REASONS",
+           "DRAIN_RANKED", "DRAIN_WINDOW"]
 
 QUEUE_TOPIC = "import_queue"
 CAND_TOPIC = "import_candidates"
@@ -109,6 +127,17 @@ INVARIANTS = ("arity", "bbox", "changed", "colour_delta", "conserved")
 KIND_DECLINED = "declined"
 DECLINED_IMPOVERISHED = "impoverished"  # match()'s base-rate guard: an INVARIANT missing on either side
 DECLINE_REASONS = (DECLINED_IMPOVERISHED,)
+
+# THE RANKED DRAIN (KNOBS G21, Register G, provenance GUESSED). DRAIN_RANKED is
+# the MODULE FLAG; the environment variable of the same name OUTRANKS it when
+# set, so the off-arm can be run without editing code. DRAIN_WINDOW bounds the
+# ranking: only the NEWEST this-many pending records are scanned and sorted per
+# pass -- a whole-queue sort over ~370k records is exactly what this refuses,
+# and the newest end is where the characterized records live (a front-anchored
+# window would rank the pre-characterization backlog against itself forever).
+DRAIN_RANKED = True
+DRAIN_WINDOW = 512
+_OFF_WORDS = ("0", "false", "no", "off", "")
 
 
 # ── the shared sigma vocabulary (one currency for holes AND atoms) ────────────
@@ -323,6 +352,55 @@ def pending(fabric) -> List[Dict[str, Any]]:
     raws = [r for r in rows if "kind" not in r]
     return sorted((r for r in raws if int(r.get("seq", 0)) not in closed),
                   key=lambda r: int(r.get("seq", 0)))
+
+
+def _ranked_enabled() -> bool:
+    """The toggle, read at every pass: the DRAIN_RANKED environment variable
+    when set (0/false/no/off/empty => the off-arm), else the module flag."""
+    raw = os.environ.get("DRAIN_RANKED")
+    if raw is None:
+        return bool(DRAIN_RANKED)
+    return str(raw).strip().lower() not in _OFF_WORDS
+
+
+def _characterized(rec: Dict[str, Any]) -> bool:
+    """Rank key (1): does this record carry a COMPLETE sigma -- every INVARIANT
+    the completeness guard demands? Read through describe(), so the predicate is
+    the sigma the matcher will actually see (persisted verbatim where present,
+    recomputed from frames otherwise, frame-free legacy records degrading)."""
+    try:
+        sig = describe(rec)
+    except Exception:
+        return False
+    return all(k in sig for k in INVARIANTS)
+
+
+def _residual_of(rec: Dict[str, Any]) -> float:
+    """Rank key (2): the unexplained magnitude; unreadable => 0.0 (last)."""
+    try:
+        return float(rec.get("residual") or 0.0)
+    except Exception:
+        return 0.0
+
+
+def _rank_key(rec: Dict[str, Any]) -> Tuple[int, float, int]:
+    return (0 if _characterized(rec) else 1,     # (1) CHARACTERIZED FIRST
+            -_residual_of(rec),                  # (2) LARGEST RESIDUAL
+            -int(rec.get("seq", 0)))             # (3) RECENCY (newest first)
+
+
+def _drain_order(fabric) -> List[Dict[str, Any]]:
+    """THE PHASE-2 AGENDA (PREREG_DRAIN_ORIGIN.md §A). Ranked arm: the NEWEST
+    DRAIN_WINDOW pending records, sorted by (characterized, -residual, -seq) --
+    bounded by construction, never a whole-queue sort, so a characterized record
+    older than the window is NOT promoted (that is the bound's falsifier).
+    OFF-ARM (DRAIN_RANKED=0): `pending(fabric)` VERBATIM -- the same list object
+    the pre-ranking code iterated, oldest-first, byte-identical on disk."""
+    raws = pending(fabric)
+    if not _ranked_enabled():
+        return raws
+    window = raws[-DRAIN_WINDOW:] if DRAIN_WINDOW > 0 else raws
+    return sorted(window, key=_rank_key)
 
 
 def open_not_found(fabric) -> List[Dict[str, Any]]:
@@ -608,7 +686,9 @@ def _touches(axis: Optional[str], asig: Dict[str, Any]) -> bool:
 
 def consume(fabric, game, level, budget_n) -> Dict[str, int]:
     """Drain up to `budget_n` import-queue items (reopened not-founds first --
-    the Chaitin rule -- then pending raws, oldest first): describe -> persist
+    the Chaitin rule -- then pending raws in `_drain_order`: RANKED
+    characterized-first / largest-residual / newest over a bounded window, or
+    oldest-first verbatim under the DRAIN_RANKED off-arm): describe -> persist
     sigma -> match across ALL mounted fabrics' atoms; hit -> import_candidates
     record with the three conditions; miss with near-misses -> ONE redescription
     retry on the named axis; give up -> axis-tagged defeasible not-found, UNLESS
@@ -659,7 +739,7 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
                        priority_seq, near, len(atoms), stats)
             report["not_found"] += 1
 
-    for raw in pending(fabric):                             # PHASE 2: the fresh agenda
+    for raw in _drain_order(fabric):                        # PHASE 2: the fresh agenda
         if used >= budget:
             break
         used += 1
@@ -724,12 +804,24 @@ def seed_imports(gamma, fabric, game, level) -> int:
     RECORD-KEEPING (VICTORY_PROTOCOL): the seeded atom RETAINS its provenance --
     the candidate's source_game is written into the atom (ADDITIVE: only when
     the atom does not already carry one), so the 25/25 census can name every
-    atom's native + imported source."""
+    atom's native + imported source.
+
+    THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): this is the IMPORTED write
+    site. Every seeded record is stamped origin="imported" + source_game (+ the
+    source atom's seq) AT WRITE TIME by Gamma.add -- provenance recorded
+    positively, never by the absence of fields. The already-have scan reads that
+    marker through effects.origin_of BESIDE the legacy atom["imported"] flag, so
+    old books keep deduping and an UNKNOWN-origin record is never mistaken for
+    a local one (absence is not a claim)."""
     have = set()
     for rec in _local(gamma.fabric).query("collective", ATOMS_TOPIC):
         atom = rec.get("atom") or {}
-        if atom.get("imported") and atom.get("key"):
-            have.add(atom["key"])
+        key = atom.get("key")
+        if not key:
+            continue
+        if (atom.get("imported")                        # legacy shape (old books)
+                or effects_mod.origin_of(rec) == effects_mod.ORIGIN_IMPORTED):
+            have.add(key)
     count = 0
     for cand in candidates(fabric, game, level):
         atom = dict(cand.get("atom") or {})
@@ -741,7 +833,9 @@ def seed_imports(gamma, fabric, game, level) -> int:
         if src_game is not None and "source_game" not in atom:
             atom["source_game"] = src_game          # provenance retained, additively
         try:
-            gamma.add(atom, str(game), int(level))
+            gamma.add(atom, str(game), int(level),
+                      origin=effects_mod.ORIGIN_IMPORTED,
+                      source_game=src_game, source_seq=cand.get("source_seq"))
         except Exception:
             continue                                        # a bad copy never crashes the loop
         if key:

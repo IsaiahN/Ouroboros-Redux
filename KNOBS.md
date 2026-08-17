@@ -39,6 +39,10 @@ G13 planner: MAX_DEPTH=8, MAX_NODES=2000                                 (planne
 G14 consumer: budget_n=8/episode; near-miss = all-but-one; 1 retry       (consumer.py)
 G15 rho: RHO_COLLAPSE=0.9                                                (rho.py)
 G16 starvation thresholds: PLAN_N=50, BOOK_N=10                          (starvation.py)
+G21 RANKED DRAIN: DRAIN_WINDOW=512 [GUESSED] newest pending records ranked per pass;
+    key [GUESSED] = (1) CHARACTERIZED FIRST (all 5 INVARIANTS present)
+    (2) LARGEST RESIDUAL (3) RECENCY. Toggle DRAIN_RANKED (env outranks the
+    module flag); =0 restores FIFO byte-identically. Amendment 10. (consumer.py)
 Economy:
 G17 role multipliers: pioneer 1.5 / generalist 1.2 / optimizer 1.0 / exploiter 0.8
 G18 handoff funding: allowance*(1+levels_replayed)-replay_cost           (player)
@@ -211,3 +215,31 @@ A9-3 THE MOVEMENT STACK'S REGISTERED VERDICT IS A COMPARISON against the incumbe
    end_game settle line marks the arm: steers>0 (nav-biased) vs steers=0
    (blind-explore incumbent) episodes of the SAME game+level. WORSE on (1) or (2)
    for steers>0 episodes is a real verdict the wheel must hear.
+
+## AMENDMENT 10 (2026-08-17): THE RANKED DRAIN (G21) — one knob row, two GUESSES
+A10-1 DRAIN_WINDOW = 512 (consumer.py). The number of PENDING records — taken from the
+   NEWEST end — that the drain ranks per pass. Provenance: GUESSED, Register G,
+   arm-testable. IT IS A BOUND, NOT A PREFERENCE: the point is that the ~370k
+   pre-characterization backlog is never sorted, so a characterized record OLDER than
+   the window is deliberately NOT promoted (gated by test_ranked_drain.py's bound
+   falsifier). The window is anchored at the NEWEST end because that is where the
+   82,301 complete sigmas live; a front-anchored window would rank the backlog against
+   itself forever and change nothing.
+A10-2 THE KEY ORDER is itself GUESSED, and it is the more dangerous half — it decides
+   WHICH EVIDENCE EXISTS, so a future arm must test the ORDER (characterized-first vs
+   largest-residual-first), not only the window SIZE. Same distinction as A9-1's
+   cap-vs-capability note.
+A10-3 THE OFF-ARM IS THE RECEIPT (CLAIM.md's ablation constraint): DRAIN_RANKED — the
+   environment variable outranks the module flag consumer.DRAIN_RANKED — set to
+   0/false/no/off returns pending() VERBATIM, oldest-first, producing BYTE-IDENTICAL
+   streams on disk. Shipped as a PASSING test at ship time, not a future intention.
+A10-4 REGISTERED VERDICT (THE_LADDER, wave 1, 2 beats post-deploy): the decline rate
+   falls and candidates>0 appear. LOSING CONDITION, stated: if declines stay at ~100%
+   WITH characterized records reaching the guard, the queue-order diagnosis was wrong
+   and the ordering was not the blocker — revert (one call site), do not re-tune the
+   window. NOT-MEASURED CONDITION: a beat below rung-0b's MIN_EXPOSURE floor reads
+   UNMEASURED, never "no effect".
+A10-5 NOT A KNOB (recorded so it is not mistaken for one): the ORIGIN MARKER shipped in
+   the same wave writes origin/mint_seq/source_game at mint and seed time. It has no
+   tunable value and no arm — it is instrumentation, and its absence-reads-UNKNOWN law
+   is a Register F-adjacent semantic (a default that says "local" would be the defect).

@@ -38,7 +38,44 @@ __all__ = ["learn_effect", "apply_effect", "classify_transform", "Gamma",
            "classify_object_transform", "ConditionalMiner",
            "invert_transform", "apply_inverse",
            "encoding_cost_route", "encoding_cost_atom",
-           "NONE_REASONS", "none_reasons", "none_summary"]
+           "NONE_REASONS", "none_reasons", "none_summary",
+           "ORIGIN_LOCAL", "ORIGIN_IMPORTED", "ORIGIN_UNKNOWN", "ORIGINS",
+           "origin_of"]
+
+
+# ── THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B; CLAIM.md) ───────────────────
+#
+# READ, not asserted: 1,514 atom records carried ZERO `imported` and ZERO
+# `source_game` -- local-vs-imported was carried by the ABSENCE OF FIELDS. That
+# is the INEXPRESSIBLE-STATE GENUS: the day any path writes source_game (a
+# schema default, a migration, a seeding bug) the distinction collapses
+# SILENTLY and RETROSPECTIVELY, and provenance is the ONLY discriminator
+# between CORROBORATION (convergent minting) and SURPLUS (adopted import) --
+# the contents are identical, so it cannot be reconstructed afterward.
+#
+# THEREFORE: every atom record carries a POSITIVE marker WRITTEN AT WRITE TIME
+# -- origin plus mint_seq, and source_game on imports only. THREE words, not
+# two: a record written before this build reads UNKNOWN, and UNKNOWN IS NEVER
+# LOCAL. Nothing may infer local from absence (gate:
+# tests/gate/test_origin_marker.py). Purely additive: old books read unchanged.
+
+ORIGIN_LOCAL = "local"          # minted by THIS frame's own ground
+ORIGIN_IMPORTED = "imported"    # adopted across a closure difference (surplus)
+ORIGIN_UNKNOWN = "unknown"      # written before the marker existed -- NOT local
+ORIGINS = (ORIGIN_LOCAL, ORIGIN_IMPORTED)
+
+
+def origin_of(record: Optional[Dict[str, Any]]) -> str:
+    """THE ONLY READER of the marker: an atom RECORD's declared provenance, or
+    ORIGIN_UNKNOWN. Total by construction -- a missing, null, or unrecognized
+    origin reads UNKNOWN, never LOCAL. The record ENVELOPE is read, never the
+    atom dict inside it: the atom travels verbatim across fabrics (candidates
+    copy it), so an origin stored there would be re-adopted as another frame's
+    truth -- exactly the silent collapse the marker exists to prevent."""
+    if not isinstance(record, dict):
+        return ORIGIN_UNKNOWN
+    org = record.get("origin")
+    return str(org) if org in ORIGINS else ORIGIN_UNKNOWN
 
 
 # ── INSTRUMENT (proctor-named): why did classify_object_transform say NONE? ───
@@ -732,15 +769,35 @@ class Gamma:
     def _next_ordinal(self) -> int:
         return len(self.fabric.query("collective", self.TOPIC))
 
-    def add(self, atom: Dict[str, Any], game: str, level: int) -> str:
+    def add(self, atom: Dict[str, Any], game: str, level: int,
+            origin: str = ORIGIN_LOCAL,
+            source_game: Optional[str] = None,
+            source_seq: Optional[int] = None) -> str:
+        """Write one atom record. THE ORIGIN MARKER is stamped HERE, at write
+        time, on the ENVELOPE: `origin` (default ORIGIN_LOCAL -- this is the
+        local mint path; consumer.seed_imports passes ORIGIN_IMPORTED),
+        `mint_seq` (the atom's ordinal in the visible atoms stream at the moment
+        of the write -- the same integer the id embeds, exposed as a field so
+        provenance never needs string surgery), and `source_game` (+ the source
+        atom's `source_seq` where the caller has it) on IMPORTS ONLY. An
+        unrecognized origin degrades to ORIGIN_UNKNOWN -- never silently to
+        local. Existing callers passing (atom, game, level) are unaffected."""
         typ = ("structural"
                if (atom.get("transform") is not None or atom.get("kind") == "EFFECT_IF")
                else "lexical")
-        aid = "%s:%d" % (atom.get("key", atom.get("kind", "atom")), self._next_ordinal())
-        self.fabric.append("collective", self.TOPIC, {
+        ordinal = self._next_ordinal()
+        aid = "%s:%d" % (atom.get("key", atom.get("kind", "atom")), ordinal)
+        org = origin if origin in ORIGINS else ORIGIN_UNKNOWN
+        rec: Dict[str, Any] = {
             "id": aid, "type": typ, "game": str(game), "level": int(level),
-            "atom": dict(atom),
-        })
+            "atom": dict(atom), "origin": org, "mint_seq": int(ordinal),
+        }
+        if org == ORIGIN_IMPORTED:
+            if source_game is not None:
+                rec["source_game"] = str(source_game)
+            if source_seq is not None:
+                rec["source_seq"] = int(source_seq)
+        self.fabric.append("collective", self.TOPIC, rec)
         return aid
 
     def get(self, aid: str) -> Optional[Dict[str, Any]]:
@@ -757,11 +814,16 @@ class Gamma:
         parts = [str(i) for i in ids]
         blob = json.dumps(parts, separators=(",", ":"))
         key = "cmp-" + hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
-        cid = "%s:%d" % (key, self._next_ordinal())
+        ordinal = self._next_ordinal()
+        cid = "%s:%d" % (key, ordinal)
         composite = {"kind": "COMPOSITE", "key": key, "parts": parts}
+        # A composite is an atom record on the same stream: it carries the same
+        # ORIGIN MARKER, or the stream has a silent hole. Composition happens in
+        # THIS frame, so it is local by construction.
         self.fabric.append("collective", self.TOPIC, {
             "id": cid, "type": "structural", "kind": "COMPOSITE", "parts": parts,
             "game": str(game), "level": int(level), "atom": composite,
+            "origin": ORIGIN_LOCAL, "mint_seq": int(ordinal),
         })
         return cid
 

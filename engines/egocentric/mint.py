@@ -54,6 +54,11 @@ A3-4 (KNOBS AMENDMENT 3) -- every verdict record additionally carries:
           degrades (sigma_of never raises) rather than vanishing.
 
 Both fields are ADDITIVE: old books without them still read everywhere.
+
+ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): an accepted mint is the frame's OWN ground
+reaching an atom, so the atoms-stream record is stamped origin="local" + mint_seq AT
+WRITE TIME (effects.Gamma.add). Only positively-marked records support the
+CORROBORATION-vs-SURPLUS split; absence of import fields never did.
 """
 from __future__ import annotations
 
@@ -267,7 +272,13 @@ class MDLMint:
         phi["sigma"] = sigma
 
         # Mint: pay the cost, cash the pocket. Full-surprise support is ledgered as w.
-        aid = self.gamma.add(phi, game, level)
+        # THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): this is THE LOCAL MINT
+        # PATH -- the frame's own ground reached this atom, so the record is
+        # stamped origin="local" (+ mint_seq) AT WRITE TIME. Stated explicitly,
+        # not left to Gamma.add's default: provenance recorded positively or not
+        # at all, and CORROBORATION-vs-SURPLUS cannot be reconstructed later.
+        aid = self.gamma.add(phi, game, level,
+                             origin=_effects.ORIGIN_LOCAL)
         typ = "structural" if phi.get("transform") is not None else "lexical"
         self._split[typ] = self._split.get(typ, 0) + 1
         self._record("mint", game, level, key=key, w=w, ep=ep_now, sigma=sigma)

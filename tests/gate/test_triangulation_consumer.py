@@ -191,7 +191,16 @@ class TestTriangulationHit:
         assert rep2["drained"] == 0 and rep2["candidates"] == 0
         assert len(consumer.candidates(home, "g_home", 1)) == 1
 
-    def test_budget_drains_oldest_first(self, tmp_path):
+    def test_budget_drains_oldest_first_under_the_off_arm(self, tmp_path,
+                                                          monkeypatch):
+        """DISPOSITION 2026-08-17 (THE_LADDER "NO PERMANENT RED", rule 1): this
+        test was `test_budget_drains_oldest_first` and it no longer tested what
+        it named -- PREREG_DRAIN_ORIGIN.md §A replaced consume()'s FIFO agenda
+        with the bounded RANKED drain. FIXED TO CURRENT REALITY rather than left
+        red: oldest-first is now the OFF-ARM's contract (DRAIN_RANKED=0), and it
+        is asserted as such. The ranked arm's own ordering is owned by
+        tests/gate/test_ranked_drain.py."""
+        monkeypatch.setenv("DRAIN_RANKED", "0")
         home = _home(tmp_path, [])
         pairs = [_recolour(cells=((i, i),)) for i in range(3)]
         seqs = [_enqueue(home, b, a)["seq"] for b, a in pairs]
@@ -199,6 +208,19 @@ class TestTriangulationHit:
         assert rep["drained"] == 2
         left = consumer.pending(home)
         assert [r["seq"] for r in left] == [seqs[2]], "not oldest-first"
+
+    def test_budget_drains_newest_first_when_ranked(self, tmp_path, monkeypatch):
+        """The same fixture under the shipped default: three equally-described
+        records with no residual tie-break fall through to RECENCY, so the
+        OLDEST is the one left standing -- the exact inversion of the off-arm."""
+        monkeypatch.delenv("DRAIN_RANKED", raising=False)
+        home = _home(tmp_path, [])
+        pairs = [_recolour(cells=((i, i),)) for i in range(3)]
+        seqs = [_enqueue(home, b, a)["seq"] for b, a in pairs]
+        rep = consumer.consume(home, "g_home", 1, 2)
+        assert rep["drained"] == 2
+        left = consumer.pending(home)
+        assert [r["seq"] for r in left] == [seqs[0]]
 
 
 # ── B12: near-miss naming + the redescription loop ───────────────────────────
