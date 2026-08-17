@@ -52,3 +52,15 @@ recorded at the event). If classification is not recorded at mint time it CANNOT
 RECONSTRUCTED AFTERWARD — the contents are identical and only provenance separates
 them. Same expiry logic as ablation-readiness: a finding that cannot be split into
 corroboration vs surplus is a weaker claim than the project set out to make.
+
+## VERIFIED, NOT ASSERTED (2026-08-17) — and the assertion was WRONG
+READ: 1,514 atom records; ZERO carry `imported`; ZERO carry `source_game`. My claim
+"derivable from today's records, nothing lost yet" is RETRACTED. The classification is
+reconstructable at this instant ONLY BECAUSE THE IMPORTED SET IS EMPTY — every atom is
+local by default, and a local atom is distinguished from an import ONLY BY THE ABSENCE
+OF FIELDS. Absence-as-signal is the inexpressible-state genus: the moment any path
+writes source_game (a schema default, a migration, a seeding bug), the distinction
+collapses SILENTLY and retrospectively.
+REQUIREMENT (tightened): the clause demands a POSITIVE ORIGIN MARKER WRITTEN AT MINT
+TIME — origin=local|imported plus the minting seq — on every atom, not the absence of
+import fields. Provenance recorded positively at write time or not at all.

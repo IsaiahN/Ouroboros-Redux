@@ -289,3 +289,9 @@ retire consumed/legacy entries (an ICED organ — needs the maintainer's ruling 
 (c) a one-time archive-and-truncate of pre-fix raw records (evidence-preserving per the
 archive law). Receipt plan for (a): the drain predicate is one live call site in
 consume(), registry-linked, with an off-arm test per the ablation clause.
+
+## THE UNCONDITIONAL ZERO-CHECK (2026-08-17): the guaranteed-number test runs on EVERY
+zero, INCLUDING THE WELCOME ONES. Mechanism of the failure it prevents: the test gets
+applied to numbers that arrive as CLAIMS and skipped on numbers that arrive as RELIEF
+(demonstrated: I ran it all week, then leaned on rho~0 the moment it supported a
+hopeful story). Not triggered — unconditional.

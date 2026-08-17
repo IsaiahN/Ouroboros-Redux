@@ -73,3 +73,12 @@ direction.
 THE STANDARD THAT SURVIVES (the seat's report-writing law and self-check): judge a
 report by WHETHER IT SAYS SOMETHING IT WOULD RATHER NOT, and whether its numbers COULD
 HAVE COME BACK OTHERWISE. Never by whether it reads as though it survived review.
+
+## ROUTING ASYMMETRY (2026-08-17, arrangement-level defect, found by the seam discipline
+applied to the arrangement rather than the code): material that crosses to Seat 4 but
+NOT to Seat 2 produces PHANTOM APPROVALS — Seat 4 comments on a ranking Seat 2 never
+issued, and Seat 2 either inherits approval for decisions absent from its record or
+must catch the mismatch. It caught it once; catching is not a mechanism. RULE: material
+crossing to one checking seat should cross to the other, OR the response must be
+labelled as responding to material the other seat lacks. The maintainer routes;
+asymmetric routing manufactures consent.

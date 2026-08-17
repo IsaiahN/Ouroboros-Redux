@@ -385,3 +385,14 @@ readings are live and free to continue; the outward track is gated on a ruling t
 never come; and the two-track law forbids pooling them anyway, so an inward baseline
 cannot be contaminated by an instrument that reports separately. If the outward track
 is ever built it gets its OWN stream, never a redefinition of this one.
+
+## 19b. THE CONVERGENCE CHANNEL IS FOUR ORDERS LARGER THAN THE CASE I WAS WATCHING
+READ: 141,589 rederivation verdicts across the swarm (vc33 37,560 / s5i5 37,552 /
+tn36 36,098 / su15 10,615 / r11l 6,758). I have spent a week watching ONE cross-game
+case (cn04->ka59, 130). Rederivation = the key was already known in Gamma, and Gamma
+includes CROSS-MOUNTED sibling atoms — so this population mixes (a) own-atom
+rederivation with (b) CROSS-GAME CONVERGENCE, which per Fig 8 REV is corroboration at
+maximum independence. THE SPLIT IS UNREAD AND CHEAP: for each rederivation key, is the
+known atom the frame's own or a seed-mounted sibling's? That is the corroboration
+measurement this project has never taken, and it is the only currently-populated
+evidence about cross-frame agreement. Queued as a READ (not a build).
