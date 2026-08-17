@@ -130,6 +130,14 @@ class CursorAgency:
         """The learned displacement of the cursor under `action` (None if not yet mapped)."""
         return self._map.get(action)
 
+    def locate(self, frame: np.ndarray) -> Optional[Tuple[float, float]]:
+        """The identified cursor's centroid on `frame` ((row, col) floats), or None while
+        no cursor is identified / it is absent from this frame. The live loop uses this to
+        quantize the body onto GridNav's logical cells (centroid / stride)."""
+        if self._colour is None:
+            return None
+        return self._centroid(np.asarray(frame), self._colour)
+
     def stride(self) -> Optional[int]:
         """The world's move quantum: the median magnitude of the cursor's axis-aligned shifts (ls20 -> 5)."""
         mags = [abs(dr) + abs(dc) for (dr, dc) in self._map.values() if abs(dr) + abs(dc) >= 2]

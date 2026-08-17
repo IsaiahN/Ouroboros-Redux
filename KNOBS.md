@@ -191,3 +191,23 @@ A8-3 THE CONSTITUTIVE ANCHORS, EXPLICITLY (short by law — >4 items means somet
    3. ISAIAH'S RULINGS ON DESIGN LAW (what the law is, is constitutively his word)
    Git history is a RECORD, not an anchor — nothing is graded by it. Everything else
    in the system is an instrument or a frozen instrument.
+
+## AMENDMENT 9 (2026-08-16): movement-stack first activation (Register G rows)
+A9-1 NAV_BIAS_P = 0.5 (cognitive_loop.py) — cap on the [NAV] GridNav steer's share of
+   the blind movement draw (actions 1-4). Provenance: GUESSED. Register G,
+   arm-testable. NOTE: the future arm must distinguish testing the CAP from testing
+   the CAPABILITY.
+A9-2 RESET_MIN_RUN = 3 (cognitive_loop.py) — frame-changing steps that make a run
+   "solid" before an anchor-revert counts as a [RESET]. Provenance: GUESSED. The
+   counter it feeds is INSTRUMENTATION ONLY (scope ruling 2026-08-16): it reports;
+   a selection guard may enter SINGLY, later, judged against the counter's books.
+A9-3 THE MOVEMENT STACK'S REGISTERED VERDICT IS A COMPARISON against the incumbent,
+   not proof-of-firing — bias-not-veto can degrade silently, so the read must be
+   able to say WORSE, not just ALIVE. Books-read: (1) collective "frontier_harvest"
+   kind="move" records (per-episode, per-action 1-5 changed/unchanged counts,
+   banked by the player at episode end) -> per-game+level move effectiveness;
+   (2) personal "starvation" settle records (level + budget_spent per episode) ->
+   level progress per budget on the mover games; (3) the "[NAV] episode steers=N"
+   end_game settle line marks the arm: steers>0 (nav-biased) vs steers=0
+   (blind-explore incumbent) episodes of the SAME game+level. WORSE on (1) or (2)
+   for steers>0 episodes is a real verdict the wheel must hear.

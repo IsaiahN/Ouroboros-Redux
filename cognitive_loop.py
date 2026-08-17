@@ -52,6 +52,14 @@ from engines.perception.perceptual_field import PerceptualField
 
 logger = logging.getLogger(__name__)
 
+# ── Movement-stack + reset-discipline knobs (Register G; provenance GUESSED,
+#    arm-testable — the A5 law: marked so they never read as settled;
+#    registered in KNOBS.md AMENDMENT 9) ─────────────────────────────────────
+NAV_BIAS_P = 0.5     # GUESSED: cap on the [NAV] steer's share of blind draws
+RESET_MIN_RUN = 3    # GUESSED: frame-changing steps that make a run "solid"
+#                      (the [RESET] counter is INSTRUMENTATION ONLY — no
+#                      selection guard ships until the counter has reported)
+
 
 def _neg_feed(loop, mut) -> None:
     """B6 (BUILD_PROGRAM_2 W1): the negative-evidence feeder — every W4c-1
@@ -498,6 +506,18 @@ class CognitiveLoop:
         self._reference_panel = None
         self._productive_rotation_index = 0  # Fix 3: rotate among productive targets
 
+        # ═══ RESET COUNTER (instrumentation pair) + MOVEMENT STACK state ═══
+        self._reset_anchor = None        # (shape, bytes) of the anchor board
+        self._reset_run = 0              # frame-changing steps since the anchor
+        self._reset_ep_count = 0         # resets detected this episode
+        self._reset_actions = {}         # action -> times it caused a reset
+        self._ep_settled = False         # end_game settle (bump_episode) ran
+        self._cursor_agency = None       # first activation: own-avatar map
+        self._grid_nav = None            # first activation: BFS traversability
+        self._nav_cell = None            # the body's current logical cell
+        self._nav_goal_px = None         # abduced-goal site (px x,y) if any
+        self._nav_steers = 0             # [NAV] fires this episode (the arm marker)
+
         # Create fresh causal map for this game
         self._causal_map = CausalMap(game_id=game_id)
 
@@ -596,6 +616,28 @@ class CognitiveLoop:
                     game=str(getattr(self, "_game_id", "") or "game"),
                     level=int(getattr(self, "_ego_level", 0) or 0))
                 self._swallow_settled = True
+        except Exception:
+            _swal(self, "OTHER")
+        # ═══ MAINTAINER'S ORDER: the SAME boundary settles the RESET testimony ═══
+        # (instrumentation pair: the counter REPORTS; no selection guard ships
+        # until it has) and advances the mint's episode ordinal EXACTLY ONCE
+        # (A3-4 bump_episode) so ep stamps are retry-precise across same-level
+        # retries the (game, level) context cannot see. Guarded by the settled
+        # flag: a double end_game never double-bumps.
+        try:
+            if not getattr(self, "_ep_settled", False):
+                self._ep_settled = True
+                _rc = int(getattr(self, "_reset_ep_count", 0) or 0)
+                print(f"[RESET] episode resets={_rc} actions="
+                      f"{sorted((getattr(self, '_reset_actions', None) or {}).items())}")
+                if getattr(self, "_cursor_agency", None) is not None:
+                    # the comparison verdict's arm marker: steers>0 episodes
+                    # vs steers=0 incumbents, same game+level move books
+                    print(f"[NAV] episode steers="
+                          f"{int(getattr(self, '_nav_steers', 0) or 0)}")
+                _mm = getattr(self, "_mdl_mint", None)
+                if _mm is not None:
+                    _mm.bump_episode()
         except Exception:
             _swal(self, "OTHER")
         if self._verbose and self._frames:
@@ -1215,6 +1257,9 @@ class CognitiveLoop:
                                 str(getattr(self, "_game_id", "") or "game"),
                                 _lv4) if _fb4 is not None else None))
                         if _ap is not None:
+                            # [NAV] the abduced predicate's site doubles as the
+                            # movement stack's target (px x,y; a steer, only)
+                            self._nav_goal_px = _ap.get("site")
                             print(f"[GOAL] plan targets {_ap['sig']} "
                                   f"cred={_ap['credibility']}")
                             if (_ap["verified"] and _ap["site"] is not None
@@ -2079,6 +2124,85 @@ class CognitiveLoop:
                       f"established={sorted(self._goal_spine.established())}")
         except Exception:
             _swal(self, "SPINE")
+
+        # ═══ MOVEMENT STACK (FIRST ACTIVATION, rung 0c): CursorAgency + GridNav ═══
+        # CursorAgency learns the own-avatar displacement map from REAL move
+        # outcomes (pre/post frames + the executed action); GridNav builds
+        # directed-edge traversability from that map + the observed frames.
+        # Consumed ONLY by the [NAV] steer in _act (a capped bias, wheel rule).
+        # House containment: never raises; compact site.
+        try:
+            _mvact = int((getattr(self, "_last_action_info", None)
+                          or {}).get('type', 0) or 0)
+            _mvpre = getattr(self, "_prev_frame", None)
+            if level_changed and getattr(self, "_grid_nav", None) is not None:
+                from engines.egocentric.navigation import GridNav
+                self._grid_nav = GridNav()   # the maze redraws: walls re-earn
+                self._nav_cell = None
+            if (_mvact in (1, 2, 3, 4, 5) and not level_changed
+                    and _mvpre is not None and post_array is not None
+                    and getattr(_mvpre, "shape", None) == post_array.shape):
+                if getattr(self, "_cursor_agency", None) is None:
+                    from engines.egocentric.agency import CursorAgency
+                    from engines.egocentric.navigation import GridNav
+                    self._cursor_agency = CursorAgency()
+                    self._grid_nav = GridNav()
+                    self._nav_cell = None
+                _ag = self._cursor_agency
+                _ag.observe(_mvpre, str(_mvact), post_array)
+                if _ag.ready():
+                    _st = int(_ag.stride() or 1) or 1
+                    _p0 = _ag.locate(_mvpre)
+                    _p1 = _ag.locate(post_array)
+                    _sh = _ag.predict(str(_mvact))
+                    if _p0 is not None and _p1 is not None:
+                        _cl0 = (int(round(_p0[0] / _st)),
+                                int(round(_p0[1] / _st)))
+                        _cl1 = (int(round(_p1[0] / _st)),
+                                int(round(_p1[1] / _st)))
+                        if _sh is not None:
+                            self._grid_nav.observe_move(_cl0, _sh, _cl1 != _cl0)
+                            self._grid_nav.decay()
+                        self._nav_cell = _cl1
+        except Exception:
+            _swal(self, "OTHER")
+
+        # ═══ RESET COUNTER (maintainer's order, part a — instrumentation) ═══
+        # A board reverting to the episode/level ANCHOR frame after a solid run
+        # (>= RESET_MIN_RUN frame-changing steps) is a RESET: counted,
+        # attributed to the executed action, narrated [RESET]; the end_game
+        # settle line testifies the count. INSTRUMENTATION ONLY — the counter
+        # REPORTS; any selection guard enters singly, later, after the books
+        # read. Returning to the anchor WITHOUT a solid run is ordinary
+        # back-and-forth and counts nothing.
+        try:
+            if post_array is not None:
+                _rsig = (post_array.shape, post_array.tobytes())
+                if getattr(self, "_reset_anchor", None) is None:
+                    _rpre = getattr(self, "_prev_frame", None)
+                    self._reset_anchor = ((_rpre.shape, _rpre.tobytes())
+                                          if _rpre is not None else _rsig)
+                if level_changed:
+                    self._reset_anchor = _rsig   # the new level's start board
+                    self._reset_run = 0
+                elif _rsig == self._reset_anchor:
+                    if int(getattr(self, "_reset_run", 0)) >= RESET_MIN_RUN:
+                        self._reset_ep_count = int(
+                            getattr(self, "_reset_ep_count", 0) or 0) + 1
+                        _rsa = int((getattr(self, "_last_action_info", None)
+                                    or {}).get('type', 0) or 0)
+                        _rd = getattr(self, "_reset_actions", None)
+                        if _rd is None:
+                            _rd = self._reset_actions = {}
+                        _rd[_rsa] = int(_rd.get(_rsa, 0)) + 1
+                        print(f"[RESET] detected action={_rsa} "
+                              f"resets={self._reset_ep_count} "
+                              f"run={self._reset_run}")
+                    self._reset_run = 0
+                elif frame_changed:
+                    self._reset_run = int(getattr(self, "_reset_run", 0)) + 1
+        except Exception:
+            _swal(self, "OTHER")
 
         # ═══ GAP 4: Rich action outcome computation ═══
         self._compute_rich_outcome(cf, post_array)
@@ -3363,6 +3487,65 @@ class CognitiveLoop:
         except Exception:
             return list(_cands)
 
+    def _nav_step_action(self):
+        """[NAV] FIRST ACTIVATION (movement stack, rung 0c): GridNav's BFS
+        next step as an ACTION NUMBER, or None. None unless the game shows
+        mover-behavior (CursorAgency confident: ready(), >= 2 mapped
+        directions currently available) AND a target exists — the abduced
+        goal predicate's site when banked, else the nearest unexplored
+        region. The wheel rule: a None changes NOTHING downstream, and this
+        helper consumes no RNG."""
+        ag = getattr(self, "_cursor_agency", None)
+        nav = getattr(self, "_grid_nav", None)
+        cell = getattr(self, "_nav_cell", None)
+        if ag is None or nav is None or cell is None or not ag.ready():
+            return None
+        st = int(ag.stride() or 1) or 1
+        dirs = {}
+        for a, shift in ag.action_map().items():
+            try:
+                ai = int(a)
+            except (TypeError, ValueError):
+                continue
+            u = ((shift[0] > 0) - (shift[0] < 0),
+                 (shift[1] > 0) - (shift[1] < 0))
+            if ai in self._available_actions and 1 <= ai <= 5 and u != (0, 0):
+                dirs[u] = ai
+        if len(dirs) < 2:
+            return None
+        # Target: the abduced-goal predicate site first (px x,y -> cell) ...
+        goal = None
+        gp = getattr(self, "_nav_goal_px", None)
+        if gp is not None:
+            try:
+                goal = (int(round(int(gp[1]) / st)),
+                        int(round(int(gp[0]) / st)))
+            except (TypeError, ValueError, IndexError):
+                goal = None
+        if goal is None or goal == cell:
+            # ... else the nearest unexplored region (bounded ring scan)
+            shape = getattr(self, "_ego_frame_shape", None) or (64, 64)
+            mr, mc = max(1, int(shape[0]) // st), max(1, int(shape[1]) // st)
+            goal = None
+            for rad in range(1, 9):
+                ring = []
+                for dr in range(-rad, rad + 1):
+                    cols = ((-rad, rad) if abs(dr) != rad
+                            else range(-rad, rad + 1))
+                    for dc in cols:
+                        cand = (cell[0] + dr, cell[1] + dc)
+                        if (0 <= cand[0] < mr and 0 <= cand[1] < mc
+                                and cand not in nav.visits):
+                            ring.append(cand)
+                if ring:
+                    goal = min(ring, key=lambda c: (abs(c[0] - cell[0])
+                                                    + abs(c[1] - cell[1]), c))
+                    break
+            if goal is None:
+                return None
+        d = nav.step_toward(cell, goal, list(dirs))
+        return dirs.get(d) if d is not None else None
+
     def _act(
         self,
         percept: PerceptualField,
@@ -3600,6 +3783,31 @@ class CognitiveLoop:
 
         # --- 3d: Wall-avoiding exploration for movement-only games ---
         if movement_actions and self._causal_map:
+            # ═══ [NAV] FIRST ACTIVATION (movement stack, rung 0c) ═══
+            # CursorAgency confident + a target (abduced-goal site or nearest
+            # unexplored region) -> GridNav's BFS next step steers the blind
+            # draw. A BIAS under the wheel rule: blind explore stays
+            # incumbent, the steer's share is capped at NAV_BIAS_P (<=0.5,
+            # Register G GUESSED), never a veto; with no confidence this
+            # block consumes NO RNG and the path stays byte-identical.
+            try:
+                _nava = self._nav_step_action()
+                if (_nava is not None and _nava in movement_actions
+                        and random.random() < NAV_BIAS_P):
+                    self._nav_steers = int(
+                        getattr(self, "_nav_steers", 0) or 0) + 1
+                    cf.action_speed = "explore"
+                    cf.action_type = _nava
+                    cf.action_reason = "Explore: [NAV] gridnav step"
+                    cf.action_summary = (
+                        f"EXPLORE-NAV: ACTION{_nava}"
+                        f" | cell={getattr(self, '_nav_cell', None)}")
+                    print(f"[NAV] steer action={_nava} "
+                          f"cell={getattr(self, '_nav_cell', None)} "
+                          f"(p<={NAV_BIAS_P})")
+                    return _nava, None
+            except Exception:
+                _swal(self, "OTHER")
             # Filter out known walls from current position
             pos = self._agent_position
             open_dirs = []
