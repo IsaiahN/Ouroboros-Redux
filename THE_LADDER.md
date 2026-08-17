@@ -266,3 +266,26 @@ is a DEGRADED INWARD instrument (the coarsening just retired), not an outward on
 The genuinely outward object describes WHAT HAPPENED — contact, delta, what was
 conserved — cast so a fabric with different atoms can re-read it. A different
 construction, not a relaxed one. C33 §18's spec is corrected accordingly.
+
+## CORRECTION TO THE TALLY READING (same day, 2026-08-17) — the defect is QUEUE ORDER
+COMPLETION READ: 388,184 queue records; 82,301 carry a COMPLETE sigma (all 5
+invariants), 73,733 with patches; 370,829 are RAW PRE-FIX (no sigma); 640 sigma
+priority-proofs; 11,067 not_found; 5,648 declined. So characterization WORKS in volume
+— my sweeping retraction ("the description step ships a non-discriminating sigma") is
+itself RETRACTED as over-broad.
+THE ACTUAL DEFECT: the consumer drains OLDEST-FIRST at budget_n=8 through a ~370k
+PRE-CHARACTERIZATION BACKLOG. For a legacy {slot,residual,seq} record describe() can
+only recompute the frame-free subset -> fails the completeness guard by construction ->
+100% of declines are residual-side-incomplete. The 82,301 complete descriptions sit at
+the BACK: ~46,000 episodes away at 8/episode. Compounded because the FabricJanitor
+(severed #7, never constructed in production) has never compacted consumed entries, so
+the backlog only grows. RUNG 4's ZERO IS (AT LEAST PARTLY) A QUEUE-ORDER ARTIFACT.
+COULD IT HAVE BEEN OTHERWISE: yes — near-zero complete sigmas would have confirmed the
+description defect; complete sigmas among the DECLINES would have meant a matching
+problem. Volume of complete sigmas + zero of them among declines = an ORDER defect.
+CANDIDATE FIXES (sent up, not started; behavior changes): (a) drain CHARACTERIZED-FIRST
+or newest-first (one predicate at the drain site; the cheapest); (b) run the janitor to
+retire consumed/legacy entries (an ICED organ — needs the maintainer's ruling first);
+(c) a one-time archive-and-truncate of pre-fix raw records (evidence-preserving per the
+archive law). Receipt plan for (a): the drain predicate is one live call site in
+consume(), registry-linked, with an off-arm test per the ablation clause.
