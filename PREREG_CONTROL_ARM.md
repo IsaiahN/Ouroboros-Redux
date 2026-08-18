@@ -113,3 +113,54 @@ averaged**: levels per episode (capability) and levels per hour (throughput).
 PROCEDURE, NOT A VERDICT PROCEDURE** — it can rank suspects and it cannot settle one.
 Anything it surfaces owes a wider run before it is called. Stated now so a screening result
 cannot later be reported as a finding.
+
+## AMENDMENT 3 — A CONTAMINATION CAVEAT ON THE THROUGHPUT NUMBER, AND A RULING REQUEST
+(2026-08-18 11:04, Seat 2. TAG: **APPARATUS** — it changes what the arm can say.)
+
+### THE CAVEAT, AND IT LANDS ON A NUMBER I HAVE CITED SIX TIMES
+I have reported the full-vs-stripped throughput ratio repeatedly (>=74x, then ~163x) and
+**IT IS CONTAMINATED BY MY OWN LOAD.** The stripped arm ran 20:03:52-20:08:41 on a quiet
+box. **THE FULL ARM HAS RUN THROUGH AN ENTIRE DAY OF SEAT 2 ACTIVITY ON THE SAME 4 CORES**
+— a 1942-test suite (354 s), repeated targeted pytest runs, ruff, ood_lint, the
+consumption sweep, the link-3 live check, and a builder working for 40 minutes.
+**I TOLD THE BUILDER TO PROTECT THE MEASUREMENT AND THEN CONTENDED WITH IT MYSELF.**
+Evidence of the slowdown, from the log: generations 1-10 took ~6.5 h (~39 min each);
+**generation 10 -> 11 alone took ~6.8 h**, a ~10x per-generation slowdown arriving exactly
+across the window in which I was running suites.
+**THE DIRECTION OF THE ERROR IS KNOWN AND ONE-SIDED: the ratio is INFLATED.** The true
+figure is smaller than any number I have reported. **HOW MUCH SMALLER IS UNMEASURED AND I
+CANNOT RECOVER IT FROM HERE** — there is no per-process CPU accounting in the record.
+**EVERY THROUGHPUT FIGURE I HAVE QUOTED FOR THIS ARM SHOULD BE READ AS AN UPPER BOUND ON A
+CONTAMINATED MEASUREMENT, NOT AS A RATIO.**
+The capability half (levels per episode) is **UNAFFECTED** — contention changes wall-clock,
+not what the agent achieves per episode.
+
+### THE STATE, MEASURED
+r11l full arm: **generation 11 of 12, ~41% through it by log-line count** (marker at line
+7868 of 8186; gen 10->11 spanned 767 lines). Alive, not hung — one runner shows **14.6
+HOURS of user CPU**, and the 9-minute gap in log writes is a long computation, not a stall.
+Settlements in that box are only **1,257 records / 242 KiB**, so the growth tax is NOT the
+cause here — this is raw compute, consistent with the effects engine on a high-effect game.
+**AT OBSERVED RATES r11l NEEDS ROUGHLY 10 MORE HOURS.** My earlier estimate of ~2 h was
+wrong by about 5x and I am correcting it before it is relied on again.
+
+### THE RULING REQUEST
+Isaiah authorised a partial verdict "if it's taking literal hours", and I applied that to
+SKIPPING GAME 3. **KILLING r11l MID-GAME IS BEYOND WHAT WAS AUTHORISED**, and under the
+jurisdiction criterion installed today it is **APPARATUS** — it changes n and what the arm
+can say — so it is Seat 3's.
+
+**WHAT IS AVAILABLE WITHOUT r11l FINISHING:**
+  **THROUGHPUT — ALREADY SETTLED, and it does not need completion.** The stripped arm
+  finished both games in minutes; the full arm has not finished one in 15 hours. **THE
+  FULL ARM'S INCOMPLETENESS IS ITSELF THE THROUGHPUT FINDING** — subject to the
+  contamination caveat above, which bounds the magnitude but not the direction.
+  **CAPABILITY — ar25 ONLY, n=1, clean and fair** (full 19 level completions vs stripped
+  11, equal exposure, no contention). r11l capability is unavailable at unequal
+  generations: comparing 11 generations against 12 breaks the prereg's own equal-exposure
+  clause, and I will not report it.
+
+**MY RECOMMENDATION, offered as one:** stop r11l, take capability on ar25 alone at n=1 and
+say so, take throughput as settled-in-direction with the contamination caveat attached,
+and spend the 10 hours on the link-3 live check and R6 instead. **A THIRD DAY OF A
+CONTAMINATED MEASUREMENT BUYS LESS THAN THE TWO CHEAP READS IT IS BLOCKING.**
