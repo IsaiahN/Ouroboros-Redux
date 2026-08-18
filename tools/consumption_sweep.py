@@ -268,7 +268,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--strict", action="store_true",
-                    help="exit 1 on unpaired streams or MEASURED_ELSEWHERE hits")
+                    help="exit 1 on NEW unpaired streams or NEW MEASURED_ELSEWHERE hits "
+                         "(a RATCHET against tools/consumption_baseline.json, not an "
+                         "absolute bar -- see --update-baseline)")
+    ap.add_argument("--update-baseline", action="store_true",
+                    help="rewrite the baseline to today's findings. Legitimate ONLY when "
+                         "an item is deliberately accepted and recorded; shrinking it is "
+                         "the point, growing it needs a ruling.")
     args = ap.parse_args()
 
     unpaired, write_only_tables, abort_only = pass_a()
@@ -321,8 +327,41 @@ def main() -> int:
         print("only where a human said so; absence of a measurement is LATENT (unbuilt).")
         print("-" * 78)
 
-    bad = len(unpaired) + len(by.get("MEASURED_ELSEWHERE", []))
-    if args.strict and bad:
+    # ── THE RATCHET ────────────────────────────────────────────────────────────────
+    # A gate that is red on the day it is installed gets disabled within a week, and
+    # THE_LADDER's own rule is NO PERMANENT RED. So --strict fails on what is NEW against
+    # a recorded baseline, and ALSO fails when the baseline has grown stale -- an item
+    # that has since been fixed must leave the baseline, so the list can only shrink.
+    bl_path = ROOT / "tools" / "consumption_baseline.json"
+    current = sorted(set(unpaired) |
+                     {f"literal:{h['file']}:{h['name']}"
+                      for h in by.get("MEASURED_ELSEWHERE", [])})
+
+    if args.update_baseline:
+        bl_path.write_text(json.dumps({"accepted": current}, indent=2) + "\n",
+                           encoding="utf-8")
+        print(f"\nbaseline rewritten: {len(current)} accepted item(s) -> {bl_path}")
+        return 0
+
+    accepted: Set[str] = set()
+    if bl_path.exists():
+        try:
+            accepted = set(json.loads(bl_path.read_text(encoding="utf-8")).get("accepted", []))
+        except (OSError, ValueError):
+            accepted = set()
+
+    new_items = [c for c in current if c not in accepted]
+    fixed = sorted(accepted - set(current))
+
+    if not args.json:
+        print(f"\nRATCHET  accepted-baseline={len(accepted)}  current={len(current)}  "
+              f"NEW={len(new_items)}  FIXED-BUT-STILL-LISTED={len(fixed)}")
+        for c in new_items:
+            print(f"    NEW VIOLATION  {c}")
+        for c in fixed:
+            print(f"    FIXED - REMOVE FROM BASELINE  {c}")
+
+    if args.strict and (new_items or fixed):
         return 1
     return 0
 

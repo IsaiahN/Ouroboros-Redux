@@ -1,25 +1,31 @@
-# CI workflow for BitterTruth-AI
-# Runs on push/PR to main branch
-# Checks: imports, vulture dead code, basic tests
+# CI for Ouroboros-Redux.
+#
+# HISTORY, kept deliberately: until 2026-08-18 this file was inherited boilerplate headed
+# "BitterTruth-AI". It triggered only on [main, master] while every commit of this project
+# has been on v4-cold; every check ended in `|| echo` or carried continue-on-error; it
+# excluded manual_tools/ (where the orphan auditor lives); and it invoked neither the
+# wiring registry test nor the coverage diff. It was last touched 2026-02-01 by a29cb28 --
+# the same commit that severed 55 tables from their only writer. THE_LADDER rung 0c called
+# this a "CI gate" for weeks. It was not one. See HISTORY_TRACE.md sections 5 and 6.
+#
+# RULED BY ISAIAH 2026-08-18: enforce the consumption sweep here, so rung 0d stops being
+# something the seat has to remember to read.
 
 name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: ['**']
   pull_request:
-    branches: [main, master]
+    branches: ['**']
 
 jobs:
-  lint-and-test:
+  gate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -27,61 +33,33 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install vulture pytest
-          # Install project dependencies (skip torch for CI speed)
-          pip install python-dotenv aiohttp numpy pandas pydeps
+          pip install vulture pytest ruff
+          pip install python-dotenv aiohttp numpy pandas
 
-      - name: Check imports
-        run: |
-          python -c "from autonomous_evolution_runner import AutonomousEvolutionRunner; print('OK')"
-          python -c "from decision_rung_system import DecisionRungSystem; print('OK')"
-          python -c "from engines.registry import EngineRegistry; print('OK')"
+      # ── BLOCKING. These fail the build. That is the whole point of the ruling. ──
 
-      - name: Vulture dead code check
-        run: |
-          # Check core files for dead code (80% confidence threshold)
-          # Exclude deprecated/, tests/, manual_tools/
-          # Allow _prefixed names (intentionally unused params)
-          vulture \
-            engines/ \
-            core_gameplay.py \
-            decision_rung_system.py \
-            autonomous_evolution_runner.py \
-            database_logger.py \
-            vulture_whitelist.py \
-            --min-confidence 80 \
-            --ignore-names "_*" \
-            --exclude "deprecated/,tests/,manual_tools/" \
-            || echo "Vulture found potential dead code (non-blocking)"
+      - name: 'RUNG 0d - consumption sweep (BLOCKING)'
+        run: python tools/consumption_sweep.py --strict
 
-      - name: Run tests
-        run: |
-          pytest tests/ -v --tb=short || echo "Some tests failed (non-blocking for now)"
+      - name: 'RUNG 0c - wiring registry (BLOCKING)'
+        run: pytest tests/gate/test_wiring_registry.py -q
+
+      - name: 'OOD lint - no game-id leakage (BLOCKING)'
+        run: python tools/ood_lint.py
+
+      - name: 'ruff (BLOCKING)'
+        run: ruff check .
+
+      - name: 'gate suite (BLOCKING)'
+        run: pytest tests/gate -q
+
+      # ── ADVISORY. Vulture cannot see past __init__ re-exports -- that blind spot hid
+      # sequence_miner.py for months (WIRING_REGISTRY.md). It stays non-blocking BECAUSE
+      # it is known-incomplete, and manual_tools/ is NO LONGER EXCLUDED: excluding the
+      # directory that holds the orphan auditor is how the auditor itself went 195 days
+      # unnoticed as an orphan.
+      - name: 'vulture (ADVISORY - known blind spot on re-exports)'
         continue-on-error: true
-
-  vulture-strict:
-    # Strict vulture check - runs separately, doesn't block
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install vulture
-        run: pip install vulture
-
-      - name: Vulture strict check (95% confidence)
         run: |
-          vulture \
-            engines/ \
-            core_gameplay.py \
-            decision_rung_system.py \
-            --min-confidence 95 \
-            --ignore-names "_*" \
-            --exclude "deprecated/,tests/,manual_tools/"
+          vulture engines/ cognitive_loop.py cognitive_game_player.py manual_tools/ \
+            --min-confidence 80 --ignore-names "_*" --exclude "deprecated/,tests/"
