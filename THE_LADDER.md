@@ -724,3 +724,22 @@ run.** Every instrument here is one I point at myself, and the two that would ha
 automatically — CI, and a pre-commit hook that does not exist — are the two that are not
 running. **That is the seat-check gap, arriving as a concrete pair of defects rather than
 as an argument, and it stays routed upward.**
+
+### THE MECHANISM, BECAUSE INTENTION DEMONSTRABLY IS NOT ONE (2026-08-18)
+**THREE TOOLS SHIPPED WITH RUFF ERRORS IN ONE SESSION** — `norm_sweep.py` (10, red across
+6 pushed commits), `premise_pass.py` (5), `durability_test.py` (5) — **each one after I had
+recorded and fixed the previous.** The third was committed in the same command that ran the
+check: **I saw "5 fixable" in the output and committed anyway, because the check was
+printing rather than gating.**
+**INSTALLED: `.githooks/pre-commit`, activated with `git config core.hooksPath .githooks`.**
+It runs `ruff check .` and **BLOCKS THE COMMIT** on failure. **PROVEN TO FIRE** against a
+deliberately malformed file, and proven to pass on a clean tree.
+**WHY THIS AND NOT MORE CARE:** the previous two instances were both followed by a written
+resolution to be careful, and the third happened inside an hour. **A rule I break three
+times in a day while holding it in working memory is not a rule I can hold — it is a rule
+that needs a mechanism.** This is the smallest one that removes the choice.
+**AND IT IS A PARTIAL ANSWER TO THE SEAT-CHECK GAP, NOT A CLOSURE OF IT.** The hook is
+LOCAL and requires one config command, so it does not transmit to another clone; and it is
+still an instrument I pointed at myself. **The gap stays open and stays routed upward** —
+what changed is that one specific failure mode now costs me a blocked commit instead of a
+silent push.

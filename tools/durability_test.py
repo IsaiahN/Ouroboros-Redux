@@ -1,13 +1,18 @@
 """THE DURABILITY TEST. Does a COMMITTED transaction survive a hard kill WITHOUT a
 checkpoint? This gates both wal_autocheckpoint=100 and FIX #16's per-statement commit,
 because both were chosen on the belief that it does not."""
-import sqlite3, subprocess, os, sys, shutil
+import os
+import sqlite3
+import subprocess
+import sys
+
 PY, SP, N = sys.executable, os.path.dirname(os.path.abspath(__file__)), 500
 for ap in (100, 1000, 10000):
     db = os.path.join(SP, f"dur_{ap}.db")
     for ext in ("", "-wal", "-shm"):
-        if os.path.exists(db + ext): os.remove(db + ext)
-    r = subprocess.run([PY, os.path.join(SP, "writer.py"), db, str(ap), str(N)],
+        if os.path.exists(db + ext):
+            os.remove(db + ext)
+    r = subprocess.run([PY, os.path.join(SP, "_durability_writer.py"), db, str(ap), str(N)],
                        capture_output=True, text=True, check=False)
     killed = (r.returncode == 9)
     wal = os.path.getsize(db + "-wal") if os.path.exists(db + "-wal") else 0

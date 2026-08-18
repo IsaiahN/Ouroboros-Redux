@@ -1,0 +1,18 @@
+#!/bin/sh
+# SEAT 2 PROCESS FIX, 2026-08-18. Three tools shipped with ruff errors in one session --
+# norm_sweep.py (10, red for 6 pushed commits), premise_pass.py (5), durability_test.py (5)
+# -- each after recording the previous one. KNOWING A RULE AND HOLDING IT ARE DIFFERENT
+# STATES, and intention was demonstrably not the mechanism. This removes the choice.
+# Activate with:  git config core.hooksPath .githooks
+RUFF=".venv/Scripts/python.exe -m ruff"
+if [ ! -f ".venv/Scripts/python.exe" ]; then RUFF="python -m ruff"; fi
+if ! $RUFF check . >/tmp/ruff_precommit.out 2>&1; then
+  echo "=============================================================="
+  echo " PRE-COMMIT BLOCKED: ruff is not clean."
+  echo "=============================================================="
+  tail -20 /tmp/ruff_precommit.out
+  echo ""
+  echo " Fix, or bypass deliberately with --no-verify (and say so in the message)."
+  exit 1
+fi
+exit 0
