@@ -164,3 +164,49 @@ can say — so it is Seat 3's.
 say so, take throughput as settled-in-direction with the contamination caveat attached,
 and spend the 10 hours on the link-3 live check and R6 instead. **A THIRD DAY OF A
 CONTAMINATED MEASUREMENT BUYS LESS THAN THE TWO CHEAP READS IT IS BLOCKING.**
+
+## ═══ THE VERDICT — 2026-08-18. ALL THREE GAMES. FULL PREREG SATISFIED. ═══
+n = 3 games x 12 episodes x 2 arms. **AMENDMENTS 1 AND 3 ARE MOOT** — the arm completed
+r11l at 11:25:30 and sp80 at 11:49:12 without needing either. No partial was taken.
+
+### CAPABILITY — levels completed per arm, 48 sessions each
+```
+  game    STRIPPED 4474dac    FULL 112913b     result
+  ar25          11                 19          FULL +73%
+  r11l          25                 34          FULL +36%
+  sp80           0                 31          FULL, and stripped scored ZERO
+```
+**THE FULL STACK WINS ON CAPABILITY ON ALL THREE GAMES.** *Could it have been otherwise:*
+yes — the pre-committed losing condition was "stripped wins on both -> strip to the winner",
+and on sp80 the stripped comparator did not complete a single level.
+**PRE-COMMITTED BRANCH FIRED: "FULL WINS ON EITHER -> THE STACK PAYS; THE QUEUE RESUMES AS
+SEQUENCED."** Written before the numbers existed, unedited since.
+
+### AND THE STACK'S CONTRIBUTION IS SELECTIVITY, NOT ACTIVITY
+`frame_changes`: ar25 stripped 2869 vs full 2534; r11l 1875 vs 1369; sp80 1440 vs 1377.
+**THE STRIPPED ARM CHANGES MORE OF THE BOARD WHILE COMPLETING FEWER LEVELS.** Fewer
+effective actions, more progress — which is what the stack is for.
+
+### THROUGHPUT — AND MY REPORTED NUMBER WAS WRONG BY A LARGE FACTOR, THIRD CORRECTION
+r11l took **15h22m** for both arms. **sp80 took 23m42s for both arms** — same episode count,
+same box, same code. **THE DIFFERENCE IS THE WINDOW, NOT THE STACK:** r11l ran through my
+entire day of suite runs; sp80 ran in a quiet 24 minutes.
+**SO THE ">=74x, THEN ~163x" THROUGHPUT GAP I REPORTED SIX TIMES WAS ALMOST ENTIRELY MY OWN
+LOAD.** Amendment 3's caveat was right and understated it. **AND MY EXTRAPOLATION WAS WORSE
+THAN THE MEASUREMENT:** at 11:04 I estimated r11l needed ~10 more hours from generation 11.
+It finished in ~20 minutes. **I read a transient contention spike as a rising cost curve and
+projected it forward — wrong by roughly 30x**, on top of the ~5x error in the estimate
+before it. Three wrong numbers on the same quantity, all in the same direction, all mine.
+**THE THROUGHPUT BRANCH THEREFORE DOES NOT FIRE.** There is no measured throughput penalty
+once contention is removed, and the branch that was most likely to fire an hour ago is dead.
+
+### WHAT THE ARM DOES NOT SAY, AND THE LIMIT REGISTERED IN ADVANCE
+`win_detected = 0` on every arm and every game. `best_level_completions = 1` everywhere
+except stripped sp80 at 0. **NO ARM EVER WON A GAME. NO ARM EVER COMPLETED TWO LEVELS IN A
+SINGLE SESSION.** The stack beats its comparator and **both remain at zero against the
+anchor.** The stack paying for itself is not the stack working.
+AND PER AMENDMENT 2, REGISTERED BEFORE THE DELTA EXISTED: **this is a BUNDLE verdict and it
+CANNOT ATTRIBUTE.** ~15 organs won together; which one paid is unknown. The pre-committed
+unbundle order stands, and it is now a screening procedure aimed at a WINNING bundle rather
+than a losing one — which is a different use and a weaker one, because there is no longer a
+deficit to explain.
