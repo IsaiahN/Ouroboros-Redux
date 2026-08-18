@@ -1052,3 +1052,38 @@ here rather than cited from documentation.
 **NEITHER IS CHANGED THIS BEAT.** The rule is one improvement maximum and the test was it.
 The pragma change goes next beat with its own falsifier: **the same data written, verified
 byte-identically, not merely a faster clock.**
+
+### ENTRY 34a — THE IMPORT QUEUE: ARITHMETIC, NOT A BACKLOG (Seat 4's flag, run)
+Seat 4: *a queue that grows monotonically is either an unconsumed channel or a producer
+outpacing a drain, and both have been findings here.* **IT IS THE SECOND, AND THE MARGIN IS
+NOT CLOSE.**
+```
+  queue 407,283 over 8,521 sessions   ->  +47.8 records ADDED per session
+  drain: consume(..., budget_n=8)     ->   -8   consumed per episode
+  NET  +39.8 PER EPISODE, MONOTONIC, FOREVER
+  episodes to clear the backlog at 8/ep IF PRODUCTION STOPPED: 50,910
+```
+`import_queue` is NOT on the rung-0d unpaired list — **it has a real consumer at
+`cognitive_loop.py:639`. The channel is wired. THE RATE IS WRONG.** 8 out against 47.8 in
+is not a backlog that clears; it is a queue that cannot converge at any runtime.
+
+**AND A SECOND, SEPARABLE DEFECT — REACH.** `consumer.py:402`:
+`window = raws[-DRAIN_WINDOW:]`, `DRAIN_WINDOW = 512`. **Only the NEWEST 512 pending records
+are ever ranked. 406,771 RECORDS ARE OUTSIDE THE WINDOW AND ARE NEVER EXAMINED AT ALL.**
+
+**THE DESIGN NAMED THIS IN ITS OWN DOCSTRING**, and I shipped it: *"bounded by
+construction, never a whole-queue sort, so a characterized record older than the window is
+NOT promoted (that is the bound's falsifier)."* **THE BOUND'S OWN STATED FALSIFIER IS NOW
+FIRING AT 406,771 RECORDS.** It was an accepted trade — avoid an O(N) whole-queue sort — and
+the accepted cost has grown by three orders of magnitude since it was accepted.
+
+**THE TWO DEFECTS RANK, AND THE ORDER MATTERS.** **RATE IS PRIMARY**: at 8 < 47.8 the queue
+grows regardless of window size. **REACH IS SECONDARY AND SELF-RESOLVING**: once the drain
+outpaces production the queue shrinks, and when it falls below 512 the old records re-enter
+the window on their own. **So budget_n is the lever and DRAIN_WINDOW is not** — which is the
+opposite of where I would have looked, since the window is the parameter I shipped.
+
+**A READ, NOT A BUILD. NOTHING CHANGED.** `budget_n=8` goes to the premise register as
+**PREMISE MOVED** — it was chosen when the queue was small and the drain ran on a
+rate-limited online box. **TAG: SUBJECT / GROUND-GATED**, and it needs a falsifier that the
+CONSUMED RECORDS ARE HANDLED CORRECTLY at a higher rate, not merely that the queue shrinks.
