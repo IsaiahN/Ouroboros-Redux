@@ -1008,3 +1008,47 @@ A BLOCKING GATE TWO DAYS AGO AND NEVER VERIFIED IT FIRES** — *did the check th
 to block, block?* is rung 0e pointed one level in, and the answer is no. `gh` is not
 installed here, so **I cannot confirm from this box whether the workflow has ever executed,
 and that is itself the finding rather than an excuse.**
+
+## ENTRY 34 — 2026-08-18. GAMES WON: 0/25. LEVELS DELTA: 0. SWARM DOWN 193 MIN.
+
+**SCOREBOARD.** **0/25.** ar25 **L2**, 7 at L1, 17 at L0. **NO NEW DEPTH RECORD.** Sessions
+8,520 -> **8,521 (+1)**, and that one is **MINE** — the F3 baseline run I took directly
+against the real ls20 box. **THE SWARM CONTRIBUTED NOTHING BECAUSE IT WAS DOWN.**
+
+**VITALS.** atoms **1,584** (flat) · mint_verdicts **225,590** (flat) · settlements
+**529,287** (+133) · **import_queue 407,283 (+141) — STILL GROWING, STILL NOT DRAINING** ·
+rho_readings **14** (flat, still unpaired) · frontier_harvest 4,450.
+**MINT STRUCTURAL/LEXICAL SPLIT: NOT IMPLEMENTED** — my reader still does not know the field
+name and returns `{'?': 1584}`, so it prints no split rather than a wrong one. [PLAN] shadow
+vs DRIVE, seed-loads, affect sanity, lp85/ft09 debasement: **not read — they need a live
+swarm.**
+
+**HERD.** 0 supervisors, 0 procs, `status.txt` **193 min stale**. Disk **4.5 GB**, no trim.
+Swarm remains deliberately down pending the offline switch.
+
+## THE ONE IMPROVEMENT: THE DURABILITY TEST. **BOTH PREMISES SETTLED, IN OPPOSITE
+## DIRECTIONS.**
+`tools/durability_test.py` — a child commits 500 rows under production pragmas then dies by
+`os._exit(9)`: no close, no atexit, no forced checkpoint. Parent reopens and counts.
+```
+  autocheckpoint=100     hard-killed  WAL left   412,032 B   rows 500/500  ALL SURVIVED
+  autocheckpoint=1000    hard-killed  WAL left 2,220,712 B   rows 500/500  ALL SURVIVED
+  autocheckpoint=10000   hard-killed  WAL left 2,220,712 B   rows 500/500  ALL SURVIVED
+```
+**CHECKPOINT FREQUENCY DOES NOT DECIDE SURVIVAL OF COMMITTED DATA. IT DECIDES WAL SIZE —
+412 KB against 2.2 MB, a 5.4x difference — AND THEREFORE REPLAY TIME ON REOPEN.** Measured
+here rather than cited from documentation.
+
+**THE TWO MECHANISMS SEPARATE CLEANLY, WHICH IS WHAT THE TEST WAS FOR:**
+  **`wal_autocheckpoint=100` — ITS STATED RATIONALE IS RETIRED.** *"Prevent data loss on
+  force-close"* is not what the setting does. What it buys is a 5.4x smaller WAL and a
+  shorter replay, **at a measured 277x write cost.** That is now a legitimate change
+  candidate on an honest trade rather than a safety requirement.
+  **`FIX #16` (commit per write statement) — ITS RATIONALE STANDS.** An UNCOMMITTED write is
+  lost either way, so committing often genuinely does buy durability. **The transaction
+  boundary at the decision remains a real trade — lose up to one decision's writes on a
+  kill, for 8.8x fewer flush triggers — and is NOT retired by this result.**
+
+**NEITHER IS CHANGED THIS BEAT.** The rule is one improvement maximum and the test was it.
+The pragma change goes next beat with its own falsifier: **the same data written, verified
+byte-identically, not merely a faster clock.**
