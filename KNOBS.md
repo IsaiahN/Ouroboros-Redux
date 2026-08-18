@@ -461,3 +461,20 @@ COUNT, NOT A GRID SIZE. The grid is 64x64 and ar25 L2 holds 553 DISTINCT tried c
 argument does not apply to these numbers. **F-5 LEVEL-MIXING REMAINS SEPARATELY OPEN AND
 UNADDRESSED** — the prereg named it as the fallback explanation and the count did not
 show it, which is not the same as its absence.
+
+### A14d — THE GENUS HAS A LIVE SECOND INSTANCE, AND IT IS QUEUED AS V2
+The new ledger-layer genus (a fix that destroys the record of the thing it fixed) is not
+confined to G23. **THE JANITOR IS THE SAME SHAPE, WAITING.** janitor.py:64 SETTLE_KEEP=100
+folds the settlements stream down to its last 100 records. So ask the detector's question
+of that ledger: WHAT ELSE IS THE SETTLEMENTS STREAM ANSWERING?
+  - affect's mint_bar (the intended consumer, needs 20 — safe)
+  - EVERY cross-episode verification reading: "do atoms reach the bar AND STAY THERE
+    ACROSS EPISODES" is rung 3, and it is a question about THE HISTORY, not the tail
+  - the 141,589-rederivation split, still unread
+  - efficiency-to-reference, which reads settled outcomes over time
+**COMPACTING TO 100 WOULD ANSWER THE PERFORMANCE QUESTION AND DELETE RUNG 3.** This does
+not overturn V2 (it stays Isaiah's verdict — it is destructive, live, and at-stake) but it
+SHARPENS WHAT THE VERDICT IS ABOUT: not "is it safe to delete" but "which questions is this
+ledger the only witness for, and are they preserved". The janitor must fold to a SUMMARY
+that keeps the per-episode aggregates, not to a TAIL that keeps the last 100 rows.
+RECORDED BEFORE THE RULING RATHER THAN AFTER, because after is when it is unrecoverable.

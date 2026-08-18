@@ -91,3 +91,5 @@ The diagnostic rungs are readings of specific steps. Stated so a first-wrong-run
 **Run the guaranteed-number test on every zero, including the welcome ones.** *Could this have been anything else?* The test gets applied to numbers arriving as claims and skipped on numbers arriving as relief.
 
 **A new instrument's first output is a claim about the instrument, not about the system.**
+
+**Before shipping any normalisation, dedup, compaction or truncation, ask what else the ledger is answering.** A fix correct for one question can delete, at source, the evidence for another the same ledger was carrying — invisible before the fix and unrecoverable after.

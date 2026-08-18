@@ -177,6 +177,18 @@ Four shapes catalogued from instances rather than derived, plus one at the docum
 
 **And at the document layer: a rule that is derivable and never derived.** A reader who does not run the derivation does not hold the rule, and an operating rule nobody derives is a rule nobody follows.
 
+**And a fifth, at the ledger layer: a fix that destroys the record of the thing it fixed.**
+*(Named by Seat 4, 2026-08-18, from the G23 instance.)* Not produced-and-unread — the
+opposite. A correction that is right for the question it was asked and that removes, at
+source, the evidence for a second question the same ledger was answering. The dedup was
+correct for the census and it deletes the re-probe count, so the behaviour defect becomes
+**unmeasurable after the fix lands**. It only appears where two questions share one ledger,
+and it is invisible before the fix and unrecoverable after.
+**DETECTOR, and it is one question asked before shipping any normalisation, dedup,
+compaction or truncation: WHAT ELSE IS THIS LEDGER ANSWERING?** If nothing, ship. If
+something, the fix must PRESERVE THE DISCARDED QUANTITY rather than drop it — bank the
+count, not the deduplicated set.
+
 **Two standing checks fall out.** Before concluding a channel is starved, verify something reads it — starvation and non-consumption are indistinguishable from the producer's side. And run the guaranteed-number test on every zero including the welcome ones: the test gets applied to numbers arriving as claims and skipped on numbers arriving as relief.
 
 ---
