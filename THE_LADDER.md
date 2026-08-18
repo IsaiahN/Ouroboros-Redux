@@ -670,3 +670,37 @@ siblings.** That is the general form, and it is what would catch the next one.
 dates, and if any of those 14 were pre-existing and merely REPORTED during the window, the
 density-versus-detection elimination weakens. **The number my whole claim rests on is the
 one I have not checked.**
+
+## RUNG 0e INSTALLED — THE RECORD (2026-08-18, canonical)
+**0e · THE RECORD. Did the run that was supposed to publish, publish?**
+Sits with the other PRECONDITIONS (0b exposure, 0c wiring, 0d consumption) rather than in
+the stage list, and for the same reason: **a system whose record never reaches the outside
+is one whose readings are PRIVATE**, and nothing below 0e is interpretable as a public claim.
+**THE RECEIPT IS THIS PROJECT: scorecards went unpublished for two weeks with EVERY INWARD
+INSTRUMENT REPORTING GREEN.** `close_scorecard` defined at three layers, called by nothing
+on the live path, and an unclosed scorecard never publishes.
+**THE GENERAL LAW BEHIND IT: EVERY INSTRUMENT POINTS INWARD UNLESS ONE IS BUILT TO POINT
+OUT.** Wiring, consumption and behaviour are all read from inside; whether the thing that
+was supposed to reach the outside arrived is read by nothing.
+
+## THE GENUS NOW HAS THREE DEGREES — "BUILT, PLUMBED, NEVER CALLED"
+Canonised into the seat map, and this project supplied one instance of each:
+  **1 · A SWITCH NEVER SET** — a default nobody chose. `os.getenv('OPERATION_MODE','NORMAL')`
+      with `OPERATION_MODE` set nowhere. Cost: the entire project ran rate-limited against a
+      600/min API while an offline mode ~1,000x faster sat plumbed and unused.
+  **2 · AN ORGAN NEVER CALLED** — `close_scorecard`, defined at three layers, each calling
+      only the layer beneath, and nothing in the live path calling any of them.
+  **3 · KNOWLEDGE WRITTEN DOWN AND HALF-APPLIED** — `_get_frame_array` applied to `pre` and
+      not to `post`, in a function whose own docstring documents that exact case.
+**THE THIRD IS WORST BECAUSE NOBODY CAN ARGUE THE KNOWLEDGE WAS ABSENT.** It was present,
+recorded, and applied to one side.
+
+## AND THE OBSERVER'S DEFECT CROSSES SEAMS — STRUCTURAL, NOT A ONE-OFF
+**A wrong instrument does not only produce a wrong number; IT RE-PRIORITISES ANOTHER SEAT'S
+BOARD.** A seat with no independent access must take an instrument's output AS GIVEN, so a
+manufactured candidate arrives as data and gets ranked against everything else.
+**RECEIPT: my norm-sweep substring-matched `'pre'` inside `'predicted'` and manufactured a
+`_grid_residual` candidate. Seat 4 ranked it THE HIGHEST-VALUE ITEM ON THE BOARD** — correct
+reasoning on a manufactured input. **THE FAILURE PROPAGATES TO EXACTLY THE POSITION THAT
+CANNOT AUDIT IT**, which is why this belongs in the map as a property of Seat 4's access
+rather than as a mistake someone made once.

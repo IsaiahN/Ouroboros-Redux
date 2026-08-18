@@ -177,7 +177,11 @@ Four shapes catalogued from instances rather than derived, plus one at the docum
 
 **Produced, recorded, and not read.** A stream with a writer and no consumer; a decision made on a constant while the measured value sits unread one call away. **This is the one found last**, because the evidence exists and so nothing looks missing. Its weak form is a reader that only aborts and never decides.
 
-**The observer's defect.** The instrument itself carrying the genus it was built to catch. A new instrument's first output is a claim about the instrument, not about the system.
+**Built, plumbed, never called.** The sharpest form, and the one that survives longest: a capability complete, parameterised, threaded through every call site, with the switch never thrown. Three degrees of it — **a switch never set** (a default nobody chose, `os.getenv(X, DEFAULT)` where nothing sets X); **an organ never called** (a function defined at three layers, each calling the one beneath, and nothing in the live path calling any of them); and **knowledge written down and half-applied** (a normaliser written for a case, documenting that exact case in its own docstring, applied to one side of a pair). The third is worst, because nobody can argue the knowledge was absent.
+
+**The observer's defect.** The instrument itself carrying the genus it was built to catch. A new instrument's first output is a claim about the instrument, not about the system — and a known-positive fixture proves sensitivity, never specificity. Both are required.
+
+**And the observer's defect crosses seams.** A wrong instrument does not only produce a wrong number; it re-prioritises another seat's board. A seat with no independent access must treat an instrument's output as given, so a manufactured candidate arrives as data and gets ranked against everything else. The failure propagates to exactly the position that cannot audit it.
 
 **And at the document layer: a rule that is derivable and never derived.** A reader who does not run the derivation does not hold the rule, and an operating rule nobody derives is a rule nobody follows.
 
@@ -196,6 +200,10 @@ count, not the deduplicated set.
 **And one at the output layer: a mode stated as a verdict.** Where quantities are unmeasured, the notation still demands them and a reader supplies them. An estimate labelled *accepted* claims a settlement that did not occur, and the formalism makes it look rigorous. The modes are general, specified, and grounded; each is legitimate and the mode must be stated. An unmeasured quantity is a specification of what to measure and is worth having — it is not a verdict.
 
 **A room does not upgrade the label.** A room reaching a conclusion without the ground is agreement, and agreement among frames is a weighted average of influence. Adding people raises the vocabulary and does not add an anchor.
+
+**Every instrument points inward unless one is built to point out.** Wiring, consumption and behaviour are all read from inside; whether the record that was supposed to reach the outside arrived is read by nothing. That channel can fail silently for weeks with every internal instrument reporting green.
+
+**And a falsifier written before the run is a design instrument, not only an honesty device.** Stating what failure looks like surfaces constraints the design does not, and the constraint arrives as a change to the experiment rather than as a note about it.
 
 **Two standing checks fall out.** Before concluding a channel is starved, verify something reads it — starvation and non-consumption are indistinguishable from the producer's side. And run the guaranteed-number test on every zero including the welcome ones: the test gets applied to numbers arriving as claims and skipped on numbers arriving as relief.
 

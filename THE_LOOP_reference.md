@@ -94,6 +94,7 @@ The diagnostic rungs are readings of specific steps. Stated so a first-wrong-run
 | 0b · exposure | — | how many cycles ran at all |
 | 0c · wiring | — | which organs are on a live path |
 | 0d · consumption | — | does a live reader change behaviour, not merely abort |
+| 0e · the record | — | did the run that was supposed to publish, publish |
 | 1 · residual | **1** | is R non-zero and localised per slot |
 | 1b · characterisation | **1 → 2** | do drained records carry σ, or is R named rather than described |
 | 2 · mints | **3** | offers, and the reject-reason distribution |
@@ -156,7 +157,13 @@ So the two halves compose rather than compete: **the prediction says where to po
 
 **Run the guaranteed-number test on every zero, including the welcome ones.** *Could this have been anything else?* The test gets applied to numbers arriving as claims and skipped on numbers arriving as relief.
 
-**A new instrument's first output is a claim about the instrument, not about the system.**
+**A new instrument's first output is a claim about the instrument, not about the system.** A known-positive fixture proves sensitivity and says nothing about specificity — it shows the instrument can fire, not that it does not over-fire. Both are required, and the known-negative is pinned by name.
+
+**Every instrument points inward unless one is built to point out.** The registry checks wiring, the sweep checks consumption, the rungs read the agent's own machinery, and nothing reads the public record. Rung 0e exists because scorecards went unpublished for two weeks with every inward instrument reporting green.
+
+**And a falsifier written before the run is a design instrument, not only an honesty device.** Stating what failure looks like surfaces constraints the design does not: a winner-overlap statistic at population 6 is 5-of-6 by construction, would have read as stability from pure noise, and the requirement to raise the population came out of writing the losing condition rather than out of designing the experiment.
+
+**A report carrying a number carries its n, its population, and its as-of** — or says which of the three the record cannot supply. That third branch is not an escape hatch; *the harvest record has no time field* is itself a finding, and it was one twice.
 
 **Before shipping any normalisation, dedup, compaction or truncation, ask what else the ledger is answering.** A fix correct for one question can delete, at source, the evidence for another the same ledger was carrying — invisible before the fix and unrecoverable after.
 
