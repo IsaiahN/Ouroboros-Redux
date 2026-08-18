@@ -803,3 +803,43 @@ falsifier baseline is locked at **0 `levelup_frames` records above level 1** acr
 swarm, and the link-3 hook (shipped as a CANDIDATE, gate-passed, ground-unsettled) must
 produce one. That is now running as a consequence of the restart rather than as a separate
 build.
+
+### ENTRY 30a — WHAT SWARM MODE ACTUALLY IS, MEASURED (2026-08-18, Isaiah's question)
+*"a game takes seconds to complete offline, and 25 games could be done in less than 3
+minutes most likely so im curious whats actually being done"*
+
+**IT IS NOT OFFLINE. EVERY ACTION IS A LIVE ARC API ROUND-TRIP.** The arm log carries
+`Created new scorecard: ...` and `Successfully fetched metadata for game r11l`; the client
+is `arc_api_client.py` over aiohttp, and `arc_api_adapter.py:277 step(action)` returns one
+Observation per action. So the loop is network-bound per action, not compute-bound offline.
+
+**AND IT IS NOT PLAYING 25 GAMES. IT IS RUNNING 25 CONCURRENT SEARCHES.** Each worker is
+pinned to ONE game and plays it repeatedly: **ar25's worker.log carries 256 episode
+boundaries**, and **533,717 ACTION lines are banked across the 25 workers**. Right now ar25
+is live at **`levels=2/8`, action 122, budget `G:365/1788`.** The unit of work is not "a
+game", it is "an episode", and the point of the swarm is accumulation across hundreds of
+them.
+
+**AND THE MEASUREMENT THAT MATTERS: THE BOX IS 13x OVERSUBSCRIBED.**
+```
+  52 python processes (25 games x 2 + supervisor pair) on 4 LOGICAL CORES
+  workers writing within  30 seconds:  0 of 25
+                           2 minutes:  1 of 25
+                           5 minutes:  4 of 25
+                          15 minutes: 17 of 25
+```
+**A WORKER PRODUCES OUTPUT ROUGHLY ONCE EVERY TEN TO FIFTEEN MINUTES.** My own 25-file
+`stat` loop TIMED OUT AT FIVE MINUTES against this load, which is a second reading of the
+same fact.
+
+**SO THE ANSWER TO "WHY NOT 3 MINUTES" IS FOUR THINGS, IN ORDER OF SIZE:** (1) the agent
+does not know the solution and is searching, not replaying; (2) each action is a network
+round-trip; (3) an episode is up to ~1788 actions on ar25, not a handful; (4) **25 workers
+share 4 cores, so each runs at roughly 1/13 speed.**
+
+**AND THE QUESTION THAT FALLS OUT, WHICH IS SEAT 3's (TAG: APPARATUS).** Total throughput
+is capped at 4 cores either way, so 25-way parallelism does not buy more actions per
+second — **it buys 25 shallow searches instead of 4 deep ones, and it makes every worker's
+learn->bank->seed->improve cycle ~13x slower.** Learning is SEQUENTIAL inside a worker.
+**WHETHER 25 PINNED WORKERS BEATS A SMALLER POOL ON THIS BOX HAS NEVER BEEN MEASURED**, and
+it is the same shape as the control arm question one level up. Named, not started.
