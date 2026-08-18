@@ -116,3 +116,23 @@ not this build's.
 | marketplace-iced | engines.egocentric.pricing:Marketplace | engines/egocentric/pricing.py:65 | SEVERED | 2026-08-16 | iced BY DESIGN (C33 step 1: bets drive nothing); informative_salience is the live half (pricing-salience row) |
 | pricing-hypothesis | engines.egocentric.pricing:Hypothesis | engines/egocentric/pricing.py:33 | SEVERED | 2026-08-16 | helper of the iced marketplace |
 | pricing-resolution | engines.egocentric.pricing:Resolution | engines/egocentric/pricing.py:59 | SEVERED | 2026-08-16 | helper of the iced marketplace |
+
+## SEQUENCE_MINER — THE RE-EXPORT BLIND SPOT, SECOND INSTANCE (2026-08-17, Seat 2)
+STATUS: SEVERED. engines/planning/sequence_miner.py, 26,790 bytes.
+Receipt: engines/planning/__init__.py:5 re-exports SequenceMiner; NO OTHER REFERENCE
+EXISTS IN THE REPOSITORY. `SequenceMiner(` appears ZERO times — production AND tests.
+WHAT IT CONTAINS: compute_level_breakpoints() (:76), backfill_level_breakpoints()
+(:143-181), MiningResult.level_breakpoints_computed (:50), and the schema column
+level_breakpoints TEXT (complete_database_schema.sql:5363).
+LIVE DATA: winning_sequences with a populated level_breakpoints = 0, in EVERY box
+checked (ar25 3 sequences, cd82 5, bp35 0). The field has never been written.
+WHY THIS ROW MATTERS MORE THAN THE OTHER 23 SEVERED ROWS: this is the organ that
+would have prevented the replay defect. The distinction between "these actions solved
+THIS board" and "these actions reach where I was" was ANTICIPATED, IMPLEMENTED IN FULL,
+RE-EXPORTED, AND NEVER CALLED ONCE. It is not schema-as-intention; it is
+MACHINERY-as-intention.
+AND IT IS THE SAME TRAP TWICE: the wiring registry gate was written specifically to
+close the __init__ re-export blind spot ("the re-export hid it from vulture", feb7e26).
+This organ sits behind that exact blind spot and was not caught, because the registry
+covers engines/egocentric/ and sequence_miner.py lives in engines/planning/.
+THE SCOPE RATIO IS NOT AN ABSTRACTION — IT IS WHY THIS ONE WAS MISSED.
