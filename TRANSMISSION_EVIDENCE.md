@@ -75,3 +75,45 @@ Transmissibility readings get reported ALONGSIDE gameplay readings, mode-declare
 same format. Not a new instrument — a consumer for one that has been writing all along.
 THE STANDING QUESTION, asked of each beat: **did anything transmit, or did something
 merely comply?** Compliance is the null result and must be reported as one.
+
+---
+
+## ADDENDUM, SAME BEAT, ~4 MINUTES AFTER THE ABOVE WAS WRITTEN
+
+**I VIOLATED MY OWN SERIALIZATION RULE WHILE COMMITTING THE DOCUMENT THAT ASKS WHETHER
+RULES ARE HELD OR MERELY COMPLIED WITH.**
+
+WHAT HAPPENED: `git add -A` with a builder running in the same working tree. Commit
+`7a9ad1a` — whose message describes a documentation reading — actually contains **1,081
+insertions across `cognitive_loop.py`, `cognitive_game_player.py`,
+`engines/egocentric/goal_abduction.py`, a 640-line gate test and a 173-line tool.** All of
+it IN-FLIGHT AND UNVERIFIED: no gate run, no falsifier check, neither pre-committed
+falsifier evaluated. It is pushed.
+
+**THE RECORD IS THEREFORE FALSE IN TWO WAYS** and both are stated here rather than
+quietly amended: the commit message misdescribes its own contents, and unverified code
+sits in history in a position that reads as shipped. **THE CODE IN 7a9ad1a IS A CANDIDATE
+AT BEST AND MOST LIKELY INCOMPLETE.** It is not a build, it has not passed anything, and
+nothing should be read off it.
+
+**THE REMEDY IS TO DO NOTHING TO THE TREE.** A revert or reset would clobber a builder
+that is still working in these exact files (`tools/link3_live_check.py` was modified again
+after the commit). The correct action is to leave the working tree alone, record the
+defect, and let the verified build land as its own commit when the builder reports and I
+have actually checked it.
+
+**RULE TIGHTENED — and note that the previous form of it was already known and still
+failed:** `git add -A` IS BANNED WHILE ANY BUILDER IS RUNNING. Explicit paths only. The
+old rule was "do not move HEAD under a builder", which I read as being about the builder's
+safety; it is also about THE HONESTY OF THE RECORD, and that half is what I did not hold.
+
+**AS EVIDENCE FOR THE QUESTION THIS DOCUMENT IS ABOUT, IT IS WORTH MORE THAN ANYTHING
+ELSE IN IT.** I AUTHORED this rule, after committing under a builder once before. I wrote
+the document naming compliance-without-holding as the sharpest transmission failure in the
+record. **I then failed to hold it within four minutes, in the same commit.** Not
+ignorance, not disagreement, not a missing rule — a rule authored, documented, previously
+violated, and still not held under routine action. That is the fifth genus with the author
+as the subject, and it says something the builder data could not: **THE FAILURE IS NOT IN
+THE TRANSMISSION. IT IS THAT HOLDING A RULE AND KNOWING ONE ARE DIFFERENT STATES, AND
+NOTHING IN THIS ARRANGEMENT CURRENTLY DISTINGUISHES THEM FOR THE SEAT THAT WRITES THEM.**
+The builders at least have a brief that can ask them to derive. I have nothing asking me.
