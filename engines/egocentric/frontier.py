@@ -12,10 +12,34 @@ the loop it advises.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Set, Tuple
+import os
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 TOPIC = "frontier_paths"
 HARVEST_TOPIC = "frontier_harvest"
+
+# ── DEAD-CELL DEDUP (PREREG_DEAD_DEDUP.md; audit F-3) ────────────────────────
+# The dead set is documented as ">=2 INDEPENDENT RECORDS"; the code counted per
+# LIST ENTRY and the caller banked the per-episode list verbatim, so ONE episode
+# clicking a cell twice blacklisted it forever (live ar25 L2: 163 as coded vs 41
+# as documented; nothing decays it). The fix counts DISTINCT RECORDS at BOTH
+# ends -- write (one episode = one report per cell) and read (already-banked
+# history corrected AT READ TIME, no stored evidence deleted or rewritten).
+# The >=2 THRESHOLD is untouched (KNOBS F8: evidence semantics, not a dial).
+# KNOBS G23 (Register G, GUESSED): env DEAD_DEDUP outranks this module flag;
+# 0/false/no/off/empty reproduces per-entry counting byte-identically.
+DEAD_DEDUP = True
+_OFF_WORDS = ("0", "false", "no", "off", "")
+
+
+def _dead_dedup_enabled() -> bool:
+    """The toggle, read at every write and every read: the DEAD_DEDUP
+    environment variable when set (0/false/no/off/empty => the off-arm),
+    else the module flag."""
+    raw = os.environ.get("DEAD_DEDUP")
+    if raw is None:
+        return bool(DEAD_DEDUP)
+    return str(raw).strip().lower() not in _OFF_WORDS
 
 # ── B2 (BUILD_PROGRAM_2 W1): movement-affordance bias constants ──────────────
 MOVE_KIND = "move"    # the discriminator riding the SAME harvest stream
@@ -109,12 +133,30 @@ class FrontierBook:
         """Bank one episode's frontier experience (PREREG_FRONTIER_HARVEST.md):
         dead cells (clicked, no effect), effect cells (clicked, frame changed),
         the fatal cell if the episode died, and the established action->delta
-        map. Observations, never signal -- nothing here opens the wheel."""
+        map. Observations, never signal -- nothing here opens the wheel.
+
+        THE WRITE HALF OF THE DEDUP (PREREG_DEAD_DEDUP.md): the dead list is
+        reduced to DISTINCT cells in FIRST-SEEN ORDER (deterministic), so one
+        episode contributes AT MOST ONE dead report per cell. Effects, fatal and
+        deltas are banked verbatim -- this build touches the dead list only.
+        DEAD_DEDUP=0 banks the list verbatim, byte-identically to the pre-fix
+        code."""
         try:
+            _dead: List[List[int]] = [[int(c[0]), int(c[1])]
+                                      for c in (dead or [])]
+            if _dead_dedup_enabled():
+                _seen: Set[Tuple[int, int]] = set()
+                _kept: List[List[int]] = []
+                for _c in _dead:
+                    _t = (_c[0], _c[1])
+                    if _t not in _seen:
+                        _seen.add(_t)
+                        _kept.append(_c)
+                _dead = _kept
             self.fabric.append("collective", HARVEST_TOPIC, {
                 "game": str(game),
                 "level": int(level),
-                "dead": [[int(c[0]), int(c[1])] for c in (dead or [])],
+                "dead": _dead,
                 "effects": [[int(c[0]), int(c[1])] for c in (effects or [])],
                 "fatal": ([int(fatal[0]), int(fatal[1])]
                           if fatal is not None else None),
@@ -167,11 +209,21 @@ class FrontierBook:
         fatal are unions; dead is CONSERVATIVE (reported dead in >=2 independent
         records AND never in any effects list -- an effect report always wins);
         tried is the union of every reported cell; deltas keep the first-seen
-        value per action in record order (deterministic)."""
+        value per action in record order (deterministic).
+
+        THE READ HALF OF THE DEDUP (PREREG_DEAD_DEDUP.md): "independent" is
+        counted in DISTINCT RECORDS -- a cell repeated inside ONE record is ONE
+        report, however many times it appears. This corrects the history ALREADY
+        BANKED (the pre-fix records that banked per-episode lists verbatim)
+        AT READ TIME: nothing on disk is deleted or rewritten (the archive law --
+        evidence is added, never replaced). The >=2 threshold and the
+        effects-outrank-dead rule are UNCHANGED. DEAD_DEDUP=0 restores per-entry
+        counting exactly."""
         empty: Dict[str, Any] = {"dead": set(), "effects": set(), "fatal": set(),
                                  "tried": set(), "deltas": {}}
         try:
             g, lv = str(game), int(level)
+            per_record = _dead_dedup_enabled()
             dead_counts: Dict[Tuple[int, int], int] = {}
             effects: Set[Tuple[int, int]] = set()
             fatal: Set[Tuple[int, int]] = set()
@@ -180,9 +232,14 @@ class FrontierBook:
                     "collective", HARVEST_TOPIC,
                     where=lambda r: (r.get("game") == g and r.get("level") == lv
                                      and r.get("kind") != MOVE_KIND)):
+                seen_here: Set[Tuple[int, int]] = set()
                 for c in rec.get("dead") or []:
                     if len(c) == 2:
                         cell = (int(c[0]), int(c[1]))
+                        if per_record:
+                            if cell in seen_here:
+                                continue      # one record = one report per cell
+                            seen_here.add(cell)
                         dead_counts[cell] = dead_counts.get(cell, 0) + 1
                 for c in rec.get("effects") or []:
                     if len(c) == 2:

@@ -71,3 +71,17 @@ testimony, settlements, verdicts, books. NONE of them read THE WORLD. One instru
 replay against the frames produced three defects that months of log-reading missed,
 because the missing information was never in the logs to be read. THE GROUND HAS A
 CHANNEL AND WE HAD NEVER OPENED IT.
+
+## 7. CORRECTION TO SECTION 4 (Seat 2, same day, from the swarm-wide census)
+Section 4 said the board "is saying ACTION6 does nothing here AT ALL, and it has said so
+for 492 consecutive trials." THE SECOND HALF IS TRUE OF THE EPISODE AND FALSE OF THE
+LEVEL. An independent census of the live books (own reader, frontier.py never imported)
+finds ar25 L2 holds 553 distinct tried cells and 29 cells THAT HAVE PRODUCED EFFECTS.
+So ACTION6 is not inert at ar25 L2 — it is STATE-CONDITIONAL: it did nothing in all 492
+trials of THAT episode, and has done something 29 times in others.
+This makes the defect WORSE, not milder. A per-coordinate permanent blacklist cannot
+express "this click works only when <precondition>"; neither can a per-action rule. The
+missing dimension is the PRECONDITION, and the board publishes one (section 2: the clock
+gates whether an action can be effectful at all). 45 clicks x 0 effects while 29 cells
+are known-live elsewhere is exactly the signature of a precondition the model has no slot
+for — the same shape as the clock, one level up.

@@ -44,6 +44,13 @@ G22 CORPSE GUARD: CORPSE_GUARD=True [GUESSED] — the salient-prefix death guard
     OUTCOME was `died`). Env CORPSE_GUARD outranks the class flag
     CognitiveGamePlayer.CORPSE_GUARD; =0/false/no/off restores pre-guard banking AND
     selection byte-identically. Amendment 11. (cognitive_game_player.py)
+G23 DEAD DEDUP: DEAD_DEDUP=True [GUESSED] — the frontier dead-cell counting UNIT:
+    DISTINCT RECORDS (one episode = one report per cell) instead of list entries, at
+    BOTH ends (record_harvest dedups before banking; load_harvest counts per record,
+    correcting already-banked history at READ time). Env DEAD_DEDUP outranks the module
+    flag frontier.DEAD_DEDUP; =0/false/no/off/empty restores per-entry counting
+    byte-identically on BOTH ends. NOT F8: the >=2 THRESHOLD is untouched — this fixes
+    what counts as ONE report. Amendment 12. (engines/egocentric/frontier.py)
 G21 RANKED DRAIN: DRAIN_WINDOW=512 [GUESSED] newest pending records ranked per pass;
     key [GUESSED] = (1) CHARACTERIZED FIRST (all 5 INVARIANTS present)
     (2) LARGEST RESIDUAL (3) RECENCY. Toggle DRAIN_RANKED (env outranks the
@@ -276,3 +283,59 @@ A11-4 NOT A KNOB, recorded so it is not mistaken for one: the OUTCOME VOCABULARY
    INEXPRESSIBLE-STATE GENUS, logged rather than hidden. Only `died` is load-bearing
    today (it is the only value that refuses selection), so the conflation costs nothing
    until someone asks how often replays merely fizzle; splitting it needs its own prereg.
+
+## AMENDMENT 12 (2026-08-17): THE DEAD DEDUP (G23) — a UNIT correction, not a threshold
+A12-1 DEAD_DEDUP = True (engines/egocentric/frontier.py). Provenance: GUESSED, Register
+   G, arm-testable. WHAT IT IS NOT: it does not touch F8. F8 freezes the RULE (">= 2
+   independent reports"); this fixes the UNIT that rule was being applied to — the code
+   counted LIST ENTRIES and the caller banked the per-episode dead list verbatim, so
+   one episode clicking a cell twice satisfied "two independent reports". The threshold
+   stays 2; what changed is what counts as ONE. Registering the distinction here because
+   an F-row and a G-row over the same sentence is exactly how a frozen rule gets tuned
+   by accident.
+A12-2 THE MEASURED HARM (audit F-3, PREREG_DEAD_DEDUP.md): live ar25 level 2 —
+   dead(as coded)=163 vs dead(as documented)=41. 122 cells (75% of the blacklist) were
+   eliminated by WITHIN-EPISODE repeats, and nothing decays it (no recency term, the
+   janitor has never run), so the elimination was MONOTONE across every future episode
+   and every recycle.
+A12-3 BOTH ENDS, BY THE ARCHIVE LAW: the WRITE fix alone would only correct FUTURE
+   records, leaving the ~370k already banked inflated forever; a rewrite of those
+   records would violate the evidence-only-added law. So the READ side counts distinct
+   records — the correction is applied at load time and NOTHING on disk is deleted or
+   rewritten. Consequence to state plainly: the two ends must be toggled TOGETHER (one
+   flag, both sites), or a mixed arm would measure neither counting rule.
+A12-4 THE OFF-ARM IS THE RECEIPT (CLAIM.md's ablation constraint): env DEAD_DEDUP
+   outranks the module flag; 0/false/no/off/empty reproduces per-entry counting
+   BYTE-IDENTICALLY at BOTH ends — the banked record bytes equal a literal pre-fix
+   append, and the returned dead set equals the literal pre-fix computation. Shipped as
+   PASSING tests (tests/gate/test_dead_dedup.py::TestTheOffArm), not an intention.
+A12-5 REGISTERED VERDICT (PREREG_DEAD_DEDUP.md): ar25 L2 dead falls from 163 toward the
+   documented 41 (READ-ONLY RECOMPUTE ON THE LIVE BOOKS AT SHIP: 163 -> 41 exactly, on
+   the 32 L2 records in .runs/swarm/ar25/ego_fabric; L1 13 -> 12, L0 40 -> 35). READ
+   WITH ITS LIMIT, so the welcome number gets the same check as an unwelcome one: hitting
+   41 says the COUNT has no residual, NOT that F-5 level-mixing is absent — a cell
+   clicked during the L0 phase of one episode and the L1 phase of another is still banked
+   into two distinct L2 records and is still dead under the corrected rule. F-5 is
+   untouched and remains the next single. LOSING CONDITION, stated: if the live
+   dead count does not move at all, the counting was not the inflation source — REVERT,
+   do not re-tune. NOT-MEASURED CONDITION: a beat below rung-0b's MIN_EXPOSURE floor
+   reads UNMEASURED, never "no effect".
+A12-6 NOT A KNOB, recorded so it is not mistaken for one: DEDUP IS NOT DECAY. A cell
+   dead in two genuinely different episodes is still dead FOREVER — F-4 (a cell inert in
+   board config A and load-bearing in config B) and F-5 (per-episode lists never reset on
+   level change) are untouched by this build and remain open.
+
+### A12-7 (Seat 2, independent verification of G23, 2026-08-17)
+The builder reported ar25 only. A Seat-2 census over ALL 27 (box, game, level) harvest
+partitions — own reader, frontier.py never imported — REPRODUCES ar25 EXACTLY
+(L2 163->41, L1 13->12, L0 40->35) and gives the swarm-wide figure the build did not:
+  DEAD CELLS, PER-ENTRY -> PER-RECORD, ALL BOXES: 743 -> 454 (-289, -38.9%)
+  worst inflators: ar25 L2 163->41 (4.0x) | lp85 L1 158->92 | sb26 L0 107->48 |
+                   sk48 L0 78->62 | ft09 L0 88->76
+  ELEVEN partitions are unaffected because they bank ZERO dead cells despite large
+  record counts (bp35 460 recs, s5i5 248, vc33 248, sc25 238, lf52 221, tn36 179,
+  r11l 161+21, sp80 106+35, dc22 90, ka59 134). r11l L1 alone: 1669 effects, 0 dead.
+=> THE INFLATION IS NOT UNIFORM AND NEITHER IS THE REGIME. Half the swarm never
+blacklists a cell at all; the fix only bites where clicking is mostly futile. Any claim
+that G23 "helps the swarm" must name the partition — 289 cells is a swarm total, not a
+per-game effect, and 0 of it lands on the eleven zero-dead partitions.
