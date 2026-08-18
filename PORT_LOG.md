@@ -843,3 +843,73 @@ second — **it buys 25 shallow searches instead of 4 deep ones, and it makes ev
 learn->bank->seed->improve cycle ~13x slower.** Learning is SEQUENTIAL inside a worker.
 **WHETHER 25 PINNED WORKERS BEATS A SMALLER POOL ON THIS BOX HAS NEVER BEEN MEASURED**, and
 it is the same shape as the control arm question one level up. Named, not started.
+
+## ENTRY 31 — 2026-08-18. GAMES WON: 0/25. DEPTH RECORD UNMOVED — AT 1,000x THE SPEED.
+
+**SCOREBOARD.** GAMES WON **0/25**. ar25 **L2**, 7 games at L1, 17 at L0. **NO NEW DEPTH
+RECORD.** Same shape as the previous beat.
+**AND THAT IS THE BEAT'S REAL FINDING: THROUGHPUT WAS NEVER THE CONSTRAINT ON DEPTH.** The
+agent is not reaching L2 and stopping because it runs out of time — it stops for a reason
+speed does not touch. **This points AT link 3, and it is a cleaner argument for the queue
+order than any timing number was.**
+
+**LINK-3 FALSIFIER FIRED — AND ONLY HALF THE CLAIM CLEARED.**
+**MECHANISM: GROUND-SETTLED.** The first `levelup_frames` record above level 1 in this
+project's history — ar25, level 2, from the live run. Baseline was 0. The replay hook works.
+**VOCABULARY RESULT: NOT SETTLED, AND THE NUMBERS CURRENTLY MEAN NOTHING.** The record
+carries `pre (64,64)` against `post (3,64,64)`. Extraction yields **5 predicates from the
+malformed input, 0 from `post[0]`, 6 from `post[-1]`.**
+**CAUSE LOCATED:** `cognitive_game_player.py:1688` normalises PRE through
+`_get_frame_array(pre_obs)`; **POST DOES NOT GO THROUGH IT.** The helper exists precisely
+for this — its docstring at `:1946-1974` says *"obs.frame can be ... a list wrapping"* a
+grid. **Asymmetric normalisation at one seam.** `post[-1]` is almost certainly the real
+post-state and 6 the real reading. **QUEUED, NOT FIXED — and nothing is built on the 5
+until it is.** Two claims, and only the first cleared the ground.
+
+**THE OFFLINE SWITCH — AND F1 FAILED, RECORDED AS A FAIL.**
+Measured: **11,782 offline steps/sec** against ARC's documented online cap of 600 req/min
+= 10 actions/sec. One game, one agent, one pass, **no API key: 5 seconds.**
+**F1 (25-game basic set under 10 minutes): FAILED.** 22 of 25 complete past the ten-minute
+mark. **THE TIMEOUT WAS MY HARNESS; THE SLOWNESS WAS REAL, AND BOTH ARE TRUE.**
+**CAUSE — AND IT IS A CASE THE CORPUS SHOULD CARRY.** A fresh empty box runs a game in
+5 s; the same work against a 45 MB (ar25) or 137 MB (bp35) worker box takes minutes.
+**REMOVING THE 600/min CEILING MOVED THE BOTTLENECK RATHER THAN REMOVING IT** — the local
+DB layer was always costing this and nothing measured it because the API dwarfed it.
+**SAME SHAPE AS THE UNBUNDLING LAW: a constant term invisible under a dominant one becomes
+dominant when the dominant one is removed, and what remains was always there.**
+
+**SCORECARDS — THE ONE READ ISAIAH ASKED FOR. CREATED AND NEVER CLOSED.**
+`close_scorecard` is DEFINED at three levels (`arc_api_adapter.py:614`,
+`arc_api_client.py:484`, `core_gameplay.py:465`) and **each definition only calls the layer
+beneath it. NOTHING IN `evolution_runner.py`, `game_player.py` OR `cognitive_game_player.py`
+EVER CALLS IT.** Not orphaned-per-episode, not a log line printing on attempt: the open half
+runs, the close half is never invoked, **and an unclosed scorecard never publishes.** That
+is why the public record shows nothing for agents since Aug 3 while our logs report
+scorecards being created. **TWO WEEKS, NOTHING NOTICED.**
+
+**THE GENUS, NOW THE PROJECT'S CHARACTERISTIC FAILURE — FOUR INSTANCES THIS WEEK.**
+`OPERATION_MODE` (built, plumbed, defaulted to NORMAL, never set) · `close_scorecard`
+(defined three deep, never called) · the eleven severed organs · `sequence_miner`.
+**THE SWITCH EXISTING AND NEVER BEING THROWN.** Both of this week's cost weeks of silence.
+
+**VITALS.** Not read — the online swarm was stopped for the mode switch and the offline
+basic set was still running. Stated rather than skipped.
+**HERD.** Online swarm stopped deliberately (0 procs at the switch). Basic set: 24/25 logs,
+22/25 complete. Disk 4.5 GB, no trim.
+**ONE IMPROVEMENT: the offline switch**, prereg'd at `PREREG_OFFLINE_SWARM.md` with three
+falsifiers and a one-line undo. F2/F3 pass, **F1 fails**, and the fix is the DB layer rather
+than the mode.
+
+**PROPOSED UPWARD (APPARATUS) — A SCORECARD-LANDED CHECK IN THE BEAT READ.** *Did the run
+that was supposed to publish, publish?* **EVERY INSTRUMENT THIS ARRANGEMENT OWNS POINTS
+INWARD** — the registry checks wiring, the sweep checks consumption, the rungs read the
+agent's own machinery. **NOTHING READS THE PUBLIC RECORD.** Same class as the
+operation-mode default, one level further out. To be built to ARC's documented lifecycle
+rather than to ours.
+
+**TWO LABELS TAKEN BEFORE ANY OFFLINE NUMBER IS READ.** (i) **The first offline reading is a
+claim about the instrument** — if levels-completed moves, the first hypothesis is that the
+offline path differs in an unchecked way (same game IDs, same resolved version, same action
+budget), not that the agent changed. (ii) **The offline population carries its own label
+from the start.** An unlimited-throughput run and a rate-limited scorecard run will diverge,
+and pooling them later would be **the same omission a fifth time.**
