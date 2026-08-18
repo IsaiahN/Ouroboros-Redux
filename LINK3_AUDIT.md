@@ -80,3 +80,40 @@ the frames DO — appearance, count change, local structure — rather than from
 forms that the domain never exhibits. The falsifier is now cheap and pre-committed:
 **re-run this exact experiment against the same 9 records; a vocabulary that still yields
 0 has not fixed anything.** This is the first link-3 item with a losing condition.
+
+## ADDENDUM — THE REPLAY BYPASS, CONFIRMED (2026-08-18). MODE: **GROUNDED** (static, exact).
+
+Seat 4 inferred that replay-achieved level-ups never reach the abduction bank. **CHECKED,
+AND IT IS TRUE, WITH A SINGLE-SITE RECEIPT:**
+
+  `_goal_abd` HAS EXACTLY ONE CALL SITE: `cognitive_loop.py:1776`, inside the cognitive
+  cycle, guarded on `level_changed`.
+  `_replay_salient_prefix` (`cognitive_game_player.py:1626-1700`) NEVER ENTERS THAT CYCLE.
+  It steps the environment directly and reads `levels_completed` itself at `:1687` — and
+  uses it ONLY to classify the outcome (died > reached_level > aborted). **IT BANKS NO
+  DELTA. THE ABDUCTION BANK IS NOT ON THE REPLAY PATH AT ALL.**
+
+### THIS EXPLAINS "ALL 9 ARE L1" EXACTLY, AND IT IS A BOOTSTRAP TRAP
+L1 is reached by the COGNITIVE LOOP (exploration) -> passes `:1776` -> banked.
+L2 is reached ONLY BY REPLAY (F-1: never re-derived) -> bypasses `:1776` -> never banked.
+So: **THE AGENT CAN ONLY LEARN GOALS FROM LEVEL-UPS IT ACHIEVED WITHOUT GOALS. THE ONE
+RELIABLE SUCCESS PATH IT HAS TEACHES IT NOTHING.**
+
+Seat 4's name for the shape is right and general: **SUCCESS SUPPRESSES THE EVIDENCE
+CHANNEL.** Same coupling as the salient-bank suppression, and this time the channel it
+suppresses is the one link 3 runs on. Note it is NOT the ledger genus (a fix destroying
+its own record) — nothing here was deleted. The observation was never taken, because the
+route that succeeds is not the route that observes.
+
+### WHICH SPLITS THE NAMED BUILD IN TWO, AND REVERSES THE OBVIOUS ORDER
+  **(a) THE HOOK** — replay-achieved level-ups must reach the abduction bank.
+  **(b) THE VOCABULARY** — candidates drawn from what the frames DO (appearance, count
+       change, local structure) rather than three global forms the domain never exhibits.
+**(a) IS PRIOR TO (b).** A perfect vocabulary shipped alone would still only ever see L1
+transitions, because L2 never reaches the bank. Shipping (b) first would produce a fix
+that passes its own falsifier on the 9 L1 records AND STILL CANNOT SEE LEVEL 2 — a
+gate-passed candidate that changes nothing, which is the exact class this project has been
+relabelling all day.
+FALSIFIER FOR (a), pre-committed and cheap: after the hook, a replayed level-up must
+produce a new `levelup_frames` record AT A LEVEL > 1. Today that count is **0**.
+STILL NAMED AND NOT STARTED — allocation is Seat 3's and the control arm outranks.
