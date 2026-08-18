@@ -913,3 +913,52 @@ offline path differs in an unchecked way (same game IDs, same resolved version, 
 budget), not that the agent changed. (ii) **The offline population carries its own label
 from the start.** An unlimited-throughput run and a rate-limited scorecard run will diverge,
 and pooling them later would be **the same omission a fifth time.**
+
+## ENTRY 32 — 2026-08-18. GAMES WON: 0/25. LEVELS DELTA: 0 ACROSS +25 SESSIONS.
+
+**SCOREBOARD.** GAMES WON **0/25**. ar25 **L2**, 7 at L1, 17 at L0. **NO NEW DEPTH RECORD.**
+Sessions 8,495 -> **8,520 (+25, exactly the offline basic set)**. **TWENTY-FIVE FRESH
+SESSIONS MOVED DEPTH BY ZERO** — which is the same elimination as the last beat, now with a
+clean one-pass population behind it rather than an inference from speed.
+
+**BASIC SET (offline, 25 games x 1 agent x 1 pass): 23 of 25 COMPLETED.** Two did not —
+**cn04** (stopped inside near-miss analysis) and **m0r0** (stopped mid-stream) — both at the
+600 s per-game cap I set, not on an error. Recorded as incomplete rather than rounded to 25.
+
+**LINK-3 MECHANISM: REPRODUCIBLE.** `levelup_frames` records above level 1: **1 -> 2**. The
+replay hook fired again on a fresh session. **THE MECHANISM IS SETTLED; THE VOCABULARY
+CLAIM STILL IS NOT** — the `post (3,64,64)` normalisation defect is unfixed and nothing is
+built on those predicate counts.
+
+**THE OWED BASELINE CHECK, RUN, AND IT HOLDS.** Seat 4 flagged that my
+density-versus-detection elimination rests on "14 of 15 finds were organs born inside the
+instrument's own window" — a claim about CREATION dates. Verified with
+`git log --diff-filter=A`: `agency.py` **493f96c 2026-08-10**, `navigation.py` **d1e3d5a
+08-10**, `falsified_ledger.py` **36d8785 08-10**, `janitor.py` **3a11c15 08-14** — **all
+four cited commits are genuine file CREATIONS matching the cited dates**, detected 08-16.
+**THE ELIMINATION SURVIVES ITS OWN CHECK:** flat population, changed find-rate.
+
+**VITALS.**
+```
+  atoms 1,584   mint_verdicts 225,590   settlements 529,154
+  import_queue 407,142   rho_readings 14   frontier_harvest 4,449
+```
+**THE IMPORT QUEUE IS THE VITAL THAT MOVED, AND THE WRONG WAY: ~370k -> 407,142.** It is
+GROWING, not draining, and the ranked-drain fix shipped weeks ago.
+**225,590 VERDICTS FOR 1,584 ATOMS** — a ~0.7% acceptance rate, unchanged in character.
+`rho_readings` at **14** and still read by nothing (rung 0d, unpaired).
+**MINT STRUCTURAL/LEXICAL SPLIT: NOT IMPLEMENTED.** My reader guessed `ttype`/`kind` and got
+`{'?': 1584}` for every atom — **the instrument does not know the field name, so it reports
+NOT IMPLEMENTED rather than a split.** [PLAN] shadow vs DRIVE, seed-loads, affect sanity and
+the lp85/ft09 debasement watch: not read this beat.
+
+**HERD.** No supervisor running (0 procs) — the online swarm remains deliberately stopped
+pending the offline switch, and the basic set ran as a bounded one-pass session instead.
+Disk **4.5 GB**, under the ~8 GB trim threshold, no trim.
+
+**ONE IMPROVEMENT: NONE DISPATCHED.** This beat's work was the owed verification and the
+instrument correction, and the rule is one MAXIMUM, not one minimum.
+**NEXT, IN ORDER:** (1) the `post` normalisation fix — one seam, unblocks the link-3
+vocabulary claim from CANDIDATE to settled; (2) the scorecard lifecycle rebuilt to ARC's
+documented pattern, plus the scorecard-landed check proposed upward as APPARATUS; (3) the
+import-queue backlog, which is now the loudest vital on the board.
