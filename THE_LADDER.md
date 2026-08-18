@@ -548,3 +548,25 @@ The vocabulary got sharper and THE ANCHOR NEVER MOVED: 0/25, unchanged throughou
 The one thing currently touching the ground is the control arm, which is why it outranks
 every item on the board — and why the correct posture while it runs is to keep the queue
 frozen rather than to keep refining the queue.
+
+## STANDING REQUIREMENT — EVERY NUMBER CARRIES ITS POPULATION AND ITS AS-OF
+(2026-08-18, Seat 4, after the third instance.)
+
+**A NUMBER WITHOUT ITS POPULATION AND ITS AS-OF IS NOT A READING.** Three instances, and
+the common shape is NOT three different defects — it is **THE SAME OMISSION**: a number
+arrives without the thing that makes it interpretable.
+  1. the dead-cell count, no as-of (the harvest record carries no time field at all)
+  2. G23's 743 -> 454, no as-of, possibly straddling the 2026-08-14 semantics change
+  3. LINK3_AUDIT's "9 records", **population unstated** — 6 swarm + 3 CONTROL-ARM boxes
+     pooled, so the headline residual was quoted from the experiment's own output
+Each cost something. The third sent a builder chasing phantom data loss.
+**IT IS A REQUIREMENT ON THE REPORT, NOT A CAUTION**: state the population and the as-of,
+or state that the record cannot supply them — which is itself a finding, and was.
+
+## PROPOSED UPWARD, NOT AUTHORED — THE SHAPE OF AN INWARD RUNG
+Step 7 now has two routes and the ladder reads only OUTWARD. Seat 4's proposed shape for
+the missing rung, carried up verbatim rather than installed: **WHAT WORSE INSTRUMENT DOES
+THIS IMPROVE, AND WHICH UNRESOLVED READING DOES IT EXTEND FROM?** — Figure 6's clause
+stated as a CHECK rather than as a LAW. I am not installing it. A rung authored by the
+seat it would grade is the soundness condition failing, and this is the second time this
+week that has been the reason to decline.

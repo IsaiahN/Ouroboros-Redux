@@ -68,3 +68,48 @@ being redefined after seeing ar25's numbers.
 **AND THE THROUGHPUT ARM IS ALREADY DECIDED ON THE GROUND, INDEPENDENT OF THE VERDICT.**
 A configuration that takes 13h+ where its comparator takes 4m49s has answered the
 levels-per-hour question by exhausting the operator, which is itself the measurement.
+
+## AMENDMENT 2 — THE FOLLOW-ON TO THE LOSING CONDITION, PRE-COMMITTED
+(2026-08-18, WRITTEN BEFORE r11l's DELTA EXISTS. Seat 4: "deciding that after the number
+arrives is how a null gets absorbed.")
+
+**THE LIMITATION, STATED FIRST.** "The full egocentric stack" is a **UNION OF ~15 ORGANS,
+NOT ONE LEVER.** So this arm returns a verdict on a BUNDLE, and a bundle verdict CANNOT
+ATTRIBUTE — if it wins, we do not know which organ paid; if it loses, we do not know which
+one dragged. **Pre-registering the limitation is the same discipline as pre-registering
+the branches**, and it is registered here rather than discovered while interpreting.
+
+**IF THE STRIPPED COMPARATOR WINS ON LEVELS-PER-HOUR, UNBUNDLE IS THE METHOD AND NOT THE
+RULING.** The ruling — whether to unbundle at all, and what it costs — is Seat 3's. What
+is pre-committed here is the ORDER and the CRITERION, so neither can be chosen after the
+number lands.
+
+### THE CRITERION — ascending (decision-value / measured cost)
+Decision-value is mostly unmeasured, so the ordering uses the two quantities THAT ARE:
+rung 0d consumption status, and measured per-step cost. Nothing here is a preference.
+
+**TIER A — REMOVED FIRST. Measured cost, NO consumer that changes a decision.**
+  These are STRICTLY DOMINATED: they can only be paying a cost. From the rung-0d sweep,
+  verified unpaired at HEAD: the **rho ladder** (writes `rho_readings`, `consumer.py:571`,
+  zero readers) and the **mint verdict stream** (writes `mint_verdicts`, `mint.py:152`,
+  zero readers). A stack that is slower for these is slower for nothing.
+
+**TIER B — FIXED, NOT REMOVED. Has a real consumer; the cost is a KNOWN defect with a
+  queued fix.** `affect.gains()` at `cognitive_loop.py:1783` — 162 ms/call live, twice per
+  step, feeding `mint_bar`. **Removing it would confound a defect with a design.** The R3
+  tail-read lands first and the arm is re-read after, not before.
+
+**TIER C — REMOVED ONLY ON EVIDENCE. Changes a decision; cost unmeasured.**
+  Everything else in the bundle. No member of Tier C is removed until Tier A and Tier B
+  have been re-measured, because removing a decision-changing organ to buy speed is a
+  capability trade and this experiment has no mandate for one.
+
+### AGAINST WHAT — unchanged, so the comparison stays valid
+Same two games, same 12 episodes, same box, **both metrics reported separately and never
+averaged**: levels per episode (capability) and levels per hour (throughput).
+
+### AND THE LIMITATION EACH UNBUNDLE ARM INHERITS
+**n = 2 GAMES.** Every unbundle arm inherits it. So **THE UNBUNDLE SEQUENCE IS A SCREENING
+PROCEDURE, NOT A VERDICT PROCEDURE** — it can rank suspects and it cannot settle one.
+Anything it surfaces owes a wider run before it is called. Stated now so a screening result
+cannot later be reported as a finding.
