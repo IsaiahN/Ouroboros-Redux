@@ -78,7 +78,7 @@ def blame_dates(path: str) -> Dict[int, str]:
     try:
         out = subprocess.run(["git", "blame", "--line-porcelain", "--", path],
                              cwd=ROOT, capture_output=True, text=True,
-                             errors="replace", timeout=120).stdout
+                             errors="replace", timeout=120, check=False).stdout
     except Exception:
         return {}
     dates: Dict[int, str] = {}
@@ -127,7 +127,8 @@ def main() -> int:
                         top_level_assigns.add(id(_st))
         rel = os.path.relpath(path, ROOT).replace("\\", "/")
 
-        def add(name: str, val, lineno: int, kind: str) -> None:
+        def add(name: str, val, lineno: int, kind: str,
+                lines=lines, rel=rel, dates=dates) -> None:
             ctx = context(lines, lineno - 1)
             blob = f"{name} {ctx}"
             has_comment = "#" in ctx
@@ -143,9 +144,9 @@ def main() -> int:
         # AST walk below cannot see it -- which is why R4 caught this instrument.
         for i, ln in enumerate(lines, 1):
             for m in re.finditer(r"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(\d+)", ln):
-                if '"' in ln or "'" in ln:
-                    if re.search(r"PRAGMA|LIMIT|pragma|limit", ln):
-                        add(m.group(1), int(m.group(2)), i, "in-string")
+                if (('"' in ln or "'" in ln)
+                        and re.search(r"PRAGMA|LIMIT|pragma|limit", ln)):
+                    add(m.group(1), int(m.group(2)), i, "in-string")
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

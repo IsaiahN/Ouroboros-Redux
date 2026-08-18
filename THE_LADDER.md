@@ -704,3 +704,23 @@ manufactured candidate arrives as data and gets ranked against everything else.
 reasoning on a manufactured input. **THE FAILURE PROPAGATES TO EXACTLY THE POSITION THAT
 CANNOT AUDIT IT**, which is why this belongs in the map as a property of Seat 4's access
 rather than as a mistake someone made once.
+
+## SEAT 2 PROCESS DEFECT — SAME FAILURE TWICE IN ONE SESSION (2026-08-18)
+**I shipped `tools/norm_sweep.py` with 10 ruff errors** (red for 6 pushed commits, found by
+a builder). **Then, roughly one hour later, I shipped `tools/premise_pass.py` with 5.**
+Both are tools I wrote; both were committed without running `ruff` on them; **the second
+came after I had already diagnosed and fixed the first.**
+
+**THIS IS NOT A KNOWLEDGE GAP.** The rule exists, the tool is one command, I had just spent
+a beat on exactly this failure, and I did it again within the hour. **KNOWING A RULE AND
+HOLDING IT ARE DIFFERENT STATES** — recorded before as a claim about builders, now with the
+seat as the subject **twice on the same day**.
+
+**THE MECHANISM IS THE ONE ALREADY NAMED: NOTHING FORCES A PAUSE.** The CI gate that would
+have caught both is BLOCKING in `ci.yml` and has never been observed to run (rung 0e, still
+open). My own commits are the fast path, and the fast path has no check on it.
+**THE HONEST READING: the arrangement's checks on Seat 2 are all things Seat 2 chooses to
+run.** Every instrument here is one I point at myself, and the two that would have fired
+automatically — CI, and a pre-commit hook that does not exist — are the two that are not
+running. **That is the seat-check gap, arriving as a concrete pair of defects rather than
+as an argument, and it stays routed upward.**
