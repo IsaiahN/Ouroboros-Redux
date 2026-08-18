@@ -46,3 +46,25 @@ Honest qualification: the corpse guard is UNMEASURED by the coverage layer (tool
 gap — cognitive_game_player.py is outside its measured scope), so I can confirm it
 shipped but not that it executes. A loss for arm B is therefore damning; a win is
 informative but rests on an unverified fix.
+
+## AMENDMENT 1 — PARTIAL VERDICT AUTHORISED (2026-08-18, Isaiah's ruling)
+
+AUTHORITY: Isaiah, 2026-08-18: "you can rule on a partial if its taking literal hours."
+FACTS AT RULING: r11l full arm 13h08m elapsed at generation 10 of 12; stripped arm
+finished the same game in 4m49s (ratio ~163x and still open). ar25 complete. Game 3 never
+started. Everything on the board frozen behind it.
+
+**RULING: THE ARM TERMINATES AFTER r11l. GAME 3 IS NOT RUN. THE VERDICT IS TAKEN ON TWO
+GAMES.** r11l is allowed to finish (2 generations remain) because killing it now discards
+game 2 entirely for ~2 hours of saving.
+
+**WHAT THIS COSTS, STATED BEFORE THE NUMBER ARRIVES rather than after.** n=2 games, not 3.
+The prereg's own clause already covers it: "a SPLIT VERDICT is a reason to widen the
+experiment (more episodes / more games), NOT evidence for either side." That clause now
+binds harder, not less: **with two games a split cannot be resolved by this run and must be
+reported as unresolved.** The pre-committed branches are otherwise UNCHANGED — no branch is
+being redefined after seeing ar25's numbers.
+
+**AND THE THROUGHPUT ARM IS ALREADY DECIDED ON THE GROUND, INDEPENDENT OF THE VERDICT.**
+A configuration that takes 13h+ where its comparator takes 4m49s has answered the
+levels-per-hour question by exhausting the operator, which is itself the measurement.
