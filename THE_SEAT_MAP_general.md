@@ -189,6 +189,10 @@ compaction or truncation: WHAT ELSE IS THIS LEDGER ANSWERING?** If nothing, ship
 something, the fix must PRESERVE THE DISCARDED QUANTITY rather than drop it — bank the
 count, not the deduplicated set.
 
+**And one at the output layer: a mode stated as a verdict.** Where quantities are unmeasured, the notation still demands them and a reader supplies them. An estimate labelled *accepted* claims a settlement that did not occur, and the formalism makes it look rigorous. The modes are general, specified, and grounded; each is legitimate and the mode must be stated. An unmeasured quantity is a specification of what to measure and is worth having — it is not a verdict.
+
+**A room does not upgrade the label.** A room reaching a conclusion without the ground is agreement, and agreement among frames is a weighted average of influence. Adding people raises the vocabulary and does not add an anchor.
+
 **Two standing checks fall out.** Before concluding a channel is starved, verify something reads it — starvation and non-consumption are indistinguishable from the producer's side. And run the guaranteed-number test on every zero including the welcome ones: the test gets applied to numbers arriving as claims and skipped on numbers arriving as relief.
 
 ---

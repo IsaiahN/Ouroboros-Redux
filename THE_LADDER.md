@@ -507,3 +507,44 @@ THE POINT OF THE THIRD LABEL IS THAT IT IS NOT THE FIRST. Retrodiction on four c
 evidence and is not a test, and a claim that has never been able to come back wrong has
 not been checked -- the falsifiability guard, applied to our own theory rather than to the
 agent"s.
+
+## MODE AUDIT (2026-08-18) — the output-layer genus, applied to my own reports
+
+THE GROUND FOR THIS PROJECT IS levels_completed, AND IT IS 0/25 FULL WINS. Everything else
+this seat has produced is SPECIFIED or GROUNDED, and NONE of it is a settlement. A green
+gate is not the ground. 1020 tests passing, ruff clean, sweep exit 0, OOD clean — all of
+that is SPECIFICATION OF WHAT TO MEASURE, and I have been reporting it in the register of
+results.
+
+  GROUNDED (data, source named, re-derivable):
+    743 -> 454 dead cells swarm-wide; ar25 L2 163 -> 41   (own reader, live books)
+    290 repeats of one cell inside one record; 2,061 within-record duplicates
+    G1 = 113 tables since 2026-02-16; G2 57% both sides of the registry install
+    fabric.query 0.314 ms @ n=20 -> 262.250 ms @ n=40,000; 162 ms live
+    74 registry rows / 416 core classes; 0 / 281 tables
+    5 duplicate seqs across 1,564 streams
+    ar25 arm: full 19 level completions vs stripped 11 — GROUNDED BUT PARTIAL (1 of 3 games)
+
+  SPECIFIED, AND I REPORTED TWO OF THESE AS IF GROUNDED:
+    "~57 dispositions covered by the rules" — AN ESTIMATE OF COVERAGE, reported as a count.
+    "a ~74x throughput gap" — THE FULL ARM HAD NOT FINISHED. 6h10m vs 4m49s is a LOWER
+      BOUND on an unfinished run, and I stated it as a ratio. THE CORRECT FORM IS
+      ">= 74x AND STILL OPEN". This is exactly the genus: the notation demanded a number,
+      I supplied one, and the formalism made it look measured.
+
+  LABEL CORRECTIONS OWED:
+    G23 was reported SHIPPED/VERIFIED. Its gate passed; THE GROUND DID NOT SETTLE IT, and
+    two beats later Seat 4 found the framing wrong. CORRECT LABEL: CANDIDATE.
+    Every wave-1 item carries the same defect. A build whose only evidence is its own gate
+    is a CANDIDATE, and this project has been calling those SHIPPED for weeks.
+
+## AND THE ARRANGEMENT DOES NOT UPGRADE ITS OWN LABEL
+
+"A room does not upgrade the label. Adding people raises the vocabulary and does not add
+an anchor." APPLIED HERE, AND IT IS UNCOMFORTABLE: the last several beats have been four
+seats converging — Isaiah, this seat, Seat 4, the builders — on genera, rules, rungs and
+instruments. THAT CONVERGENCE IS A WEIGHTED AVERAGE OF INFLUENCE. It is not evidence.
+The vocabulary got sharper and THE ANCHOR NEVER MOVED: 0/25, unchanged throughout.
+The one thing currently touching the ground is the control arm, which is why it outranks
+every item on the board — and why the correct posture while it runs is to keep the queue
+frozen rather than to keep refining the queue.

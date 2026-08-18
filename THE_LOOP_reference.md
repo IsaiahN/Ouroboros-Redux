@@ -84,6 +84,24 @@ The diagnostic rungs are readings of specific steps. Stated so a first-wrong-run
 
 ---
 
+## Declaring the mode
+
+The loop's notation creates a demand for quantities. Where the quantities are not measured, a reader supplies them — and `|φ| + |R|φ| < |R|` followed by *accepted* reads as a check that was run.
+
+**Three legitimate modes, and the mode must be stated:**
+
+- **general** — the procedure, no quantities. What the framework licenses on its own.
+- **specified** — quantities named as targets for measurement, labelled as such. An unmeasured number is a specification of what to measure and can be worth a great deal: it names a comparison nobody had framed, and someone with the data can go get it.
+- **grounded** — quantities from data, with the source.
+
+**What is not a mode is the label.** *Accepted* means the ground settled it. A candidate labelled *accepted* claims a settlement that did not occur, and the vocabulary makes it look rigorous. Same numbers, same reasoning, labelled **candidate** — nothing else changes.
+
+**And a room does not upgrade the label.** A room reaching a conclusion without the ground is agreement, and agreement among frames is a weighted average of influence. Adding people raises the vocabulary and does not add an anchor. The machine specifies, an instrument measures, the ground settles; the room locates and argues, which is upstream of all three.
+
+The status vocabulary already used for claims about the framework — PROVED · DESIGN LAW · BELIEVED · MEASURED — applies to output as well, and was not being applied there.
+
+---
+
 ## Standing checks
 
 **Before concluding a channel is starved, verify something reads it.** Starvation and non-consumption are indistinguishable from the producer's side.
