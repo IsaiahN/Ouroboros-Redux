@@ -144,3 +144,44 @@ full arm pays it while the stripped arm does not. **The prereg separated the two
 the number arrived, so this does not invalidate the arm — it supplies the mechanism for
 one of its pre-committed outcomes.** Both arm fabrics verified at 0 settlement bytes so
 far; both worktrees single-writer.
+
+## THE RESIDUAL AFTER R3 — LOCATED. IT IS COMMIT COUNT x CHECKPOINT COST.
+(2026-08-18. Seat 4 posed it cleanly: ~22 s unexplained on ls20, and it is not the read.)
+**MODE: GROUNDED for the profile; the CAUSE below is a HYPOTHESIS and is labelled as one.**
+
+`cProfile` over one real offline session against a COPY of the ls20 box (the original was
+never touched), 37.6 s under the profiler:
+```
+  1139   16.480 tottime   {method 'commit' of sqlite3.Connection}   <== 44% OF THE SESSION
+  3924    0.020  cum 15.8  database_interface.py:1363 execute_query
+   129    0.003  cum 10.3  routing_traces.py:281 record_trace -> _save_trace   (80 ms EACH)
+   129    0.097  cum  6.1  cognitive_loop.py:1474 record_result
+   129    0.011  cum 18.5  cognitive_loop.py:1018 cycle
+```
+**1,139 COMMITS FOR 129 DECISIONS — ~8.8 COMMITS PER DECISION — AT ~14.5 ms EACH.**
+Fabric reads are now 0.8 s of 34.2 s, so the read is genuinely finished as a cost centre.
+
+### AND THE PRAGMAS ARE ALREADY CORRECT, WHICH IS THE INTERESTING PART
+`database_interface.py` sets **`journal_mode=WAL`** AND **`synchronous=NORMAL`** — the exact
+configuration PERF_AUDIT measured at **0.03 ms per commit**. Observed here: **14.5 ms, ~480x
+that.** So this is NOT the missing-pragma defect; the pragmas are right and the commits are
+still expensive.
+
+### THE HYPOTHESIS, LABELLED, NOT PROVEN
+**`PRAGMA wal_autocheckpoint=100`** (400 KB) is set alongside them. SQLite's default is 1000
+pages (~4 MB). **At 100 pages a checkpoint fires ~10x more often, and a checkpoint writes the
+WAL back into a 55 MB main DB on a disk measured at 22-32 ms per durable write.** That would
+convert cheap WAL appends into frequent expensive checkpoints and is consistent with every
+number above — **BUT IT IS AN INFERENCE FROM THREE MEASUREMENTS, NOT A MEASUREMENT.**
+**FALSIFIER, CHEAP AND OFFLINE:** re-run the same session on a copy with
+`wal_autocheckpoint` at the default and time `commit` again. If commit time does not move,
+the cause is the COUNT (8.8 per decision) rather than the COST, and the lever is batching
+`routing_traces._save_trace` instead of a pragma. **The two levers are distinguishable by
+one run and I have not run it.**
+
+### WHY THIS KEEPS HAPPENING — THIRD INSTANCE TODAY OF ONE SHAPE
+The API cap hid the read. The read hid the commits. **A constant term invisible under a
+dominant one becomes dominant when the dominant one is removed** — the unbundling law,
+arriving for the third time in a day, each time in a new layer. **Each fix is real and each
+one relocates the bottleneck rather than removing it**, and the honest expectation is that
+the commit fix will expose a fourth.
