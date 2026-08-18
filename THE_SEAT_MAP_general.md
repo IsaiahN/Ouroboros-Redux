@@ -44,6 +44,8 @@ Whoever reads the makers' work and the records it produces.
 - authorship of verdicts or of content. It may author **conventions** — shared meanings across a seam — because nothing else can see across one. A convention makes no claim about the world; a verdict and a piece of content both do.
 - the position of a participant. Reading interiors to fix a seam is licensed. Reading interiors to diagnose behaviour is corrupting, and the instruments exist so it never has to.
 
+**And a law about the instruments this seat owns (Figure 6 REV).** An instrument is not built from a description; it is improved from a worse instrument already returning something. Instrumentation extends from the current edge and cannot be deposited in mid-air. So a proposed check must name the worse check it improves and the residual that one produced — and where nothing is returning anything, the honest report is that there is no edge, not that a better sensor is needed.
+
 **Produces** diagnoses with branches named in advance, and the report that crosses upward.
 
 **Undetectable failure** interiorisation — grading reports against its own acquired model of the work instead of against the records. The output stays confident, well-formed, and plausible.

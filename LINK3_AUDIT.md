@@ -117,3 +117,38 @@ relabelling all day.
 FALSIFIER FOR (a), pre-committed and cheap: after the hook, a replayed level-up must
 produce a new `levelup_frames` record AT A LEVEL > 1. Today that count is **0**.
 STILL NAMED AND NOT STARTED — allocation is Seat 3's and the control arm outranks.
+
+## ADDENDUM 2 — THE FIGURE 6 CLAUSE CHANGES HOW THIS BUILD IS MADE (2026-08-18)
+
+"An instrument is not built from a description. It is improved from a worse instrument
+already returning something." **THE BUILD I NAMED VIOLATES THIS AS WRITTEN.** I proposed
+"a predicate vocabulary whose candidates are drawn from what the frames DO" — that is
+SPECIFYING AN INSTRUMENT FROM A DESCRIPTION, which the figure says is not how one comes
+to exist.
+
+**THE CORRECT CONSTRUCTION, and the edge already exists:**
+  THE WORSE INSTRUMENT: `extract_predicates`. It returns 0.
+  IS 0 "NO READING" OR "A READING THAT FAILS TO RESOLVE"? **THE SECOND** — it returns 0
+  while the boards VISIBLY DIFFER (`identical=False` on all 9). A detector reporting
+  nothing where something plainly happened is a wandering point in the sky.
+  THE RESIDUAL IT PRODUCED, measured, not imagined: colours are ADDED, never removed
+  (r11l +10 +12; cd82 +12); no region is ever uniform (0/5); no quadrants ever equal
+  (0/6). **THAT RESIDUAL NAMES THE NEXT PREDICATE CLASS. The vocabulary is GROWN FROM IT
+  RATHER THAN DESIGNED AGAINST A DESCRIPTION OF THE DOMAIN.**
+
+**AND THE FALSIFIER GETS STRONGER FOR THE SAME COST.** Not merely "yields > 0" — that
+could be met by any noisy predicate. **THE NEW VOCABULARY MUST EXPLAIN THE SPECIFIC
+RESIDUAL THE OLD ONE PRODUCED**: it must fire on the colour-appearance events already
+measured in these 9 records, and it must still return 0 on the two classes shown
+unsatisfiable. An instrument that fires everywhere has not extended the edge, it has
+replaced it.
+
+## AND A CORRECTION I OWE ON V3 (FRAME RETENTION)
+
+I sent frame retention up as a VERDICT and argued "no frame-level work is possible
+without a corpus". **THAT WAS WRONG, AND FIGURE 6 NAMES THE ERROR EXACTLY: the search for
+a proto-instrument is a search for one that is already there.** NINE RECORDS WAS A
+CORPUS. It was enough to produce the finding of the beat. I declared an ABSENCE where
+there was an EDGE, and in doing so I put a prerequisite on Isaiah's board that was never
+a prerequisite. **V3 IS DOWNGRADED: frame retention is worth doing and it BLOCKS
+NOTHING.** The link-3 work can proceed on what is already on disk.

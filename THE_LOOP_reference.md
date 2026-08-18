@@ -102,6 +102,20 @@ The status vocabulary already used for claims about the framework — PROVED · 
 
 ---
 
+## How an instrument comes to exist (Figure 6 REV, 2026-08-18)
+
+**AN INSTRUMENT IS NOT BUILT FROM A DESCRIPTION. IT IS IMPROVED FROM A WORSE INSTRUMENT ALREADY RETURNING SOMETHING.**
+
+Nobody specified a telescope from an account of Mars. A wandering point in the sky was already a reading, and every sharper instrument was built on the residual the last one produced. **Instrumentation extends from the current edge and cannot be deposited in mid-air.**
+
+**So the question is not whether a sensor could exist. It is whether anything, at any resolution, is already returning something that fails to resolve.** Where nothing is, there is no edge to extend from — and the search for a proto-instrument is a search for one that is already there.
+
+**This is a precondition on the INWARD track of step 7, and it can fail.** IMPORT already required characterising R before going looking. This adds the constraint on the other track: extending our own representation is available only where an existing reading is already failing to resolve. Where it is not, the honest report is *there is no edge here*, not *we need a better sensor* — and building one anyway is depositing in mid-air.
+
+**Two consequences that are checkable rather than aesthetic.** A proposed instrument must NAME the worse instrument it improves and the RESIDUAL that one produced; an instrument naming neither is a description wearing an instrument's clothes. And a link returning a WRONG reading is a better place to build than a link returning NO reading — a wrong reading is an edge, and no reading is not.
+
+---
+
 ## Standing checks
 
 **Before concluding a channel is starved, verify something reads it.** Starvation and non-consumption are indistinguishable from the producer's side.
