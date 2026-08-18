@@ -478,3 +478,49 @@ SHARPENS WHAT THE VERDICT IS ABOUT: not "is it safe to delete" but "which questi
 ledger the only witness for, and are they preserved". The janitor must fold to a SUMMARY
 that keeps the per-episode aggregates, not to a TAIL that keeps the last 100 rows.
 RECORDED BEFORE THE RULING RATHER THAN AFTER, because after is when it is unrecoverable.
+
+## A15 — THE PREMISE PASS (2026-08-18, Seat 3's order). **A READ, NOT A RE-TUNING.**
+`tools/premise_pass.py`. Every constant, threshold, cap, window and default in production,
+with its blame date and the premise it was chosen against. **NOTHING CHANGES ON THE
+STRENGTH OF BEING OLD. THE DATE LOCATES; THE PREMISE JUDGES.**
+
+### THE INSTRUMENT FAILED R4 ON ITS FIRST RUN AND ITS OUTPUT WAS NOT READ
+**KNOWN-POSITIVE `wal_autocheckpoint` DID NOT FIRE.** Two defects, both real:
+  **1 · CONSTANTS INSIDE STRING LITERALS WERE INVISIBLE.** The known-positive lives in
+     `execute("PRAGMA wal_autocheckpoint=100")` — an AST walk over assignments and default
+     args cannot see it. **A whole class (PRAGMAs, SQL `LIMIT`, format strings) was
+     unreachable.**
+  **2 · IT COUNTED ZERO-INITIALISERS AS CONSTANTS-WITH-PREMISES.** `self.total = 0` is
+     STATE INITIALISATION and has no premise to move. **A constant with a premise
+     PARAMETERISES behaviour.** Restricted to module- and class-level.
+**AFTER THE FIX: KNOWN-POSITIVE FIRED, KNOWN-NEGATIVE CLEAN.** R4 as amended (positive AND
+negative) is what caught this — **the positive alone would have passed the first version,
+because the first version fired on plenty.**
+
+### REMAINING LIMITATION, STATED RATHER THAN HIDDEN
+**IT STILL OVER-FIRES ON DATACLASS FIELD DEFAULTS** (`generation = 0`, `base_reward = 0.0`)
+— class-level and so admitted, but still state rather than parameter. **The counts are NOT
+a census and must not be quoted as one.**
+
+### THE CANDIDATES THAT CARRY A REAL PREMISE
+```
+  [1,2] 2025-11-01  database_interface.py:81   wal_autocheckpoint = 100   <== KNOWN POSITIVE
+  [1,2] 2026-01-18  database_interface.py:78   busy_timeout = 5000
+  [1,2] 2026-01-18  database_logger.py:76      busy_timeout = 5000
+  [1,2] 2025-12-23  trigger_controller.py:364  window = 50        (no comment)
+  [1]   2025-10-27  visual_analyzer.py:50-51   stagnation_threshold = 8, improvement_threshold = 5
+  [1]   2026-01-02  sequence_abstraction.py:748 near_miss_limit = 5  (no comment)
+  [1]   2026-01-07  visual_analyzer.py:596     grid_step = 8        (no comment)
+```
+**`busy_timeout = 5000` IS THE ONE WORTH NAMING BESIDE THE PRAGMA.** Five seconds of
+SQLite lock-wait, set 2026-01-18 **under the online regime**, where 25 workers shared a
+600 req/min cap and therefore contended for locks rarely. **OFFLINE AT ~11,782 STEPS/SEC
+THE CONTENTION PROFILE IS A DIFFERENT PROBLEM ENTIRELY** — same class as the pragma, same
+premise moved, and nobody has looked at it since the world changed. **QUEUED AS A CANDIDATE.
+NOT CHANGED.**
+
+### AND THE BUCKET THAT IS LARGEST IS THE ONE WITH NOTHING TO SAY
+**PREMISE UNKNOWN — no comment, no rationale anywhere near — is by far the biggest bucket**
+(`limit = 100` in two files, dated 2025-09-30, is the oldest example). **THOSE ARE GUESSED
+WHETHER OR NOT THEY CARRY THE LABEL**, and the register has been calling constants GUESSED
+on a case-by-case basis while this bucket sat uncounted.
