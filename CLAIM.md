@@ -81,3 +81,32 @@ INSTANCE: replayable as a route, never promoted into Gamma, never seeding anythi
 applies must ABORT LOUDLY, never degrade into random actions, or it is a fast path to a
 wrong state that reads as exploration (verify next beat; divergence detection exists on
 the salient-prefix path).
+
+## STATUS, NOT CAVEAT: GATE-PASSED vs GROUND-SETTLED (2026-08-18, Seat 4's generalisation)
+
+**A BUILD WHOSE ONLY EVIDENCE IS ITS OWN GATE IS A CANDIDATE.** The gate is the MAKER'S
+INSTRUMENT, and a maker checking its own work is the soundness condition failing — "a
+verifier that can reconstruct the claim cannot verify it". This is not a caveat attached
+to particular claims; it is a STATUS every artefact in this project carries, and nothing
+here currently distinguishes the two states.
+
+  GATE-PASSED   the maker's instrument returned green. Says the code does what the test
+                says. Says NOTHING about the world.
+  GROUND-SETTLED  levels_completed moved.
+
+**THE REGISTRY'S LIVE COLUMN IS A CLAIMS COLUMN.** 48 rows read LIVE. Every one asserts a
+reference on a path believed live; NONE asserts that the organ executed and changed an
+outcome. Rung 0c gates REFERENCE, rung 0d gates CONSUMPTION, and NEITHER GATES THE GROUND.
+Until the operator-mode coverage diff runs, LIVE means CLAIMED-LIVE and should be read
+that way.
+
+**EVERY WAVE ITEM AND EVERY "SHIPPED" FIX IS RELABELLED CANDIDATE**, retroactively and
+without exception: the movement stack, the rho ladder, the ranked drain, the origin
+marker, the corpse guard, G23 dead-dedup, the efficiency read, the regen series. Each
+passed its gate. NONE was settled by the ground. G23 is the worked example — gate green
+at 1020 tests, and its framing found wrong two beats later by a question the gate could
+not ask.
+
+**THE ONLY GROUND-SETTLED FACTS THIS PROJECT HOLDS ARE:** 0/25 full game wins; ar25
+reached level 2 by REPLAY and has never re-derived it; and the control arm's ar25 delta
+(full 19 level completions vs stripped 11, 1 of 3 games, PARTIAL).
