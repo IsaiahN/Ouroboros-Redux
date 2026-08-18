@@ -1,10 +1,13 @@
-# JURISDICTION — the criterion, proposed not installed
-2026-08-18. Isaiah: *"Propose the criterion, not the sorted list."*
+# JURISDICTION — **INSTALLED 2026-08-18 by Seat 3**
+2026-08-18. Isaiah: *"Propose the criterion, not the sorted list."* Installed same day —
+see the INSTALLED section at the foot, which carries the ruling and the four tags.
 
-**THIS DOCUMENT IS A PROPOSAL AND SEAT 2 CANNOT INSTALL IT.** A jurisdiction criterion
-decides *who decides*, which is an outcome, and *a convention that decides an outcome has
-stopped being one*. So this crosses upward as a candidate and takes effect only if Seat 3
-installs it.
+**THE SECTIONS BELOW ARE THE PROPOSAL AS IT CROSSED UPWARD, KEPT UNEDITED.** They are the
+provenance of the ruling, not the ruling — a seat map law: *a ruling carries provenance
+like an atom, so a later reader can locate the error rather than only feel it.* At the
+time of writing, Seat 2 could not install this: a jurisdiction criterion decides *who
+decides*, which is an outcome, and *a convention that decides an outcome has stopped being
+one*.
 
 ---
 
