@@ -159,3 +159,14 @@ So the two halves compose rather than compete: **the prediction says where to po
 **A new instrument's first output is a claim about the instrument, not about the system.**
 
 **Before shipping any normalisation, dedup, compaction or truncation, ask what else the ledger is answering.** A fix correct for one question can delete, at source, the evidence for another the same ledger was carrying — invisible before the fix and unrecoverable after.
+
+**AND PREREGISTRATION IS A DESIGN INSTRUMENT, NOT ONLY AN HONESTY DEVICE.** *Write the
+falsifier first* reads as discipline. It is also a SOURCE OF FINDINGS, and there is a
+receipt: writing the seed-stability losing condition — before the run — is what exposed that
+at population 6 a top-5 winner set is 5-of-6 BY CONSTRUCTION, so the obvious overlap
+statistic would have reported "selection is stable" from pure noise **in the experiment
+designed to test exactly that**. The fix (state the criterion against a shuffled null) and a
+hard constraint on the experiment (the population must be raised, because 6 cannot express
+the statistic) BOTH CAME OUT OF WRITING THE FALSIFIER, not out of designing the experiment.
+THE SEQUENCE IS THE GENERALISABLE PART: the falsifier constrains the design, so it is
+written first for reasons that have nothing to do with honesty.
