@@ -254,3 +254,39 @@ safety against loss.
 owes one: kill a writer mid-transaction at `autocheckpoint=1000` and confirm committed rows
 survive reopen. **UNTIL THAT RUNS, THE PRAGMA DOES NOT CHANGE** — the author's reason stands
 unless the test retires it, and a reason nobody currently holds is still a reason.
+
+### 8.8 COMMITS PER DECISION — ANSWERED. THERE IS NO TRANSACTION BOUNDARY AT THE DECISION.
+Seat 4 asked why nine commits serve one decision *regardless of which branch fires*.
+**BECAUSE THE UNIT OF DURABILITY IS THE INDIVIDUAL STATEMENT, NOT THE DECISION.**
+
+  **`database_interface.py:1384` in `execute_query()` — COMMITS PER WRITE STATEMENT**, under
+  a comment reading *"FIX #16: Auto-commit after write operations so discoveries are"*
+  persisted. **A named, deliberate change.**
+  **25 SEPARATE COMMIT SITES IN `database_interface.py`**, one inside nearly every write
+  method: `save_action_trace`, `update_action_effectiveness`, `save_score`, `store_agent`,
+  `update_agent`, `store_arc_reward_data`, `store_evolution_decision`,
+  `store_action_tracking`, `record_intrinsic_milestone`, `log_event`,
+  `update_agent_performance`, `sync_agent_performance_to_agents_table`, ...
+  **AND `database_logger.py:238 emit()` — A COMMIT PER LOG LINE.**
+
+**SO 8.8 IS NOT AN ANOMALY, IT IS THE ARCHITECTURE:** nine subsystems each save their own
+record and each commits itself. Nothing wraps a decision. **A TRANSACTION BOUNDARY AT THE
+DECISION WOULD TAKE 8.8 -> 1 — AN 8.8x REDUCTION IN FLUSH TRIGGERS, INDEPENDENT OF THE
+PRAGMA**, and since the cost is tail latency at the trigger, count and cost multiply.
+
+### AND THE TWO ARE THE SAME DECISION MADE TWICE, FROM THE SAME PREMISE
+`wal_autocheckpoint=100` — *"aggressive checkpointing to prevent data loss on force-close"*.
+`FIX #16` — *auto-commit after every write so discoveries are persisted.*
+**BOTH ARE THE BELIEF THAT DATA IS NOT SAFE UNTIL IT IS COMMITTED AND CHECKPOINTED
+IMMEDIATELY.** That belief is the one Seat 3 has now identified as a conflation of
+**recovery time** with **survival**: in WAL mode a committed transaction survives a kill
+without a checkpoint, and an uncommitted one is lost either way — so committing more often
+does buy durability, but checkpointing more often buys only a shorter replay.
+**THE PREMISE IS PARTLY RIGHT AND WAS APPLIED TWICE AT DIFFERENT LAYERS**, and the two
+compound: more commits means more checkpoint triggers, and each trigger is where the 277x
+lives.
+**NEITHER CHANGES YET.** FIX #16's durability reason is REAL — per-statement commit does
+protect against losing a write to a force-kill — so the transaction boundary is a genuine
+trade (lose up to one decision's writes on a kill, in exchange for 8.8x fewer flush
+triggers), **not a free win.** TAG: SUBJECT / GROUND-GATED. **QUEUED BEHIND THE DURABILITY
+TEST**, which now settles both at once rather than one.
