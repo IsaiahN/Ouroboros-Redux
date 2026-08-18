@@ -26,13 +26,19 @@ for path in FILES:
                     if an: called.setdefault(nm,set()).add(an)
         for nm,args in called.items():
             names={a.lower() for a in args}
+            def _tok(n):
+                # WORD-BOUNDARY tokens, not substrings: 'predicted' must NOT match 'pre'.
+                return set(t for t in re.split(r"[^a-z0-9]+", n) if t)
+            toks = set()
+            for n in names: toks |= _tok(n)
             for x,y in PAIRS:
-                hasx=any(x in n for n in names); hasy=any(y in n for n in names)
+                hasx = x in toks; hasy = y in toks
                 if hasx ^ hasy:   # one side normalised, sibling not
                     present = x if hasx else y
                     missing = y if hasx else x
                     hits.append((path, fn.name, fn.lineno, nm, sorted(args), present, missing))
 print("ASYMMETRIC NORMALISATION CANDIDATES")
+print("NOTE: word-boundary tokens only; a helper that normalises both args internally is clean by construction and is not detectable from the call site.")
 print("(a normaliser applied to one half of a known pair, sibling not seen)\n")
 seen=set()
 for h in hits:

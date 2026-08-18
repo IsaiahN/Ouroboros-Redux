@@ -622,3 +622,51 @@ MORE TIME, MORE EPISODES, MORE ACCUMULATION" IS NOW DEAD.** A thousandfold more 
 three produced the same depth. That elimination cost one afternoon, was unavailable this
 morning, and it leaves link 3 and whatever is upstream of it — **so the queue order now
 follows from evidence rather than from argument, for the first time.**
+
+### CORRECTION, WITHIN THE HOUR — AND IT PROPAGATED OUT OF THE ARRANGEMENT BEFORE I CAUGHT IT
+**`_grid_residual` IS CLEAN. THE CANDIDATE WAS MY INSTRUMENT'S FAULT.**
+```python
+    p = np.asarray(predicted); o = np.asarray(observed)
+    if p.shape != o.shape:
+        return float(max(p.size, o.size))      # a reshape is maximally loud
+```
+**BOTH arguments are normalised symmetrically INSIDE the helper, and a shape mismatch
+returns a MAXIMALLY LOUD residual rather than a silent wrong answer.** It is not merely
+not-defective; it is defensively written against exactly the failure I accused it of.
+**MY SWEEP SUBSTRING-MATCHED `'pre'` INSIDE `'predicted'`.** Patched to word-boundary
+tokens: **8 candidates -> 3**, with the verified true positive still firing.
+
+**THE PART THAT MATTERS IS NOT THE FALSE POSITIVE. IT IS WHERE IT WENT.** Seat 4 read my
+output and ranked `_grid_residual` **the highest-value item on the board**, on the reasoning
+that a corrupted rung 1 would explain the residual-approximately-0 reading this project has
+treated as a finding since the beginning. **THAT RANKING WAS CORRECT GIVEN MY INPUT AND THE
+INPUT WAS MANUFACTURED BY MY INSTRUMENT.** The observer's defect did not stay inside the
+observer — it crossed a seam and re-prioritised another seat's board. **A wrong instrument
+does not merely produce a wrong number; it redirects the arrangement.**
+
+**R4 IS REFINED, AND THIS IS WHAT EARNED IT.** The rule said: an instrument printing a count
+must have a KNOWN-POSITIVE FIXTURE. I ran that check and it passed — the sweep re-found the
+link-3 defect unprompted. **BUT A KNOWN-POSITIVE FIXTURE PROVES SENSITIVITY AND SAYS NOTHING
+ABOUT SPECIFICITY.** It proves the instrument CAN fire; it cannot show the instrument does
+not OVER-fire.
+**R4 NOW REQUIRES BOTH: a known-positive that must fire, AND A KNOWN-NEGATIVE THAT MUST NOT.**
+`_grid_residual` is the known-negative for this sweep and is pinned as such.
+
+**THE THREE SURVIVING CANDIDATES** (still candidates, still unverified):
+```
+  VERIFIED  cognitive_game_player.py:1667  _replay_salient_prefix    pre normalised, post not
+  candidate cognitive_game_player.py:1785  _replay_winning_sequences last_obs vs new_obs
+  candidate cognitive_game_player.py:87    play_game                 obs vs new_obs
+```
+Candidate 2 sits in **the second replay route** — the same function family as the verified
+defect — which raises its prior without settling it.
+
+**AND SEAT 4's GENERALISATION IS THE RIGHT TARGET:** the sweep's real subject is not
+asymmetric normalisation. It is **anywhere a helper exists for a case and the case has
+siblings.** That is the general form, and it is what would catch the next one.
+
+**STILL OWED, AND IT IS THE BASELINE UNDER MY OWN ELIMINATION:** verify the 14-of-15 figure
+— *born inside the instrument's window* is a claim about CREATION dates versus INSTRUMENT
+dates, and if any of those 14 were pre-existing and merely REPORTED during the window, the
+density-versus-detection elimination weakens. **The number my whole claim rests on is the
+one I have not checked.**
