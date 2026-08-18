@@ -292,9 +292,18 @@ def main() -> int:
             print(f"    UNPAIRED  {k}")
         if len(unpaired) > 40:
             print(f"    ... and {len(unpaired) - 40} more")
-        print(f"\n  READ ONLY TO BRAKE (rung 0d's abort/decide clause): {len(abort_only)}")
-        for k, sites in list(abort_only.items())[:20]:
-            print(f"    ABORT-ONLY  {k}  <- {sites[0]}")
+        # THE ABORT/DECIDE CLAUSE IS NOT IMPLEMENTED, AND THIS PRINTS THAT RATHER THAN A
+        # NUMBER. The classifier is a token heuristic over enclosing function names. It
+        # returned 0 on a system where two abort-only consumers were identified BY HAND
+        # (reset detection, stuck-loop guard) — so a zero here is EVIDENCE THE HEURISTIC
+        # DOES NOT WORK, not evidence the pathology is absent. A measurement nobody can
+        # distinguish from a null result is exactly the guaranteed-number trap, and
+        # printing "0" would get cited as a clean bill within a week.
+        print("\n  READ ONLY TO BRAKE (rung 0d's abort/decide clause): NOT IMPLEMENTED")
+        print("    The rung requires a reader that CHANGES A CHOICE, not one that halts.")
+        print("    This pass CANNOT yet distinguish them. Two abort-only consumers are")
+        print("    known by hand and this classifier finds neither. DO NOT CITE A COUNT")
+        print(f"    HERE. (heuristic's raw output, for debugging only: {len(abort_only)})")
 
         print(f"\nPASS B · LITERALS IN DECISION PATHS: {len(hits)}")
         for v in order:

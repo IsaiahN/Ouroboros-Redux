@@ -444,3 +444,25 @@ merely absence of a measurement. THREE OUTCOMES, NEVER TWO:
 Anything the sweep cannot place goes to UNCLASSIFIED, never to CLEARED. "Nobody has
 measured it yet" and "correctly constant" are different findings and the instrument must
 not merge them.
+
+## THE RHO FINDING, STATED PLAINLY (2026-08-18) — not one of three
+
+rho_readings has a writer (engines/egocentric/consumer.py:571) and NO READER. Verified
+by hand: one append site, zero query sites, production scope.
+
+THE CONSEQUENCE IS NOT AN EMBARRASSMENT, IT IS A RETROACTIVE CAVEAT ON WEEKS OF NUMBERS.
+EVERY rho FIGURE THIS PROJECT HAS QUOTED CAME FROM A TOOL RUN BY HAND INTO A REPORT, NOT
+FROM A MEASUREMENT THE SYSTEM TAKES. The rung readings, r0=r1=r2=0.000, the
+partition-artifact reasoning and its two retractions — all of it was produced by a stream
+with a writer and no consumer. The agent has never once consulted rho to decide anything.
+
+AND THE FIX THAT WAS SUPPOSED TO CLOSE THIS DID NOT. The rho ladder was built precisely
+because the ladder metric was unmeasured; it shipped, it writes, and the READINGS STREAM
+INHERITED THE SAME DEFECT. A cure for produced-and-unread that is itself produced and
+unread. Seat 2 built it, so this is mine.
+
+levelup_frames closes the board audit from the other end: the frame corpus stayed at ONE
+RECORD not because frames were rare but because NOTHING WAS EVER GOING TO CONSUME IT.
+That is the same shape as the salient-bank suppression — A CHANNEL THAT LOOKS STARVED AND
+IS ACTUALLY UNCONSUMED. Starvation and non-consumption are indistinguishable from the
+producer side, and this project has now mistaken the second for the first twice.
