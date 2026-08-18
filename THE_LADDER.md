@@ -380,3 +380,17 @@ that). Instances: the wheel writing nothing into the consumer's vocabulary;
 times_referenced=0 on a firing replay; and a replay gate that reads availability while
 813 recorded outcomes sit unconsulted. THE INSTRUMENTS KEEP FINDING THIS ONE LAST
 because the evidence exists — nothing looks missing.
+
+## RUNG 0c DOWNGRADE (2026-08-17, Seat 2 retraction — see HISTORY_TRACE.md section 6)
+Rung 0c has said "registry + CI gate + coverage diff" since I wrote it. THERE IS NO CI
+GATE. tests/gate/test_wiring_registry.py is a LOCAL pytest file; .github/workflows/ci.yml
+triggers only on [main, master] while all work is on v4-cold, marks every check
+non-blocking (|| echo, continue-on-error: true), excludes manual_tools/, and invokes
+neither the registry test nor the coverage diff. Untouched 197 days.
+RUNG 0c NOW READS: registry + LOCAL gate + coverage diff (MANUAL, operator-run).
+A green gate is evidence ONLY for the run in which an operator ran it. It is not
+evidence that anything is enforced. I named green-and-inert and then shipped one as my
+own rung.
+AND THE SCOPE RATIO IS NOW A RUNG-0c READING IN ITS OWN RIGHT: 74 registry rows / 416
+core production classes = 17.8%; 0 / 281 tables = 0.0%. A severed-rate measured inside
+a narrow window cannot speak for the population outside it.
