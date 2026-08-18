@@ -2246,8 +2246,30 @@ class SafeDatabaseCleaner:
         c.execute('SELECT COUNT(*) FROM agents WHERE is_active = 1')
         agents = c.fetchone()[0]
 
-        # Positive-score games
-        c.execute('SELECT COUNT(*) FROM game_results WHERE final_score > 0')
+        # D-3 (PREREG_D3_VERIFIER.md): count by EVIDENCE, not by SCORE.
+        # This verifier previously counted final_score > 0 -- the exact key
+        # condemned on 2026-02-24 after zero-score deletion destroyed ~80% of the
+        # metrics corpus. Zero-score rows record what agents TRIED AND FAILED and
+        # are the denominator. A verifier blind to their loss CERTIFIES the
+        # catastrophe it is named for. Aligned to _clean_zero_score_games():683,
+        # which was corrected 2026-08-13 while its verifier was not.
+        # LEGACY-SCHEMA DEFENCE, copied from _clean_zero_score_games():686-691.
+        # I took that function's RULE without taking its DEFENCE first, and the
+        # gate caught it: older boxes have game_results without win_detected or
+        # level_completions. Build the predicate from the columns that EXIST, and
+        # say so, rather than silently reverting to the condemned score-only key.
+        try:
+            cols = {r[1] for r in c.execute('PRAGMA table_info(game_results)')}
+        except sqlite3.OperationalError:
+            cols = set()
+        terms = ['final_score > 0']
+        if 'win_detected' in cols:
+            terms.append('win_detected = 1')
+        if 'level_completions' in cols:
+            terms.append('level_completions > 0')
+        evidence_partial = len(terms) < 3
+        c.execute('SELECT COUNT(*) FROM game_results WHERE ('
+                  + ' OR '.join(terms) + ')')
         good_games = c.fetchone()[0]
 
         # Session 23: Aggregated knowledge tables (PRESERVED, not deleted)
@@ -2342,6 +2364,9 @@ class SafeDatabaseCleaner:
             'sequences': sequences,
             'agents': agents,
             'good_games': good_games,
+            # LOUD: a partial predicate means this count CANNOT see some evidence
+            # classes on this schema. Silence here would be the blind verifier again.
+            'good_games_evidence_partial': evidence_partial,
             'aggregated_knowledge': aggregated_knowledge,
             'perceptual_knowledge': perceptual_knowledge
         }

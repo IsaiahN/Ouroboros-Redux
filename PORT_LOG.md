@@ -1087,3 +1087,50 @@ opposite of where I would have looked, since the window is the parameter I shipp
 **PREMISE MOVED** — it was chosen when the queue was small and the drain ran on a
 rate-limited online box. **TAG: SUBJECT / GROUND-GATED**, and it needs a falsifier that the
 CONSUMED RECORDS ARE HANDLED CORRECTLY at a higher rate, not merely that the queue shrinks.
+
+## ENTRY 35 — 2026-08-18. GAMES WON: 0/25. LEVELS DELTA: 0. SWARM DOWN 306 MIN.
+
+**SCOREBOARD.** **0/25.** ar25 **L2**, 7 at L1, 17 at L0. **NO NEW DEPTH RECORD.** Sessions
+**8,521, unchanged.** Swarm down the whole interval; **zero contribution, said plainly.**
+
+**VITALS — every one flat.** atoms 1,584 · mint_verdicts 225,590 · settlements 529,287 ·
+**import_queue 407,283** · rho_readings 14 · frontier_harvest 4,450. Mint structural/lexical
+split: **NOT IMPLEMENTED** (the reader still does not know the field). [PLAN]/DRIVE,
+seed-loads, affect, debasement: **need a live swarm, not read.**
+
+**HERD.** 0 supervisors, 0 procs, status **306 min** stale. **Disk 4.474 GB of the new
+30 GB ceiling (14.9%)** — the gate reports UNDER and a run may proceed.
+**THE SWARM STAYS DOWN DELIBERATELY.** The basic set has run; **allocation is Seat 3's next
+specification** and relaunching 25 pinned continuous workers would revert the design he is
+moving away from. Not a stall — a held decision with an owner.
+
+## THE ONE IMPROVEMENT: D-3, THE BLIND VERIFIER. FIXED, GATED, AND IT BROKE A TEST FIRST.
+`verify_critical_data()` counted `game_results WHERE final_score > 0` — **the exact key
+condemned 2026-02-24 after zero-score deletion destroyed ~80% of the metrics corpus.**
+**AND THE SHARPER FACT: `_clean_zero_score_games():683` IN THE SAME FILE ALREADY CARRIES THE
+CORRECT EVIDENCE RULE.** The 2026-08-13 correction was applied to the DELETER and not to its
+CHECKER. **The fix failed to cross 1,500 lines of the same file**, which is the same shape as
+its failing to cross the fork four months earlier.
+
+**FALSIFIERS, both directions, on a fixture with a WIN AT ZERO SCORE and LEVELS AT ZERO
+SCORE:**
+```
+  before:  OLD=1  NEW=3        (1 scored, 2 zero-score-with-evidence, 1 worthless)
+  KNOWN-NEGATIVE: the worthless row is counted by NEITHER      PASS
+  F2 NO-OP STABLE                                              PASS
+  after deleting every zero-score row:  OLD=1   NEW=1
+  F1 OLD IS BLIND — ITS COUNT DOES NOT MOVE AT ALL             PASS
+  F1 NEW DETECTS THE LOSS, 3 -> 1                              PASS
+```
+**THE OLD VERIFIER'S COUNT IS UNCHANGED BY THE CATASTROPHE. IT CERTIFIES.**
+
+**AND IT BROKE A TEST, WHICH I CHECKED RATHER THAN ASSUMED.** 4 failures before, **5 after**
+— `test_verify_critical_data` was MINE. **NOT the test encoding the defect** (which is what
+a wrong fix would have claimed): `no such column: win_detected` on a legacy 3-column fixture.
+**I TOOK `_clean_zero_score_games`'s RULE WITHOUT TAKING ITS LEGACY-SCHEMA DEFENCE**, which
+that function has at `:686-691` — the normaliser-applied-to-one-side shape, mine this time.
+Fixed by building the predicate from the columns that EXIST, and **surfacing
+`good_games_evidence_partial` in the stats, because silently reverting to the score-only key
+on an old schema would be the blind verifier returning by the back door.**
+**Back to the pre-existing 4 failures** (verified by stashing and re-running, not asserted).
+ruff clean · OOD clean · sweep `--strict` exit 0.
