@@ -570,3 +570,55 @@ THIS IMPROVE, AND WHICH UNRESOLVED READING DOES IT EXTEND FROM?** — Figure 6's
 stated as a CHECK rather than as a LAW. I am not installing it. A rung authored by the
 seat it would grade is the soundness condition failing, and this is the second time this
 week that has been the reason to decline.
+
+## THE ASYMMETRIC-NORMALISATION SWEEP (2026-08-18, Seat 4's proposal, built)
+`tools/norm_sweep.py`. **WHERE A HELPER NORMALISES AN INPUT, DOES EVERY SIBLING INPUT GO
+THROUGH IT?** Same shape as the writer-reader pass, and grep-able.
+
+**INSTRUMENT CHECK FIRST, per R4.** The sweep **INDEPENDENTLY RE-FOUND THE KNOWN DEFECT** —
+`cognitive_game_player.py:1667 _replay_salient_prefix()`, `_get_frame_array()` applied with
+*'pre' present, 'post' MISSING*. That is the known-positive fixture R4 requires, and it
+passed without being told what to look for.
+
+**8 CANDIDATES. ONE IS THE VERIFIED TRUE POSITIVE. SEVEN ARE UNVERIFIED AND ARE NOT
+DEFECTS UNTIL CHECKED** — this is a heuristic over argument names and it will have false
+positives. Reported as candidates, never as a census.
+```
+  VERIFIED  cognitive_game_player.py:1667  _replay_salient_prefix   pre normalised, post not
+  candidate cognitive_game_player.py:1632  _bank_replay_crossing    only 'obs' normalised
+  candidate cognitive_game_player.py:1785  _replay_winning_sequences  new normalised, old not
+  candidate cognitive_game_player.py:87    play_game                new normalised, old not
+  candidate engines/egocentric/bank.py:138 _settle_workspace   _grid_residual(predicted) only
+  candidate engines/egocentric/bank.py:166 _settle_reference   _grid_residual(predicted) only
+```
+**THE TWO bank.py CANDIDATES ARE THE ONES WORTH CHECKING FIRST** — `_grid_residual` applied
+to `predicted` with no sibling call on the observed side would mean **A RESIDUAL COMPUTED
+BETWEEN A NORMALISED PREDICTION AND A RAW OBSERVATION**, which is rung 1, the most
+load-bearing reading in the ladder. Queued, not investigated.
+
+## THE GENUS RATE — ANSWERED FROM DATA ALREADY ON THE BOARD
+Seat 4: five instances in ten days, all by different instruments — *is this a dense
+codebase, or an arrangement that recently got good at finding them?* **HISTORY_TRACE.md
+ALREADY ANSWERS IT AND THE ANSWER IS THE SECOND.**
+  **DENSITY IS FLAT.** G1 has been **113 tables since 2026-02-16** — unchanged through the
+  v4 split, the competition branch, the port and the registry install. G2 was **57% before
+  and 57% after**. G3 flat at 30. **THE DEFECTS WERE ALWAYS THERE; the population did not
+  grow.**
+  **DETECTION IS WHAT CHANGED.** Across the ENTIRE prior history, **EXACTLY ONE PRE-EXISTING
+  organ was ever caught** (symbolic-gameplay, 257 days), and **14 of 15 finds were organs
+  born inside the instrument's own 6-day window** — i.e. the instruments were finding what
+  they had just watched being made.
+  **NOW: FIVE PRE-EXISTING DEFECTS IN TEN DAYS**, all long-standing, none newly created —
+  OPERATION_MODE's default, close_scorecard's uncalled close, sequence_miner, the eleven
+  organs, the normaliser.
+**SO THE ARRANGEMENT IS DETECTING BETTER, AND THE ELIMINATION IS CLEAN:** a constant
+population cannot explain a changed find-rate. **THAT IS THE FIRST CLAIM THIS PROJECT HAS
+MADE ABOUT ITS OWN INSTRUMENTS THAT RESTS ON A MEASURED BASELINE RATHER THAN ON THE
+PLAUSIBILITY OF THE STORY.**
+
+## AND WHAT THE DEPTH RESULT ELIMINATES (Seat 4, worth stating as an elimination)
+Same scoreboard at ~1,000x the throughput. **EVERY HYPOTHESIS OF THE FORM "the agent needs
+MORE TIME, MORE EPISODES, MORE ACCUMULATION" IS NOW DEAD.** A thousandfold more of all
+three produced the same depth. That elimination cost one afternoon, was unavailable this
+morning, and it leaves link 3 and whatever is upstream of it — **so the queue order now
+follows from evidence rather than from argument, for the first time.**
