@@ -162,3 +162,42 @@ half could be pulled forward if Seat 3 wants it earlier, and that is a ruling no
 preference.**
 
 **NOT STARTED.** Named, labelled, feasibility-corrected, ranked.
+
+## IMPORT ACCEPTED — KEPNER-TREGOE (2026-08-18, carried by Seat 3 with the gate pre-run)
+
+**PROVENANCE:** Kepner-Tregoe, 1958, developed at RAND for military decision-making,
+formalised in *The Rational Manager*. **Predates this project by seven decades and was
+built for unrelated reasons** — the source gate is satisfied by a wide margin.
+**SHADOW TEST:** it explains a gap the framework named and does not fill — **deliberation
+under scarcity when selection cannot be afforded.** The arm mechanism handles the swarm;
+nothing handled the seat, and that is a residual with a shape.
+**INDEPENDENCE (rho):** management science shares nothing with this corpus's sources — no
+MDL, no RG, no complexity theory. **Genuinely different closure**, so the import is cheap
+in the currency Figure 8 prices it in.
+
+### TWO OF FOUR PROCESSES, AND ONLY TWO
+**DECISION ANALYSIS — the FORM OF AN ESCALATION.** Separate **musts** from **wants**: a
+must is a hard criterion that ELIMINATES; a want is weighted and traded off. Options are
+DEVELOPED, rather than one preferred option shipped with a justification attached — which
+is the provenance-on-a-ruling property already installed, arriving from a second source.
+**POTENTIAL PROBLEM ANALYSIS — before anything irreversible ships.** Not *did it work* but
+**what breaks if it does, and what is the preventive action.** G23 is the worked case: it
+fixed the census and destroyed the re-probe evidence, and PPA is the process that catches
+exactly that before shipping rather than two beats after.
+
+### NOT IMPORTED, AND WHY
+**Problem Analysis** duplicates the boundary diff and is WEAKER — is/is-not against a
+specification, versus four-bin routing against a residual.
+**Situation Appraisal** duplicates the apparatus/subject criterion and is LESS WELL
+FOUNDED — it prioritises by seriousness and urgency, **which are MAGNITUDES**, and
+magnitudes were rejected for that exact reason when the jurisdiction criterion was written.
+
+### THE HAZARD, CARRIED WITH IT RATHER THAN LEFT BEHIND
+**KT's WEIGHTING IS WHERE ITS OWN GENUS LIVES.** A weighted score on wants produces a
+number that LOOKS DECIDED, and the weights are AUTHORED. That is the same failure as an MDL
+verdict on unmeasured quantities — the output-layer genus, arriving inside the import.
+**THEREFORE: WEIGHTS ARE DECLARED, NEVER DERIVED, AND THE SCORE RANKS RATHER THAN SETTLES.**
+
+### WHAT THIS DOES NOT CHANGE
+**The routing criterion stays APPARATUS vs SUBJECT.** Decision Analysis is the FORM an
+escalation takes once it has been routed; it is **not a new filter on which items route.**
