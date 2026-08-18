@@ -15,6 +15,43 @@ Regions are frame-shape-DERIVED: "full" plus the four floor-halved quadrants
 "q0".."q3" (rows/cols taken h//2 and w//2 from each end, so paired quadrants
 always share a shape whatever the board size).
 
+THE GROWN CLASSES (LINK3_AUDIT + addendum 2 -- an instrument is improved from a
+worse instrument already returning something, and the RESIDUAL is the spec).
+Measured read-only against every level-up frame the project holds: the three
+classes above extracted ZERO predicates on every record while the boards
+visibly differed. The residual that measurement produced -- not a description of
+the domain, the residual itself -- named four extensions:
+
+  * colour_present(colour)     -- count(colour) > 0. `colour_count_zero`'s
+      SIGN-FLIPPED TWIN. Nothing has ever vanished at a level-up in this
+      project's history; colours APPEAR. The old class looked only for
+      disappearance and was therefore anti-correlated with the event it exists
+      to describe.
+  * colour_majority(colour)    -- colour holds strictly more cells than every
+      other colour. The residual showed EVERY colour's count moving while the
+      colour SET often did not change at all; this states that change
+      RELATIVELY (which colour dominates), never as an absolute cell count --
+      a raw count is a memorized answer, not a mechanic.
+  * region_colour_count_atmost(region, k) -- the region holds at most k distinct
+      colours. `region_uniform` is exactly the k=1 rung of this ladder and was
+      measured unsatisfiable (0/5 on every board, pre AND post); the live boards
+      live at k=2..11 and some region palettes SHRINK across the transition.
+  * region_contains_colour(region, colour) -- the region holds at least one cell
+      of that colour. LOCAL appearance: a colour entering a region it was not
+      in, which the global class cannot see when the colour already exists
+      elsewhere on the board. This is deliberately the COARSEST rung and it
+      fires very widely; MIN_CO and the miss ledger, never its own fire rate,
+      are what must carry it.
+
+The original three are KEPT UNCHANGED -- they are correct and merely never
+satisfied on this domain. This is an extension, not a replacement: a vocabulary
+that started firing `region_uniform` or `regions_equal` on these boards would
+have replaced the edge rather than extended it.
+
+EVERY class is a SINGLE-FRAME property, which is not a stylistic choice: the
+planner's predicate mode stops on `satisfies(pred, state)` against one state, so
+a delta-shaped predicate ("count increased") would be undecidable there.
+
 GoalBook banks each level-up's extracted predicates as GOAL HYPOTHESES on the
 COLLECTIVE fabric stream "goal_hypotheses", scoped by (game, level) like every
 prior. Credibility = co-occurrence count across episodes minus misses: a
@@ -73,6 +110,18 @@ def _uniform(region: Optional[np.ndarray]) -> bool:
     return region is not None and region.size > 0 and len(np.unique(region)) == 1
 
 
+def _majority(frame: np.ndarray, colour: int) -> bool:
+    """True iff `colour` holds STRICTLY more cells than every other colour --
+    the plurality, stated relatively (no absolute cell count ever appears)."""
+    vals, counts = np.unique(frame, return_counts=True)
+    if vals.size == 0:
+        return False
+    top = int(counts.max())
+    if int(counts[counts == top].sum()) != top:
+        return False                        # tied plurality: nobody dominates
+    return bool(int(vals[int(np.argmax(counts))]) == int(colour))
+
+
 def satisfies(pred: Optional[Dict[str, Any]], frame: Any) -> bool:
     """True iff the structural predicate holds in `frame` -- the planner's
     predicate-mode stopping test. Garbage -> False, never raises."""
@@ -88,6 +137,18 @@ def satisfies(pred: Optional[Dict[str, Any]], frame: Any) -> bool:
             rb = _region(a, str(pred.get("b")))
             return (ra is not None and rb is not None and ra.size > 0
                     and ra.shape == rb.shape and bool((ra == rb).all()))
+        if k == "colour_present":
+            return bool(int((a == int(pred.get("colour"))).sum()) > 0)
+        if k == "colour_majority":
+            return a.size > 0 and _majority(a, int(pred.get("colour")))
+        if k == "region_colour_count_atmost":
+            r = _region(a, str(pred.get("region")))
+            return (r is not None and r.size > 0
+                    and int(len(np.unique(r))) <= int(pred.get("k")))
+        if k == "region_contains_colour":
+            r = _region(a, str(pred.get("region")))
+            return (r is not None and r.size > 0
+                    and bool(int((r == int(pred.get("colour"))).sum()) > 0))
         return False
     except Exception:
         return False
@@ -103,6 +164,16 @@ def signature(pred: Optional[Dict[str, Any]]) -> str:
             return "colour_count_zero:%d" % int(pred.get("colour"))
         if k == "regions_equal":
             return "regions_equal:%s:%s" % (pred.get("a"), pred.get("b"))
+        if k == "colour_present":
+            return "colour_present:%d" % int(pred.get("colour"))
+        if k == "colour_majority":
+            return "colour_majority:%d" % int(pred.get("colour"))
+        if k == "region_colour_count_atmost":
+            return "region_colour_count_atmost:%s:%d" % (
+                pred.get("region"), int(pred.get("k")))
+        if k == "region_contains_colour":
+            return "region_contains_colour:%s:%d" % (
+                pred.get("region"), int(pred.get("colour")))
     except Exception:
         pass
     return "unknown"
@@ -113,13 +184,21 @@ def extract_predicates(pre_levelup_frame: Any,
     """The LEVEL-UP FRAME DELTA as predicates: every vocabulary candidate that
     holds in the post frame and did NOT hold in the pre frame (what CHANGED at
     the moment of level-up). A predicate that already held is not evidence.
-    Deterministic order; garbage -> [] (never invented, never raises)."""
+    Deterministic order; garbage -> [] (never invented, never raises).
+
+    Every candidate's parameters are DRAWN FROM THE FRAMES THEMSELVES (colours
+    present, measured region palette sizes) -- nothing is invented and no
+    magnitude is memorized. The single filter below is what keeps the extension
+    honest: a class whose candidates all already held in pre contributes
+    nothing, which is exactly why `region_uniform` and `regions_equal` still
+    yield zero on this domain."""
     out: List[Dict[str, Any]] = []
     try:
         pre = np.asarray(pre_levelup_frame)
         post = np.asarray(post_levelup_frame)
         if pre.ndim < 2 or post.ndim < 2:
             return out
+        post_cols = sorted(int(v) for v in np.unique(post))
         cands: List[Dict[str, Any]] = [
             {"kind": "region_uniform", "region": r} for r in _REGIONS]
         cands.extend({"kind": "colour_count_zero", "colour": int(c)}
@@ -127,6 +206,23 @@ def extract_predicates(pre_levelup_frame: Any,
         cands.extend({"kind": "regions_equal", "a": _QUADS[i], "b": _QUADS[j]}
                      for i in range(len(_QUADS))
                      for j in range(i + 1, len(_QUADS)))
+        # ── the grown classes (LINK3_AUDIT residual) ──────────────────────────
+        cands.extend({"kind": "colour_present", "colour": int(c)}
+                     for c in post_cols)
+        cands.extend({"kind": "colour_majority", "colour": int(c)}
+                     for c in post_cols)
+        for r in _REGIONS:
+            reg = _region(post, r)
+            if reg is None or reg.size == 0:
+                continue
+            # k is the region's OWN measured palette size in post, so the
+            # candidate holds there by construction and survives the filter
+            # only when the pre-frame's palette for that region was LARGER.
+            cands.append({"kind": "region_colour_count_atmost", "region": r,
+                          "k": int(len(np.unique(reg)))})
+            cands.extend({"kind": "region_contains_colour", "region": r,
+                          "colour": int(c)}
+                         for c in sorted(int(v) for v in np.unique(reg)))
         out = [p for p in cands
                if satisfies(p, post) and not satisfies(p, pre)]
     except Exception:

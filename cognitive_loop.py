@@ -98,30 +98,54 @@ def _seed_imp(loop) -> None:
         _swal(loop, "OTHER")
 
 
-def _goal_abd(loop, level_changed, post_array) -> None:
-    """G-C (PREREG_FINAL_GAPS): goal abduction's bank site — on a level-up, mine
-    the pre->post frame delta for STRUCTURAL predicates (region-uniform,
-    colour-count-zero, regions-equal; mechanics, never answers) and bank them as
-    game+level-scoped GOAL HYPOTHESES on the collective "goal_hypotheses"
-    stream; a level-up WITHOUT a known predicate falsifies it (credibility
-    drops). A3-2 CONVENTION (PLAYING level): _ego_level has already been
-    incremented on this level-changed step, so the bare value banked here IS
-    the playing level at which the goal was achieved (pre-increment + 1).
-    One-line call site placed AFTER the .credit/.route anchors by the
-    window law; containment: never raises."""
+def _goal_bank(loop, game, level, pre, post) -> int:
+    """G-C: THE ONE BANKING CORE — every route to the abduction bank enters here.
+
+    LINK3_AUDIT: `_goal_abd` used to hold this body and had exactly ONE call
+    site, inside the cognitive cycle. A level-up reached by PREFIX REPLAY never
+    enters that cycle, so it never reached the bank — which is why every banked
+    record was level 1 (level 1 is reached by exploration, level 2 only by
+    replay: SUCCESS SUPPRESSES THE EVIDENCE CHANNEL). The body is therefore
+    factored out here rather than copied, so the two routes cannot drift and
+    the cognitive cycle is not duplicated.
+
+    Mines the pre->post frame delta for STRUCTURAL predicates (mechanics, never
+    answers) and banks them as game+level-scoped GOAL HYPOTHESES on the
+    collective "goal_hypotheses" stream; a level-up WITHOUT a known predicate
+    falsifies it (credibility drops). Returns the number banked; containment:
+    0 on anything at all, never raises."""
+    _n = 0
     try:
         _fab = getattr(loop, "_ego_fabric", None)
-        _pre = getattr(loop, "_prev_frame", None)
-        if not level_changed or _fab is None or _pre is None or post_array is None:
-            return
+        if _fab is None or pre is None or post is None:
+            return 0
         if getattr(loop, "_goal_book", None) is None:
             from engines.egocentric.goal_abduction import GoalBook
             loop._goal_book = GoalBook(_fab)
         for _b in loop._goal_book.observe_levelup(
-                str(getattr(loop, "_game_id", "") or "game"),
-                int(getattr(loop, "_ego_level", 0) or 0),
-                np.asarray(_pre), np.asarray(post_array)):
+                str(game or "game"), int(level),
+                np.asarray(pre), np.asarray(post)):
+            _n += 1
             print(f"[GOAL] banked {_b.get('sig')} (level-up delta hypothesis)")
+    except Exception:
+        _swal(loop, "SPINE")
+    return _n
+
+
+def _goal_abd(loop, level_changed, post_array) -> None:
+    """G-C (PREREG_FINAL_GAPS): goal abduction's COGNITIVE-CYCLE bank site — on a
+    level-up, hand the pre->post frame delta to `_goal_bank`. A3-2 CONVENTION
+    (PLAYING level): _ego_level has already been incremented on this
+    level-changed step, so the bare value banked here IS the playing level at
+    which the goal was achieved (pre-increment + 1). One-line call site placed
+    AFTER the .credit/.route anchors by the window law; containment: never
+    raises."""
+    try:
+        _pre = getattr(loop, "_prev_frame", None)
+        if not level_changed or _pre is None or post_array is None:
+            return
+        _goal_bank(loop, str(getattr(loop, "_game_id", "") or "game"),
+                   int(getattr(loop, "_ego_level", 0) or 0), _pre, post_array)
     except Exception:
         _swal(loop, "SPINE")
 
@@ -1404,6 +1428,24 @@ class CognitiveLoop:
         except Exception:
             self._ego_feed_errors = getattr(self, "_ego_feed_errors", 0) + 1
             _swal(self, "OBSERVER")
+
+    def bank_replay_levelup(self, game, level, pre, post) -> int:
+        """G-C REPLAY SEAM (LINK3_AUDIT addendum): the second — and until now
+        missing — route into the abduction bank.
+
+        The cognitive cycle banks a level-up at `_goal_abd`; a level-up reached
+        by PREFIX REPLAY never enters that cycle, so link 3 only ever saw the
+        transitions the agent achieved WITHOUT goals. This is the sibling of
+        `_ego_feed` and carries the same rule: REPLAYED STEPS TEACH, NEVER
+        SIGNAL. What crosses here is an OBSERVATION — the pre/post frames the
+        environment produced at the boundary — and never the replayed prefix
+        itself, so the membrane law (no replay material in a knowledge stream)
+        is untouched and no synthetic credit is minted.
+
+        `level` is the NEW levels_completed, matching the cycle's A3-2 PLAYING
+        level convention (`_ego_level` post-increment). Returns the number of
+        hypotheses banked; containment: 0, never raises into the replay path."""
+        return _goal_bank(self, game, level, pre, post)
 
     def record_result(
         self,

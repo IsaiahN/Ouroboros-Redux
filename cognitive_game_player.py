@@ -325,7 +325,8 @@ class CognitiveGamePlayer:
             _sal = self._load_salient_prefix(game_id, int(prev_levels))
             if _sal and random.random() < self._SALIENT_REPLAY_P:
                 _staken, _sobs = self._replay_salient_prefix(
-                    env, game_id, int(prev_levels), _sal, loop)
+                    env, game_id, int(prev_levels), _sal, loop,
+                    pre_obs=(last_obs if last_obs is not None else initial_obs))
                 actions_taken += _staken
                 for _sst in (_sal.get('steps') or [])[:_staken]:
                     _sen = {'action': _sst.get('action')}
@@ -1623,14 +1624,28 @@ class CognitiveGamePlayer:
         except Exception:
             return None
 
-    def _replay_salient_prefix(self, env, game_id, level, prefix, loop=None):
+    def _replay_salient_prefix(self, env, game_id, level, prefix, loop=None,
+                               pre_obs=None):
         """Replay a banked prefix with DIVERGENCE DETECTION: if the frame after
         step i differs from the banked expectation, STOP replaying and bank the
         divergence point (the observed fork, same salience rule, same dedup).
         Playback channel only: replayed steps teach via _ego_feed (observe-only,
-        as the winning-sequence replay) and never write any fabric stream."""
+        as the winning-sequence replay) and never write any fabric stream.
+
+        LINK3_AUDIT (the replay bypass): a level-up reached HERE used to reach
+        nothing — `levels_completed` was read only to classify the outcome, so
+        the abduction bank never saw a replayed transition and every banked
+        record was level 1. The boundary crossing is now handed to the loop's
+        `bank_replay_levelup` with the frames observed either side of the
+        crossing step. OBSERVATION ONLY, exactly like `_ego_feed`: the replayed
+        prefix itself never crosses into a fabric stream (membrane law), and no
+        credit is minted (wheel rule). `pre_obs` is the observation the replay
+        starts from, so a crossing on the very first step still has a pre frame.
+        """
         _steps = list((prefix or {}).get('steps') or [])
         _taken, _obs, _seen, _prev_h = 0, None, [], None
+        _lv_seen = int(level)
+        _pre_fr = self._get_frame_array(pre_obs)
         print(f"    [SALIENT] replaying banked prefix len={len(_steps)} "
               f"level={int(level)}")
         for _st in _steps:
@@ -1650,13 +1665,26 @@ class CognitiveGamePlayer:
                           'terminal': getattr(_obs, 'state', None)
                           == GameState.GAME_OVER})
             _prev_h = _h
+            _fr = self._get_frame_array(_obs)
             try:
-                if loop is not None:
-                    _fr = self._get_frame_array(_obs)
-                    if _fr is not None:
-                        loop._ego_feed(_fr, _a)
+                if loop is not None and _fr is not None:
+                    loop._ego_feed(_fr, _a)
             except Exception:
                 pass
+            # LINK3 (a): THE HOOK — a level boundary crossed by REPLAY reaches
+            # the abduction bank, carrying the frames either side of the
+            # crossing step and the NEW levels_completed as the level. Never
+            # raises into the replay path (containment, as the cycle's site).
+            try:
+                _lv_now = int(getattr(_obs, 'levels_completed', _lv_seen) or 0)
+                if (_lv_now > _lv_seen and loop is not None
+                        and _pre_fr is not None and _fr is not None):
+                    loop.bank_replay_levelup(game_id, _lv_now, _pre_fr, _fr)
+                if _lv_now > _lv_seen:
+                    _lv_seen = _lv_now
+            except Exception:
+                pass
+            _pre_fr = _fr if _fr is not None else _pre_fr
             if _h != str(_st.get('post_hash') or ''):
                 print(f"    [SALIENT] divergence at step {_taken} — "
                       f"banking the fork")
