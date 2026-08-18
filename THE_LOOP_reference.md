@@ -177,3 +177,5 @@ hard constraint on the experiment (the population must be raised, because 6 cann
 the statistic) BOTH CAME OUT OF WRITING THE FALSIFIER, not out of designing the experiment.
 THE SEQUENCE IS THE GENERALISABLE PART: the falsifier constrains the design, so it is
 written first for reasons that have nothing to do with honesty.
+
+**For checkpointed or batched writes, the median is the wrong statistic.** The cost lives in the tail by construction — a few events absorb the flush while every other write stays cheap — so a median reading is *guaranteed* to clear a system spending everything in a handful of operations. Receipt: 200 commits at `wal_autocheckpoint=100` showed an identical 0.015 ms median to the default and a **277x** difference in total. Same class as the guaranteed-number trap, in a different disguise: a statistic that cannot express the failure it is being used to look for.

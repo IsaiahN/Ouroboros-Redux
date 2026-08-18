@@ -226,3 +226,31 @@ Gameplay is **~0.15 s**. The session is **~34 s**. **THERE ARE ~34 SECONDS OF OV
 magnitude below where they started. **The sequence terminates when the remaining cost IS the
 work**, and naming that floor in advance is what stops the fourth layer reading as a
 disappointment.
+
+### THE PRAGMA'S PROVENANCE — FOUND, AND THE COMMENT CONTRADICTS THE CODE
+`56b1766`, **2025-11-01**, Isaiah Nwukor, *"Preserving Current State of Agent System Before
+Level Upgrade"*. `database_interface.py:79-81`:
+```python
+    # Aggressive WAL checkpointing to prevent data loss on force-close
+    # Checkpoint every 1000 pages (~4MB) instead of default 1000 pages
+    self._local.connection.execute("PRAGMA wal_autocheckpoint=100")  # 400KB
+```
+**THE COMMENT SAYS 1000 TWICE AND THE CODE SETS 100.** And *"1000 instead of default 1000"*
+is a no-op as written, so the sentence is incoherent on its own terms — while showing the
+author knew the default was 1000. **The value shipped is 10x more aggressive than the
+comment describing it.** This is the third degree of the genus in a new place: knowledge
+written down and not matching what was applied.
+
+**THE STATED REASON IS REAL AND STILL LIVE:** *prevent data loss on force-close*. The swarm
+supervisor force-kills workers — `taskkill /T /F`, memory caps, 2 h recycling — so
+force-close is not hypothetical here.
+
+**BUT THE MECHANISM INVOKED DOES NOT DO WHAT THE COMMENT ASSUMES.** In WAL mode a COMMITTED
+transaction is durable once written to the WAL; **checkpointing does not decide whether
+committed data survives a process kill, it decides HOW MUCH WAL MUST BE REPLAYED ON REOPEN.**
+So the real trade is **WAL SIZE AND RECOVERY TIME against a measured 277x write cost** — not
+safety against loss.
+**THIS IS A CLAIM ABOUT SQLite's DOCUMENTED SEMANTICS, NOT A MEASUREMENT I TOOK**, and it
+owes one: kill a writer mid-transaction at `autocheckpoint=1000` and confirm committed rows
+survive reopen. **UNTIL THAT RUNS, THE PRAGMA DOES NOT CHANGE** — the author's reason stands
+unless the test retires it, and a reason nobody currently holds is still a reason.
