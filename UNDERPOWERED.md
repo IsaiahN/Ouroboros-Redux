@@ -95,3 +95,79 @@ And cheap repetition invites reading many runs casually. Prereg, as-of, populati
 and the guaranteed-number check were affordable at fifteen hours per arm **because the run
 itself forced a pause. NOTHING FORCES ONE NOW.**
 **MORE RUNS, SAME DISCIPLINE PER RUN.**
+
+---
+
+# RE-DERIVING n FROM WHAT THE CLAIM NEEDS (2026-08-18, Isaiah's question)
+*"is there any reason a re-run is 3 games rather than 25 — or 25 games rather than
+25 x several seeds? If there's a constraint I'm not seeing, name it."*
+
+## THE ONE CONSTRAINT, MEASURED — AND IT IS NEITHER THE CLOCK NOR THE API
+```
+  ONE offline session, FRESH empty box .............. 11.7 s
+  ONE offline session, EXISTING 55 MB box (ls20) .... 71.3 s      6.1x PENALTY
+  box sizes today: ls20 73MB/55MB db · ar25 55MB/43MB · bp35 155MB/131MB
+```
+**PER-SESSION COST SCALES WITH ACCUMULATED BOX SIZE.** Gameplay is ~0.15 s of the 71 s;
+the rest is the local DB layer — the schema rebuild from `object_detector.py:37`'s relative
+`db_path`, and commits without WAL (313 ms vs 0.03 ms, PERF_AUDIT). **THAT IS THE WHOLE
+CONSTRAINT, IT IS 6x, AND IT IS ALREADY ON THE RULE-FIRED QUEUE AS R3.**
+
+## SO: 3 GAMES -> 25. NO REASON NOT TO, AND A BETTER REASON THAN COST
+**THE 25 GAMES ARE NOT A SAMPLE. THEY ARE THE POPULATION.** Running 3 was SAMPLING a
+population we can ENUMERATE. **25 games is a CENSUS, not a bigger sample**, and there is no
+statistical argument for sampling what you can enumerate. Cost: 25 x 71 s / pool 4 ~= **7.5
+minutes**.
+
+## 25 GAMES -> 25 x SEEDS: SEEDS ARE THE ONLY REAL SOURCE OF ADDITIONAL n
+Once the games are a census, **every further n must come from REPETITION** — and repetition
+is exactly what the seeding economy's variance requires.
+```
+  25 games x  5 seeds x 2 arms = 250 sessions ~= 74 min at today's DB cost
+  25 games x 10 seeds x 2 arms = 500 sessions ~= 2.5 h
+  the same after the R3 DB fix (11.7 s/session):  ~= 12 min and ~= 24 min
+```
+**SEEDS ARE AFFORDABLE NOW AND CHEAP AFTER R3.** The constraint bites somewhere past
+25 x 50, not at 25 x 5.
+
+## RE-DERIVED SAMPLE SIZES, BY WHAT EACH CLAIM NEEDS
+| claim | needs | proposed |
+|---|---|---|
+| "the stack pays" (a MARGIN, under seeding-economy variance) | separation from seed noise | **25 games x >=5 seeds x 2 arms** |
+| seed-stability of the winner set | enough seeds to see churn | **>=5 seeds, 10 preferred** |
+| "selectivity not activity" | rides the same runs | **free** |
+| offline throughput | several games | **~free** |
+| any ELIMINATION | n=1 | **unchanged** |
+
+## THE SEED-STABILITY LOSING CONDITION, PINNED BEFORE IT RUNS
+Seat 4: *partial overlap is the likely outcome and it is the one that is arguable
+afterward.* Correct, so it is fixed now.
+**AND A GUARANTEED-NUMBER TRAP IN THE OBVIOUS METRIC:** with `--population 6`, the top-5
+winner set is **5 of 6 by construction**, so pairwise Jaccard is high NO MATTER WHAT and
+would "prove" stability from pure noise. **THE CRITERION MUST BE STATED AGAINST THE NULL,
+NOT AGAINST AN ABSOLUTE THRESHOLD.**
+**PRE-COMMITTED:** compare the observed cross-seed winner overlap against **the overlap
+expected from RANDOM winner assignment at the same population size**, computed by shuffle.
+  - observed overlap **significantly ABOVE** the null -> **selection tracks something**
+  - observed overlap **indistinguishable from** the null -> **the economy amplifies noise
+    and every ranking it has produced, including the arm's, is unsupported**
+  - **anything between -> UNRESOLVED, more seeds. NOT a partial win.**
+**AND RAISE THE POPULATION** so the statistic has room: population 6 cannot express this.
+
+## TWO LABELS ADOPTED FROM SEAT 4
+**(i) THE SORT IS PER-CLAIM, NOT PER-VERDICT.** The arm contains both kinds — 19v11 is a
+margin, sp80's 31v0 is an elimination. Link 3 contains both — the 0 survives, the 50 does
+not. **Stated as the rule rather than the instance, because the next verdict will too.**
+**(ii) RANK 4's ELIMINATION IS LICENSED BY MAGNITUDE, NOT BY n.** "No plausible variance
+closes ~1,000x" is a judgement about effect size against noise, **stated rather than
+measured**, and it now carries that label. It is the same reasoning as *this is a
+categorical absence*, and it is the honest account of why thin n is acceptable there and
+nowhere else on this list.
+
+## AND THE GUARD, BECAUSE NOTHING FORCES A PAUSE NOW
+Seat 4: the signature of the coming failure is **verdicts arriving without their population,
+as-of, or n**. Four such omissions in ten days when runs took hours; at seconds, the same
+omission rate produces far more unlabelled numbers.
+**PROPOSED (SUBJECT / GROUND-GATED): a report carrying a number and no n has not cleared
+the standard** — checkable mechanically against the report's own format, in the same shape
+as the consumption sweep, and it does not depend on anyone remembering.
