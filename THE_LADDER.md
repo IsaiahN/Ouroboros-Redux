@@ -394,3 +394,53 @@ own rung.
 AND THE SCOPE RATIO IS NOW A RUNG-0c READING IN ITS OWN RIGHT: 74 registry rows / 416
 core production classes = 17.8%; 0 / 281 tables = 0.0%. A severed-rate measured inside
 a narrow window cannot speak for the population outside it.
+
+## RUNG 0d · CONSUMPTION (2026-08-18, assigned by Isaiah; tightened by Seat 4)
+
+PLACEMENT: a PRECONDITION alongside 0b (exposure) and 0c (wiring) — NOT a stage. This
+genus passes every "did this stage produce output" check, because THE OUTPUT EXISTS.
+What is missing is a consumer.
+
+0d · CONSUMPTION. For every stream a live organ writes, IS THERE A LIVE READER THAT
+     CHANGES WHAT THE AGENT DOES — not merely one that halts it?
+
+THE ABORT/DECIDE CLAUSE IS LOAD-BEARING AND IT CAME FROM OUR OWN FINDING: of the regime
+consumers that exist, BOTH ARE ABORT CONDITIONS (reset detection, stuck-loop guard).
+Nothing consumes a regime to PLAN DIFFERENTLY. A stream read only to STOP and never to
+DECIDE satisfies "is there a live reader" as naively written WHILE EXHIBITING EXACTLY
+THE PATHOLOGY. So the rung asks for a reader that changes a CHOICE, not one that trips
+a BRAKE. The agent can notice it is dying and cannot adjust the plan that is killing it.
+
+STALLS HERE -> THE WIRE, NOT THE PRODUCER.
+
+AND THE READINGS BELOW ARE UNINTERPRETABLE. This is why 0d sits ABOVE rung 1 rather than
+inside the list: a decision made on a constant while the measured value sits unread means
+EVERY DOWNSTREAM NUMBER DESCRIBES A SYSTEM THAT IS NOT USING ITS OWN KNOWLEDGE. Residual,
+mints, verification, adoption, drive — all of them are then measuring a different system
+than the one we think we are grading.
+
+### THE TWO FORMS, AND THIS REPO HAS THE WEAKER ONE
+STRONG FORM (not present here, verified): a decision reads a literal THAT OVERRIDES A
+  MEASURED VALUE THE SYSTEM ALREADY HOLDS — written, retrieved, and then replaced at the
+  call boundary. Strictly worse than an unwired organ, because the wire exists and the
+  value is discarded at the door.
+WEAK FORM (PRESENT, receipt): a decision reads a literal for a quantity THE SYSTEM COULD
+  MEASURE AND NEVER DOES. cognitive_loop.py:415/475/294 max_actions=500, consumed as
+  feasibility at :1168-1169 and :1250-1251, while BOARD_AUDIT.md section 2 records a
+  64-cell clock in column 63 that nothing reads. 500 vs 64.
+BOTH FAIL 0d. The rung does not distinguish them for pass/fail; it records which.
+
+### THE GENERALIZING RULE
+A DECISION THAT READS A CONSTANT WHERE THE SYSTEM HOLDS A MEASUREMENT IS THE GENUS.
+EVERY LITERAL IN A DECISION PATH OWES AN ANSWER TO: DOES SOMETHING ALREADY KNOW THIS?
+Checkable per constant, bounded by the number of decision sites.
+
+### THE PROVENANCE CAVEAT THAT KEEPS THE SWEEP HONEST (Seat 4)
+A sweep that returns N constants and clears N-k of them is lying if the clearing is
+merely absence of a measurement. THREE OUTCOMES, NEVER TWO:
+  MEASURED-ELSEWHERE  -> the hit. A measurement exists and the decision ignores it.
+  LATENT             -> no measurement exists BUT one could. Not cleared: unbuilt.
+  CONSTITUTIVE       -> genuinely fixed by the frame, not by the world.
+Anything the sweep cannot place goes to UNCLASSIFIED, never to CLEARED. "Nobody has
+measured it yet" and "correctly constant" are different findings and the instrument must
+not merge them.
