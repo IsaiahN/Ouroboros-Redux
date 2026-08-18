@@ -962,3 +962,49 @@ instrument correction, and the rule is one MAXIMUM, not one minimum.
 vocabulary claim from CANDIDATE to settled; (2) the scorecard lifecycle rebuilt to ARC's
 documented pattern, plus the scorecard-landed check proposed upward as APPARATUS; (3) the
 import-queue backlog, which is now the loudest vital on the board.
+
+## ENTRY 33 — R3 LANDED: 320x ON THE READ, ~2x ON THE SESSION, AND IT DOES NOT RECOVER THE 6.1x
+
+**F1 · BYTE-IDENTITY: PASS.** Oracle transcribed from the pre-fix code, sharing no code with
+the subject, compared by `json.dumps` per record so **key order counts**. 44 tests. Two real
+traps caught in the build: `str.splitlines()` **breaks on `\v \f \x85 \u2028`** and would
+have split records; and counting LINES instead of RECORDS returns short windows on exactly
+the crash-torn streams the live boxes carry. **Both would have shipped green.**
+**F2 · THE COST MOVES: 320x** (threshold 10x). `gains()` 115.056 ms -> **0.360 ms** on a copy
+of the real 28,772-record stream.
+**F3 · THE SESSION: ~69.7 s -> ~33.9 s on live episodes.** Read share of session time
+**44.6-45.5% -> 3.7%**; all remaining `fabric.query` time is 0.80 s of 34.2 s.
+
+**AND THE PART I ASKED FOR WHETHER OR NOT IT FLATTERED THE FIX: IT DOES NOT RECOVER THE
+6.1x.** Post-fix ls20 is **33.9 s, not 11.7 s**. The read was the leading term and roughly
+**half** the gap.
+**AND THE BUILDER CHALLENGED MY BASELINE, CORRECTLY.** Sessions take one of two paths — a
+**replay-death (~11-14 s)** or a **live episode (~70 s)**. **AN 11-14 s ls20 SESSION SITS
+RIGHT ON MY 11.7 s "FRESH BOX" NUMBER**, so my fresh-vs-existing A/B may have compared **two
+different EPISODE PATHS rather than two box sizes.** **THAT IS MY FIFTH TIMING ERROR**, same
+class as the previous four: a measurement taken under uncontrolled conditions is a
+measurement of the conditions — and the uncontrolled condition here was which path the RNG
+drew. **THE 6.1x FIGURE IS WITHDRAWN AS A BOX-SIZE MEASUREMENT.** What survives is measured
+inside the session: 30 s of read removed, attributed by instrumentation rather than by
+subtraction of two whole-session timings.
+
+**ISAIAH'S n=1 RULING ARRIVED INSIDE A BUILD, HOURS AFTER IT WAS MADE.** The builder's FIRST
+A/B pair drew different episode paths and **REPORTED THE FIX AS A SLOWDOWN.** It caught this
+by running five per arm and then attributing inside the session instead. **One run per arm
+was not interpretable, exactly as ruled, and the demonstration was live rather than
+argued.**
+
+**MY OWN BREAKAGE, AND IT IS THE SHARPER FINDING.** `ruff` has been failing at HEAD since
+`7681ac3` — **10 errors, all in `tools/norm_sweep.py`, MY file** — and
+`test_frame_instruments.py::test_ruff_is_clean_on_the_scoped_paths` has been RED for **6
+commits, all pushed.** The builder found it, correctly refused to fix it (another seat's
+instrument, and folding a formatting diff into an R3 perf change is the scope mixing the
+standard warns against), and proved it was not its own with scoped runs. **NOW FIXED; ruff
+clean repo-wide; the sweep still returns its known-positive after the edit.**
+**AND RUNG 0e FIRES ON MY OWN INSTRUMENT ON THE DAY IT WAS INSTALLED.** `ci.yml` declares
+`ruff` a **BLOCKING** check. **SIX COMMITS WERE PUSHED WHILE IT WAS FAILING AND NOTHING
+STOPPED THEM.** So either CI never ran, or it ran red and nothing surfaced it. **I INSTALLED
+A BLOCKING GATE TWO DAYS AGO AND NEVER VERIFIED IT FIRES** — *did the check that was supposed
+to block, block?* is rung 0e pointed one level in, and the answer is no. `gh` is not
+installed here, so **I cannot confirm from this box whether the workflow has ever executed,
+and that is itself the finding rather than an excuse.**

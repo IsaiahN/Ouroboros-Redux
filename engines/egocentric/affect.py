@@ -52,7 +52,20 @@ class AffectGains:
     # ── internals (all re-derived per call; no cached state) ─────────────────
 
     def _recent_settlements(self) -> List[Dict[str, Any]]:
+        """The last WINDOW settlements -- read as a TAIL, not as a whole stream.
+
+        PERF_AUDIT.md Q4: this was `query(...)[-WINDOW:]`, a full-file parse answering a
+        20-record question, and gains() calls it from cognitive_loop.py:1849 twice per
+        step -- 0.314 ms over 20 records, 262.250 ms over 40,000, on boxes carrying
+        28,772. `query_tail` returns the identical list (byte-identical by contract:
+        tests/gate/test_tail_read.py), so nothing downstream of here changes except the
+        cost. The fallback is not defensive padding: stand-in fabrics that implement only
+        `query` are passed to this class in the live tests, and they must keep working.
+        """
         try:
+            tail = getattr(self.fabric, "query_tail", None)
+            if tail is not None:
+                return tail("collective", "settlements", self.WINDOW)
             rows = self.fabric.query("collective", "settlements")
         except Exception:
             self.errors += 1

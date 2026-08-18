@@ -80,6 +80,97 @@ class KnowledgeFabric:
                     out.append(rec)
         return out
 
+    # Tail-read block: one read of this size answers a 20-record question against
+    # every stream shape measured on the live boxes (ls20 settlements average 155
+    # bytes/record, so 64 KiB is ~420 records of headroom). It is a starting point,
+    # not a bound -- the reader doubles it until it holds enough RECORDS, so a
+    # stream of 20 KiB records is slower, never wrong.
+    _TAIL_BLOCK = 65536
+
+    @classmethod
+    def _tail_lines(cls, blob: bytes) -> List[str]:
+        """Split a byte range on the SAME line boundaries text mode would.
+
+        `_read_stream` opens with encoding="utf-8", errors="replace" and the default
+        newline=None -- universal newlines -- so "\\r\\n", "\\r" and "\\n" are all
+        terminators and nothing else is. `str.splitlines()` is NOT this function: it
+        also breaks on \\v, \\f, \\x1c-\\x1e, \\x85, \\u2028 and \\u2029, any of which
+        inside a JSON string would split one record into two and diverge.
+
+        Decoding a slice rather than the file is safe ONLY because callers hand this a
+        range that begins at a line boundary: 0x0A and 0x0D can never occur inside a
+        multi-byte UTF-8 sequence (continuation bytes are >= 0x80), so a terminator
+        always closes any sequence and the decoder starts the slice in the same state a
+        whole-file decode would be in -- which is what keeps errors="replace" landing on
+        identical replacement characters.
+        """
+        text = blob.decode("utf-8", errors="replace")
+        return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+    @classmethod
+    def _tail_records(cls, path: str, n: int) -> List[Dict[str, Any]]:
+        """The last `n` well-formed records of one stream -- identical to
+        `_read_stream(path)[-n:]`, reading O(tail) bytes instead of O(stream).
+
+        PERF_AUDIT.md Q4: the per-step affect read (affect.py:_recent_settlements ->
+        cognitive_loop.py:1849, twice per step) asked a 20-record question by parsing
+        every record ever written -- 0.314 ms at 20 records, 262.250 ms at 40,000.
+
+        Walks backwards in doubling blocks, discarding the first (partial) line of every
+        block that does not start at byte 0 -- which is also what makes a block boundary
+        landing mid-character harmless: those bytes are dropped, never decoded into the
+        result. Counts RECORDS, not lines, because blank lines, corrupt lines and
+        non-dict lines are all skipped by `_read_stream` and a line-counting reader would
+        return short windows on exactly the crash-torn streams the live boxes carry.
+        """
+        if n <= 0 or not os.path.isfile(path):
+            return []
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            return []
+        if size <= 0:
+            return []
+        block = cls._TAIL_BLOCK
+        with open(path, "rb") as fh:
+            while True:
+                start = max(0, size - block)
+                fh.seek(start)
+                blob = fh.read(size - start)
+                if start > 0:
+                    # drop through the first terminator: the bytes before it belong to a
+                    # line this window cannot see whole (and may split a character).
+                    nl = blob.find(b"\n")
+                    cr = blob.find(b"\r")
+                    if nl < 0 and cr < 0:        # no terminator in the window at all
+                        block *= 2               # (a record longer than the block)
+                        continue                 # start reaches 0 -> always terminates
+                    if cr < 0 or 0 <= nl < cr:
+                        cut = nl + 1
+                    else:
+                        cut = cr + (2 if blob[cr + 1:cr + 2] == b"\n" else 1)
+                    blob = blob[cut:]
+                # parse BACKWARDS and stop at n: seeking without this still pays a
+                # json.loads for every record in the block, which is the actual cost.
+                out: List[Dict[str, Any]] = []
+                lines = cls._tail_lines(blob)
+                for i in range(len(lines) - 1, -1, -1):
+                    line = lines[i].strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except Exception:
+                        continue                 # crash mid-write: skipped, never fatal
+                    if isinstance(rec, dict):
+                        out.append(rec)
+                        if len(out) >= n:
+                            break
+                out.reverse()
+                if len(out) >= n or start == 0:
+                    return out
+                block *= 2
+
     @staticmethod
     def _ends_in_newline(path: str) -> bool:
         """True unless the file ends mid-line (a crash-truncated tail): the next
@@ -162,6 +253,36 @@ class KnowledgeFabric:
                 out.append(rec)
                 if limit is not None and len(out) >= limit:
                     return out
+        return out
+
+    def query_tail(self, scope: str, topic: str, n: int) -> List[Dict[str, Any]]:
+        """`query(scope, topic)[-n:]` WITHOUT reading `query(scope, topic)`.
+
+        Byte-identical to the slice by contract (tests/gate/test_tail_read.py asserts it
+        against a literal transcription of the pre-tail-read code), and O(tail) instead
+        of O(stream): PERF_AUDIT.md Q4 measured the full read at 0.314 ms over 20 records
+        and 262.250 ms over 40,000, on a call the loop makes twice per step.
+
+        The window is the tail of the SAME concatenation `query` builds -- seed roots in
+        order, then the local root -- so the roots are walked in REVERSE and only far
+        enough back to fill n. Seeds are read-only overlays and are usually where the
+        long history lives, so a tail read that stopped at the local root would be both
+        wrong and, on a seeded box, not even the faster half.
+
+        n <= 0 is not a fast path: `rows[-0:]` is the WHOLE list, and the point of this
+        method is that no caller can tell it from the slice, so that case defers to the
+        full read rather than quietly returning nothing.
+        """
+        if n <= 0:
+            return self.query(scope, topic)[-n:]
+        out: List[Dict[str, Any]] = []
+        for base in reversed(list(self.seeds) + [self.root]):
+            part = self._tail_records(self._stream_path(base, scope, topic),
+                                      n - len(out))
+            if part:
+                out = part + out
+            if len(out) >= n:
+                break
         return out
 
     # ── the idea economy ──────────────────────────────────────────────────────
