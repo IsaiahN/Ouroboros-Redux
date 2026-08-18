@@ -339,3 +339,75 @@ partitions — own reader, frontier.py never imported — REPRODUCES ar25 EXACTL
 blacklists a cell at all; the fix only bites where clicking is mostly futile. Any claim
 that G23 "helps the swarm" must name the partition — 289 cells is a swarm total, not a
 per-game effect, and 0 of it lands on the eleven zero-dead partitions.
+
+### A13 — THE BUDGET REGIME IS ASSUMED, NOT MODELLED (2026-08-18, Seat 2 sweep)
+
+VERIFICATION FIRST: `SessionMemory`, `action_limit`, and the "100k floor" DO NOT EXIST in
+this repository (grep, whole tree). Fifth cross-thread set. THE DIAGNOSIS IS CORRECT AND
+LANDS ON A DIFFERENT CONSTANT.
+
+**G24 MAX_ACTIONS = 500 [GUESSED, UNREGISTERED UNTIL NOW, Register G]**
+  Sites: cognitive_loop.py:415 (`self._max_actions: int = 500`), :475 (ctor default),
+         :294 (`s.get("max_actions", 500)`).
+  CONSUMED AS FEASIBILITY: cognitive_loop.py:1168-1169 and :1250-1251 —
+         `budget=float(max(0, self._max_actions - self._actions_taken))`
+  IDENTICAL FOR ALL 25 GAMES. Never measured against any game. No per-game value, no
+  per-level value, no estimator, no None-branch, no "unknown" state.
+
+**Q1 — DOES ANYTHING MODEL A BUDGET REGIME? NO.** Not a bad estimator: NO ESTIMATOR.
+The quantity feasibility divides by is a literal.
+
+**Q2 — IS THE REGIME OBSERVABLE FROM FRAME DATA? YES, AND IT IS MEASURED, AND NOTHING
+READS IT.** BOARD_AUDIT.md section 2: ar25 publishes a 64-CELL MONOTONE CLOCK IN COLUMN
+63 — refills at level-up, spends on effectful actions, terminal when full. Winning levels
+ended with 16 and 18 spare; the fatal prefix spent 64, ran a second 64, and died
+completing it, VISIBLE WITH AN EXACT COUNTDOWN FOR 97 STEPS.
+  **THE OBSERVABLE REGIME HAS PERIOD 64. THE ASSUMED CONSTANT IS 500. NOT THE SAME ORDER
+  OF MAGNITUDE — the loop's model of "how much can I do" is ~8x wrong on the one game
+  where we have measured the truth.**
+  And goal_abduction.py already defines colour_count_zero(colour) — which can express the
+  clock's exhaustion exactly — and never evaluates it.
+
+**Q3 — WHAT DOES THE PLANNER DO WHEN THE REGIME IS UNKNOWN?** NONE OF THE THREE. It never
+asks. There is no unknown branch because there is no regime variable. This is a FOURTH
+option and it is worse than fail-closed, assume-unbounded, or assume-last-seen:
+**ASSUME A NUMBER WITH NO PROVENANCE.** 500 fails silently in both directions — it
+over-plans on a 64-tick game and under-plans on an unbounded one, and cannot report
+either, because nothing compares it to anything.
+
+## THE REGISTER L SWEEP — WHERE ELSE THE LOOP ASSUMES A CONSTANT THE WORLD VARIES
+Bound applied (per the reviewer's scoping clause): ONLY properties A DECISION DEPENDS ON.
+Observable-but-unread is a deletion candidate, not an estimator candidate.
+
+  ENVIRONMENT PROPERTIES ASSUMED CONSTANT (candidates for Register L, ranked):
+    L-1  max_actions = 500        cognitive_loop.py:415,475,294   FEASIBILITY. Board says 64.
+    L-2  max_condition_cells = 4  effects.py:676   CAPS PRECONDITION WIDTH — and the board
+                                  audit's finding is that ACTION6 is gated by a
+                                  precondition the model has no slot for. A 4-cell cap is
+                                  a prior on how complex a gate may be.
+    L-3  max_shift = 12           agency.py:39     HOW FAR A MOVE CARRIES. Per-game fact.
+    L-4  stall_steps = 50         goal.py:30       WHEN A GOAL IS STALLED = game tempo.
+    L-5  max_size = 30            goal.py:131      LARGEST TARGETABLE OBJECT. Per-game fact.
+    L-6  birth_min_overlap = 0.30 / death_occupancy = 0.50   perception.py:170
+                                  OBJECT IDENTITY ACROSS FRAMES = how fast things move.
+    L-7  ttl = 80                 navigation.py:33  PATH LIFETIME.
+
+  NOT Register L (epistemic thresholds, correctly global — the wheel rule):
+    min_evidence = 3 (bank.py:50, binder.py:66, spine.py:30), min_obs/purity
+    (bank.py:295), eps (router.py:36). These are about HOW MUCH EVIDENCE CONVINCES US,
+    not about what the world is. They stay F/G.
+
+## THE ORDERING CONSTRAINT (adopted from the reviewer, and it is binding)
+An estimator whose output nothing consumes IS the produced-recorded-and-unread genus.
+Building one for L-1 before the planner reads a regime variable would be committing the
+genus KNOWINGLY. Therefore: **CONSUMER FIRST.** The feasibility site
+(cognitive_loop.py:1168/1250) must read a regime VALUE from a source that can be wrong
+and can be corrected; only then does an estimator fill it. Wire, then measure.
+
+## THE GENERAL LAW (stated once, with the scoping clause that makes it terminate)
+ANY ENVIRONMENT PROPERTY THE AGENT CANNOT SEE MUST BE DERIVED, AND ANY PROPERTY IT
+DERIVES MUST BE RE-DERIVED PER REGIME — BOUNDED TO PROPERTIES SOME DECISION DEPENDS ON.
+Register L discipline: THE ESTIMATOR IS A SOCKET (global, F/G, one for all games); THE
+ESTIMATE IS PER-GAME PER-LEVEL LEARNED STATE (data, not a knob). This does not violate
+the anti-overfit law because no game-specific VALUE is ever shipped — only the capacity
+to measure one.
