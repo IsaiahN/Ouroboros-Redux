@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2640" height="2380" viewBox="0 0 2640 2380" font-family="DejaVu Sans">
-<rect width="2640" height="2380" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="2640" height="2530" viewBox="0 0 2640 2530" font-family="DejaVu Sans">
+<rect width="2640" height="2530" fill="#ffffff"/>
 <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1a1a1a"/></marker></defs>
 
 <text x="500" y="196" text-anchor="middle" font-size="44" fill="#2b2b2b">before</text>
@@ -58,4 +58,7 @@
 <text x="1320" y="2202" text-anchor="middle" font-size="35" fill="#12664a">instrument was built on the residual the last one produced. Instrumentation extends from the current edge and cannot be deposited in mid-air.</text>
 <text x="1320" y="2264" text-anchor="middle" font-size="35" fill="#8f2f24">So the question is not whether a sensor could exist. It is whether anything, at any resolution, is already returning something that fails to resolve.</text>
 <text x="1320" y="2310" text-anchor="middle" font-size="35" fill="#8f2f24">Where nothing is, there is no edge to extend from, and the search for a proto-instrument is a search for one that is already there.</text>
+<text x="1320" y="2372" text-anchor="middle" font-size="34" fill="#666666">Scope: this tells a foreclosed question from a hard one. It is not a rule about theory. Theory routinely precedes its instrument and is welcome to.</text>
+<text x="1320" y="2416" text-anchor="middle" font-size="34" fill="#666666">Neptune was calculated before it was seen; the Higgs mass was predicted before the detector existed, and the prediction is what said what to build.</text>
+<text x="1320" y="2460" text-anchor="middle" font-size="34" fill="#666666">Nor does it require increments: a step change in resolution is fine. What is unavailable is a sensor for something nothing has ever registered.</text>
 </svg>

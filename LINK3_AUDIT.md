@@ -152,3 +152,45 @@ CORPUS. It was enough to produce the finding of the beat. I declared an ABSENCE 
 there was an EDGE, and in doing so I put a prerequisite on Isaiah's board that was never
 a prerequisite. **V3 IS DOWNGRADED: frame retention is worth doing and it BLOCKS
 NOTHING.** The link-3 work can proceed on what is already on disk.
+
+## ADDENDUM 3 — THE SCOPE CLAUSE CORRECTS TWO THINGS I SAID (2026-08-18)
+
+Figure 6 REV(4) scopes the instrument rule: *it tells a FORECLOSED question from a HARD
+one. It is not a rule about theory. Theory routinely precedes its instrument and is
+welcome to* — Neptune calculated before it was seen, the Higgs mass predicted before the
+detector, **and the prediction is what said what to build**. No increment requirement
+either: a step change in resolution is fine. **What is unavailable is a sensor for
+something NOTHING HAS EVER REGISTERED.**
+
+**CORRECTION 1 — I was too hard on the build, and on myself.** I wrote that proposing "a
+vocabulary drawn from what the frames do" **VIOLATES** the clause. IT DOES NOT. That is
+theory preceding its instrument, which is explicitly welcome and is often how the pointing
+gets decided. The residual-grown construction is still BETTER — it is anchored to a
+reading that already exists — but the description-first version was never illegitimate.
+THE TWO HALVES COMPOSE: **the prediction says where to point; the instrument still extends
+from something that registers.** A Higgs detector was built on accelerators that already
+registered particles; the prediction chose the target.
+
+**CORRECTION 2 — and this one mattered more.** I wrote: *"links 4 and 5 are unreached,
+returning nothing at all, so there is no edge there and building would be mid-air."*
+**THAT MISDESCRIBES A BLOCKED LINK AS AN UNREACHABLE ONE.** Links 4 and 5 are silent
+BECAUSE THEIR INPUT NEVER ARRIVES — link 3 returns 0, so planning has no goal and
+mint->echo->promote never fires. That is **HARD**, not **FORECLOSED**. The ladder already
+refuses work there for its own and sufficient reason: *a step whose input never arrives
+cannot be diagnosed, only its predecessor can.* I imported "no edge" as a second reason
+and it was the wrong one. The ordering conclusion survives; ONE OF ITS TWO ARGUMENTS DOES
+NOT.
+
+### AND THE USEFUL APPLICATION, RUN ACROSS THE WHOLE BOARD
+*Foreclosed* means nothing has ever registered anything. Applied honestly:
+  link 3 abduction      — 9 records registered, extractor returns 0 -> **HARD**, has an edge
+  link 4 planning       — silent because link 3 is 0                -> **HARD**, blocked
+  mint -> echo -> promote — never fired end to end, same cause      -> **HARD**, blocked
+  L2 level-up frames    — 0 ever registered, BUT the cause is the replay bypass, and the
+                          hook makes it register                    -> **HARD**, not foreclosed
+  frame-level work      — 9 records; I already retracted this one   -> **HARD**, has an edge
+**NOTHING ON THIS BOARD IS FORECLOSED.** Every silence traces to a broken predecessor
+rather than to an absence in the world. That is a materially more encouraging reading than
+the one I gave last turn, and it is the reading the scope clause exists to produce:
+**a diagnosis of "no edge here" is a STRONG CLAIM OWING A SEARCH, not a default for
+anything currently quiet.**
