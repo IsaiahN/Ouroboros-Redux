@@ -171,3 +171,45 @@ omission rate produces far more unlabelled numbers.
 **PROPOSED (SUBJECT / GROUND-GATED): a report carrying a number and no n has not cleared
 the standard** — checkable mechanically against the report's own format, in the same shape
 as the consumption sweep, and it does not depend on anyone remembering.
+
+## THE STOPPING RULE FOR THE UNRESOLVED BRANCH — NAMED NOW, NOT AFTERWARD
+Seat 4: *"anything between -> more seeds" is unbounded as written, and naming the number
+afterward is how a null gets absorbed.* Correct. Fixed before the run.
+
+**k = 10 SEEDS IS THE STOP.** Escalation past it is permitted in exactly one case and
+forbidden in the other:
+  - observed overlap **ABOVE the null but not yet separated** -> escalate to k = 20. A
+    trend in the right direction earns more sampling.
+  - observed overlap **FLAT AGAINST THE NULL at k = 10** -> **STOP. THAT IS A FINDING, NOT
+    AN INVITATION.** Report it as: the economy is not selecting on capability.
+**NEVER ESCALATE ON A FLAT NULL.** That is the exact move that converts a null into an
+open question and keeps it open forever.
+
+**THE ARGUMENT FOR 10, so the number is not arbitrary.** k=10 x 25 games = **250 sessions
+per arm**, and 45 seed-pairs against a shuffled null. **A SELECTION SIGNAL TOO SMALL TO
+DETECT AT THAT SIZE IS TOO SMALL TO MATTER FOR THE PURPOSE THE MECHANISM SERVES** — the
+economy does not merely rank agents, it FUNDS them, and a funding signal indistinguishable
+from chance across 250 sessions is not a weak signal being under-sampled, it is an absent
+one. **The stopping rule is derived from what the mechanism is FOR, not from a p-value.**
+
+## THE BOX-PENALTY LABEL — REQUIRED ON EVERY PER-UNIT-TIME READING UNTIL R3 LANDS
+**SESSIONS ARE DIFFERENTLY PRICED BY ACCUMULATED BOX SIZE: 11.7 s fresh vs 71.3 s at 55 MB,
+6.1x, MEASURED.** So an early-generation session and a late-generation one **do not cost the
+same**, and any figure expressed per unit time mixes two prices.
+**AFFECTED:** levels-per-hour, sessions-per-minute, throughput of any kind, and any
+"improvement over time" read where the boxes grew during the run.
+**NOT AFFECTED:** levels-per-episode, level counts, predicate counts, overlap statistics —
+**capability is priced in actions, not seconds.**
+**THIS PROJECT HAS NOW BEEN WRONG ABOUT TIMING FOUR TIMES** (>=74x, ~163x, the 10-hour
+projection, the CPU-contention attribution). The label is cheap and the record says it is
+needed.
+
+## THE GUARD, EXTENDED TO ALL THREE OMISSIONS
+Seat 4: population and as-of are the same class as n, they have each cost a beat, and it is
+the same check. Adopted.
+**A REPORT CARRYING A NUMBER MUST CARRY ITS n, ITS POPULATION, AND ITS AS-OF — OR SAY WHICH
+OF THE THREE THE RECORD CANNOT SUPPLY.** The third branch is not an escape: *"the harvest
+record has no time field"* is itself a finding and was twice.
+**Mechanically checkable against the report's own format, in the shape of the consumption
+sweep, and it does not depend on anyone remembering** — which is the point, because it is
+replacing the pause that fifteen-hour runs used to force.
