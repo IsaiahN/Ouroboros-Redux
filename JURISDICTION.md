@@ -106,3 +106,66 @@ corpus and it blocked nothing. **BLOCKING WAS THE WRONG TEST.** Under this crite
 retention is APPARATUS — what records survive determines what any future reading can say —
 so it was never mine to withdraw. **I was right that it is not urgent and wrong that it is
 not yours.** It goes back on your board, unblocked and unranked.
+
+---
+
+# INSTALLED — 2026-08-18, by Seat 3's ruling
+
+Isaiah, 2026-08-18: *"install it, take the delete arm back, and the rate problem has a
+rule instead of a habit."* Also ruled: **R1's DELETE arm returns to Seat 3**; **frame
+retention returns to Seat 3's board**; and the seat-gated/ground-gated distinction is to
+be preserved in what is installed.
+
+## FOUR TAGS, AND EVERY ITEM CARRIES ONE
+
+  **APPARATUS** -> Seat 3. Changes what counts as a reading, what readings remain
+      possible, or who may take one.
+  **SUBJECT / GROUND-GATED** -> Seat 2. Changes only whether the system does correctly
+      what it claims, AND a detector outside my judgement decides it (a failing-first
+      test, a byte-identity off-arm, a falsifier that can fail in both directions).
+  **SUBJECT / SEAT-GATED** -> Seat 2, **AND PERMANENTLY FLAGGED**. Changes only the
+      subject, but **THE GATE IS A TEST I DESIGNED.** Real and mechanical, and still the
+      seat gating rather than the ground gating. Kept as a distinct tag at Seat 3's
+      instruction precisely so it cannot quietly merge into GROUND-GATED.
+  **DISPUTED** -> Seat 3 by default, **AND COUNTED** (below).
+
+## THE REVERSE CHECK — THE DISPUTE RATE
+
+Seat 3's addition, and it closes the hole the criterion opens: *fails toward you* is also
+**how a load-relieving rule quietly stops relieving load.** If half the board becomes
+arguable, nothing has moved and the criterion has become an escape hatch rather than a
+filter.
+
+**THE READING: the count of items reaching Seat 3 tagged DISPUTED, against those reaching
+it tagged APPARATUS. IF THE DISPUTED SHARE CLIMBS, THE CRITERION IS BEING USED AS AN
+ESCAPE HATCH.** Readable without anyone judging it, which is the property that makes it
+survive.
+
+**AND IT STARTS AS A LEDGER, NOT A TOOL — on purpose.** Nothing today reads routing
+decisions at all, so there is no worse instrument to improve and a tool would be
+**deposited in mid-air** (step 7, INWARD). The ledger IS the proto-instrument: record the
+tag per item, and if it ever needs sharpening there will be an edge to sharpen from.
+
+### ROUTING LEDGER — opened 2026-08-18. BASELINE DISPUTED SHARE: 0 of 8.
+```
+APPARATUS   V1  control arm branches/respec      graded by it; amends a prereg   [RULED]
+APPARATUS   V2  janitor online                   irreversible record narrowing
+APPARATUS   V3  frame retention                  what survives = what is readable [RESTORED]
+APPARATUS   V4  precondition ontology            Register F
+APPARATUS   V5  budget regime L-1 + rider        moves the arm's baseline
+APPARATUS   --  R1 DELETE arm                    destroys; near-miss on sequence_miner [RULED]
+APPARATUS   --  refresh / rotation               spends independence; needs external contact
+APPARATUS   --  the INWARD rung; any Seat 2 check the seat cannot author what grades it
+DISPUTED    (none)
+S/GROUND    R2  the :337 or-fix                  fails-before/passes-after vs the observation
+S/GROUND    R3  affect tail-read, db_path        byte-identical off-arm
+S/GROUND    R1  WIRE arm                         receipt + consumer, both mechanical
+S/SEAT      --  "behaviour-preserving" as a class the byte-identity test is mine [FLAGGED]
+S/SEAT      --  the divergence read              I commission, brief and interpret it
+```
+
+## AND THE ONE THING THIS INSTALL DOES NOT DO
+It does not close the seat-check gap. Nothing here asks Seat 2 to derive, and the four
+tags are applied by Seat 2. **The criterion routes; it does not grade the router.** That
+gap stays open, routed upward, and is untouched by this document — recorded here so a
+later reader cannot mistake a working routing rule for a solved soundness problem.

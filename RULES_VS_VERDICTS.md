@@ -144,3 +144,15 @@ sequence_miner is the live example, caught only because the fourth case was adde
 MITIGATION, and it is the same standard as everything else: every rule-fired disposition
 is RECORDED WITH THE RULE THAT FIRED IT, so a bad rule is auditable in one grep rather
 than being invisible in a pile of individually-plausible decisions.
+
+## AMENDMENT — R1's DELETE ARM RETURNS TO SEAT 3 (2026-08-18, Isaiah's ruling)
+*"Correct, and I'd take it — it's the one rule-fired action that destroys something, and
+the near-miss is the receipt."*
+**R1 IS NOW SPLIT.** The WIRE arm stays rule-fired: receipt + consumer whose behaviour
+changes -> wire, no ruling, both conditions mechanical. **THE DELETE ARM IS SEAT 3's.**
+Neither receipt nor consumer no longer fires a deletion; it produces a RULING REQUEST
+carrying both null findings.
+**THE RECEIPT FOR THE SPLIT:** R1 as first written would have deleted `sequence_miner` —
+the only code in this repository able to express level-scoping, which is the distinction
+whose absence caused the replay defect. A rule needing a fourth case on first contact with
+a real item is a rule that should not fire irreversibly on its own.
