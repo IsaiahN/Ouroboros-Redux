@@ -185,3 +185,44 @@ dominant one becomes dominant when the dominant one is removed** — the unbundl
 arriving for the third time in a day, each time in a new layer. **Each fix is real and each
 one relocates the bottleneck rather than removing it**, and the honest expectation is that
 the commit fix will expose a fourth.
+
+### FALSIFIER RUN. HYPOTHESIS CONFIRMED IN CAUSE, **WRONG IN MECHANISM.**
+Isolated benchmark on a **COPY** of the real 55.9 MB ls20 DB, production pragmas, only
+`wal_autocheckpoint` varied. 200 commits each:
+```
+  wal_autocheckpoint=100    median 0.015 ms   TOTAL 1330.1 ms     <== PRODUCTION SETS THIS
+  wal_autocheckpoint=1000   median 0.015 ms   TOTAL    4.8 ms     <== SQLite DEFAULT
+  wal_autocheckpoint=10000  median 0.016 ms   TOTAL    5.6 ms
+```
+**277x ON THE TOTAL WITH AN IDENTICAL MEDIAN.**
+
+**I PREDICTED A RAISED MEDIAN AND THAT IS NOT WHAT HAPPENS.** Every commit stays at
+0.015 ms; a FEW commits absorb the entire checkpoint flush. **THE COST IS PURE TAIL
+LATENCY.** 200 x 0.015 ms should be 3 ms; observed 1,330 ms — so ~1,327 ms sits in a handful
+of events. That is also why the session's *mean* commit is 14.5 ms while its median is
+~0.015 ms: **a distribution with a negligible centre and an enormous tail.**
+**ANY MEDIAN-BASED READING OF THIS WOULD HAVE CLEARED IT.** Recorded because I have used
+medians elsewhere in this audit and they are the wrong statistic for checkpointed writes.
+
+**AND IT RAISES SEAT 4's COUNT QUESTION RATHER THAN SETTLING IT.** With the cost in the
+tail, **the number of commits sets the number of checkpoint TRIGGERS** — so the two levers
+attack the same quantity from opposite ends. **8.8 COMMITS PER DECISION IS STILL WORTH
+EXPLAINING**: at 0.015 ms each it is nearly free, but it is nine chances to trip a flush,
+and it suggests a write path committing per-field or per-record where it could commit
+per-decision. **THE PRAGMA WOULD HIDE THAT DESIGN QUESTION WITHOUT ANSWERING IT.**
+
+**EXPECTED RECOVERY, and it is not free.** Scaling 200->1,139 commits: ~7,570 ms -> ~27 ms,
+i.e. **most of the 16.5 s**. But raising the threshold means **a larger WAL before each
+checkpoint, longer crash recovery, and the same total work batched rather than removed** —
+it is cheaper only because large sequential writes beat many small ones on a 22-32 ms/write
+disk. **`wal_autocheckpoint=100` carries a `# 400KB` comment, so someone CHOSE it**, and the
+change is a real trade rather than a bug fix.
+**TAG: SUBJECT / GROUND-GATED. QUEUED, NOT SHIPPED** — and it ships with a falsifier that
+the DATA written is unchanged, not merely that the clock moved.
+
+### AND THE FLOOR, SO THE SEQUENCE HAS AN END
+Gameplay is **~0.15 s**. The session is **~34 s**. **THERE ARE ~34 SECONDS OF OVERHEAD ABOVE
+0.15 SECONDS OF GAME**, and the layers are being peeled toward a number three orders of
+magnitude below where they started. **The sequence terminates when the remaining cost IS the
+work**, and naming that floor in advance is what stops the fourth layer reading as a
+disappointment.
