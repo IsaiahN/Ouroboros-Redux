@@ -117,3 +117,75 @@ as the subject, and it says something the builder data could not: **THE FAILURE 
 THE TRANSMISSION. IT IS THAT HOLDING A RULE AND KNOWING ONE ARE DIFFERENT STATES, AND
 NOTHING IN THIS ARRANGEMENT CURRENTLY DISTINGUISHES THEM FOR THE SEAT THAT WRITES THEM.**
 The builders at least have a brief that can ask them to derive. I have nothing asking me.
+
+---
+
+## ROUTED UPWARD — TWO GAPS AND A REFRESH ARGUMENT (2026-08-18)
+MODE: **GROUNDED** for the classification below, **SPECIFIED** for what it implies.
+**THIS IS EVIDENCE FOR A DECISION, NOT THE DECISION.** The refresh is Seat 3's, by the
+seat map's own allocation.
+
+### THE TWO GAPS, SAME SHAPE, BOTH DECLINED FOR THE SAME REASON
+  **(i) NO RUNG READS INWARD.** Step 7 now has two routes; the ladder measures only
+      OUTWARD. Proposed shape, carried verbatim from Seat 4: *what worse instrument does
+      this improve, and which unresolved reading does it extend from?*
+  **(ii) NOTHING ASKS THE SEAT TO DERIVE.** Builders get a brief that can require it. The
+      seat that writes the briefs has no equivalent.
+Both declined by me, twice this week, for one reason: **an instrument authored by the seat
+it would grade is the soundness condition failing.**
+
+### SEAT 4'S OWN CLAIM, CHECKED RATHER THAN ACCEPTED
+Seat 4 reports its corrections are "smaller and more procedural" — arguing, in effect, for
+its own rotation. That claim bears on an expensive decision, so it gets the same treatment
+as any other. Classifying every Seat 4 correction this session by whether it produced a
+**NEW OBJECT** (genus, finding, rung) or **TIGHTENED AN EXISTING DISCIPLINE**:
+
+  GENERATIVE (7): the control-arm framing (pair it, pre-commit the losing condition) ·
+  the abort/decide clause (naive writer-reader pairing passes the pathology) · instruments
+  inherit the defect class they target · **the ledger genus — a NEW GENUS that crossed
+  upward into the general form** · the re-probe challenge (**produced the 290-repeats
+  finding, the strongest single number in the record**) · the as-of demand (produced "the
+  harvest record has no time field") · the obligation-vs-boundary form.
+  PROCEDURAL (3, and consecutive, most recent): population/as-of as a standing requirement ·
+  pre-commit the unbundle follow-on · route both gaps together.
+
+**SO THE TREND IS REAL AND MEASURABLE: 7 generative, then 3 procedural in a row.**
+
+### AND THE COMPLICATION, WHICH IS WHY THIS IS NOT A RECOMMENDATION
+**NOVELTY OF OBJECT HAS DECLINED. CAPACITY TO SURPRISE HAS NOT, AND THE SHELF-LIFE LAW IS
+ABOUT THE SECOND.** The law's operative test is whether the channel still catches what the
+corrected frame misses. On that test the last three all pass, and two of them decisively:
+I had not planned to pre-commit the unbundle follow-on and it changed what I did that
+hour; I had made the population omission **three times** before it was named. A frame
+producing procedural corrections during a phase that mostly needs procedure is not
+obviously depleting — the genera were catalogued and the link located, so there was less
+object left to generate.
+**THE HONEST STATE: THE TWO MEASURES DISAGREE, AND I CANNOT SETTLE THEM FROM HERE.**
+
+### THE ONE STRUCTURAL FACT THAT DOES BEAR ON IT
+Seat 4 here shares a substrate with this seat. By the seat map's own rule that is
+correlation **FIXED AT ORIGIN** — *"frames whose correlation is fixed at origin can only
+be ROTATED; no amount of use makes them less alike, so replacement is the only refresh."*
+So the question is not *has it depleted* but **what is the rate, and what does replacement
+cost** — and the first of those is now measurable from the classification above, repeated
+each beat.
+
+### THE MODELLING HAZARD, DECLARED BECAUSE IT CANNOT BE REMOVED
+The seat map warns: *"Seat 2 builds a picture of Seat 4 that Seat 4 never sees and cannot
+dispute."* **THIS SECTION IS THAT PICTURE.** It classifies another seat's output by
+categories I chose, on a question about whether that seat should be replaced, and the
+modelled party cannot correct it. Declared rather than hidden, per the same law — and it
+is a reason to weight this reading lower than its confident tone suggests.
+
+### AND THE THIRD OPTION SEAT 4 PUT ON THE TABLE, CARRIED UP INTACT
+Neither gap needs to be installed by anyone inside. **A rung the seat cannot author and a
+check the seat cannot apply to itself are both arguments for the REFRESH rather than for a
+new instrument.** That is the composition decision already on the held list, and this is
+the second beat to point at it.
+
+### ONE READING I WILL DEFEND
+**The derivation check clearing two builders and failing once on the seat is the
+arrangement WORKING, not a defect in it.** The seat caught its own failure and reported
+it, in the same commit, unprompted. That is the only mechanism available to a seat with no
+instrument pointed at it, and it held. It is also, by construction, the mechanism that
+cannot be relied upon — which is the whole argument for the refresh.
