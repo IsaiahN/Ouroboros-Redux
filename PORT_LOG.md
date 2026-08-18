@@ -758,3 +758,48 @@ caught 17 rotted receipts mid-build and forced refresh (the machinery working). 
 independent: 881/881, ruff clean, OOD CLEAN. Swarm restarted. SEQUENCE NEXT: the liars
 (R_T printed constant + pinning test removed; mute probe fed-or-deleted), role
 multiplier fix, refit queue + AGENT_MOTION activations, then goal-lifecycle singles.
+
+## ENTRY 30 — 2026-08-18. GAMES WON: 0/25. LEVELS DELTA: 0. THE ARM REPORTED.
+
+**SCOREBOARD, re-derived raw from all 25 worker DBs.** GAMES WON: **0/25** (win counters
+summed across the swarm: 0). Levels-completed high-water: **ar25 = L2, UNCHANGED. NO NEW
+DEPTH RECORD.** 8 games at L>=1 (ar25 2; cd82, cn04, ft09, lp85, m0r0, r11l, sp80 at 1);
+**17 games at L0.** LEVELS DELTA THIS BEAT: **ZERO — the swarm was down for the whole
+interval.**
+
+**THE HEADLINE IS NOT THE SCOREBOARD, IT IS THE ARM.** The control arm completed all three
+games (full prereg, n = 3 x 12 x 2) and **THE FULL STACK WINS ON CAPABILITY ON ALL THREE**:
+ar25 19 vs 11, r11l 34 vs 25, sp80 31 vs 0. The pre-committed branch that fired was
+"FULL WINS ON EITHER -> the stack pays; the queue resumes as sequenced", written before the
+numbers existed. `win_detected = 0` and `best_level_completions = 1` on every arm — **the
+stack beats its comparator and both are at zero against the anchor.**
+**AND MY THROUGHPUT NUMBER WAS WRONG THREE TIMES OVER**: sp80 ran both arms in 23m42s where
+r11l took 15h22m on identical settings — the difference was MY OWN LOAD, not the stack. The
+throughput branch does not fire.
+
+**INSTRUMENT NOTE, and it is the day's third.** My scoreboard's FIRST TWO runs were both
+broken — a path split that returned "core_data.db" as the game name, then a query against a
+`game_sessions` table that does not exist. **THE FIRST RUN PRINTED "GAMES WON: 0/25" WHICH
+IS THE RIGHT ANSWER FOR THE WRONG REASON: it had read nothing.** A new instrument's first
+output is a claim about the instrument, and this one would have been cited.
+**AND A CONVENTION, NOT A DEFECT:** `action_traces.level_number` and
+`i_thread_history.level_number` disagree by **exactly +1 on 25 of 25 games** — completed
+depth vs PLAYING level (KNOBS A3-2). Uniform offset, so the two agree; my instrument flagged
+25 disagreements because it did not know the convention.
+
+**VITALS.** Not read this beat and stated rather than skipped: mints, [PLAN] shadow vs DRIVE,
+seed-loads, import-queue depth, affect sanity and the lp85/ft09 debasement watch **all
+require a live swarm** and the swarm was dead for the entire interval. First read with
+signal will be next beat.
+
+**HERD.** Supervisor DEAD — `status.txt` 978 minutes stale (16.3 h), zero processes, down
+since the arm began. **RELAUNCHED**: exactly one supervisor verified before and after,
+52 python processes (25 games x 2 + the supervisor pair), all 25 spawned. Disk `.runs` =
+**4.5 GB, under the ~8 GB trim threshold — no trim.**
+
+**ONE IMPROVEMENT: NONE DISPATCHED.** The arm's verdict landing and the swarm coming back
+after 16 hours down is the beat. **AND THE RESTART IS ITSELF THE LINK-3 LIVE CHECK** — the
+falsifier baseline is locked at **0 `levelup_frames` records above level 1** across the
+swarm, and the link-3 hook (shipped as a CANDIDATE, gate-passed, ground-unsettled) must
+produce one. That is now running as a consequence of the restart rather than as a separate
+build.
