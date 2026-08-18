@@ -201,3 +201,14 @@ verdict on unmeasured quantities — the output-layer genus, arriving inside the
 ### WHAT THIS DOES NOT CHANGE
 **The routing criterion stays APPARATUS vs SUBJECT.** Decision Analysis is the FORM an
 escalation takes once it has been routed; it is **not a new filter on which items route.**
+
+## LABEL AMENDMENT — UNDER-POWERED, RE-RUN PENDING (2026-08-18, Isaiah's ruling)
+Nothing here is withdrawn. Every architecture verdict keeps its STATUS and gains a LABEL.
+THE REGISTER IS UNDERPOWERED.md, and it carries n, population and as-of for each.
+THE CONTROL ARM VERDICT ("the stack pays", b5adc63) IS RELABELLED **UNDER-POWERED FOR THE
+MARGIN, RE-RUN PENDING, n=3 GAMES, POPULATION ONLINE-AND-CONTENDED**. It is not withdrawn
+and the pre-committed branch still fired on the number rather than on anyone's reading.
+THE ONE PART THAT SURVIVES THIN n IS sp80: 31 vs 0 is a capability shown ABSENT in the
+comparator, which is elimination shape, and eliminations survive n=1.
+AND THE ASYMMETRY IS NOW A STANDING READ: eliminations survive n=1; a capability shown
+PRESENT once is weak; rates, margins and distributions need n by construction.
