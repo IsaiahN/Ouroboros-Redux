@@ -110,3 +110,55 @@ not ask.
 **THE ONLY GROUND-SETTLED FACTS THIS PROJECT HOLDS ARE:** 0/25 full game wins; ar25
 reached level 2 by REPLAY and has never re-derived it; and the control arm's ar25 delta
 (full 19 level completions vs stripped 11, 1 of 3 games, PARTIAL).
+
+## RANKED, NOT STARTED — THE DIVERGENCE READ (2026-08-18, Isaiah's request)
+
+### LABEL, FIRST AND PERMANENT
+**THIS IS AN INSTRUMENT POINTED AT THE AGENT. IT IS NOT THE CHECK ON THIS SEAT.** It would
+be commissioned, briefed and interpreted by Seat 2, which makes it another of Seat 2's
+instruments and structurally incapable of grading Seat 2. Recorded here at the top rather
+than in a footnote **because otherwise the gap closes on paper while staying open** — and
+the gap (nothing asks this seat to derive) remains open and routed upward, untouched by
+this item.
+**AND IT CARRIES THE EFFICIENCY READ'S LABEL:** distance to THAT PLAYER, ONE REFERENCE
+RUN, **NOT THE BAR.**
+
+### FEASIBILITY — CHECKED BEFORE RANKING, AND IT CHANGES THE SPEC
+**THERE IS NO TURN-BY-TURN HUMAN REPLAY ON DISK.** All **28 of 28** reference metadata
+files carry an identical key set — `baseline_actions, date_downloaded, default_fps,
+game_id, local_dir, tags, title` — and `baseline_actions` is **a list of per-level action
+COUNTS**, not a trace. ar25's is 8 integers. **"Compare them turn by turn" against a human
+run cannot be done: the human's turns were never recorded here.**
+
+### WHAT IS AVAILABLE, AND IT IS AN EXTENSION OF TWO INSTRUMENTS THAT ALREADY RETURN
+Per step 7 INWARD, the proposal must name the worse instrument and the unresolved reading:
+  **WORSE INSTRUMENT 1 — the efficiency read.** Returns distance-to-reference at the
+  COUNT level. **Its residual: it can say "N times the actions" and CANNOT SAY WHERE.**
+  **WORSE INSTRUMENT 2 — the instrumented replay (BOARD_AUDIT).** Said exactly where, with
+  frames, **for ONE episode**. Its residual: n=1, and it was hand-run.
+**THE FEASIBLE READ IS THEREFORE: WHERE DOES THE AGENT'S PLAY DIVERGE FROM ITS OWN
+SUCCESSFUL ROUTE** — banked `winning_sequences`, salient prefixes, and the 171,013
+`action_traces` rows (actions are recoverable even though frames are not) — **generalised
+from one episode to all of them, and clustered by level, by mechanic, and by decision
+kind.** Distance-to-reference stays a COUNT-level companion metric, correctly labelled.
+
+### RANKING AGAINST THE BOARD — 4th, and the dependency is the reason
+  1. **THE ARM.** Running. Outranks everything, unchanged.
+  2. **THE LINK-3 LIVE CHECK.** One command after the first post-arm episode: does a
+     `levelup_frames` record appear at level > 1. **Settles a CANDIDATE's ground status
+     for the cost of a grep.** Nothing on the board is cheaper per unit of settlement.
+  3. **R6, THE OPERATOR-MODE COVERAGE DIFF.** Determines whether the last month's LIVE
+     counts mean anything.
+  4. **THIS READ.**
+  5. The rule-fired queue (R1 orphan disposition, R2, R3, R5).
+
+**WHY BELOW R6, AND THE SPLIT THAT MAKES IT PRECISE.** The read has two halves with
+different dependencies. Its **DESCRIPTIVE** half — where does play diverge, does it
+cluster — needs nothing but the books and could run at any time. Its **ATTRIBUTIVE** half
+— which organ or mechanic caused the divergence — **DEPENDS ENTIRELY ON R6**, because
+attributing behaviour to an organ the coverage diff later shows never executed is
+misattribution dressed as a finding. **Ranked 4th on the attributive half; the descriptive
+half could be pulled forward if Seat 3 wants it earlier, and that is a ruling not a
+preference.**
+
+**NOT STARTED.** Named, labelled, feasibility-corrected, ranked.
