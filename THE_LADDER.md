@@ -466,3 +466,44 @@ RECORD not because frames were rare but because NOTHING WAS EVER GOING TO CONSUM
 That is the same shape as the salient-bank suppression — A CHANNEL THAT LOOKS STARVED AND
 IS ACTUALLY UNCONSUMED. Starvation and non-consumption are indistinguishable from the
 producer side, and this project has now mistaken the second for the first twice.
+
+## CANONICAL PAIR ADOPTED (2026-08-18) — see THE_LOOP_reference.md + THE_SEAT_MAP_general.md
+
+THE BOUNDARY, which is easy to merge and load-bearing: THE LOOP COMPOSES AND MINTS; THE
+SEAT KEEPS THE CHANNEL OPEN. Step 8 states it explicitly. The loop CANNOT maintain the
+ground -- the ground does not decay, the channel to it does, and that is the seat"s office.
+
+### THE RUNGS ARE READINGS OF LOOP STEPS (adopted; this changes how a stop is justified)
+  0/0b/0c/0d -> outside the loop (anchor, exposure, wiring, consumption)
+  1 -> step 1 | 1b -> steps 1-2 | 2 -> step 3 | 3 -> step 5 | 4 -> step 7
+  5 -> step 3->plan | 5b -> plan | 6 -> step 2
+THE STOP RULE IS NOW STRUCTURAL RATHER THAN PROCEDURAL:
+  A STEP WHOSE INPUT NEVER ARRIVES CANNOT BE DIAGNOSED, ONLY ITS PREDECESSOR CAN.
+This is stronger than "stop at the first wrong rung" -- it says WHY, and it retroactively
+justifies every stop this project has made. Rung 6 reading abduced=[] is a step-2 failure,
+so rungs 3/4/5 were never diagnosable, and any reading taken there described nothing.
+
+### A FIFTH GENUS, AT THE DOCUMENT LAYER -- AND IT LANDS ON ME
+A RULE THAT IS DERIVABLE AND NEVER DERIVED. A reader who does not run the derivation does
+not hold the rule, and AN OPERATING RULE NOBODY DERIVES IS A RULE NOBODY FOLLOWS.
+SEAT 2 SELF-APPLICATION, honestly: in the last several beats I have written BOARD_AUDIT,
+HISTORY_TRACE, PERF_AUDIT, BRIEF_STANDARD, RULES_VS_VERDICTS, rung 0d, and eleven KNOBS
+amendments. NOT ONE BUILDER HAS DERIVED ANY OF IT. They have complied with briefs that
+cite it. Compliance is not holding. I have been producing rules faster than anyone can
+derive them, which is the document-layer form of the same speed problem BRIEF_STANDARD.md
+was written to name: eleven organs in the time it took to make one.
+DETECTOR: the brief template must require the builder to STATE, IN THEIR OWN WORDS, WHY
+THE CLAUSE EXISTS -- not to acknowledge it. A brief returned with the rationale merely
+quoted back is evidence the rule was transmitted and not held. Cheap, and it is the only
+check that distinguishes the two.
+
+### STATUS VOCABULARY (from the figure captions; adopted for CLAIM.md)
+Every claim carries one: PROVED (rules 1-3 of Figure 8: closure idempotence, Goedel II /
+Tarski, Chaitin) | DESIGN LAW (Figure 10"s three offices and three prohibitions) |
+BELIEVED, RETRODICTED ON N CASES, NO PROSPECTIVE TEST (Figure 8"s triangulation claim, on
+Wiles/Frey, Montgomery-Dyson, Bekenstein-holography, the relativization barriers; and
+Figure 10"s selection test, derived from Figure 2"s anchor condition).
+THE POINT OF THE THIRD LABEL IS THAT IT IS NOT THE FIRST. Retrodiction on four cases is
+evidence and is not a test, and a claim that has never been able to come back wrong has
+not been checked -- the falsifiability guard, applied to our own theory rather than to the
+agent"s.

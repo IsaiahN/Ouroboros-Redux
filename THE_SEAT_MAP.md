@@ -82,3 +82,10 @@ must catch the mismatch. It caught it once; catching is not a mechanism. RULE: m
 crossing to one checking seat should cross to the other, OR the response must be
 labelled as responding to material the other seat lacks. The maintainer routes;
 asymmetric routing manufactures consent.
+
+## SUPERSEDED BY THE GENERAL FORM (2026-08-18)
+The domain-independent statement now lives in THE_SEAT_MAP_general.md and the kernel it
+serves in THE_LOOP_reference.md. This file is retained as the ARC BINDING -- one instance
+of the general arrangement, carrying the Seat 2 self-corrections and the project-specific
+occupancy. WHERE THE TWO DISAGREE, THE GENERAL FORM WINS, because a binding that contradicts
+its own general form is a binding that has drifted.
