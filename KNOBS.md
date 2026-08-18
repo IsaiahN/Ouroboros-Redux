@@ -411,3 +411,53 @@ Register L discipline: THE ESTIMATOR IS A SOCKET (global, F/G, one for all games
 ESTIMATE IS PER-GAME PER-LEVEL LEARNED STATE (data, not a knob). This does not violate
 the anti-overfit law because no game-specific VALUE is ever shipped — only the capacity
 to measure one.
+
+### A14 — G23 PARTIALLY WRONG: THE REPEATS WERE DATA, AND THE SHIPPED FIX DELETES THEM
+(2026-08-18, Seat 2, on Seat 4's challenge. This corrects shipped work.)
+
+**THE CHECK SEAT 4 DEMANDED, RUN.** Do repeated dead-cell entries carry distinct stamps?
+STRUCTURALLY THEY CANNOT. A dead entry is a BARE [x,y]. The whole record is
+{dead, deltas, effects, fatal, game, level, seq} — THE ONLY STAMP IS THE RECORD'S OWN seq.
+So "distinct seq per probe" was never available to check.
+
+**BUT THE COUNTS ANSWER IT ANYWAY, AND THEY ANSWER SEAT 4'S WAY:**
+  ar25 L2, 32 records:
+    WITHIN-RECORD duplicate entries:                    2,061
+    MAX REPEATS OF ONE CELL INSIDE ONE RECORD:            290
+    max DISTINCT RECORDS naming one cell:                   8
+    max TOTAL entries for one cell — (36,36):             299
+**290 REPEATS INSIDE A SINGLE EPISODE IS NOT ONE PROBE RE-APPENDED.** Against
+G24 MAX_ACTIONS=500, that is ~58% OF AN ENTIRE EPISODE'S ACTION BUDGET SPENT RE-PROBING
+ONE CELL THAT RETURNED NOTHING EVERY TIME. Seat 4's alternative reading is the correct
+one, and it is the more serious one: **A BEHAVIOUR DEFECT, NOT A CENSUS ARTIFACT.**
+
+**WHAT THIS COSTS THE FIX I SHIPPED.** G23 dedups at BOTH ends; at WRITE it keeps the
+first occurrence and DISCARDS THE REST. **SO THE SHIPPED FIX DESTROYS THE RE-PROBE COUNT
+AT THE SOURCE — the single most damning behavioural signal in these books. I FIXED THE
+CENSUS AND DELETED THE EVIDENCE.** The census numbers still stand AS CENSUS NUMBERS
+(553 distinct cells, 41 dead per-record at ar25 L2, 743->454 swarm-wide). What was wrong
+was the FRAMING: I called the repeats "pure inflation". They are inflation OF THE CENSUS
+and SIGNAL ABOUT BEHAVIOUR at the same time — two questions sharing one ledger.
+
+**REQUIRED REVISION (queued, not built): BANK THE COUNT, DO NOT DISCARD IT.**
+  {"cell": [x,y], "probes": n}  — preserves BOTH readings from one record.
+  Until then G23 is CORRECT-BUT-LOSSY and must be cited that way.
+
+### A14b — THE AS-OF IS UNANSWERABLE, AND THAT IS THE FINDING
+Seat 4: "no as-of on the 45%". Correct, and it cannot be supplied.
+**THE HARVEST RECORD CARRIES NO TIME FIELD AT ALL** — verified: keys are exactly
+{dead, deltas, effects, fatal, game, level, seq}. NO READING EVER TAKEN OFF THIS STREAM
+CAN CARRY AN AS-OF. The only bounds are the file mtime (2026-08-17 17:06) and the
+level-convention pinning (9e05be3 / e6a533a, 2026-08-14). Records span seq 1..81 with no
+way to date any of them, so **THE POPULATION MAY STRADDLE THE 08-14 SEMANTICS CHANGE AND
+I CANNOT RULE IT OUT.** This is a DEFECT IN THE RECORD, not an oversight in the report —
+and it is the third number to arrive without an as-of, which is the pattern rather than
+the instance. FIX (queued): a timestamp on the harvest record. One field.
+
+### A14c — A NUMBER IN THE RELAY THAT IS NOT MINE
+"87 dead cells in a 32-cell L2 grid is arithmetically impossible." THE 32 IS THE RECORD
+COUNT, NOT A GRID SIZE. The grid is 64x64 and ar25 L2 holds 553 DISTINCT tried cells. No
+"87" appears in any figure I reported (mine were 163 -> 41). The arithmetic-impossibility
+argument does not apply to these numbers. **F-5 LEVEL-MIXING REMAINS SEPARATELY OPEN AND
+UNADDRESSED** — the prereg named it as the fallback explanation and the count did not
+show it, which is not the same as its absence.
