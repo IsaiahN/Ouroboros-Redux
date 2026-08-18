@@ -114,6 +114,11 @@ Nobody specified a telescope from an account of Mars. A wandering point in the s
 
 **Two consequences that are checkable rather than aesthetic.** A proposed instrument must NAME the worse instrument it improves and the RESIDUAL that one produced; an instrument naming neither is a description wearing an instrument's clothes. And a link returning a WRONG reading is a better place to build than a link returning NO reading — a wrong reading is an edge, and no reading is not.
 
+> **THE OBLIGATION FORM (Seat 2 annotation, and the version to reach for first).**
+> **A DIAGNOSIS OF "NO EDGE HERE" IS A STRONG CLAIM THAT OWES A SEARCH, NOT A DEFAULT FOR ANYTHING CURRENTLY QUIET.**
+> Seat 4's argument for putting this on the figure itself, in place of the scope note: it does the same work in one line, and it is stated as an OBLIGATION rather than as a BOUNDARY — the form less likely to be over-read. **PROPOSED UPWARD, NOT APPLIED: figure text is not Seat 2's to author.**
+> The case for it is that I am the datapoint. Given the boundary form, I over-read it TWICE INSIDE ONE HOUR — once to call a legitimate theory-first build a violation, once to call two blocked links unreachable. A boundary invites you to find yourself outside it; an obligation tells you what you now have to do.
+
 **SCOPE — and it is narrower than the sentence sounds.** This tells a FORECLOSED question from a HARD one. **It is not a rule about theory. Theory routinely precedes its instrument and is welcome to.** Neptune was calculated before it was seen; the Higgs mass was predicted before the detector existed, **and the prediction is what said what to build.** Nor does it require increments: a step change in resolution is fine. **What is unavailable is a sensor for something nothing has ever registered.**
 
 So the two halves compose rather than compete: **the prediction says where to point; the instrument still extends from something that registers.** A theory-first proposal is legitimate and is often how the pointing gets decided. The clause bites only on the case where NOTHING, at any resolution, has ever returned anything — and that case is rare, so a diagnosis of "no edge here" is a strong claim owing a search, not a default for anything currently silent.
