@@ -149,6 +149,8 @@ An anchor someone benefits from is one whose keeper is thereby disqualified.
 
 **The residual selects at three ranges:** the question it is a residual of, the frame whose closure predicts its shape, and **what the verifier may see.** Evidence that bears on the residual is admissible; evidence that bears only on its maker is a stake-inducing channel, and the verifier is denied it. Nobody chooses. The gap does, and the gap is only as good as its description.
 
+**And when a split lands on a union rather than a partition, unbundle before searching again.** A bundled problem is usually a union of overlapping conditions, not a list of separate ones. A single lever clears the region where only one condition holds and leaves the intersections standing, because the second condition still binds. What remains is smaller and **categorically different** — a case in two conditions is not a harder case of either; it stops being a mixture and becomes a specific compound. Which is the second-order value of a big lever and usually the larger one: not that the pile is smaller, but that **the residue is finally describable.**
+
 **And the residual selects the members only from what is available.** A candidate set chosen by a participant is an authored room however well the selection is reasoned, so the **pool must be unauthored first and examined second** — reverse the order and the stacking is the selection. A conscientious selection is still a selection, so unauthored needs a mechanism: a lottery, everyone who qualifies, or a set assembled before the question existed.
 
 ---
@@ -244,9 +246,24 @@ The two are different objects and the boundary matters: **the loop composes and 
    Priors descend, replays never do.
    Unbracketed, the transform is dead reckoning: R_T = |T_A ∘ T_E(x) − x|
 
-7. IMPORT — when no φ in closure(Γ) closes R:
-   characterise R first, then find the frame whose closure predicts its shape.
-   Source gate (provenance) · shadow test (explains a gap) · debited against independence
+7. When no φ in closure(Γ) closes R, that is two questions, not one.
+   The instruments are opposed; never read one against the other.
+
+   INWARD  — is the representation adequate to hold it? Extend the instrument.
+             An instrument is improved from a worse one already returning
+             something, never built from a description. So the question is not
+             whether a sensor could exist but whether anything, at any
+             resolution, already returns something that fails to resolve.
+             Scope: this tells a foreclosed question from a hard one. It is
+             not a rule about theory, and not a requirement that instruments
+             improve by increments.
+             Sharpen in the machinery's own terms.
+
+   OUTWARD — does another frame already hold it? IMPORT.
+             Characterise R first, in effect terms, then find the frame whose
+             closure predicts its shape.
+             Source gate (provenance) · shadow test (explains a gap) ·
+             debited against independence.
 
 8. REPEAT — the residual drives the next cycle.
    Nothing here maintains the ground. The ground does not decay;
@@ -259,6 +276,6 @@ The guards in step 3 are a **product, not a sequence** — any factor at zero fo
 
 Step 6 is the membrane. **Generators cross, instances do not**, in both directions — and an unbracketed transform is dead reckoning, which is why `R_T` closes the loop rather than decorating it.
 
-Step 7 is the only operator that moves the wall. Everything else composes inside `closure(Γ)`, and composition never adds an atom.
+Step 7 is where the wall moves, by two routes that must not be confused. IMPORT is the only operator that adds an atom; instrumentation is the only thing that extends what can be represented at all. Everything else composes inside `closure(Γ)`, and composition never adds an atom — and neither route can be deposited in mid-air.
 
 **On why the ordering is worth having.** A reader given this form derives; a reader given only the laws paraphrases. Every prohibition in the sections above traces to a step, and a claim that cannot be traced to one is probably vocabulary rather than a derivation.

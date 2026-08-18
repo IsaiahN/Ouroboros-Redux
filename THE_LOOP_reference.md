@@ -30,9 +30,24 @@ The kernel's per-step cycle, in compact form. This is the ordering the figures d
    Priors descend, replays never do.
    Unbracketed, the transform is dead reckoning: R_T = |T_A ∘ T_E(x) − x|
 
-7. IMPORT — when no φ in closure(Γ) closes R:
-   characterise R first, then find the frame whose closure predicts its shape.
-   Source gate (provenance) · shadow test (explains a gap) · debited against independence
+7. When no φ in closure(Γ) closes R, that is two questions, not one.
+   The instruments are opposed; never read one against the other.
+
+   INWARD  — is the representation adequate to hold it? Extend the instrument.
+             An instrument is improved from a worse one already returning
+             something, never built from a description. So the question is not
+             whether a sensor could exist but whether anything, at any
+             resolution, already returns something that fails to resolve.
+             Scope: this tells a foreclosed question from a hard one. It is
+             not a rule about theory, and not a requirement that instruments
+             improve by increments.
+             Sharpen in the machinery's own terms.
+
+   OUTWARD — does another frame already hold it? IMPORT.
+             Characterise R first, in effect terms, then find the frame whose
+             closure predicts its shape.
+             Source gate (provenance) · shadow test (explains a gap) ·
+             debited against independence.
 
 8. REPEAT — the residual drives the next cycle.
    Nothing here maintains the ground. The ground does not decay;
@@ -47,7 +62,13 @@ The kernel's per-step cycle, in compact form. This is the ordering the figures d
 
 **Step 6 is the membrane, in both directions.** Generators cross, instances do not: promotion carries generators upward, seeding sends priors downward, and neither carries playback. An unbracketed transform is dead reckoning, which is why `R_T` closes the loop rather than decorating it.
 
-**Step 7 is the only operator that moves the wall.** Everything else composes inside `closure(Γ)`, and composition never adds an atom. A frame gains access; the world gains nothing.
+**Step 7 is where the wall moves, by two routes that must not be confused.** IMPORT is the only operator that adds an atom; instrumentation is the only thing that extends what can be represented at all. Everything else composes inside `closure(Γ)`, and composition never adds an atom. A frame gains access; the world gains nothing.
+
+**And neither route can be deposited in mid-air.** Composition extends from the atoms you hold; instrumentation extends from a reading that already exists and fails to resolve. Where nothing returns anything at any resolution, there is no edge to extend from — and the search for a proto-instrument is a search for one that is already there.
+
+**Scope, because this clause reads broader than it is.** It distinguishes a *foreclosed* question from a *hard* one — nothing more. It is not a prohibition on theorising beyond your instruments: Neptune was calculated before it was seen, and the Higgs mass was predicted before the detector existed, with the prediction telling everyone what to build. It does not require instruments to improve by increments; a step change in resolution is fine. **And it adds no condition on imports — the import gate is provenance and the shadow test, and the receiving frame is not required to hold a crude version of what it imports.**
+
+What is unavailable is a sensor for something nothing has ever registered at any resolution. That is the whole of it.
 
 ---
 
@@ -77,10 +98,12 @@ The diagnostic rungs are readings of specific steps. Stated so a first-wrong-run
 | 1b · characterisation | **1 → 2** | do drained records carry σ, or is R named rather than described |
 | 2 · mints | **3** | offers, and the reject-reason distribution |
 | 3 · verification | **5** | do atoms reach the bar and stay there across episodes |
-| 4 · adoption | **7** | does an import cross, and does it pay |
+| 4 · adoption | **7 OUTWARD** | does an import cross, and does it pay |
 | 5 · drive | **3 → plan** | do verified atoms produce a drive |
 | 5b · feasibility | **plan** | do drives survive the cost check |
 | 6 · objective | **2** | are goals abduced, or is only the reference relation posed |
+
+**A GAP THE RESTRUCTURE EXPOSES (Seat 2, 2026-08-18).** Step 7 now has two routes and **THE LADDER HAS A RUNG FOR ONLY ONE OF THEM.** Rung 4 reads OUTWARD — does an import cross and does it pay. **NOTHING READS INWARD:** no rung asks whether an instrument was extended, from what worse instrument, or against which unresolved reading. That is not an oversight to paper over — it is where this seat has spent most of its effort, unmeasured by its own ladder. Recorded as a gap rather than filled, because a rung authored by the seat that would be graded by it is the soundness condition failing.
 
 ---
 
