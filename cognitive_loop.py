@@ -116,12 +116,31 @@ def _goal_bank(loop, game, level, pre, post) -> int:
     0 on anything at all, never raises."""
     _n = 0
     try:
-        _fab = getattr(loop, "_ego_fabric", None)
-        if _fab is None or pre is None or post is None:
+        if pre is None or post is None:
             return 0
-        if getattr(loop, "_goal_book", None) is None:
+        _fab = getattr(loop, "_ego_fabric", None)
+        if _fab is None:
+            # REACHABILITY, not tidiness: the cycle's lazy fabric init lives in
+            # record_result, and the REPLAY seam runs BEFORE the cycle is ever
+            # entered (play_game replays a banked prefix ahead of the explore
+            # loop) on a loop built fresh for this episode. Without this the hook
+            # would be reachable and INERT -- banking into a None fabric -- the
+            # exact severed-organ shape this build exists to close. Same root,
+            # same agent, no seeds.
+            from engines.egocentric.fabric import KnowledgeFabric
+            _fab = KnowledgeFabric(
+                "ego_fabric",
+                agent_id=str(getattr(loop, "_ego_agent_id", "") or "agent"),
+                kin_key="v4")
+            loop._ego_fabric = _fab
+        # ...and REBIND when the cycle's init later swaps in the SEEDED fabric:
+        # hypotheses() reads seed mounts, so a book left on the seedless
+        # pre-cycle instance would silently lose every inherited hypothesis.
+        _bk = getattr(loop, "_goal_book", None)
+        if _bk is None or getattr(_bk, "fabric", None) is not _fab:
             from engines.egocentric.goal_abduction import GoalBook
-            loop._goal_book = GoalBook(_fab)
+            _bk = GoalBook(_fab)
+            loop._goal_book = _bk
         for _b in loop._goal_book.observe_levelup(
                 str(game or "game"), int(level),
                 np.asarray(pre), np.asarray(post)):
@@ -1264,7 +1283,12 @@ class CognitiveLoop:
                     if _pframe is not None:
                         from engines.egocentric.goal_abduction import (
                             GoalBook, abduced_plan)
-                        if getattr(self, "_goal_book", None) is None:
+                        # LINK3: rebind when the fabric instance changed — the
+                        # replay seam may have bound the book to the pre-cycle
+                        # SEEDLESS fabric, and this consumer must read the seeds.
+                        _gb = getattr(self, "_goal_book", None)
+                        if (_gb is None
+                                or getattr(_gb, "fabric", None) is not self._ego_fabric):
                             self._goal_book = GoalBook(self._ego_fabric)
                         _fb4 = getattr(self, "_ego_frontier_book", None)
                         _lv4 = int(getattr(self, "_ego_level", 0) or 0)

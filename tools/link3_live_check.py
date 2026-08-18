@@ -54,13 +54,13 @@ def _load(root: str):
     out = []
     pattern = os.path.join(root, "**", "levelup_frames.jsonl")
     for path in sorted(glob.glob(pattern, recursive=True)):
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
-            for ln, line in enumerate(fh):
-                line = line.strip()
-                if not line:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for ln, raw in enumerate(fh):
+                text = raw.strip()
+                if not text:
                     continue
                 try:
-                    rec = json.loads(line)
+                    rec = json.loads(text)
                 except Exception as exc:
                     print("  UNPARSEABLE %s:%d (%s)" % (path, ln, exc))
                     continue

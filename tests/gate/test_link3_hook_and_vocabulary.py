@@ -434,6 +434,29 @@ class TestTheReplayHook:
             "by replay and has never been banked" % recs[0]["level"])
         assert int(recs[0]["level"]) == 2
 
+    def test_a_fresh_loop_with_no_fabric_yet_still_banks(self, tmp_path,
+                                                         monkeypatch):
+        """REACHABILITY, and this is the one that nearly shipped inert. A real
+        episode builds a NEW CognitiveLoop per play_game and the fabric is lazily
+        created inside the cognitive cycle — which the salient replay runs BEFORE.
+        A hook that requires `_ego_fabric` to already exist is reachable and does
+        nothing, every time, in production."""
+        from cognitive_loop import CognitiveLoop
+        monkeypatch.chdir(tmp_path)                  # the fabric root is relative
+        loop = CognitiveLoop()                       # exactly as play_game builds it
+        loop._game_id = "g1"
+        loop._ego_agent_id = "agentA"
+        assert getattr(loop, "_ego_fabric", None) is None, (
+            "this test is only meaningful while the fresh loop has no fabric")
+        self._replay_crossing_level_2(tmp_path, loop)
+        recs = loop._ego_fabric.query("personal", GA.FRAMES_TOPIC)
+        assert len(recs) == 1 and int(recs[0]["level"]) == 2, (
+            "a replayed level-up on a FRESH loop banked nothing — the hook is "
+            "wired but inert on the only path production actually takes")
+        assert loop._goal_book is not None
+        assert loop._goal_book.fabric.agent_id == "agentA", (
+            "the personal record must be filed under the real agent")
+
     def test_the_seam_carries_the_transition_frames_not_the_replay_edges(
             self, tmp_path):
         """CLAUSE 3 — the value crossing the boundary is ASSERTED. pre must be
@@ -524,6 +547,38 @@ class TestTheReplayHook:
                 "replay material leaked into a fabric stream: %r" % banned)
 
 
+class TestTheCrossingDetector:
+    """The shared seam both replay paths call. Asserted directly so the
+    winning-sequence path is covered by behaviour, not only by source scan."""
+
+    def test_it_banks_once_per_crossing_and_carries_the_frames(self, tmp_path):
+        p = _player(tmp_path)
+        loop = _RecordingLoop()
+        lv, pre = 1, _frame(0)
+        lv, pre = p._bank_replay_crossing(loop, "g1", _Obs(_frame(1), levels=1),
+                                          pre, lv)
+        assert loop.banked == [] and lv == 1
+        assert np.array_equal(pre, _frame(1)), "the pre frame must roll forward"
+        lv, pre = p._bank_replay_crossing(loop, "g1", _Obs(_frame(2), levels=2),
+                                          pre, lv)
+        assert lv == 2 and len(loop.banked) == 1
+        _g, level, bpre, bpost = loop.banked[0]
+        assert level == 2
+        assert np.array_equal(bpre, _frame(1)) and np.array_equal(bpost, _frame(2))
+        # a later step at the SAME level must not re-bank
+        lv, pre = p._bank_replay_crossing(loop, "g1", _Obs(_frame(3), levels=2),
+                                          pre, lv)
+        assert len(loop.banked) == 1, "one record per crossing, not per step"
+
+    def test_it_survives_garbage_and_a_hookless_loop(self, tmp_path):
+        p = _player(tmp_path)
+        assert p._bank_replay_crossing(None, "g1", None, None, 0) == (0, None)
+        assert p._bank_replay_crossing(object(), "g1",
+                                       _Obs(_frame(1), levels=9), _frame(0),
+                                       0)[0] == 9, (
+            "a loop with no hook must not break the replay")
+
+
 class TestTheLivePathReceipt:
     """CLAUSE 1 — a `file:line` reachable from the loop entry, not a reference."""
 
@@ -532,13 +587,32 @@ class TestTheLivePathReceipt:
         i = src.find("def _replay_salient_prefix")
         assert i != -1
         body = src[i:src.find("\n    def ", i + 10)]
-        assert "bank_replay_levelup(" in body, (
+        assert "_bank_replay_crossing(" in body, (
             "_replay_salient_prefix never reaches the abduction bank — the "
             "replay bypass is still open")
         # ...and _replay_salient_prefix is itself called from play_game, before
         # the explore loop (the same reachability the B7 gate pins).
         j = src.find("_replay_salient_prefix(", src.find("def play_game"))
         assert 0 < j < src.find("COGNITIVE GAME LOOP")
+
+    def test_both_replay_paths_use_the_one_crossing_detector(self):
+        """BOTH replay routes bypass the cognitive cycle. Hooking only the one
+        the audit happened to name would leave the same defect open next door —
+        and winning-sequence replay is the route that most often reaches L2."""
+        src = _src(PLAYER)
+        det = src[src.find("def _bank_replay_crossing"):]
+        det = det[:det.find("\n    def ", 10)]
+        assert "bank_replay_levelup(" in det, (
+            "the crossing detector must actually call the bank")
+        for fn in ("def _replay_salient_prefix", "def _replay_winning_sequences"):
+            i = src.find(fn)
+            assert i != -1, fn
+            body = src[i:src.find("\n    def ", i + 10)]
+            assert "_bank_replay_crossing(" in body, (
+                "%s still bypasses the abduction bank" % fn)
+        assert src.count("_bank_replay_crossing(") == 3, (
+            "one definition + exactly two call sites; a third copy means the "
+            "detector was duplicated instead of shared")
 
     def test_both_level_up_routes_share_one_banking_core(self):
         """No duplicated cognitive cycle: the cycle's `_goal_abd` and the replay

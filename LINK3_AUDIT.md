@@ -194,3 +194,63 @@ rather than to an absence in the world. That is a materially more encouraging re
 the one I gave last turn, and it is the reading the scope clause exists to produce:
 **a diagnosis of "no edge here" is a STRONG CLAIM OWING A SEARCH, not a default for
 anything currently quiet.**
+
+## ADDENDUM 4 — TWO CORRECTIONS TO THIS AUDIT, BOTH MINE (2026-08-18)
+
+**1 · THE CORPUS DID NOT SHRINK. NOTHING WAS DELETED.** The builder measured 6 records
+where this audit said 9 and reasonably inferred compaction — and flagged it as urgent data
+loss. **It is intact: 9 records, 6 under `.runs/swarm/` and 3 under `.runs/arms/`.** The
+builder was forbidden from reading `.runs/arms/` (correctly — a measurement is running
+there), so it saw 6. NO JANITOR ACTION, NO LOSS, NOTHING TO CHASE.
+
+**2 · AND THE REASON IT LOOKED LIKE LOSS IS A DEFECT IN THIS AUDIT: I POOLED TWO
+POPULATIONS WITHOUT LABELLING THEM.** "Every level-up frame this project has ever
+recorded" counted the SWARM boxes and the CONTROL-ARM WORKTREES as one corpus.
+**The r11l `+10 +12` residual this audit headlines is from `.runs/arms/112913b692a2/
+box_r11l/` — a control-arm box, not the swarm.** The observation is genuine (the arm runs
+real episodes against real games) but the provenance was mislabelled, and pooling an
+experiment's own output with the baseline population is the "populations pooled across a
+change" defect from the seat map's channel-decay list. **THIRD TIME A NUMBER OF MINE HAS
+ARRIVED WITHOUT ITS POPULATION PROPERLY STATED**, after the as-of on the dead-cell count
+and the as-of on G23. That is the pattern, not the instance.
+
+**THE HEADLINE SURVIVES BOTH.** 0 predicates on all 9, and independently 0 on the swarm's
+6 — the finding does not depend on the pooling. **AND THE BUILDER'S RESIDUAL IS BETTER
+FOUNDED THAN MINE:** measured on the clean swarm population it found that colour
+APPEARANCE occurs in only 1 of 3 transitions, while **EVERY COLOUR'S COUNT MOVES ON EVERY
+TRANSITION** and the DOMINANT colour flips on lp85. Count-change is the thing every
+transition does and the shipped vocabulary had no predicate for it at all. That is a
+sharper statement of the gap than "colours are added", and it came from re-measuring
+rather than from re-reading.
+
+## THE BUILD, VERIFIED BY SEAT 2 — STATUS: **CANDIDATE**, NOT SHIPPED
+
+Independently re-run, not accepted on report:
+  `tools/link3_live_check.py` -> **TOTAL PREDICATES 50 OVER 6 RECORDS / 3 TRANSITIONS
+  (WAS 0)**. Clause 1 PASS. **Clause 2 PASS — `region_uniform` and `regions_equal` still
+  yield EXACTLY ZERO**, so the vocabulary extended the edge rather than replacing it.
+  Clause 3 reported honestly: `region_contains_colour` fires 6/6 and 3/3 — **A CONSTANT,
+  NOT EVIDENCE**, kept but never gated on, and flagged in the tool's own output.
+  `tests/gate/test_link3_hook_and_vocabulary.py` -> **46 passed**. ruff clean. OOD clean.
+  consumption sweep --strict exit 0, ratchet unmoved at 32.
+
+**WHY CANDIDATE AND NOT SHIPPED, stated per CLAIM.md's own status rule:** the hook's
+falsifier is proven **IN SIMULATION ONLY**. **THE PROJECT-WIDE COUNT OF `levelup_frames`
+RECORDS AT A LEVEL ABOVE 1 IS STILL ZERO ON DISK** and stays zero until an episode runs.
+The gate passed; the ground has not settled it. FIRST CHECK AFTER THE ARM RELEASES: does a
+live episode produce a `levelup_frames` record with `level > 1`.
+
+**TWO THINGS THE BUILDER FOUND THAT THE BRIEF DID NOT ASK FOR, AND BOTH WOULD HAVE SHIPPED
+IT INERT.** (i) `play_game` builds a fresh `CognitiveLoop` per episode and `_ego_fabric`
+is created lazily inside `record_result`, which the salient replay runs BEFORE — so the
+hook would have been perfectly reachable and banked into `None`, every episode, forever.
+(ii) `_replay_winning_sequences` carries the IDENTICAL bypass and is the route that most
+often reaches L2; hooking only the named function would have left the same defect open
+next door. **Neither was in the brief. This is a builder deriving rather than complying —
+the second such instance in the record, and the strongest.**
+
+**AND IT CAUGHT ITS OWN OBSERVER DEFECT BEFORE PUBLISHING.** It measured the wiring
+registry against `HEAD`, reported "15 receipts were already rotted", then re-measured
+against `ad26e69` and found **0 rotted — its own line shifts had caused all 15**, and it
+corrected itself in the same report. That is BRIEF_STANDARD's instrument rule held, by a
+builder, unprompted.
