@@ -1052,3 +1052,54 @@ branch, so the evidence was incapable of separating them — **pre-instrument ev
 purest form, the genus I canonised this morning, applied by me this afternoon.** The check that
 would have caught it costs one grep: *find the `if` that gates the message before treating the
 message as proof.*
+
+## THE `binding_stale` READ (2026-08-19) — **THE DISCRIMINATOR IS NOT ABSENT. IT IS SPENT.**
+The rebinding repair's next step asked one question: *does anything compute binding staleness
+today, or does the switch need a sensor built?* **Neither. Something computes it, fires live,
+and destroys the answer in the same statement.**
+
+**THE BINDER KNOWS, IN EXACTLY TWO PLACES, AND BOTH ARE DESTRUCTIVE:**
+```python
+# engines/egocentric/binder.py:247
+def on_level_change(self):
+    """The maze redraws; all evidence and bindings must re-earn themselves."""
+    self._evidence = {}                      # <- the knowledge, discarded
+
+# engines/egocentric/binder.py:254
+def on_fission(self, object_class):
+    """...the parent identity's evidence conflated two hidden types and IS STALE. Drop it"""
+    self._evidence.pop(object_class, None)   # <- the knowledge, discarded
+```
+**Nothing survives either call.** No counter, no flag, no stream — `self._evidence` is cleared
+and the fact that it *was* cleared, and why, is gone.
+
+**AND THE LIVE-PATH SPLIT MATTERS:**
+- **`on_level_change` FIRES IN PRODUCTION** — `cognitive_loop.py:1742`,
+  `_rb.on_level_change()  # the maze redraws; bindings re-earn`. **At every level crossing the
+  system knows every binding just went stale**, which is precisely when a settlement should
+  route `BROKEN·rebinding` rather than `BROKEN·mechanism`.
+- **`on_fission` HAS NO PRODUCTION CALLER.** Its only caller in the tree is
+  `tests/gate/test_class_fission.py:135`. **B10's fission path is built, tested, and never
+  invoked** — built-plumbed-never-called, sitting inside the very mechanism that would feed
+  the bin that cannot fire.
+
+### WHAT THIS SETTLES ABOUT THE BUILD
+Step 7's INWARD precondition is *"whether anything, at any resolution, already returns
+something that fails to resolve."* **Something does.** So the switch is **not** a new sensor
+and **not** simple wiring either — it is **retention**: keep, for one settlement cycle, what
+the binder already computes and throws away.
+
+**Smallest correct form:** `on_level_change` marks the affected slots; the next settlement for
+a marked slot carries `binding_stale=True`; the mark clears when consumed. **No new
+measurement is invented, and the router's rule 3 stops being unreachable.**
+
+### AND THE SHAPE IS THE WEEK'S SHAPE AGAIN
+A signal is produced correctly, at the right moment, by the right component — **and is
+consumed destructively at the instant of production, so nothing downstream can read it.**
+That is `produced, not recorded, not read` occurring at exactly the point where the ROUTE
+bin needs its input. **The 64% re-derivation rate in the mint ledger is what that costs:**
+every level crossing hands the mint a pile of repairs, because the one component that knew
+they were repairs forgot before anyone asked.
+
+**STATUS: READ ONLY. NOT BUILT.** It is agent code and it needs its own prereg — the retention
+window, what clears the mark, and a falsifier that the mark cannot leak into unrelated slots.
