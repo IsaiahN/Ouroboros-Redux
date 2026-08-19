@@ -39,7 +39,15 @@ tail* — `settlements`, `import_queue`, `mint_verdicts`, and the `action_traces
 **AND EVEN THESE ARE ARCHIVED, NOT DROPPED**, because rung 3 reads settlement HISTORY and
 the janitor's own trap was that folding to a tail would delete it.
 
-### 3 · THE WAL IS IN THE BUDGET
+### 3 · THE WAL IS EXCLUDED FROM THE BUDGET — REVISED BY SEAT 3, 2026-08-18
+**SUPERSEDES THE ORIGINAL REQUIREMENT BELOW.** *"The budget excludes the WAL, as the WAL
+can sometimes be up to a similar size as the db."* A WAL approaching its DB in size makes
+the budget lumpy and unpredictable, and it is TRANSIENT — a checkpoint reclaims it. So it
+does **NOT** count toward the ceiling, and it is **PRINTED SEPARATELY** alongside the true
+on-disk total, because excluding a quantity must never make it invisible.
+Measured now: budget **4.456 GB**, WAL/SHM **0.019 GB**, on disk **4.474 GB**.
+
+### 3-ORIGINAL (superseded) · THE WAL IS IN THE BUDGET
 **Counted: `*.db` + `*.db-wal` + `*.db-shm` + every fabric stream + logs.** 30 GB of DB
 with a 20 GB WAL beside it is 50 GB on disk, and the durability test just measured WAL
 sizes varying **5.4x** with one pragma.

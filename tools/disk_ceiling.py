@@ -5,7 +5,11 @@ PREREG_DISK_CEILING.md. Three binding requirements, all mechanical here:
   2 ARCHIVE-THEN-TRUNCATE, NEVER DELETE — and CLAIM-SUPPORTING paths are kept regardless
     of age or size, by the four tests in the prereg (live reader / cited by a live claim /
     irreplaceable / a control).
-  3 THE WAL IS IN THE BUDGET — *.db-wal and *.db-shm counted with everything else.
+  3 THE WAL IS EXCLUDED FROM THE BUDGET, AND REPORTED ANYWAY. Seat 3 revised this on
+    2026-08-18: a WAL can reach a size comparable to its DB, which makes a budget that
+    includes it lumpy and unpredictable, and the WAL is transient -- a checkpoint reclaims
+    it. So it does not count toward the ceiling, and it is PRINTED SEPARATELY so that
+    excluding it never makes it invisible.
 
 USAGE
   python tools/disk_ceiling.py --check          # report, exit 1 if over
@@ -66,7 +70,9 @@ def _is_keep_always(path: str) -> bool:
 
 
 def usage_bytes() -> Tuple[int, Dict[str, int]]:
-    """Total bytes under .runs — INCLUDING *.db-wal and *.db-shm (requirement 3)."""
+    """Budgeted bytes under .runs — EXCLUDING *.db-wal and *.db-shm (Seat 3, 2026-08-18:
+    a WAL can approach its DB in size and is transient, so it is measured and reported but
+    not budgeted). The by-kind map still carries wal/shm so exclusion is never silence."""
     total = 0
     by_kind: Dict[str, int] = {}
     for r, _ds, fs in os.walk(RUNS):
@@ -76,7 +82,6 @@ def usage_bytes() -> Tuple[int, Dict[str, int]]:
                 n = os.path.getsize(p)
             except OSError:
                 continue
-            total += n
             if f.endswith("-wal"):
                 k = "wal"
             elif f.endswith("-shm"):
@@ -90,6 +95,9 @@ def usage_bytes() -> Tuple[int, Dict[str, int]]:
             else:
                 k = "other"
             by_kind[k] = by_kind.get(k, 0) + n
+            # WAL/SHM are MEASURED and REPORTED but NOT BUDGETED (Seat 3, 2026-08-18).
+            if k not in ("wal", "shm"):
+                total += n
     return total, by_kind
 
 
@@ -171,8 +179,9 @@ def main() -> int:
     print(f"DISK: {gb:.3f} GB of {CEILING_GB:.1f} GB ceiling  ({frac*100:.1f}%)")
     print("  by kind: " + "  ".join(
         f"{k}={v/(1024**3):.3f}GB" for k, v in sorted(by_kind.items(), key=lambda x: -x[1])))
-    print(f"  WAL IS COUNTED (requirement 3): wal={by_kind.get('wal',0)/(1024**3):.3f}GB "
-          f"shm={by_kind.get('shm',0)/(1024**3):.3f}GB")
+    _w = (by_kind.get("wal", 0) + by_kind.get("shm", 0)) / (1024 ** 3)
+    print(f"  WAL/SHM EXCLUDED FROM THE BUDGET but reported: {_w:.3f} GB "
+          f"(on disk you are using {gb + _w:.3f} GB in total)")
 
     if a.sweep:
         acts = sweep(force=a.force, dry_run=a.dry_run)
