@@ -1,5 +1,8 @@
 """Child: commit N rows with production pragmas, then DIE HARD without closing."""
-import sqlite3, sys, os
+import os
+import sqlite3
+import sys
+
 db, ap, n = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 c = sqlite3.connect(db)
 c.execute("PRAGMA journal_mode=WAL")

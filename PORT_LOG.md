@@ -1134,3 +1134,80 @@ Fixed by building the predicate from the columns that EXIST, and **surfacing
 on an old schema would be the blind verifier returning by the back door.**
 **Back to the pre-existing 4 failures** (verified by stashing and re-running, not asserted).
 ruff clean · OOD clean · sweep `--strict` exit 0.
+
+## ENTRY 36 — 2026-08-19. **GAMES WON: 0/25.** LEVELS DELTA: **L1+ 8 → 9 (sk48, new).**
+## L2+ unchanged at 1 (ar25). SWARM WAS DOWN; RELAUNCHED, 25/25 UP.
+
+**SCOREBOARD, re-derived raw from the 25 worker DBs** (MAX `level_completions` + WIN states):
+**GAMES WON 0/25. WIN rows: 0.** `maxL` 2, held only by **ar25**. Games at L1+: **9/25** —
+`ar25 cd82 cn04 ft09 lp85 m0r0 r11l sk48 sp80`.
+
+**THE HEADLINE IS A DEPTH RECORD AND IT IS SMALL: `sk48` crossed level 1 for the first time
+at 05:49:52 today** (2,626 level≥1 traces since). Every other L1+ game first crossed on
+08-12/13. **First new game to reach L1 in six days**, and it happened during the twelve-hour
+offline run. One crossing in 1,194 sessions is a rate, not a breakthrough.
+
+**AND THE DENOMINATOR IS NOW ON THE RECORD:** worker logs read `levels=2/8`. **A full game
+win is 8 levels. The high-water is 2.** The mission distance is larger than the scoreboard's
+"L2" has been making it look.
+
+**INSTRUMENT DISAGREEMENT, FLAGGED NOT RESOLVED:** `m0r0` reports `MAX(level_completions)=0`
+in `game_results` but `MAX(level_number)=1` in `action_traces`. Two sources, one game, and
+they disagree about whether it has ever completed a level. Counted as L1+ on the trace
+evidence; **the discrepancy is not chased this beat.**
+
+**HERD.** Supervisor was **DEAD** — no process, no `status.txt`, no log. Relaunched with the
+Ouroboros venv python; **25/25 spawned, up 15m, `r/m/c = 0/0/0` on every worker**, no RSS
+above 800 MB (cap 1200). Disk **4.88 GB** — under the ~8 GB trim line and 16.3% of the 30 GB
+ceiling. **No trim needed, nothing deleted.**
+*Noted, not acted on:* the supervisor's `DB_HARD_CAP_MB=600` path empties `TELEMETRY_TABLES`,
+**which includes `action_traces` — the table this scoreboard's level evidence comes from.**
+Largest box is 145 MB so it cannot fire this beat, but a cap that empties the level record is
+D-1's cousin and belongs in the ledger.
+
+**VITALS.** Atoms **1,727 — structural 1,727 / lexical 0**, up from 493 at entry 29.
+Mint verdicts **257,863**: `rederivation` 166,071 · `reject` 57,991 · `quarantine` 32,116 ·
+**`mint` 1,685 (0.65%)**. Import queue **231 MB / 25 boxes**; settlements **101 MB**.
+Starvation book: `MINT_STARVED` 1,409 · `BANK_NO_FAMILY` 254 · `NO_STABLE_REFERENCE` 91 ·
+`EMPTY_PLAN` 68 · `NO_REFERENCE_BINDING` 10.
+
+**DEBASEMENT WATCH — the flagged pair is not where the concentration is.** Of **5,644
+TRANSFERRED settlements across 59 distinct atoms, TWO atoms hold 77.4%**: `bp35`
+`eff-1a405e7e…` at **2,782** and `lf52` `eff-7ee8a672…` at **1,584**. An atom at 2,782 is not
+1,391× more verified than one at 2 — **at that point it is a constant, not evidence**, the
+same shape as `region_contains_colour` firing on every link-3 record. `lp85` (65) and `ft09`
+(56) are unremarkable beside it. **Raised, not repriced.**
+
+## THE ONE IMPROVEMENT: **PREREG ONLY, NOT BUILT — `PREREG_EMPTY_PLAN_ATTRIBUTION.md`.**
+The `[PLAN] shadow vs DRIVE` chain is the beat's standing escalation, and it fired: **atoms
+exist and shadow/DRIVE are still zero.** The project's own instrument names the step —
+`g1=198 g2=194 g3=194 g4=194 g5=194 g6=194` **`g7=0`** `shadow=0 drive=0`. **g7 is
+`plan_to_identity` returning a plan WITH STEPS**, and both `drive` and `shadow` increment
+inside that branch.
+
+**SO THE 2× TRANSFERRED GATE IS NOT THE BLOCKER — IT IS NEVER REACHED.** 5,644 TRANSFERRED
+settlements exist and **32 atoms clear the ≥2 bar**; all 32 are idle because no plan with
+steps ever arrives to be checked against them. *Ladder stop rule: diagnose the predecessor.*
+
+**AND I NEARLY REPORTED THIS ON STALE EVIDENCE.** Those `[PLAN-GATE]` lines are from
+**08-13/14** and predate `ad441c0` (08-15), which added `gate_summary()` to that very line —
+**27 such lines exist in total, ever, from 2 of 25 boxes, none since 08-14.** The instrument
+built to answer this question **has never once reported.** The live confirmation is separate
+evidence: since the relaunch, across 25 workers, **`[COST]` fired 521 times and `[PLAN]`
+fired 0** — `[COST]` prints inside g6 after the planner returns, `[PLAN]` only at g7. **The
+planner is returning a plan that carries a cost and no steps, every time, on current code.**
+
+**THE GAP IS ONE FIELD WIDE.** `starvation.jsonl` records *which socket* starved
+(`EMPTY_PLAN`, 68 records, no reason); `planner._REASON_COUNTS` records *why*
+(`NO_APPLICABLE_ATOMS`/`BUDGET_EXHAUSTED`/`NO_MEET`/`ANCHOR_MISS`/`INFEASIBLE_COST`) but is a
+**module global that dies with the worker.** Nothing joins them. The build carries the reason
+onto the record — **narration to disk, no decision changed** — with F1 attributes, F2 changes
+nothing else (gate counts and actions identical), F3 known-negative (other sockets must NOT
+gain the field), and a one-line undo on an append-only stream.
+
+**NOT BUILT, DELIBERATELY: it is agent code, and agent code is a builder's to write.**
+
+**HOUSEKEEPING, mine:** two leftovers from the pre-commit hook verification finally
+committed — an uncommitted import-sort fix in `tools/_durability_writer.py` and the deletion
+of `tools/_hooktest.py`, the deliberate "should be blocked" fixture. Neither is an
+improvement; both were my own uncommitted working-tree state.
