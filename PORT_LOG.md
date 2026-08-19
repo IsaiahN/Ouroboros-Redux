@@ -1282,3 +1282,44 @@ modes are not the same game.** Undo is deleting two tokens.
 
 **NOT EXECUTED: it restarts all 25 workers, which is a visible cost and Seat 3's to spend.**
 One command on the word.
+
+### ADDENDUM TO ENTRY 37 — **THE WIN METRIC IS SOUND, AND THE TOOLKIT IS CURRENT**
+Seat 3 pointed at the API's win definition and asked for the toolkit to be checked. Both done,
+and the first one is the guaranteed-number test applied to the **primary metric** — the one
+number this project is judged by, which had never been shown to be capable of moving.
+
+**THE API'S DEFINITION** (`docs.arcprize.org/api-reference/scorecards/retrieve-scorecard-one-game`):
+`state` takes `NOT_FINISHED` · `NOT_STARTED` · **`WIN`** · `GAME_OVER`, and `completed` is a
+boolean meaning *terminal* — **`WIN` OR `GAME_OVER`. So `completed: true` is NOT a win**, and
+anything reading it as one would count every death as a finish.
+
+**THE CHAIN, VERIFIED END TO END:**
+```
+arcengine.GameState.WIN.value == 'WIN'          <- matches the API doc exactly
+game_player.py:1407   is_win = last_obs.state == GameState.WIN
+engines/postgame/orchestrator.py:88   'win_detected': self.is_win or self.is_full_win
+database_interface.py:914 / result_recorder.py:95   -> game_results.win_detected
+```
+**`GAMES WON: 0/25` IS A READING, NOT A BLIND COLUMN.** The comparison is against the correct
+enum, the enum carries the correct string, and the writer reaches the table. *This needed
+checking precisely because an unwritten column reports zero wins whether or not any occurred —
+and it is the number the whole mission is scored on.*
+
+**TOOLKIT — CURRENT IN BOTH VENVS, checked against PyPI directly (neither venv has pip):**
+| package | installed | latest | |
+|---|---|---|---|
+| `arcengine` | 0.9.3 | 0.9.3 | up to date (its only release) |
+| `arc-agi` | 0.9.9 | 0.9.9 | up to date |
+Identical in `Ouroboros-Redux/.venv` and `Ouroboros/.venv` — **and the second is the one that
+matters, since the supervisor launches workers with the Ouroboros venv python.**
+
+**ONE DIVERGENCE, FLAGGED AND LOW PRIORITY:** the API doc lists `NOT_STARTED`; `arcengine`
+0.9.3 ships `NOT_PLAYED`. Four members either way, and **`WIN` and `GAME_OVER` are identical**,
+so win detection is unaffected. Recorded because a doc/engine name divergence is the shape that
+bites whoever next writes a state comparison from the documentation rather than the enum.
+
+**METHOD NOTE — the same error class, caught by one line.** I first checked `arc_agi` and its
+`GameState`, and it does not have one. **The live player imports `from arcengine import
+GameAction, GameState` (`game_player.py:25`).** Two toolkits are installed and only one is on
+the live path. *Reading the import line is what separated them — the same "which thing is
+actually live" check that the log-line-as-channel error needed this afternoon.*
