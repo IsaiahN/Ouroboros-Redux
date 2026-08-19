@@ -70,7 +70,30 @@ followed the stop rule correctly. **It relocates it.** g7 is not the first broke
 
 # 2 · WHAT THE UPDATES CHANGE ABOUT WORK ALREADY DONE
 
-### 2.1 · **THE OFFLINE RUN WAS A SUBSTITUTED HABITAT** — Figure 11, and this is the big one
+### 2.1 · ~~THE OFFLINE RUN WAS A SUBSTITUTED HABITAT~~ — **CORRECTED BY SEAT 3, 2026-08-19**
+
+> **RULING 2:** *"Offline is a **channel substitution, not a habitat substitution**: same game
+> files, same mechanics, same action budget. What changed is the rate limit and the scorecard.
+> So the throughput claims are downgraded and **the depth elimination stands** — same depth at
+> a thousandfold throughput is an elimination, and eliminations survive thin n. Online stays
+> reserved for scorecard runs."*
+
+**I over-applied Figure 11.** "Isolation is substitution of one habitat for another" describes
+moving a residual somewhere else; **offline moves the channel, not the residual.** The actors,
+conditions and relations in contact with R — the game files, the mechanics, the action budget
+— are identical. **So R-A is restored: the depth elimination stands at n≈1,194**, and what is
+downgraded is only what I already downgraded, the throughput-derived claims.
+
+**AND THE CORRECTION SHARPENS THE ORIGINAL POINT RATHER THAN DELETING IT.** What offline
+*does* substitute is **the scorecard** — the one channel that points outward. Under the canon's
+own line, *"every instrument points inward unless one is built to point out,"* offline is
+sound for exactly the work that is inward, which is diagnostics, and mute on the only
+non-frame-internal metric there is. **That is why the ruling reserves online for scorecard
+runs, and it is a better statement of the cost than the one I made.**
+
+**Retained below, struck, because a correction that erases the error teaches nobody:**
+
+### ~~2.1-ORIGINAL (superseded) — the habitat argument as I first made it~~
 > *"Isolation is not removal of the habitat. It is substitution of one habitat for another…
 > what you failed to reproduce is invisible until the goal fails, and what you unintentionally
 > introduced is invisible until it acts."*

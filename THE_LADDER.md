@@ -848,3 +848,42 @@ file, and it cannot bear on the question asked.
 that gained a column, any report that gained a section. **The filter is
 capability-at-write-time, never timestamp** — and the two come apart exactly when a schema
 moved, which is exactly when someone is most likely to be reading the old rows.
+
+## THE ROUTING LINE (convention, Seat 3, 2026-08-19 — binding on every crossing)
+**Anything crossing to this seat carries a line saying what it is** — *"Reviewer, on your beat
+of [date]"* or *"Reviewer, unrouted, information only."*
+**Material arriving WITHOUT that line is treated as unrouted and SAID SO, rather than having
+its provenance worked out by inference.**
+
+**WHY IT IS A MECHANISM AND NOT A RESOLUTION.** Seats 2 and 4 have no channel; everything
+passes through the maintainer and **the restatement is the filter neither can apply to
+itself.** Neither end can catch a routing failure from inside: the reviewer cannot see what
+was sent, and this seat cannot know what was addressed to it. **Two defects on 2026-08-19 —
+a message answering a document this seat never wrote, and a misquoted figure (`493 lexical`
+for `493 atoms, all structural`) — are the same channel producing the same effect in both
+directions.**
+
+**AND THE DISTINCTION SEAT 3 KEEPS, RECORDED HERE BECAUSE IT IS NOT MINE TO TRACK:** reviewer
+errors from **routing** and reviewer errors from **depletion** look identical from the
+maintainer's seat and have different fixes. Rotation answers depletion; a provenance line
+answers routing. **Diagnosing one as the other is how a sound channel gets rotated away, or a
+depleted one gets papered over.**
+
+## SITE-SCOPED KNOWLEDGE — **HELD, NOT ADOPTED** (Seat 3 ruling 3, 2026-08-19)
+Returned with the one line asked for.
+
+**WHAT IT CLAIMS:** a defect is a property of a **shape** and a fix is recorded at a **site**,
+so with no index from shape to instances, **a defect's instance count grows by ordinary
+authoring while its fix's instance count stays at one.**
+
+**WHAT WOULD SHOW IT FALSE:** take a sample of defects known to have been fixed, and for each
+count `shape_instances` (occurrences of the defective shape) against `fix_instances`
+(occurrences carrying the fix). **If `fix_instances == shape_instances` for most of the
+sample, with no shape→instance index in existence, the genus is false** — fixes are
+propagating by something other than an index and the claim has no work to do.
+**One clean counter-example is not enough** (a one-instance shape is trivially fully fixed);
+the sample must be restricted to shapes with `shape_instances > 1`.
+
+**STATUS: HELD.** The discriminator is Item 1 of `DECISION_ANALYSIS.md` and is **unbuilt**, so
+until it runs the genus remains a convention nothing can check — a constant carrying this
+seat's authority, by my own reading. **It is cited nowhere as evidence while held.**
