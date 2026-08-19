@@ -1945,6 +1945,41 @@ class CognitiveLoop:
                         _wfab.append("collective", "import_queue", _wrec)
             except Exception:
                 _swal(self, "MINT_DRAIN")
+            # ── THE REBINDING BIN GETS A DESTINATION (PREREG_REFIT_DESTINATION.md,
+            # Seat 3 ruling 2026-08-19) ──────────────────────────────────────────
+            # ROUTE has four bins. Three drained somewhere: NOVEL -> import_queue
+            # (above), BROKEN·mechanism -> mint_queue -> the mint, TRANSFERRED ->
+            # settlements. BROKEN·rebinding appended to router.refit_queue, an
+            # in-memory list referenced NOWHERE ELSE in the tree -- so the one bin
+            # that says "repair this, do not mint" died with the process.
+            #
+            # SCOPE: THE DESTINATION ONLY. `binding_stale` is still set by nothing
+            # in production, so this drain is a NO-OP today and the bin still
+            # cannot fire. That is the ruled order: a diagnosis that dies with the
+            # process is not a diagnosis, so the destination lands before the
+            # switch. Its own try/except so a refit failure cannot kill the
+            # import drain above.
+            try:
+                _rt2 = getattr(self, "_residual_router", None)
+                _rfab = getattr(self, "_ego_fabric", None)
+                if _rt2 is not None and _rfab is not None:
+                    while _rt2.refit_queue:
+                        _rit = _rt2.refit_queue.pop(0)
+                        # Same record shape and same A3-2 PLAYING-level convention
+                        # as the import_queue drain -- one pattern, not two.
+                        _rfab.append("collective", "refit_queue", {
+                            "slot": _rit.get("slot"),
+                            "residual": float(_rit.get("residual", 0.0)),
+                            "game": str(getattr(self, "_game_id", "") or "game"),
+                            "level": int(getattr(self, "_ego_level", 0) or 0) + 1,
+                        })
+            except Exception:
+                # MINT_DRAIN, not a new code: the guarded-block enum is
+                # PREREGISTERED and takes no additions on the fly (the swallow
+                # gate says so, and it caught me adding one). This drain is the
+                # same family as the import_queue drain above -- a router queue
+                # emptied to the fabric -- so it shares its block.
+                _swal(self, "MINT_DRAIN")
             # W4c-6: AFFECT NARRATES — no channel moves without the state emitted.
             # B5 (BUILD_PROGRAM_2 W1): the SEED-BIAS consumption site — the
             # APPLIED bias (seed_gain: starvation+swallow-widened, bounded,

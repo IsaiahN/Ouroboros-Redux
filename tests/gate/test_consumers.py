@@ -52,6 +52,16 @@ ALLOWLIST: Dict[str, str] = {
         "by consumer._persist_rho_readings) are read at every diagnostic "
         "beat beside the counters; runtime writes, the seat reads -- the "
         "adoption rung is unanswerable without this stream"),
+    "refit_queue": (
+        "PREREG_REFIT_DESTINATION.md (Seat 3 ruling, 2026-08-19): ROUTE has four "
+        "bins and BROKEN-rebinding was the only one with no destination -- it "
+        "appended to an in-memory list referenced nowhere, so the bin that means "
+        "'repair this, do not mint' died with the process. The ruled order is "
+        "DESTINATION BEFORE SWITCH, because a diagnosis that dies with the "
+        "process is not a diagnosis; `binding_stale` is still set by nothing, so "
+        "the drain is a NO-OP today and the stream is empty by construction. THE "
+        "CONSUMER LANDS WITH THE SWITCH BUILD, and this entry is deleted then -- "
+        "which is also when the topic first carries a record"),
 }
 
 # Production sources only: tests are fixtures, not consumers; caches/vendored
