@@ -828,3 +828,23 @@ This is the same shape as a live SUBJECT question: the agent records lessons key
 **this game, this level** rather than to a class of situations. Whether the apparatus defect
 and the subject defect are the same defect is **not established here** and is not mine to
 settle — but the two being isomorphic is worth someone pointing an instrument at.
+
+## PRE-INSTRUMENT EVIDENCE (canon, 2026-08-19 — Seat 4, adopted and generalised)
+**When a record's FORMAT changed, every record in the old format is PRE-INSTRUMENT
+EVIDENCE.** A date filter is not enough: **the question is whether the record was capable of
+answering the question at the moment it was written.**
+
+**THE INSTANCE THAT FORCED IT.** `[PLAN-GATE]` exists to name the gate whose count collapses.
+27 lines exist, ever, from 2 of 25 boxes, **none since 2026-08-14** — and `ad441c0`
+(2026-08-15) added `gate_summary()`, the empty-plan reason tokens, to that very line.
+**So every reading the instrument ever produced predates the thing that made it an
+instrument**, and the seat nearly answered a live question from it.
+
+**THE GENUS, STATED:** not an unwired organ but **an instrument whose entire output predates
+its own instrumentation.** It reads as evidence, it is correctly formatted, it is in the right
+file, and it cannot bear on the question asked.
+
+**IT GENERALISES PAST LOGS.** The same applies to any stream that gained a field, any table
+that gained a column, any report that gained a section. **The filter is
+capability-at-write-time, never timestamp** — and the two come apart exactly when a schema
+moved, which is exactly when someone is most likely to be reading the old rows.
