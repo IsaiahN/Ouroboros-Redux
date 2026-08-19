@@ -1973,6 +1973,23 @@ class CognitiveGamePlayer:
 
         Handles the common case where obs.frame is a list wrapping
         a single ndarray: [ndarray(64,64)] -> ndarray(64,64).
+
+        AND THE MULTI-FRAME CASE, WHICH THIS SILENTLY GOT WRONG UNTIL 2026-08-18.
+        The unwrap was guarded by `len(data) == 1`, so a step returning a STACK of
+        frames fell through to `np.array(data)` and produced a (3, 64, 64) array
+        where every caller expects (64, 64). Found in the banked evidence, not in
+        the code: every `levelup_frames` record at level > 1 has `pre` as a 64x64
+        grid and `post` as a 3x64x64 stack, because the crossing's pre-observation
+        happened to carry one frame and its post-observation carried three.
+
+        THIS IS NOT AN ASYMMETRY BETWEEN CALL SITES -- both sides call this same
+        helper, which is why the call-site sweep (`tools/norm_sweep.py`) reported
+        all three candidates clean. **The asymmetry is INSIDE the normaliser and
+        is conditional on the payload**: the same function normalises or does not
+        depending on how many frames the API happened to return.
+
+        THE LAST frame is the current state: a stack is ordered oldest -> newest,
+        and every consumer of this helper wants "the frame now".
         """
         if obs is None:
             return None
@@ -1981,12 +1998,16 @@ class CognitiveGamePlayer:
                 if hasattr(obs, attr):
                     data = getattr(obs, attr)
                     if isinstance(data, np.ndarray):
-                        return data
+                        # A stack that reached us as one array: same rule, so the
+                        # ndarray path and the list path cannot drift apart.
+                        return data[-1] if data.ndim == 3 else data
                     if isinstance(data, list):
-                        # Unwrap [ndarray] -> ndarray
-                        if len(data) == 1 and isinstance(data[0], np.ndarray):
-                            return data[0]
-                        return np.array(data, dtype=np.uint8)
+                        # Unwrap [ndarray] -> ndarray, and [f0, f1, f2] -> f2.
+                        # len==1 keeps its exact previous behaviour.
+                        if data and isinstance(data[0], np.ndarray):
+                            return data[-1]
+                        arr = np.array(data, dtype=np.uint8)
+                        return arr[-1] if arr.ndim == 3 else arr
                     if hasattr(data, 'tolist'):
                         return np.array(data)
             return None

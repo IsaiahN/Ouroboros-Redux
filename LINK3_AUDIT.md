@@ -254,3 +254,68 @@ registry against `HEAD`, reported "15 receipts were already rotted", then re-mea
 against `ad26e69` and found **0 rotted — its own line shifts had caused all 15**, and it
 corrected itself in the same report. That is BRIEF_STANDARD's instrument rule held, by a
 builder, unprompted.
+
+---
+
+## ADDENDUM 4 (2026-08-18, overnight) — THE `post` SIDE WAS NEVER NORMALISED, AND THE EVIDENCE SAID SO BEFORE THE CODE DID
+
+**HOW IT WAS FOUND: by reading the banked records, not by reading the code.** Verifying that
+a live episode had produced a `levelup_frames` record at level > 1 — the exact condition this
+audit set for moving off CANDIDATE — I checked the values rather than the keys:
+
+```
+pre  dims [64, 64]        <- a grid
+post dims [3, 64, 64]     <- A STACK OF THREE FRAMES
+```
+
+**THE MECHANISM.** `_get_frame_array` unwrapped `[ndarray] -> ndarray` **only when
+`len(data) == 1`**. A step returning three frames fell through to `np.array(data)` and
+produced `(3, 64, 64)` where every caller expects `(64, 64)`. The crossing's
+pre-observation happened to carry one frame; its post-observation carried three.
+
+**WHY NO INSTRUMENT CAUGHT IT, AND THIS IS THE PART WORTH KEEPING.** `tools/norm_sweep.py`
+reported all three of its candidates **clean, and was right to** — both sides of the crossing
+call the *same* helper. **The asymmetry is inside the normaliser and conditional on the
+payload.** A call-site sweep is structurally blind to that. *Whenever `norm_sweep` is cited
+as evidence of symmetry, this limitation goes with it.*
+
+**WHAT IT COST.** All three pre-fix L2 records report `appeared=[] vanished=[]` — pre and
+post carry identical colour sets, because a 3-frame stack's colours union to the pre state.
+**The malformed post was washing the transition out.** A vocabulary asked to describe a
+change it cannot see returns nothing, which is a mechanical contribution to the zero-yield
+result this audit has been circling.
+
+**THE FIX, GATED.** `_get_frame_array` now takes the **last** frame of a stack (ordered
+oldest → newest, so the last is "the frame now"), by the same rule on the ndarray path and
+the list path so the two cannot drift. `tests/gate/test_frame_normalisation.py` — 4 tests,
+R4 both ways: the known-positive is a 3-frame payload returning 2-D; **the known-negative is
+that a 1-frame payload is byte-for-byte unchanged**, because ten other callers depend on the
+case that already worked. **Blast radius measured, not assumed: the full gate suite is
+1121 passed, 0 failed.**
+
+**AND CONFIRMED BY THE GROUND, 47 MINUTES LATER.** The overnight run banked a new crossing:
+```
+11:58  agent_c5258d947f61   pre=[64,64]  post=[3,64,64]   <- pre-fix
+13:34  agent_b99641ec6818   pre=[64,64]  post=[3,64,64]   <- pre-fix
+19:27  agent_844a7d726e88   pre=[64,64]  post=[3,64,64]   <- pre-fix
+20:14  agent_6a7985f9f58c   pre=[64,64]  post=[64,64]     <- POST-FIX, a grid
+```
+**The post-fix record is also the only one of the four showing a real transition**
+(`vanished=[4]`, yielding `colour_count_zero:4`), exactly as the mechanism predicts.
+
+### STATUS, SPLIT — because one half moved and the other did not
+- **THE HOOK: SETTLED ON GROUND.** The condition this audit named — *"does a live episode
+  produce a `levelup_frames` record with `level > 1`"* — is **met, four times, by four
+  distinct agents across two distinct transitions.** No longer simulation-only.
+- **THE VOCABULARY: STILL CANDIDATE, AND NOW WITH A NAMED CONTAMINATION.** The corpus has
+  grown to **54 records / 16 transitions / 589 predicates** (was 6/3/50), but **three of the
+  four L2 records were banked against a malformed `post`**, so every predicate derived from
+  them describes a comparison that could not have worked. **The vocabulary reading must be
+  re-taken on post-fix records only.**
+
+### THE THREE LEGACY RECORDS ARE NOT LOST, AND I HAVE NOT TOUCHED THEM
+`post[-1]` **is** the frame that should have been stored — the record is over-complete, not
+corrupt, and is repairable at read time. **I did not rewrite them.** Rewriting stored
+evidence to match a corrected reader is the ledger genus exactly (*a fix that destroys the
+record of the thing it fixed*), and whether to add a read-time shim or leave them annotated
+is **APPARATUS → Seat 3**.
