@@ -22,6 +22,8 @@ THE PROTECTION LAYER (why each piece exists):
     recycle/mem-kill counts, db size. Nothing silent.
 Kill this process to stop the swarm; workers die with it (they are child processes).
 """
+import hashlib
+import json
 import os
 import re
 import subprocess
@@ -43,7 +45,8 @@ RECYCLE_MIN = 120          # bounded lifetime: recycle every 2 hours
 VACUUM_FRAG_RATIO = 0.25   # VACUUM only when >=25%% of pages are free (real fragmentation)
 VACUUM_MIN_FREE_PAGES = 2000  # ...and the reclaim is worth the rewrite. NOT a cadence.
 DB_HARD_CAP_MB = 600       # after cleaning, still above this -> empty telemetry outright
-POLL_SEC = 60
+POLL_SEC = 60             # also the DEPLOY LATENCY: a queued change is live within one poll
+HOLD_FILE = os.path.join(REDUX, ".runs", "swarm", "HOLD")  # present -> no deploys
 
 # SEAT 3 RULING 2026-08-19: **action_traces is OFF LIMITS to housekeeping.** It holds the
 # level evidence, which is the ground's record. NO automatic path deletes it -- not at
@@ -63,6 +66,60 @@ seed_dirs = [os.path.join(REDUX, ".runs", "compound2", "ego_fabric")] + \
 
 procs = {}     # game -> (Popen, logfile, t0)
 stats = {g: {"restarts": 0, "mem_kills": 0, "recycles": 0} for g in GAMES}
+
+
+def code_fingerprint():
+    """Fingerprint every live-path .py the workers import. Size+mtime, not content:
+    it detects any edit, costs milliseconds, and runs once per poll.
+
+    UNCOMMITTED EDITS COUNT, and that is the whole point -- git state is not the
+    deployment boundary, the file on disk is."""
+    h = hashlib.sha1()  # noqa: S324 -- content addressing, not cryptography
+    for dp, dns, fns in os.walk(REDUX):
+        dns[:] = [d for d in dns
+                  if d not in (".git", ".runs", ".venv", "__pycache__",
+                               "node_modules", ".ruff_cache", "tests", "lab",
+                               # proctor tooling: workers never import it, so editing
+                               # it must NOT restart the swarm. manual_tools is NOT here:
+                               # evolutionary_engine.py:464 lazily imports
+                               # manual_tools.analysis.performance_analyzer, so it IS
+                               # live-path and a change to it must deploy.
+                               "tools", "docs", "architecture")]
+        for f in sorted(fns):
+            if not f.endswith(".py"):
+                continue
+            p = os.path.join(dp, f)
+            try:
+                st = os.stat(p)
+            except OSError:
+                continue
+            h.update(os.path.relpath(p, REDUX).encode("utf-8", "replace"))
+            h.update(b"%d:%d" % (st.st_size, st.st_mtime_ns))
+    return h.hexdigest()
+
+
+def record_deploy(fp, reason):
+    """RUNG 0e FOR DEPLOYMENT: what actually ran, and whether the tree was dirty.
+    Without this, 'which code produced this batch' is unanswerable after the fact."""
+    rec = {"utc": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+           "reason": reason, "fingerprint": fp[:16]}
+    for key, args in (("head", ["rev-parse", "HEAD"]),
+                      ("dirty", ["status", "--porcelain"])):
+        try:
+            r = subprocess.run(["git"] + args, cwd=REDUX, capture_output=True,
+                               text=True, timeout=10, check=False)
+            out = r.stdout.strip()
+            rec[key] = out[:400] if key == "dirty" else out[:12]
+        except Exception:
+            rec[key] = "?"
+    rec["dirty_count"] = len([x for x in rec.get("dirty", "").splitlines() if x.strip()])
+    try:
+        with open(os.path.join(ROOT, "deploys.jsonl"), "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec) + "\n")
+    except OSError:
+        pass
+    print("[DEPLOY] %s head=%s dirty=%d fp=%s"
+          % (reason, rec.get("head"), rec["dirty_count"], rec["fingerprint"]), flush=True)
 
 
 def db_gc(box, log):
@@ -244,10 +301,41 @@ for g in GAMES:
     print("spawned", g, flush=True)
     time.sleep(2.0)
 
+deployed_fp = code_fingerprint()
+record_deploy(deployed_fp, "initial")
+
 while True:
     time.sleep(POLL_SEC)
+
+    # ── DEPLOY ON CHANGE (Seat 3, 2026-08-19) ──────────────────────────────
+    # THE POINT: queue a change, have it live within one poll, and pay the
+    # restart cost ONLY when there is a change. An unconditional short batch
+    # pays it every boundary -- and the measured startup tail says three
+    # workers (cn04 730s, lp85 310s, ft09 274s -- all of them games WITH banked
+    # sequences to replay) would produce nothing at all inside a 5-minute one.
+    #
+    # THIS REPLACES THE COMMIT GATE, which never guarded the swarm: a change is
+    # live at the restart, not at the commit (THE_LADDER, "the working tree is
+    # production"). The hold is now a FILE THE LAUNCHER READS rather than a
+    # discipline someone remembers.
+    if os.path.exists(HOLD_FILE):
+        held = True
+    else:
+        held = False
+        fp = code_fingerprint()
+        if fp != deployed_fp:
+            record_deploy(fp, "code change")
+            for g in GAMES:
+                stop_and_gc(g, "deploy: live-path code changed")
+                spawn(g)
+            deployed_fp = fp
+            print("[DEPLOY] live-path change -> all workers restarted", flush=True)
+
     ws = working_sets()
     lines = []
+    if held:
+        lines.append("!! HOLD present (%s) -- deploys suspended, workers left running"
+                     % HOLD_FILE)
     if not ws:
         lines.append("!! working_sets EMPTY -- memory cap blind this cycle")
     for g in GAMES:
