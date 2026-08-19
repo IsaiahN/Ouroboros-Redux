@@ -743,3 +743,38 @@ LOCAL and requires one config command, so it does not transmit to another clone;
 still an instrument I pointed at myself. **The gap stays open and stays routed upward** —
 what changed is that one specific failure mode now costs me a blocked commit instead of a
 silent push.
+
+## THE FORK ASYMMETRY — MEASURED (2026-08-18, `tools/fork_divergence.py`)
+Seat 4: *fixes are not propagating across branches, and nothing checks whether they have.*
+**MEASURED AGAINST THE SIBLING (`Ouroboros @ v4-economies-of-thought`, frozen):**
+```
+  [FIX   ] here=2  sibling=0   ** FIX DID NOT CROSS **  evidence-rule replaces score (08-13)
+  [FIX   ] here=1  sibling=0   ** FIX DID NOT CROSS **  D-3 verifier by evidence (08-18)
+  [DEFECT] here=5  sibling=5   ** DEFECT IN BOTH **     D-1 checkpoint deletion keyed on SCORE
+  [DEFECT] here=1  sibling=1   ** DEFECT IN BOTH **     D-2 prefix merge deletes the GENERAL rule
+```
+**BOTH DEFECTS ARE IN BOTH LINEAGES. NEITHER FIX IS.** Two for two, in the direction the
+shape predicts.
+
+**AND THE ASYMMETRY IS STRUCTURAL RATHER THAN CARELESS:**
+**DEFECTS PROPAGATE BY INHERITANCE** — a fork copies everything present at fork time, at no
+cost and with no decision. **FIXES PROPAGATE ONLY BY SOMEONE REMEMBERING.**
+**SO DIVERGENCE ONLY EVER GROWS IN ONE DIRECTION**, and the growth is invisible because a
+sibling lineage is exactly the place no instrument was pointed. That is rung 0e's shape at
+the level of a repository: **a signal produced correctly in one place, never consumed in
+the other.**
+
+**THE RECEIPT IS THE COST ALREADY PAID:** zero-score deletion was found and disabled in one
+lineage in February 2026; **the same bug ate the census in the sibling in August** — re86
+112->8, tu93 97->12 — **four and a half months later**, and the last pre-fix pass fired one
+minute before the fixed supervisor took over.
+
+**LIMITATION, STATED:** a marker is a PROXY for a fix, not the fix. This detects textual
+absence, not semantic absence — a lineage that fixed the same defect differently would read
+as NOT CROSSED. **CANDIDATES, NOT A CENSUS**, and R4 is satisfied both ways (known-positive
+fired, known-negative reported BOTH rather than a false gap).
+
+**MITIGATING FACT, so this is not overstated:** the sibling is **ON ICE and frozen**, so
+nothing there is running today. **The instrument matters because the NEXT fork will not be
+frozen**, and because two defects sitting unfixed in a lineage that could be revived is a
+loaded gun rather than a curiosity.
