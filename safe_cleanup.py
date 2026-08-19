@@ -2347,7 +2347,13 @@ class SafeDatabaseCleaner:
             print('\nCritical Data Preserved:')
             print(f'  Active sequences: {sequences:,} [OK]')
             print(f'  Active agents: {agents:,} [OK]')
-            print(f'  Positive-score games: {good_games:,} [OK]')
+            # D-3 follow-up: the predicate became EVIDENCE-based on 2026-08-18 and this
+            # label was left saying SCORE -- output stating one thing while counting
+            # another is the same mode defect the fix existed to remove. And the partial
+            # flag was carried in the returned dict but never SHOWN, so a degraded
+            # reading looked identical to a full one on screen.
+            _p = ' [PARTIAL: legacy schema, some evidence columns absent]' if evidence_partial else ''
+            print(f'  Evidence-bearing games (score>0 OR win OR level): {good_games:,}{_p}')
             print('\nAggregated Knowledge (PERMANENT):')
             print(f'  Interaction triggers: {aggregated_knowledge["interaction_triggers"]:,}')
             print(f'  Trigger sequences: {aggregated_knowledge["trigger_sequences"]:,}')
