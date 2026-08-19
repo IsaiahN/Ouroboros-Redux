@@ -119,7 +119,15 @@ def spawn(g):
     logf = open(os.path.join(box, "worker.log"), "a", encoding="utf-8", errors="replace")
     logf.write("[SUPERVISOR] LP_DRIVE_ARM=%s recycles=%d\n"
                % (env["LP_DRIVE_ARM"], stats[g]["recycles"]))
+    # --mode offline (PREREG_SWARM_OFFLINE_MODE.md, Seat 3 authorised 2026-08-19):
+    # the objective is "25/25 completed LOCALLY OFFLINE in WON status", and the
+    # runner's --mode defaulted to "normal" (local + API) because nothing ever set
+    # it -- an argparse default, not a decision. OFFLINE removes a network
+    # dependency and a rate-limit surface from work whose success condition is
+    # local. Roster risk already retired: the 12-hour run drove all 25 games with
+    # --mode offline for 47 cycles and every cycle produced 25 sessions.
     p = subprocess.Popen([PY, os.path.join(REDUX, "evolution_runner.py"), "--verbose",
+                          "--mode", "offline",
                           "--game", g, "--population", "6", "--agents-per-gen", "4",
                           "--games-per-gen", "1", "--max-generations", "50"],
                          cwd=box, env=env, stdout=logf, stderr=subprocess.STDOUT)
