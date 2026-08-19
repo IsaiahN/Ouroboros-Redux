@@ -319,3 +319,40 @@ corrupt, and is repairable at read time. **I did not rewrite them.** Rewriting s
 evidence to match a corrected reader is the ledger genus exactly (*a fix that destroys the
 record of the thing it fixed*), and whether to add a read-time shim or leave them annotated
 is **APPARATUS → Seat 3**.
+
+---
+
+## ADDENDUM 5 (2026-08-19) — THE GUARANTEED-NUMBER TEST ON CLAUSE 2'S ZERO. **IT PASSES.**
+
+The updated canon adds a standing check: *"run the guaranteed-number test on every zero
+including the welcome ones — the test gets applied to numbers arriving as claims and skipped
+on numbers arriving as relief."* **Clause 2 is exactly such a zero.** It reads *"`region_uniform`
+and `regions_equal` still yield EXACTLY ZERO, so the vocabulary extended the edge rather than
+replacing it"* — a zero that arrived as relief and was never shown to be a reading.
+
+**IT IS A READING. Both predicates fire when the boards demand it:**
+```
+pre : q0 mixed (3 and 0), q0 != q1        post: q0 uniform 5, q0 == q1
+extract_predicates -> {'region_uniform': 1, 'regions_equal': 1, 'colour_count_zero': 2,
+                       'colour_present': 1, 'region_colour_count_atmost': 2,
+                       'region_contains_colour': 3}   n=10
+```
+Both survive the filter. So the zero on the live corpus is **evidence about the boards, not a
+producer gap** — which is what `tools/link3_live_check.py:46` already names
+`UNSATISFIABLE_HERE`, and the "here" is now earned rather than assumed. **Clause 2 PASS
+stands, with a check behind it.**
+
+### AND THE OBSERVER'S DEFECT, TWICE IN ONE READING, ON ME
+> *"A new instrument's first output is a claim about the instrument, not about the system."*
+
+**Probe 1** string-matched `str(p).startswith("region_uniform")` against records that are
+**dicts** — it reported both predicates absent, which was a fact about my matcher.
+**Probe 2** used an **all-zero pre-frame**, on which *every* region is uniform and *all*
+quadrants are equal — so both predicates held in `pre`, were correctly filtered as non-changes,
+and again reported absent. **Two wrong instruments in a row, both of which would have produced
+a confident false finding** ("the producer cannot emit these") had I stopped at either.
+
+**The catch was structural, not clever:** the first result contradicted `satisfies()` returning
+`True` on the same board, and a producer that cannot make what its own consumer accepts is a
+claim strong enough to demand a third look. **The rule earned here: when a probe reports an
+absence, construct the case that forces presence before reporting it.**
