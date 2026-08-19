@@ -10,11 +10,14 @@ THE PROTECTION LAYER (why each piece exists):
     Recycles are staggered by construction since spawn times differ.
   * TRASH COLLECTION ON EVERY RECYCLE — at each worker stop, its box's SQLite gets:
     v4's own SafeDatabaseCleaner (keeps knowledge, trims telemetry — Isaiah's tiering),
-    a WAL checkpoint (TRUNCATE), and VACUUM when the file exceeds VACUUM_AT_MB. Fabrics are
-    knowledge (tiny) and are never touched here — the fabric_janitor handles their
-    compaction separately per PREREG_SMART_CLEANUP.
+    a WAL checkpoint (TRUNCATE), and VACUUM **only when the file is actually fragmented**
+    (freelist_count/page_count >= VACUUM_FRAG_RATIO) — NOT on a size threshold and NOT on a
+    cadence, so this stays correct at any restart interval. Fabrics are knowledge (tiny) and
+    are never touched here — the fabric_janitor handles their compaction separately per
+    PREREG_SMART_CLEANUP.
   * DISK GUARD — if the box DB still exceeds DB_HARD_CAP_MB after cleaning, telemetry tables
-    are emptied outright (knowledge tables never touched) before VACUUM.
+    are emptied outright. **action_traces is NOT among them (Seat 3, 2026-08-19): it holds
+    the level evidence and no automatic path deletes it at any threshold or cadence.**
   * LOUD STATUS — .runs/swarm/status.txt every cycle: per-worker RSS, uptime, restarts,
     recycle/mem-kill counts, db size. Nothing silent.
 Kill this process to stop the swarm; workers die with it (they are child processes).
@@ -37,11 +40,17 @@ GAMES = ["ar25", "bp35", "cd82", "cn04", "dc22", "ft09", "g50t", "ka59", "lf52",
 
 MEM_CAP_MB = 1200          # kill + restart a worker above this working set
 RECYCLE_MIN = 120          # bounded lifetime: recycle every 2 hours
-VACUUM_AT_MB = 200         # vacuum a box DB above this size at recycle
+VACUUM_FRAG_RATIO = 0.25   # VACUUM only when >=25%% of pages are free (real fragmentation)
+VACUUM_MIN_FREE_PAGES = 2000  # ...and the reclaim is worth the rewrite. NOT a cadence.
 DB_HARD_CAP_MB = 600       # after cleaning, still above this -> empty telemetry outright
 POLL_SEC = 60
 
-TELEMETRY_TABLES = ["system_logs", "action_traces", "sensation_learning_events",
+# SEAT 3 RULING 2026-08-19: **action_traces is OFF LIMITS to housekeeping.** It holds the
+# level evidence, which is the ground's record. NO automatic path deletes it -- not at
+# 600 MB, not at any threshold, not on any cadence. If it grows unmanageably that comes to
+# Seat 3 as a ruling WITH AN ARCHIVE PLAN ATTACHED; it does not get solved by a routine
+# firing on a size check. (This closes D-4, which was exactly that routine.)
+TELEMETRY_TABLES = ["system_logs", "sensation_learning_events",
                     "cognitive_routing_traces", "i_thread_history", "player_state_history",
                     "navigation_state_history", "agent_operating_modes"]
 
@@ -86,11 +95,27 @@ def db_gc(box, log):
             con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         except Exception:
             pass
-        if os.path.getsize(db) / 1e6 > VACUUM_AT_MB:
-            try:
+        # SEAT 3 RULING 2026-08-19: **VACUUM IS NOT TUNED TO A CADENCE.** It runs when the
+        # file actually needs it and not otherwise. The need is FRAGMENTATION -- pages the
+        # DB has freed but not returned to the filesystem -- which is what VACUUM repacks.
+        # A size threshold alone fires on a big-but-dense file (pure cost, reclaims nothing)
+        # and misses a small-but-shredded one; a timer or a boundary count fires on the
+        # clock rather than on the file. `freelist_count / page_count` is the condition
+        # itself, so this is correct at ANY restart cadence and needs no retuning if the
+        # batch length changes.
+        try:
+            free = con.execute("PRAGMA freelist_count").fetchone()[0] or 0
+            pages = con.execute("PRAGMA page_count").fetchone()[0] or 1
+            frag = free / pages
+            if frag >= VACUUM_FRAG_RATIO and free >= VACUUM_MIN_FREE_PAGES:
                 con.execute("VACUUM")
-            except Exception as e:
-                log.write("[GC] vacuum failed: %s\n" % e)
+                log.write("[GC] vacuum: frag %.0f%% (%d/%d pages free)\n"
+                          % (frag * 100, free, pages))
+            else:
+                log.write("[GC] vacuum skipped: frag %.0f%% below %.0f%%\n"
+                          % (frag * 100, VACUUM_FRAG_RATIO * 100))
+        except Exception as e:
+            log.write("[GC] vacuum check failed: %s\n" % e)
         con.close()
         log.write("[GC] db %.0fMB -> %.0fMB\n" % (size0, os.path.getsize(db) / 1e6))
         log.flush()
