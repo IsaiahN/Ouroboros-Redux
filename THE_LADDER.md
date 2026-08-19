@@ -990,3 +990,65 @@ surprise-weighted novelty of the transition signature).
 **STANDING: the `reason` field stays unbuilt until the triple is ruled**, because it would
 encode whichever version is right — and now we know the ledger cannot be used as the tiebreak,
 since it carries the same conflation.
+
+---
+
+# RETRACTION (2026-08-19) — **NOTHING WAS PUBLISHED. THE OUTWARD-CHANNEL FRAMING WAS WRONG.**
+
+Seat 3 asked why old scorecards were being discussed at all, and whether this is *"more of a
+db issue."* Checked, and the answer is that **it is less than a db issue, and my framing was
+wrong at the root.**
+
+## THE THREE FACTS THAT KILL IT
+**1 · THE API PATH IS GATED ON A MODE WE DO NOT RUN.** `arc_agi/base.py` opens a remote
+scorecard only `if operation_mode == ONLINE or operation_mode == COMPETITION`. Everything else
+falls through to the branch commented **`# Local scorecard (NORMAL or OFFLINE)`**.
+`evolution_runner.py:1634` defaults `--mode` to **`normal`**, and `tools/swarm_supervisor.py`
+passes no `--mode` at all. **The swarm runs NORMAL. It has never taken the publish path.**
+
+**2 · A "LOCAL SCORECARD" IS AN IN-MEMORY DICT.** `scorecard.py:942`
+`ScorecardManager.new_scorecard` assigns into `self.scorecards[card_id]`. **No file, no
+database, no persistence.** The worker recycles every 120 minutes and five workers are being
+mem-killed repeatedly; that dict dies with each one. **So the wrong tag has no consumer
+anywhere — not a leaderboard, not a DB, not a file.**
+
+**3 · MY EVIDENCE NEVER DISTINGUISHED THE TWO BRANCHES.** I counted **8,836 log lines reading
+`Created new scorecard: {card_id}`** and read them as publications. **That exact string is
+emitted by BOTH branches** — the remote one and the local one, four lines apart. **I inferred a
+channel from a message without checking which branch emits it.**
+
+## WHAT IS WITHDRAWN
+- **"The outward record has published under the wrong lineage 8,835 times."** Withdrawn.
+  No outward publication occurred.
+- **"It succeeds outward and lies."** Withdrawn. It does not reach outward at all.
+- **THE RUNG 0e AMENDMENT IS WITHDRAWN.** I proposed *"did the run publish, and does the
+  published record describe the run it came from"* **and offered this as its receipt.** The
+  receipt does not hold, so the amendment has no supporting instance and comes off the board.
+  *A proposed rung resting on a falsified receipt is exactly the thing I would refuse from
+  anyone else.*
+- **`DA_SCORECARD_LINEAGE.md`'s severity is wrong throughout.** Its facts about the constant
+  are correct; its framing of the stakes is not. Superseded by this note, kept for the record.
+
+## WHAT SURVIVES, AND IT IS LARGER THAN WHAT I RETRACTED
+**`game_player.py:167` is still a stale constant on the live path, and it is still wrong** —
+it is just inert, because its only consumer is an in-memory object that is discarded. **Cost
+today: zero. Priority: below everything.**
+
+**AND THE REAL FINDING IS THE ONE UNDERNEATH: THIS PROJECT HAS NEVER PUBLISHED A SCORECARD.**
+Rung 0e asks *did the run that was supposed to publish, publish.* **The answer is no, for all
+of it, and not because of a defect — because the mode never publishes.** The standing
+housekeeping item *"no scorecards published since Aug 3"* is not a regression to investigate;
+it is the mode working as configured.
+
+**WHICH MEANS THE GROUND HAS NOT BEEN CONSULTED.** The mission is 25 game wins, the anchor is
+the ARC scorecard, and **there is no published evidence of any of this work.** Seat 3's ruling
+already anticipated this — *"online stays reserved for scorecard runs"* — and the fact that
+wants stating plainly is that **a scorecard run has never happened.** Every number this project
+has, including mine, is frame-internal by construction.
+
+## THE METHOD DEFECT, NAMED
+**I read a log line as proof of a channel.** The same string is printed on both sides of the
+branch, so the evidence was incapable of separating them — **pre-instrument evidence in its
+purest form, the genus I canonised this morning, applied by me this afternoon.** The check that
+would have caught it costs one grep: *find the `if` that gates the message before treating the
+message as proof.*
