@@ -887,3 +887,68 @@ the sample must be restricted to shapes with `shape_instances > 1`.
 **STATUS: HELD.** The discriminator is Item 1 of `DECISION_ANALYSIS.md` and is **unbuilt**, so
 until it runs the genus remains a convention nothing can check — a constant carrying this
 seat's authority, by my own reading. **It is cited nowhere as evidence while held.**
+
+## RUNG 0e AMENDED — **PROPOSED, not installed** (2026-08-19; Seat 3 to rule)
+Rung 0e asks **did the run that was supposed to publish, publish.** The scorecard finding shows
+that is half a question. Proposed second clause:
+
+> **0e · THE RECORD — did the run publish, AND DOES THE PUBLISHED RECORD DESCRIBE THE RUN IT
+> CAME FROM.**
+
+**THE RECEIPT.** `game_player.py:167` hardcodes `"branch_Ouroboros-v3"`. **8,835 of 8,836
+scorecards ever created carry it**, and this project moved to `v4-cold` on 2026-08-10. The
+correct implementation exists in another module — `arc_api_client.py:384-390` computes the
+branch from `git` and appends `branch_{branch_name}` — **a correct path and a stale constant,
+with the constant on the live path.**
+
+**WHY IT IS SHARPER THAN THE OTHER INSTANCES OF THIS SHAPE.** `OPERATION_MODE` and the unwired
+disk monitor **failed silently inward**. This one **succeeds outward and misdescribes itself.**
+The record arrives, the leaderboard shows it, every internal instrument reports green — and the
+publication credits the wrong lineage. **Rung 0e as written checks arrival. Nothing checks that
+what arrived says the right thing**, and a record that reaches outside is the one place where
+nobody inside can catch the error.
+
+**STATUS: PROPOSED.** Rungs have been assigned or adopted by Seat 3, not authored here.
+Recorded with its receipt so the ruling has something to rule on.
+
+## THE WORKING TREE IS PRODUCTION (canon, 2026-08-19 — an error in the arrangement's model of itself)
+**The commit gate was being treated as the boundary between "not running" and "running." It is
+not. The boundary is the WORKER RECYCLE.**
+
+**THE RECEIPT, from today.** `cognitive_loop.py` was edited and deliberately held uncommitted
+pending a full-suite run. At the 2-hour mark all 25 workers hit `RECYCLE_MIN` and restarted —
+**re-importing the module from the working tree.** The edit was live in every worker before it
+was committed. It was a verified no-op so nothing was at risk, **and the discipline that felt
+protective was protecting the repository, not the swarm.**
+
+**THE RULE:** for a live swarm, **a change to any live-path module is deployed at the next
+recycle regardless of what git thinks.** Holding a commit does not hold a deployment. If a
+behaviour change must not reach the workers, the thing to hold is **the file** — or the swarm.
+
+## FIGURE 5 AGAINST THIS SYSTEM — the guard triple, resolved (2026-08-19)
+`MDLMint`'s docstring says **SUPPORT x NOVELTY x MDL**; the canon says
+**SUPPORT x REACHABILITY x NOVELTY**, with MDL as the separate acceptance bargain. Two
+discrepancies, and they resolve differently.
+
+**REACHABILITY IS NOT "A GUARD NOBODY HAS SEEN FIRE." IT IS NOT APPLICABLE TO THIS MINT.**
+`mint.py:224` — `phi = _effects.learn_effect(b, action, a)`. **φ is LEARNED FROM AN OBSERVED
+TRANSITION, not composed from Γ.** The canon's step-3 mint composes inside `closure(Γ)`, and
+`φ ∈ closure(Γ)` is the guard on that composing. **This mint does not compose; it observes.**
+So the guard has no work to do here — which is a different statement from "it holds by
+construction," and only the code separates them.
+*Composition does exist, elsewhere:* `effects.compose()` memoises id sequences into `COMPOSITE`
+atoms. **If reachability belongs anywhere in this system it belongs there, and that is where
+the question should be asked.** Imports enter by a third route again —
+`consumer.seed_imports()` with `ORIGIN_IMPORTED` stamps (`PREREG_DRAIN_ORIGIN.md`).
+
+**MDL AS A GUARD IS A REAL CONFLATION, AND THE LEDGER IS ALREADY MORE CORRECT THAN THE
+DOCSTRING.** The canon separates **three gates (a product; any factor at zero forces
+inertness)** from **one bargain** (`cost(φ) + left(R,φ) < cost(R)`). Calling MDL a third guard
+loses the any-factor-at-zero property, because **failing the bargain and having nothing to
+explain are different states.** The verdict ledger already distinguishes them:
+`quarantine` ≈ SUPPORT zero · `rederivation` ≈ NOVELTY zero · `reject` ≈ the bargain did not
+pay. **The docstring is behind its own data.**
+
+**SEQUENCING, and it is the reason this is written before anything is built:** the proposed
+verdict-`reason` field would encode whichever version is right. **Resolve the triple first, or
+the field ships the docstring's error into the ledger.**
