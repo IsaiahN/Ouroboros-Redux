@@ -1211,3 +1211,74 @@ gain the field), and a one-line undo on an append-only stream.
 committed — an uncommitted import-sort fix in `tools/_durability_writer.py` and the deletion
 of `tools/_hooktest.py`, the deliberate "should be blocked" fixture. Neither is an
 improvement; both were my own uncommitted working-tree state.
+
+## ENTRY 37 — 2026-08-19. **GAMES WON: 0/25.** LEVELS DELTA: **0.** L1+ 9/25, L2+ 1/25.
+## AND THE NEW READ THAT MATTERS: **0 OF 25 GAMES ARE TRENDING UP.**
+
+**SCOREBOARD, raw from the 25 worker DBs.** `GAMES WON 0/25` — **`win_detected` rows: 0,
+everywhere, ever.** L1+ **9/25** (`ar25 cd82 cn04 ft09 lp85 m0r0 r11l sk48 sp80`), L2+ **1/25**
+(`ar25`), maxL **2**, **10,624 sessions**.
+
+**SEAT 3 RULED THE METRIC THIS BEAT: 25/25 completed LOCALLY OFFLINE in WON status, and
+`levels_completed` is a decent proxy ONLY IF IT INCREASES toward a full win.** So the trend is
+the instrument, not the maximum. Built it — best-ever `level_completions` in each game's first
+half of history against its second half:
+
+| game | rows | best ever | best 1st half | best 2nd half | last-20 mean | trend |
+|---|---|---|---|---|---|---|
+| ar25 | 82 | 2 | 2 | 2 | **1.20** | flat |
+| sk48 | 46 | 1 | 1 | 1 | 0.95 | flat |
+| lp85 | 81 | 1 | 1 | 1 | 0.80 | flat |
+| cd82 | 88 | 1 | 1 | 1 | 0.65 | flat |
+| sp80 | 146 | 1 | 1 | 1 | 0.65 | flat |
+| ft09 | 30 | 1 | 1 | 1 | 0.15 | flat |
+| **cn04** | 50 | 1 | **1** | **0** | 0.00 | **DOWN** |
+| **r11l** | 190 | 1 | 1 | 1 | **0.00** | flat, but its last 20 all completed nothing |
+| the other 17 | — | 0 | 0 | 0 | 0.00 | flat |
+
+> **GAMES WHOSE BEST-EVER `level_completions` IMPROVED IN THE SECOND HALF: 0 OF 25.**
+> **ONE HAS REGRESSED** (`cn04`, 1 → 0), and **`r11l` has completed nothing in its last 20
+> episodes despite reaching L1 earlier in its history.**
+
+**THE PROXY, ANSWERED ON ITS OWN TERMS: IT IS NOT INCREASING. ANYWHERE.** Under the rule Seat 3
+just set, that makes it a proxy that is currently reporting no progress toward a win rather
+than one reporting slow progress. **And it is a better statement than "0/25 won", because it
+distinguishes *stalled* from *early*.** *(ar25's last-20 mean of 1.20 also says it does not
+reliably reach L2 — it usually completes 1.)*
+
+**VITALS.** Atoms **1,829 structural / 0 lexical**. Mint verdicts **270,126**: `rederivation`
+**175,644 (65%)** · `reject` 60,579 · `quarantine` 32,116 · **`mint` 1,787 (0.66%)**.
+Starvation: `MINT_STARVED` 1,513 · `BANK_NO_FAMILY` 258 · `NO_STABLE_REFERENCE` 91 ·
+`EMPTY_PLAN` 68 · `NO_REFERENCE_BINDING` 10. Import queue **529,101**.
+**The three plan-socket codes are UNCHANGED since this morning** (91 / 68 / 10) while
+`MINT_STARVED` grew by 104 — **the planner sockets are not starving again; they are not being
+reached.** Consistent with g7 and with the ROUTE bin that cannot fire.
+
+**HERD — THE LIVE PROBLEM. 144 MEM-KILLS, AND IT IS ACCELERATING: 8 → 34 → 140 → 144.**
+Six workers now, five of them holding 137 of the 144:
+`sb26` **35** · `vc33` **27** · `s5i5` **26** · `su15` **25** · `tn36` **24** · `lp85` 7.
+`tn36` is sitting at **1,172 MB against the 1,200 MB cap as this is written** — about to go
+again. **AND ALL FIVE OF THE HEAVY ONES ARE L0 GAMES.** Falsified as a cause: graph size is
+identical across sick and healthy (3,609 edges, 75 nodes both groups), the healthy boxes are
+*larger* on disk, and traces-per-session does not separate them. **Nothing measurable from
+outside distinguishes them, so the growth is inside the episode and needs a builder-side
+memory profile.** Measured cost: the five added +97 sessions against +166 from four healthy
+peers — **roughly half throughput, on 20% of the roster, all of it at L0.**
+Disk **5.052 GB of 30** (16.8%), under the ~8 GB trim line. Nothing trimmed.
+
+## THE ONE IMPROVEMENT: **PREREG ONLY — `PREREG_SWARM_OFFLINE_MODE.md`.**
+**The objective is defined in OFFLINE and the swarm is not running in it.**
+`swarm_supervisor.py:122` passes no `--mode`; `evolution_runner.py:1634` defaults to `normal`
+(*"both local environments and API"*). **`normal` is an argparse default, not a decision — the
+switch was never set and never considered.** Cost today: per-episode `fetched metadata` API
+calls, a network dependency and a rate-limit surface on work whose success condition is local.
+
+**The change is one token.** The risk that mattered — *are all 25 games available locally* — is
+**already retired by evidence**: the twelve-hour run drove all 25 with `--mode offline` for 47
+cycles and every cycle produced 25 sessions. F1 it still plays · F2 the proxy does not regress,
+with the last-20 means pinned above as the baseline · **F3 known-negative: it must not IMPROVE
+either — a mode change is a channel change, and depth moving in either direction means the two
+modes are not the same game.** Undo is deleting two tokens.
+
+**NOT EXECUTED: it restarts all 25 workers, which is a visible cost and Seat 3's to spend.**
+One command on the word.
