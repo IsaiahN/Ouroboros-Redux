@@ -778,3 +778,53 @@ fired, known-negative reported BOTH rather than a false gap).
 nothing there is running today. **The instrument matters because the NEXT fork will not be
 frozen**, and because two defects sitting unfixed in a lineage that could be revived is a
 loaded gun rather than a curiosity.
+
+## THE GENUS, NAMED: **SITE-SCOPED KNOWLEDGE** (canon, 2026-08-18)
+Isaiah asked for the propagation failure **named as a genus**. The fork asymmetry is not the
+genus. It is one special case of it, and the general form is worse.
+
+**THE GENUS: A DEFECT IS A FACT ABOUT A SHAPE. A FIX IS A FACT ABOUT A LINE.**
+Nothing in this project maps a defect shape to its instance set. So the defect's instance
+count grows by ordinary authoring, while the fix's instance count stays at **one** — the
+site where someone happened to be looking. **Divergence is therefore the default state and
+not an accident**, and it needs no fork, no branch, and no second machine to appear.
+
+### THE RECEIPT, AND IT KILLS "DISTANCE" AS THE EXPLANATION
+All five of these are in **ONE FILE**, `safe_cleanup.py`, dated by `git log -L`:
+
+| date | line | what is there |
+|---|---|---|
+| **2025-12-04** | 1547/1564 | **THE CORRECT PATTERN.** `network_failure_hypotheses` deletes only where `validated_by_win = 0` — **an evidence guard first**, with `confidence DESC` demoted to a tiebreak among the already-unvalidated. |
+| **2026-01-27** | 2108 | **D-1 AUTHORED.** `frontier_checkpoints` keeps top-20 by `survival_score DESC` — **no evidence guard at all.** |
+| **2026-02-09** | 1314 | `game_lessons_learned` dedup picks the survivor by `confidence DESC`. Proxy-keyed again. |
+| **2026-08-13** | 683 | The evidence rule finally written down: `final_score > 0 OR win_detected = 1 OR level_completions > 0`. |
+| **2026-08-18** | 2258 | The verifier fixed to count by that same rule — **1,575 lines below where it was written, five days later.** |
+
+**READ THE ORDER, BECAUSE IT INVERTS THE STORY.** The correct pattern was authored **FIRST**,
+in December. D-1 was authored **54 days LATER, 561 lines below it, in the same file**, and
+did not use it. This is not a fix failing to reach a distant fork. **The right answer was
+already present, upstream in the same buffer, and the next retention routine written was
+still written wrong.**
+
+**AND THE 1,575-LINE CASE CLOSES IT.** The 08-13 rule and the verifier that contradicted it
+sat in the same file for five days. No fork, no branch, no other machine, no elapsed months.
+**Distance is not the variable. Time is not the variable.** The variable is whether any
+instrument maps a shape to its instances — and none does.
+
+### WHY IT IS INVISIBLE (the mechanism, since intention demonstrably is not one)
+A fix arrives as a **diff**, and a diff's natural scope is the lines it touches. Nothing in
+the act of fixing asks *"where else is this shape?"* — so the question is never asked, and an
+unasked question leaves no trace of having been skipped. **The fork asymmetry is this genus
+plus one more site.** Same failure, longer arm.
+
+### THE DISCRIMINATOR IT SUGGESTS (proposed, not built — this beat was a read)
+The check is not "did the fix cross the fork." It is **"what is the instance count of the
+shape, and what is the instance count of the fix?"** A fix at 1-of-N where N > 1 is an open
+defect wearing a closed label. `tools/fork_divergence.py` measures the special case; the
+general instrument would count instances **within** a tree as well as across two.
+
+### A RESEMBLANCE WORTH A READ, FLAGGED AND NOT CLAIMED
+This is the same shape as a live SUBJECT question: the agent records lessons keyed to
+**this game, this level** rather than to a class of situations. Whether the apparatus defect
+and the subject defect are the same defect is **not established here** and is not mine to
+settle — but the two being isomorphic is worth someone pointing an instrument at.
