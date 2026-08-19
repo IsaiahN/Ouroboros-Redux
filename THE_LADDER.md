@@ -952,3 +952,41 @@ pay. **The docstring is behind its own data.**
 **SEQUENCING, and it is the reason this is written before anything is built:** the proposed
 verdict-`reason` field would encode whichever version is right. **Resolve the triple first, or
 the field ships the docstring's error into the ledger.**
+
+## THE THREE ROUTES INTO Γ — RESOLVED: **CORPUS UNDER-SPECIFICATION, NOT A DEFECT** (2026-08-19)
+The fork was: either step 3 is under-specified and should name observation as a route, or
+`learn_effect` mints without the bargain. **Traced, and it is the first.**
+
+`MDLMint.offer`, in order (`mint.py:199-267`):
+```
+205-215  SUPPORT (structural)   shape/ndim/size malformed        -> quarantine
+219-221  SUPPORT (mass)         changed == 0, nothing to explain -> reject
+224      PROPOSE                phi = learn_effect(b, action, a)   <- THE OBSERVATIONAL ROUTE
+241-243  NOVELTY                key already in Gamma             -> rederivation
+249-251  SUPPORT (surprise)     w < SUPPORT_FULL                 -> reject
+253-267  THE BARGAIN            cost + residual_given_phi < R    -> reject if it does not pay
+```
+**The bargain IS applied. `learn_effect` is the PROPOSER, not a bypass** — the gates and the
+MDL bargain both run on its output, and nothing reaches Γ without paying. So step 3 says
+*"offer a candidate φ"* without naming where candidates come from, and its REACHABILITY guard
+presumes the candidate was **composed**. **This system proposes by OBSERVATION and then applies
+the same gates and the same bargain.** That is a route the corpus does not name, not a rule the
+system breaks.
+
+### AND A CORRECTION TO MY OWN CLAIM OF ONE TURN AGO
+I said *"the ledger is already more correct than the docstring"*, mapping
+`reject ≈ the bargain did not pay`. **That is wrong, and the trace above is what shows it.**
+`reject` is emitted at **four** distinct sites: `changed == 0` (SUPPORT), a malformed φ,
+`w < SUPPORT_FULL` (SUPPORT), and the MDL failure. **So `reject` conflates a GATE being zero
+with the BARGAIN not paying — the exact conflation I credited the ledger with avoiding.**
+Only `rederivation` is a clean one-to-one reading (NOVELTY).
+
+**Which makes the sequencing point much stronger than I put it.** The verdict `reason` field is
+not a refinement: **`reject` currently answers four different questions with one word, spanning
+both a gate and the bargain.** And SUPPORT alone needs three sub-reasons, because it is checked
+in three places for three different things (structural validity, non-zero change,
+surprise-weighted novelty of the transition signature).
+
+**STANDING: the `reason` field stays unbuilt until the triple is ruled**, because it would
+encode whichever version is right — and now we know the ledger cannot be used as the tiebreak,
+since it carries the same conflation.
