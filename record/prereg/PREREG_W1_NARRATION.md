@@ -94,3 +94,34 @@ ALLOWLIST cites this prereg until the falsifier experiment consumes the stream.
 ## COST NOTE
 Narration lands *before* the index (W2) by design: W2's provenance tags are written by the
 same events narration reports, so the emitter sites are shared — build once, two consumers.
+
+
+---
+
+## ARM C's CONSUMPTION MUST BE REAL (Seat 3, 2026-08-20 — pre-briefing amendment)
+
+> *"A consume arm that reads narration and makes the same decision anyway would produce a
+> true null about a wire rather than about the framework."*
+
+The pinned permutation null handles the statistics; THIS clause handles what the statistics
+are about. **Arm C consumes narration at named decision points where the decision DIFFERS
+by construction**, with narration as the only carrier of the consumed fact:
+
+1. **ROUTE consumes the prior BET's discriminating fact.** When the current residual falls
+   in the ambiguous band between neighbour bins (the discriminating fact's own threshold
+   region), arm C resolves the tie using the prior bet's stated expectation; arm W applies
+   the bare rule's default. *Decision point: borderline residuals route differently.*
+2. **MINT consumes its own guard-zero history.** If the last narration for this signature
+   named a guard as the zero, arm C does not re-offer the same candidate until the narrated
+   zero's input has changed (support grew, route changed); arm W re-offers every cycle.
+   *Decision point: mint attempts differ in count and timing.*
+3. **ACT consumes the bet's confidence phrasing** only through 1 and 2 (no third wire
+   invented for symmetry — two real wires beat three thin ones).
+
+**THE WIRE CHECK, before the experiment may run:** a constructed episode in which
+consumption provably FLIPS a decision — a borderline residual that routes one way with the
+prior bet present and the other way with it absent, and a guard-zero repeat that arm C
+skips and arm W re-offers. **Sensitivity for the wire itself.** Only after the wire check
+passes does a null in the experiment speak about the framework rather than the wiring —
+if the wire check cannot be made to pass, that is reported as "the consume arm is thin"
+and the experiment does not run in disguise.
