@@ -60,3 +60,29 @@ row 5 (startup tail, forbidden by the ladder), row 3's 55 unread keys (build cos
 measured ~0; their *maintenance* cost is in code, not cycles). Row 7 is the inverse anchor:
 cheap and load-bearing. The absent-column reading goes row by row as each unmeasured cell
 gets its number.
+
+
+---
+
+# F2 ADDENDUM (2026-08-20, the third window): THE SHARE HELD AGAIN — SEARCH BREADTH IS THE COST
+
+| | window 1 (baseline) | window 2 (index) | window 3 (vectorised) |
+|---|---|---|---|
+| `apply_effect` share | 95.3% | 92.5% | **87.7% — HELD** |
+| `apply_effect` calls | 47,418 | 50,721 | **141,330 (2.8×)** |
+| loop cycles | 10 | 15 | **22** |
+| planner calls | 5 | 10 | **17** |
+| total function calls | 240M | 231M | **21M** (the `.all()` storm gone) |
+
+**The reabsorption law, now measured three times:** every per-call speedup is spent on more
+calls and more breadth. Applications per planner call went 9.5k → 5.0k → **8.3k** — the
+search widened back into the freed budget. The share is a ratio, and a consumer that
+expands to fill capacity holds its ratio at any per-call speed. Meanwhile the absolute
+numbers ARE better: cycles per window more than doubled across the three windows (10→22),
+which the swarm inherits at HOLD-lift.
+
+**Per the double pre-commitment (named before window 2 ran): no further micro-optimisation.
+The fix is W2b (the planner engages as last resort) + stage-2 candidate selection** — for
+which the colour read now proposes the relational signature as lead, pending the π-replay
+falsifier. W2b's brief is pinned and dispatched; stage-2 waits on the π-replay read per
+Seat 3's "answer before stage 2".
