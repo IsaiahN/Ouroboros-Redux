@@ -70,3 +70,22 @@ divergence) · `arc_api_client.generate_tags` (correct scorecard lineage tagging
 `disk_space_monitor` (per-table sizes → fold into disk_ceiling) · `sequence_miner`
 (level-scoping, already known) · the `diagnosis_query` pair (cross-generation learning read —
 one read before any removal).
+
+
+---
+
+## ADDENDUM (same day) — THE FALSIFIER FIRED: A SECOND, UNLOCATED CREATOR
+The historical DB is **archived intact in `.runs/legacy_db/`** (moved after a recorded
+supervisor kill+relaunch released the handles). Then the falsifier ran: **a fresh
+`core_data.db` appeared at root at 06:10, the launch minute — 282 tables, ZERO rows**, a
+schema-only create via `DatabaseInterface._initialize_database_from_template`.
+
+**So a second creator exists**, and it is not: the egocentric package (zero
+`DatabaseInterface` references), the supervisor's own code (no DB calls), or the fixed
+symbolic engine (now cwd-relative; box DBs advancing normally, zero writes to the root file).
+
+**Workers are verified clean.** The root file is an empty shell something recreates at launch.
+**The hunt switches from grep to instrument** — greps have missed it twice, so the next beat
+opens with a stack-trace probe in `DatabaseInterface.__init__` that logs its caller whenever
+the resolved path is the repo root: catch it in the act once rather than read for it a third
+time.
