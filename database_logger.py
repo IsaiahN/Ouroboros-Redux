@@ -39,22 +39,6 @@ class DatabaseLogHandler(logging.Handler):
         super().__init__()
 
         self.db_path = db_path or os.getenv('DATABASE_PATH', 'core_data.db')
-        # ── D-6 PROBE #2 (temporary, 2026-08-20) ── DatabaseInterface's probe stayed
-        # silent while the root shell was recreated, and THIS class carries a parallel
-        # copy of the same create-from-schema routine. Same contract: observation only,
-        # stack to .runs/root_db_probe.log when the resolved path is the repo root.
-        try:
-            _here = os.path.dirname(os.path.abspath(__file__))
-            if os.path.abspath(self.db_path) == os.path.join(_here, "core_data.db"):
-                import time as _t
-                import traceback as _tb
-                with open(os.path.join(_here, ".runs", "root_db_probe.log"),
-                          "a", encoding="utf-8") as _fh:
-                    _fh.write("=== ROOT DB OPENED (DatabaseLogger) %s (cwd=%s) ===\n%s\n"
-                              % (_t.strftime("%Y-%m-%d %H:%M:%S"), os.getcwd(),
-                                 "".join(_tb.format_stack()[:-1])))
-        except Exception:
-            pass
         self._local = threading.local()
         self._lock = threading.Lock()
 

@@ -533,3 +533,4 @@ NOT CHANGED.**
 (`limit = 100` in two files, dated 2025-09-30, is the oldest example). **THOSE ARE GUESSED
 WHETHER OR NOT THEY CARRY THE LABEL**, and the register has been calling constants GUESSED
 on a case-by-case basis while this bucket sat uncounted.
+G26 CONFLICT SCAN CAP: CONFLICT_SCAN_CAP=64 [GUESSED] -- re-point conflict clause bound (mint.py); chosen against a library with ~zero minimised atoms, and the build's purpose is that minimised atoms start existing. RE-DERIVE with G25 once post-lift throughput is observable.
