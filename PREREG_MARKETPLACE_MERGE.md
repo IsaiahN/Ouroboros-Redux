@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-08-20): the accepted refactor plan's W5 is this document's successor.** The three correlation exclusions bind any marketplace mechanism. Kept in place because live code cites it by name; see `record/prereg/PREREG_REVIEW_2026-08-20.md`.
+
 # PRE-REGISTRATION — THE MARKETPLACE MERGE (C33 step 1: every action carries a bet)
 
 **Written 2026-08-12, at `73f8df0`+controls. The re-clearing price at per-action granularity —

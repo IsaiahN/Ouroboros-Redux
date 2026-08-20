@@ -302,3 +302,21 @@ produced zero of two role classes once already.
 Mastery as the template for every crossing · the library-know-how channel as the primary
 viral payload · I.3 as the finding of the read (the ladder's three forbidden moves, all live
 in production — the strongest evidence the ladder describes something real).
+
+
+## R8 · Affect-in-role-fit: STRIPPED (Seat 3, 2026-08-20) — and PLAN ACCEPTED
+Frustration/satisfaction feeding role-fit scoring is affect entering an allocation gate, and
+**allocation is a price** — it decides assignment and budget. The convention holds cleanly:
+affect modulates how much risk this agent tolerates now; **it does not decide what this agent
+is.** A role follows measured behaviour (source weights holding across k games), never how the
+agent felt producing it. **The specific failure mode, named:** an agent frustrated *because
+its assignment is wrong* scores badly on fit for a role it might be good at — affect in the
+gate makes the assignment self-confirming. The port of role self-determination therefore
+carries the fit machinery MINUS its affect inputs.
+
+**Surgical note on the removal site:** `evolutionary_engine.py:666` carries *"prestige and
+youth weighting"* together — **prestige comes out of the breeding draw, youth stays. Same
+line, opposite dispositions.**
+
+**STATUS: ACCEPTED AS AMENDED (Seat 3, 2026-08-20).** The PREREG review fires first; the
+swarm stays held until the review says what is still relevant.

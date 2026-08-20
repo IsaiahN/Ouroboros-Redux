@@ -25,3 +25,7 @@ document moves here with its replacement named.**
 **AND THE INVERSE IS THE TRAP:** deleting it destroys the record of the correction, which is
 the ledger genus — *a fix that destroys the record of the thing it fixed*. Git holds the
 content either way; this folder holds the **reason**, which git does not.
+
+| `PREREG_BATCH_DEPLOYMENT.md` | 2026-08-19 | 5-minute batch deployment prereg | superseded before build by the polling design | deploy-on-change (`tools/swarm_supervisor.py` + `tests/gate/test_deploy_on_change.py`) |
+| `PREREG_EMPTY_PLAN_ATTRIBUTION.md` | 2026-08-19 | reason field on EMPTY_PLAN starvation | step 2 proved degenerate, then the refactor absorbed attribution wholesale | REFACTOR_PLAN W1 (narration) + W4 |
+| `PREREG_OFFLINE_SWARM.md` | 2026-08 | early offline-swarm prereg | superseded by the executed mode flip | `PREREG_SWARM_OFFLINE_MODE.md` (RESOLVED) |

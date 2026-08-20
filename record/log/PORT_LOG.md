@@ -1337,3 +1337,19 @@ deferred-init fix, falsifier passed), dead code-lineage retired (4 tests + 5 mod
 dead DATA-lineage retired (2 test files whose greens read the archived pre-swarm DB),
 13 tooling candidates quarantined. Suite baseline 1986 green / 4 known-red.
 Standing post-plan action: REVIEW EVERY PREREG (33) for continued relevance.
+
+
+## ENTRY 39 — 2026-08-20. **GAMES WON: 0/25.** LEVELS DELTA: 0. **PLAN ACCEPTED; FREEZE HOLDS.**
+Read-only beat under the freeze (HOLD set, 0 workers): L1+ 9/25, L2+ 1/25 (ar25), 13,008
+sessions — unchanged, as a frozen system should be. No vitals, no improvement (queue absorbed
+into the accepted plan).
+**THE REFACTOR PLAN IS ACCEPTED AS AMENDED** (commits 6bcb7c7 → 95b0dc0 → this one), with
+affect-in-role-fit STRIPPED (allocation is a price; affect in the gate makes assignments
+self-confirming) and the surgical note on `evolutionary_engine.py:666`: prestige out of the
+breeding draw, youth stays, same line. Seat 3 marked the grep-token failure as the THIRD
+instance of a search returning an absence that was the instrument's rather than the system's
+(T_A substring, manual_tools category, self-determination tokens) — carried as a standing
+caution: an absence claim owes a constructed presence.
+**THE 33-PREREG REVIEW IS DONE** (see `record/prereg/PREREG_REVIEW_2026-08-20.md`): 17 keep,
+8 resolved-kept as records, 5 amended into workstreams, 3 retired with notes. The swarm stays
+held until Seat 3 reads the review.
