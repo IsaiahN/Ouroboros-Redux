@@ -373,6 +373,113 @@ def learn_effect(before: np.ndarray, action: int, after: np.ndarray) -> Optional
     return atom
 
 
+# ── W2a-2: the vectorised anchor scan (PREREG_W2A2_VECTORISE_ANCHOR_SCAN.md) ──
+#
+# F1's verdict (F1_VERDICT_AND_SHADOW_TEST.md): 92.5% of a slow worker's
+# runtime stayed INSIDE apply_effect after the index -- the anchor scan slicing
+# the frame at every candidate position and comparing the context patch
+# per-anchor in a Python loop (~4ms, ~1,450 numpy .all() calls per
+# application). The scan is now ONE numpy pass: a sliding-window VIEW of the
+# frame (stride tricks -- never a materialised copy) compared against the
+# patch in a single equality reduction; only the boolean hit grid is
+# allocated, chunked row-wise when the reduction would exceed
+# _SCAN_CHUNK_BYTES. SEMANTICS FROZEN: same matches, same
+# first-anchor-in-row-major tie-break, byte-identical returned arrays,
+# identical None-cases (gate: tests/gate/test_vectorised_scan.py).
+# UNDO: _ANCHOR_SCAN_VECTORISED = False routes every caller back to the
+# scalar generators kept verbatim below -- deleting the dispatch is the revert.
+
+_ANCHOR_SCAN_VECTORISED = True       # the ONE dispatch; False = the scalar path
+_SCAN_CHUNK_BYTES = 4 * 1024 * 1024  # cap on the boolean reduction per chunk
+
+
+def _context_anchors_scalar(b: np.ndarray, ctx: np.ndarray):
+    """The pre-W2a-2 scan, verbatim: slice the frame at every candidate anchor
+    and compare per-anchor. Kept as the undo path and the equivalence oracle."""
+    ph, pw = ctx.shape
+    bh, bw = b.shape
+    for r in range(bh - ph + 1):
+        for c in range(bw - pw + 1):
+            if (b[r:r + ph, c:c + pw] == ctx).all():
+                yield r, c
+
+
+def _context_anchors_vector(b: np.ndarray,
+                            ctx: np.ndarray) -> List[Tuple[int, int]]:
+    """Every anchor (r, c) where the frame slice equals ctx, row-major, in one
+    numpy pass. np.nonzero on the C-contiguous hit grid returns row-major
+    order, so the FIRST list element is exactly the scalar scan's first hit."""
+    ph, pw = ctx.shape
+    bh, bw = b.shape
+    nr, nc = bh - ph + 1, bw - pw + 1
+    if nr <= 0 or nc <= 0:
+        return []
+    win = np.lib.stride_tricks.sliding_window_view(b, (ph, pw))
+    step = max(1, _SCAN_CHUNK_BYTES // max(1, nc * ph * pw))
+    out: List[Tuple[int, int]] = []
+    for r0 in range(0, nr, step):   # chunk loop: O(rows/step), NEVER per-anchor
+        hits = (win[r0:r0 + step] == ctx).all(axis=(2, 3))
+        rs, cs = np.nonzero(hits)
+        out.extend(zip((rs + r0).tolist(), cs.tolist(), strict=True))
+    return out
+
+
+def _context_anchors(b: np.ndarray, ctx: np.ndarray):
+    """Anchors (r, c), row-major, where b[r:r+ph, c:c+pw] == ctx -- the ONE
+    dispatch between the vectorised pass and the scalar undo path. A size-0
+    patch (every in-range anchor matches vacuously) stays scalar rather than
+    pushing a degenerate window through stride tricks."""
+    if _ANCHOR_SCAN_VECTORISED and ctx.size:
+        return _context_anchors_vector(b, ctx)
+    return _context_anchors_scalar(b, ctx)
+
+
+def _shape_anchors_scalar(b: np.ndarray, shape: List[List[int]]):
+    """The pre-W2a-2 shape scan, verbatim: per-anchor Python loop over every
+    candidate position. Kept as the undo path and the equivalence oracle."""
+    hr = max(s[0] for s in shape)
+    wr = max(s[1] for s in shape)
+    bh, bw = b.shape
+    for r in range(bh - hr):
+        for c in range(bw - wr):
+            if all(int(b[r + dr, c + dc]) == int(v) for dr, dc, v in shape):
+                yield r, c
+
+
+def _shape_anchors_vector(b: np.ndarray, shape: List[List[int]]):
+    """Shape anchors in one masked equality reduction: per shape CELL (never
+    per anchor) AND together whole-frame slices shifted by that cell's offset.
+    Yields the identical row-major anchor sequence as the scalar path."""
+    hr = max(s[0] for s in shape)
+    wr = max(s[1] for s in shape)
+    bh, bw = b.shape
+    nr, nc = bh - hr, bw - wr
+    if nr <= 0 or nc <= 0:
+        return
+    ok = np.ones((nr, nc), dtype=bool)
+    for dr, dc, v in shape:                 # per shape cell, never per anchor
+        ok &= b[dr:dr + nr, dc:dc + nc] == int(v)
+    for r, c in zip(*np.nonzero(ok), strict=True):
+        yield int(r), int(c)
+
+
+def _iter_shape_anchors(b: np.ndarray, shape: List[List[int]]):
+    """Yield (r, c) anchors where every shape cell [dr, dc, colour] matches the
+    frame, row-major. The shape is relative; the anchor supplies the absolute
+    position. W2a-2 dispatch: the vectorised pass runs only where equivalence
+    is provable by construction (integer frame, non-negative offsets -- the
+    scalar path's int() truncation and negative-index wrap-around are frozen
+    semantics); anything else keeps the scalar path verbatim."""
+    def _plain(shape_cells) -> bool:
+        try:
+            return all(int(s[0]) >= 0 and int(s[1]) >= 0 for s in shape_cells)
+        except (TypeError, ValueError, IndexError):
+            return False
+    if (_ANCHOR_SCAN_VECTORISED and b.dtype.kind in "biu" and _plain(shape)):
+        return _shape_anchors_vector(b, shape)
+    return _shape_anchors_scalar(b, shape)
+
+
 def _apply_translate(ctx: np.ndarray, params: Dict[str, Any],
                      b: np.ndarray) -> Optional[np.ndarray]:
     """Bind the moving object (the non-fill content of ctx) wherever it sits in the frame
@@ -388,33 +495,18 @@ def _apply_translate(ctx: np.ndarray, params: Dict[str, Any],
     om = obj != fill
     oh, ow = obj.shape
     bh, bw = b.shape
-    for r in range(bh - oh + 1):
-        for c in range(bw - ow + 1):
-            if not (b[r:r + oh, c:c + ow] == obj).all():
-                continue
-            tr, tc = r + dx, c + dy
-            if tr < 0 or tc < 0 or tr + oh > bh or tc + ow > bw:
-                continue                                  # would shift off the frame
-            res = b.copy()
-            res[r:r + oh, c:c + ow][om] = fill            # vacate the source
-            tgt = res[tr:tr + oh, tc:tc + ow]
-            if not (tgt[om] == fill).all():
-                continue                                  # destination blocked
-            tgt[om] = obj[om]
-            return res
+    for r, c in _context_anchors(b, obj):                 # W2a-2 vectorised scan
+        tr, tc = r + dx, c + dy
+        if tr < 0 or tc < 0 or tr + oh > bh or tc + ow > bw:
+            continue                                      # would shift off the frame
+        res = b.copy()
+        res[r:r + oh, c:c + ow][om] = fill                # vacate the source
+        tgt = res[tr:tr + oh, tc:tc + ow]
+        if not (tgt[om] == fill).all():
+            continue                                      # destination blocked
+        tgt[om] = obj[om]
+        return res
     return None
-
-
-def _iter_shape_anchors(b: np.ndarray, shape: List[List[int]]):
-    """Yield (r, c) anchors where every shape cell [dr, dc, colour] matches the frame,
-    row-major. The shape is relative; the anchor supplies the absolute position."""
-    hr = max(s[0] for s in shape)
-    wr = max(s[1] for s in shape)
-    bh, bw = b.shape
-    for r in range(bh - hr):
-        for c in range(bw - wr):
-            if all(int(b[r + dr, c + dc]) == int(v) for dr, dc, v in shape):
-                yield r, c
 
 
 def _apply_shape_translate(shape: List[List[int]], params: Dict[str, Any],
@@ -508,15 +600,13 @@ def _apply_typed(atom: Dict[str, Any], b: np.ndarray) -> Optional[np.ndarray]:
             rep[ctx == int(s)] = int(d)
     else:
         return None
-    ph, pw = ctx.shape
     rh, rw = rep.shape
     bh, bw = b.shape
-    for r in range(bh - ph + 1):                          # scan for the pattern, apply the op
-        for c in range(bw - pw + 1):
-            if (b[r:r + ph, c:c + pw] == ctx).all() and r + rh <= bh and c + rw <= bw:
-                res = b.copy()
-                res[r:r + rh, c:c + rw] = rep
-                return res
+    for r, c in _context_anchors(b, ctx):                 # W2a-2 vectorised scan
+        if r + rh <= bh and c + rw <= bw:                 # the op must fit here
+            res = b.copy()
+            res[r:r + rh, c:c + rw] = rep
+            return res
     return None
 
 
@@ -547,13 +637,10 @@ def apply_effect(atom: Dict[str, Any], before: np.ndarray) -> Optional[np.ndarra
     out = np.asarray(atom["transform"]["after"])
     b = np.asarray(before)
     ph, pw = ctx.shape
-    bh, bw = b.shape
-    for r in range(bh - ph + 1):
-        for c in range(bw - pw + 1):
-            if (b[r:r + ph, c:c + pw] == ctx).all():
-                res = b.copy()
-                res[r:r + ph, c:c + pw] = out
-                return res
+    for r, c in _context_anchors(b, ctx):                 # W2a-2 vectorised scan
+        res = b.copy()
+        res[r:r + ph, c:c + pw] = out
+        return res
     return None
 
 
