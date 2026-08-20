@@ -54,3 +54,48 @@ API cap → fabric read → commits → brute-force application → over-specifi
 Each fix was real and relocated the bottleneck. **This one may be the floor — an atom that
 can apply is the thing we actually wanted — but the expectation has been wrong four times,
 and the fourth profile window gets the verdict, not the expectation.**
+
+
+---
+
+# THE RE-POINT AMENDMENT (2026-08-20, Seat 3: APPROVED with two conditions)
+
+> *"The identity is the rule, not the situation it was seen in — a man is the same man
+> across his roles, and keying on the surroundings makes one person into five."*
+
+**THE BUILD:** map the mint's coarse signature (`mint._signature` — change-only, support
+already accrues on it) → minted atom id. At every re-observation whose coarse signature
+matches a minted atom, intersect the stored context with the observation's context. Forward
+minimisation goes live at deploy; atom ids and the full-key dedup stay as they are — the
+merge is of EVIDENCE onto one atom, not a rewrite of stream history.
+
+**CONDITION 1, stated explicitly with the case that proves it (Seat 3: outcome-divergence
+is information, not noise):**
+- By construction, same-signature observations share the same change pattern — the
+  signature hashes the change. So divergence cannot appear WITHIN a signature; it appears
+  BETWEEN them: after intersection, atom A's loosened context can come to match a frame
+  where a DIFFERENT outcome occurred (a different signature's territory).
+- **The determinant-retention guarantee, two halves:**
+  (a) A cell that is CONSTANT across A's firings is retained by intersection automatically
+  — a determinant that never varied survives without any special case.
+  (b) A cell that VARIED across A's firings (correctly dropped — A fired under several of
+  its values) but whose OTHER values belong to a different rule is caught by the **CONFLICT
+  CLAUSE**: when a minimised context matches an observation whose outcome differs from the
+  atom's recorded change, the cells distinguishing the two FULL contexts (recoverable from
+  `context_full` — this is what it is FOR) are REINSTATED in the minimised context, and the
+  event is recorded (`ctx_conflict` marker). Divergence tightens; it never loosens.
+- **THE PROVING CASE (gate test, constructed):** two rules with byte-identical change
+  patterns distinguished only by a distant cell X — rule A fires at X∈{3,4}, rule B's
+  different change occurs at X=5. Intersection over A's observations drops X (varied across
+  firings, correctly). A conflicting observation at X=5 then arrives: the clause fires, X
+  is reinstated from `context_full` with A's observed values, and A no longer matches X=5.
+  *Sensitivity and specificity both asserted: the reinstatement happens on conflict, and
+  does NOT happen on a same-outcome re-observation.*
+
+**CONDITION 2 (the undo, affirmed):** `context_full` is retained on every touched atom
+until minimised atoms have **circulated and paid** — the disposal ruling stays outstanding
+at Seat 3 and nothing below it may delete the field.
+
+**Seat 4's care note, adopted:** this is the first build in the sequence where the OBJECT
+changes rather than the loop around it. The merge is recoverable (context_full + ctx_conflict
+markers) and the falsifiers above are the deletion-path-grade guard it deserves.
