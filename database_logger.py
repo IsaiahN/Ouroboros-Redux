@@ -39,6 +39,22 @@ class DatabaseLogHandler(logging.Handler):
         super().__init__()
 
         self.db_path = db_path or os.getenv('DATABASE_PATH', 'core_data.db')
+        # ── D-6 PROBE #2 (temporary, 2026-08-20) ── DatabaseInterface's probe stayed
+        # silent while the root shell was recreated, and THIS class carries a parallel
+        # copy of the same create-from-schema routine. Same contract: observation only,
+        # stack to .runs/root_db_probe.log when the resolved path is the repo root.
+        try:
+            _here = os.path.dirname(os.path.abspath(__file__))
+            if os.path.abspath(self.db_path) == os.path.join(_here, "core_data.db"):
+                import time as _t
+                import traceback as _tb
+                with open(os.path.join(_here, ".runs", "root_db_probe.log"),
+                          "a", encoding="utf-8") as _fh:
+                    _fh.write("=== ROOT DB OPENED (DatabaseLogger) %s (cwd=%s) ===\n%s\n"
+                              % (_t.strftime("%Y-%m-%d %H:%M:%S"), os.getcwd(),
+                                 "".join(_tb.format_stack()[:-1])))
+        except Exception:
+            pass
         self._local = threading.local()
         self._lock = threading.Lock()
 
@@ -53,8 +69,14 @@ class DatabaseLogHandler(logging.Handler):
         self._log_count = 0
         self._last_cleanup_check = 0
 
-        # Initialize database schema
-        self._ensure_logs_table()
+        # ── D-6 FIX (2026-08-20): schema init is DEFERRED to the first emitted record.
+        # It used to run here, in __init__ -- and this handler is constructed at IMPORT
+        # time (engines/__init__ -> registry.py:47 get_engine_logger -> DatabaseLogHandler),
+        # so merely importing the engines package CREATED a core_data.db at whatever cwd
+        # the importer had. That is how a schema-only 282-table shell kept reappearing at
+        # the repo root: the supervisor (cwd=root) imports engines.egocentric.lp_drive.
+        # Deferring to first emit means a logger that never logs never creates a database.
+        self._schema_ready = False
 
         # Current context for enhanced logging
         self.current_session_id: Optional[str] = None
@@ -183,6 +205,11 @@ class DatabaseLogHandler(logging.Handler):
             record: The LogRecord to emit
         """
         try:
+            # D-6: first emitted record pays the schema init the constructor no
+            # longer does. A handler that never logs never creates a database.
+            if not self._schema_ready:
+                self._ensure_logs_table()
+                self._schema_ready = True
             # Format the message
             message = self.format(record)
 

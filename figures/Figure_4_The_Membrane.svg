@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2100" height="2032" viewBox="0 0 2100 2032" font-family="DejaVu Sans"><rect width="2100" height="2032" fill="#ffffff"/>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3a3a3a"/></marker><marker id="arR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9c2b1f"/></marker></defs>
+<text x="180" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 4</text>
+<text x="180" y="120" font-size="46" fill="#111111" font-weight="700">The Membrane Between Scales</text>
+<text x="180" y="164" font-size="25" fill="#5f5f5f">The same machine at two sizes, and the rule about what may pass between them.</text>
+<line x1="180" y1="196" x2="1920" y2="196" stroke="#111111" stroke-width="3"/>
+<rect x="300" y="300" width="1500" height="150" rx="18" fill="#eceafa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="1050" y="360" text-anchor="middle" font-size="31" fill="#3a3a9e" font-weight="600">the population</text>
+<text x="1050" y="402" text-anchor="middle" font-size="23" fill="#5b5bd6">many agents, a shared library, and something that ranks what they produce</text>
+<line x1="300" y1="668" x2="1800" y2="668" stroke="#b8b8b0" stroke-width="2.5" stroke-dasharray="12,9"/>
+<text x="272" y="676" text-anchor="end" font-size="24" fill="#7a7a72">the membrane</text>
+<rect x="380" y="588" width="470" height="160" rx="14" fill="#f2f0e8" stroke="#8a8a80" stroke-width="3"/>
+<text x="615" y="636" text-anchor="middle" font-size="28" fill="#1a1a1a" font-weight="600">carry up</text>
+<text x="615" y="674" text-anchor="middle" font-size="22" fill="#0f6b4a">a method that can be reapplied</text>
+<text x="615" y="710" text-anchor="middle" font-size="21" fill="#5f5f5f">verified, and compressed to its essentials</text>
+<rect x="1000" y="588" width="470" height="160" rx="14" fill="#f2f0e8" stroke="#8a8a80" stroke-width="3"/>
+<text x="1235" y="636" text-anchor="middle" font-size="28" fill="#1a1a1a" font-weight="600">send down</text>
+<text x="1235" y="674" text-anchor="middle" font-size="22" fill="#0f6b4a">a head start, never a recording</text>
+<text x="1235" y="710" text-anchor="middle" font-size="21" fill="#5f5f5f">it makes the next agent&#8217;s search cheaper</text>
+<path d="M 615 584 L 615 456" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 615 926 L 615 756" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1235 456 L 1235 583" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1235 756 L 1235 921" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1600 540 L 1800 540 L 1800 921" stroke="#9c2b1f" stroke-width="3.5" fill="none" marker-end="url(#arR)"/>
+<text x="1830" y="706" font-size="23" fill="#9c2b1f" font-weight="600">the round trip</text>
+<text x="1830" y="738" font-size="21" fill="#9c2b1f">carry it up, bring it</text>
+<text x="1830" y="766" font-size="21" fill="#9c2b1f">back down, compare</text>
+<rect x="300" y="926" width="1500" height="150" rx="18" fill="#e2f2ec" stroke="#0f6b4a" stroke-width="3"/>
+<text x="1050" y="986" text-anchor="middle" font-size="31" fill="#0f6b4a" font-weight="600">one agent</text>
+<text x="1050" y="1028" text-anchor="middle" font-size="23" fill="#0f6b4a">the step-by-step loop, and the thing that names what it found</text>
+<rect x="180" y="1130" width="1740" height="209" rx="14" fill="#f4f3ee" stroke="#c9c6bb" stroke-width="2.5"/>
+<text x="214" y="1192" font-size="23" fill="#1a1a1a" font-weight="600">Two words this figure uses</text>
+<text x="258" y="1226" font-size="22" fill="#454545" font-weight="400">The kernel is the part that does not change with size: the same loop and the same rule for naming what worked, whether one agent is running</text>
+<text x="258" y="1257" font-size="22" fill="#454545" font-weight="400">it or a thousand. Only the actors, the currency and the anchor change.</text>
+<rect x="232" y="1209" width="3" height="55" rx="1.5" fill="#c8c8c8"/>
+<text x="258" y="1291" font-size="22" fill="#454545" font-weight="400">The membrane is the boundary between the sizes, and the rule about what may cross it. Not a wall: a filter with a direction.</text>
+<rect x="232" y="1274" width="3" height="24" rx="1.5" fill="#c8c8c8"/>
+<line x1="180" y1="1363" x2="1920" y2="1363" stroke="#dcdcdc" stroke-width="2"/>
+<text x="180" y="1415" font-size="28" fill="#1a1a1a" font-weight="700">Only methods cross up. Only head starts come down.</text>
+<text x="224" y="1449" font-size="22" fill="#454545" font-weight="400">upward: a method that can be reapplied. Never the recording of a particular success.</text>
+<circle cx="200" cy="1442" r="4.5" fill="#8a8a80"/>
+<text x="224" y="1483" font-size="22" fill="#454545" font-weight="400">downward: something that makes the next search cheaper. Never a replay of what worked once.</text>
+<circle cx="200" cy="1476" r="4.5" fill="#8a8a80"/>
+<text x="180" y="1517" font-size="22" fill="#454545" font-weight="400">A recording carried upward looks like knowledge and is a description of one occasion. Replayed downward, it produces a system that repeats a past success</text>
+<text x="180" y="1548" font-size="22" fill="#454545" font-weight="400">and cannot produce a new one.</text>
+<text x="180" y="1614" font-size="23" fill="#1a1a1a" font-weight="600">The transform between scales loses information, and that is the point.</text>
+<text x="180" y="1648" font-size="22" fill="#454545" font-weight="400">Going up throws away detail; that is what makes the result reapplicable. But it means the trip is not reversible, and something carried up and brought</text>
+<text x="180" y="1679" font-size="22" fill="#454545" font-weight="400">back down will not match what was sent.</text>
+<text x="220" y="1715" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">So take the round trip and measure the gap. Without it you are navigating by dead reckoning: confident about a position nobody checked.</text>
+<rect x="190" y="1696" width="4" height="29" rx="2" fill="#c8c8c8"/>
+<text x="180" y="1749" font-size="22" fill="#454545" font-weight="400">The gap is not an error to eliminate. It is the measurement of what the coarser description cannot hold, and it is the only honest report of how much was</text>
+<text x="180" y="1780" font-size="22" fill="#454545" font-weight="400">given up.</text>
+<text x="180" y="1846" font-size="23" fill="#1a1a1a" font-weight="600">Which is why there is no top and no infinite regress.</text>
+<text x="180" y="1880" font-size="22" fill="#454545" font-weight="400">The level a method lands on remakes it. A seed carries no small tree: it carries what will grow one, and the conditions it lands in decide what it</text>
+<text x="180" y="1911" font-size="22" fill="#454545" font-weight="400">becomes.</text>
+<text x="180" y="1939" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">The round trip is a rediscovery of the abstraction-and-concretisation cycle in abstract interpretation, Cousot and Cousot, 1977. What is not borrowed is using the size of the gap to decide</text>
+<text x="180" y="1964" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">when a new term is worth minting.</text>
+</svg>

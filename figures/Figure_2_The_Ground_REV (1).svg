@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2760" height="2031" viewBox="0 0 2760 2031" font-family="DejaVu Sans"><rect width="2760" height="2031" fill="#ffffff"/>
+<defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1a1a1a"/></marker></defs>
+<text x="210" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 2</text>
+<text x="210" y="120" font-size="46" fill="#111111" font-weight="700">The Ground and the Alignment Problem</text>
+<text x="210" y="164" font-size="25" fill="#5f5f5f">What makes correction possible, and the two ways a design destroys it.</text>
+<line x1="210" y1="196" x2="2550" y2="196" stroke="#111111" stroke-width="3"/>
+<rect x="120" y="420" width="780" height="640" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="510" y="364" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">collapse 1: mutual update</text>
+<text x="510" y="398" text-anchor="middle" font-size="23" fill="#9c2b1f">(coherent drift)</text>
+<rect x="990" y="420" width="780" height="640" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="1380" y="364" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">collapse 2: common cause</text>
+<text x="1380" y="398" text-anchor="middle" font-size="23" fill="#9c2b1f">(hidden shared source)</text>
+<rect x="1860" y="420" width="780" height="640" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="2250" y="364" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">grounded: the guard</text>
+<text x="2250" y="398" text-anchor="middle" font-size="23" fill="#0f6b4a">(what correction needs)</text>
+<circle cx="370" cy="540" r="42" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="370" y="551" text-anchor="middle" font-size="30" fill="#3a3a9e">A</text>
+<circle cx="650" cy="540" r="42" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="650" y="551" text-anchor="middle" font-size="30" fill="#3a3a9e">B</text>
+<circle cx="510" cy="680" r="42" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="510" y="691" text-anchor="middle" font-size="30" fill="#3a3a9e">C</text>
+<path d="M 418 540 L 602 540" stroke="#1a1a1a" stroke-width="3.5" marker-start="url(#a2)" marker-end="url(#a2)"/>
+<path d="M 392 582 L 480 648" stroke="#1a1a1a" stroke-width="3.5" marker-start="url(#a2)" marker-end="url(#a2)"/>
+<path d="M 628 582 L 540 648" stroke="#1a1a1a" stroke-width="3.5" marker-start="url(#a2)" marker-end="url(#a2)"/>
+<text x="510" y="820" text-anchor="middle" font-size="23" fill="#4f4f4f">no anchor; each updates on the others</text>
+<text x="510" y="900" text-anchor="middle" font-size="23" fill="#9c2b1f">they converge, and what they converge on</text>
+<text x="510" y="932" text-anchor="middle" font-size="23" fill="#9c2b1f">is whoever had the most influence</text>
+<circle cx="1240" cy="540" r="42" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="1240" y="551" text-anchor="middle" font-size="30" fill="#3a3a9e">A</text>
+<circle cx="1520" cy="540" r="42" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="1520" y="551" text-anchor="middle" font-size="30" fill="#3a3a9e">B</text>
+<rect x="1210" y="660" width="340" height="76" rx="12" fill="#efece0" stroke="#8a8a80" stroke-width="3"/>
+<text x="1380" y="708" text-anchor="middle" font-size="25" fill="#3a3a3a">one evidence pool</text>
+<path d="M 1270 656 L 1240 588" stroke="#1a1a1a" stroke-width="3.5" marker-end="url(#a2)"/>
+<path d="M 1490 656 L 1520 588" stroke="#1a1a1a" stroke-width="3.5" marker-end="url(#a2)"/>
+<text x="1380" y="820" text-anchor="middle" font-size="23" fill="#4f4f4f">they never talk, and still agree</text>
+<text x="1380" y="900" text-anchor="middle" font-size="23" fill="#9c2b1f">so the agreement is the pool talking,</text>
+<text x="1380" y="932" text-anchor="middle" font-size="23" fill="#9c2b1f">not two frames confirming each other</text>
+<circle cx="2110" cy="540" r="42" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="2110" y="551" text-anchor="middle" font-size="30" fill="#3a3a9e">A</text>
+<circle cx="2390" cy="540" r="42" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="2390" y="551" text-anchor="middle" font-size="30" fill="#3a3a9e">B</text>
+<rect x="2080" y="660" width="340" height="76" rx="12" fill="#dff0e8" stroke="#0f6b4a" stroke-width="3"/>
+<text x="2250" y="708" text-anchor="middle" font-size="26" fill="#0f6b4a">the anchor</text>
+<path d="M 2140 656 L 2110 588" stroke="#1a1a1a" stroke-width="3.5" marker-end="url(#a2)"/>
+<path d="M 2360 656 L 2390 588" stroke="#1a1a1a" stroke-width="3.5" marker-end="url(#a2)"/>
+<text x="2250" y="820" text-anchor="middle" font-size="23" fill="#4f4f4f">pinned: it does not update on A or B</text>
+<text x="2250" y="900" text-anchor="middle" font-size="23" fill="#0f6b4a">both range against it; it is not</text>
+<text x="2250" y="932" text-anchor="middle" font-size="23" fill="#0f6b4a">a third party to the disagreement</text>
+<rect x="210" y="1100" width="2340" height="240" rx="14" fill="#f4f3ee" stroke="#c9c6bb" stroke-width="2.5"/>
+<text x="244" y="1162" font-size="23" fill="#1a1a1a" font-weight="600">Two words this figure introduces, used by every figure after it</text>
+<text x="288" y="1196" font-size="22" fill="#454545" font-weight="400">An anchor is whatever settles the question and does not change its answer because of what any frame thinks. A measurement, an experiment, a counter, a market, a patient outcome. If it moves when</text>
+<text x="288" y="1227" font-size="22" fill="#454545" font-weight="400">you push on it, it is not an anchor.</text>
+<rect x="262" y="1179" width="3" height="55" rx="1.5" fill="#c8c8c8"/>
+<text x="288" y="1261" font-size="22" fill="#454545" font-weight="400">Independence, between two frames, is how little they draw on the same evidence. Two people reading the same report are not two frames; two instruments pointed at the same thing are. Independence</text>
+<text x="288" y="1292" font-size="22" fill="#454545" font-weight="400">is what makes agreement mean something.</text>
+<rect x="262" y="1244" width="3" height="55" rx="1.5" fill="#c8c8c8"/>
+<line x1="210" y1="1364" x2="2550" y2="1364" stroke="#dcdcdc" stroke-width="2"/>
+<text x="210" y="1416" font-size="28" fill="#1a1a1a" font-weight="700">The anchor must not update.</text>
+<text x="210" y="1450" font-size="22" fill="#454545" font-weight="400">If it does, panel 3 turns into panel 1: the anchor becomes another frame, everything drifts together, and the drift is coherent, which is why nobody notices.</text>
+<text x="250" y="1486" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">Alignment is triangulation, not negotiation. A mirror cannot correct you.</text>
+<rect x="220" y="1467" width="4" height="29" rx="2" fill="#c8c8c8"/>
+<text x="210" y="1552" font-size="23" fill="#1a1a1a" font-weight="600">An anchor is legitimate when the question is constitutively about it.</text>
+<text x="210" y="1586" font-size="22" fill="#454545" font-weight="400">Human judgment is the right anchor for is this a good answer for a person, because the question is about people. It is only an instrument for is this code correct, and instruments can be wrong on axes they</text>
+<text x="210" y="1617" font-size="22" fill="#454545" font-weight="400">do not measure.</text>
+<text x="210" y="1683" font-size="23" fill="#1a1a1a" font-weight="600">Correlation has valence.</text>
+<text x="254" y="1717" font-size="22" fill="#454545" font-weight="400">disqualifying for a verdict: agreement about the world is worthless when the agreeing frames share an evidence pool</text>
+<circle cx="230" cy="1710" r="4.5" fill="#8a8a80"/>
+<text x="254" y="1751" font-size="22" fill="#454545" font-weight="400">efficient for a convention: agreement about a shared meaning is the product, not a corruption of it</text>
+<circle cx="230" cy="1744" r="4.5" fill="#8a8a80"/>
+<text x="210" y="1785" font-size="22" fill="#1a1a1a" font-weight="600">Buy independence in proportion to the cost of being wrong.</text>
+<text x="210" y="1819" font-size="22" fill="#454545" font-weight="400">Guard, from Figure 10: a convention that decides an outcome has stopped being one.</text>
+<text x="210" y="1847" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">The effective-sample-size correction for correlated observations is standard in survey statistics and meta-analysis; the collapse is the same arithmetic read as a warning.</text>
+<text x="210" y="1889" font-size="23" fill="#1a1a1a" font-weight="600">Frames range against the ground. They do not negotiate with it.</text>
+<text x="210" y="1923" font-size="22" fill="#454545" font-weight="400">The anchor is not a third party to the disagreement and it is not the tie-breaker in a vote. Each frame is corrected by it separately, and what makes the correction sound is that neither frame can move it.</text>
+<text x="210" y="1957" font-size="22" fill="#8a2a1e" font-weight="600">A ground listed as one of the parties has already become a frame. Which is panel 1, arrived at by a different route.</text>
+</svg>

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="2183" viewBox="0 0 2400 2183" font-family="DejaVu Sans"><rect width="2400" height="2183" fill="#ffffff"/>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3a3a3a"/></marker><marker id="arG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0f6b4a"/></marker></defs>
+<text x="180" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 5</text>
+<text x="180" y="120" font-size="46" fill="#111111" font-weight="700">The Mint Pipeline</text>
+<text x="180" y="164" font-size="25" fill="#5f5f5f">What licenses a new term, and what forces the system to make do with the ones it has.</text>
+<line x1="180" y1="196" x2="2220" y2="196" stroke="#111111" stroke-width="3"/>
+<rect x="180" y="290" width="780" height="108" rx="12" fill="#fbeeea" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="570" y="336" text-anchor="middle" font-size="25" fill="#1a1a1a">the prediction gap</text>
+<text x="570" y="370" text-anchor="middle" font-size="20" fill="#9c2b1f">fires on every action</text>
+<rect x="1030" y="290" width="480" height="108" rx="12" fill="#fbeeea" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="1270" y="336" text-anchor="middle" font-size="25" fill="#1a1a1a">the score</text>
+<text x="1270" y="370" text-anchor="middle" font-size="20" fill="#9c2b1f">only when something scores</text>
+<rect x="1580" y="290" width="640" height="108" rx="12" fill="#fbeeea" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="1900" y="336" text-anchor="middle" font-size="25" fill="#1a1a1a">the round trip</text>
+<text x="1900" y="370" text-anchor="middle" font-size="20" fill="#9c2b1f">the loss across scales</text>
+<rect x="180" y="490" width="780" height="420" rx="14" fill="#f7f7f4" stroke="#8a8a80" stroke-width="2.5"/>
+<text x="570" y="538" text-anchor="middle" font-size="26" fill="#1a1a1a" font-weight="600">sort the gap into four kinds</text>
+<rect x="216" y="564" width="708" height="70" rx="10" fill="#efefe9" stroke="#b8b8b0" stroke-width="2.5"/>
+<text x="570" y="608" text-anchor="middle" font-size="22" fill="#3a3a3a">held: the model was right, nothing owed</text>
+<rect x="216" y="646" width="708" height="70" rx="10" fill="#e2f2ec" stroke="#0f6b4a" stroke-width="2.5"/>
+<text x="570" y="690" text-anchor="middle" font-size="22" fill="#3a3a3a">new: extend perception, aim the probe here</text>
+<rect x="216" y="728" width="708" height="70" rx="10" fill="#efefe9" stroke="#b8b8b0" stroke-width="2.5"/>
+<text x="570" y="772" text-anchor="middle" font-size="22" fill="#3a3a3a">mis-attached: refit what you have, do not invent</text>
+<rect x="216" y="810" width="708" height="70" rx="10" fill="#fbeeea" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="570" y="854" text-anchor="middle" font-size="22" fill="#3a3a3a">mechanism broken: a new term is owed</text>
+<path d="M 570 402 L 570 484" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<rect x="1060" y="572" width="470" height="200" rx="14" fill="#e2f2ec" stroke="#0f6b4a" stroke-width="2.5"/>
+<text x="1295" y="618" text-anchor="middle" font-size="25" fill="#0f6b4a" font-weight="600">the curiosity drive</text>
+<text x="1295" y="658" text-anchor="middle" font-size="21" fill="#0f6b4a">fires when nothing is scoring</text>
+<text x="1295" y="694" text-anchor="middle" font-size="21" fill="#0f6b4a">aimed at the new bin</text>
+<text x="1295" y="730" text-anchor="middle" font-size="21" fill="#0f6b4a">seeks the gap that is large and compressible</text>
+<path d="M 928 668 L 1055 668" stroke="#0f6b4a" stroke-width="3" marker-end="url(#arG)"/>
+<path d="M 1295 776 L 1295 832 L 700 832 L 700 1020" stroke="#0f6b4a" stroke-width="3" fill="none" marker-end="url(#arG)"/>
+<path d="M 480 914 L 480 1020" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1270 402 L 1270 460 L 1500 460 L 1500 1020" stroke="#3a3a3a" stroke-width="3.5" fill="none" marker-end="url(#ar)"/>
+<path d="M 1900 402 L 1900 1020" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<rect x="180" y="1028" width="2040" height="240" rx="14" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3"/>
+<text x="1200" y="1078" text-anchor="middle" font-size="29" fill="#9c2b1f" font-weight="600">the three guards, all of which must pass</text>
+<rect x="230" y="1106" width="620" height="92" rx="10" fill="#fdf6f4" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="540" y="1142" text-anchor="middle" font-size="23" fill="#1a1a1a" font-weight="600">is there anything to explain?</text>
+<text x="540" y="1176" text-anchor="middle" font-size="20" fill="#9c2b1f">the gap has real mass somewhere</text>
+<rect x="880" y="1106" width="620" height="92" rx="10" fill="#fdf6f4" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="1190" y="1142" text-anchor="middle" font-size="23" fill="#1a1a1a" font-weight="600">can we even build this term?</text>
+<text x="1190" y="1176" text-anchor="middle" font-size="20" fill="#9c2b1f">it composes from what we already have</text>
+<rect x="1530" y="1106" width="620" height="92" rx="10" fill="#fdf6f4" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="1840" y="1142" text-anchor="middle" font-size="23" fill="#1a1a1a" font-weight="600">is it actually new?</text>
+<text x="1840" y="1176" text-anchor="middle" font-size="20" fill="#9c2b1f">it is not already in the library</text>
+<text x="1200" y="1236" text-anchor="middle" font-size="23" fill="#3a3a3a">and then: does the new term cost less to state than the confusion it removes?</text>
+<rect x="260" y="1370" width="600" height="118" rx="12" fill="#efefe9" stroke="#b8b8b0" stroke-width="2.5"/>
+<text x="560" y="1416" text-anchor="middle" font-size="25" fill="#1a1a1a">park it</text>
+<text x="560" y="1452" text-anchor="middle" font-size="20" fill="#5f5f5f">keep the gap, look for an import</text>
+<path d="M 1200 1272 L 560 1365" stroke="#3a3a3a" stroke-width="3" marker-end="url(#ar)"/>
+<rect x="900" y="1370" width="600" height="118" rx="12" fill="#fbf2e2" stroke="#b58a2b" stroke-width="2.5"/>
+<text x="1200" y="1416" text-anchor="middle" font-size="25" fill="#1a1a1a">nothing new here</text>
+<text x="1200" y="1452" text-anchor="middle" font-size="20" fill="#5f5f5f">the machinery worked; the answer was already known</text>
+<path d="M 1200 1272 L 1200 1365" stroke="#3a3a3a" stroke-width="3" marker-end="url(#ar)"/>
+<rect x="1540" y="1370" width="600" height="118" rx="12" fill="#eceafa" stroke="#5b5bd6" stroke-width="2.5"/>
+<text x="1840" y="1416" text-anchor="middle" font-size="25" fill="#1a1a1a">admit the term</text>
+<text x="1840" y="1452" text-anchor="middle" font-size="20" fill="#5f5f5f">then check it against the ground, then carry it up</text>
+<path d="M 1200 1272 L 1840 1365" stroke="#3a3a3a" stroke-width="3" marker-end="url(#ar)"/>
+<line x1="180" y1="1544" x2="2220" y2="1544" stroke="#dcdcdc" stroke-width="2"/>
+<text x="180" y="1596" font-size="28" fill="#1a1a1a" font-weight="700">The three guards are a product, not a checklist.</text>
+<text x="180" y="1630" font-size="22" fill="#454545" font-weight="400">They are drawn in the diagram in the order each becomes checkable, not in order of importance:</text>
+<text x="232" y="1664" font-size="22" fill="#454545" font-weight="400">is there anything to explain, before the search starts</text>
+<text x="196" y="1664" font-size="22" fill="#8a8a80" font-weight="600">1.</text>
+<text x="232" y="1698" font-size="22" fill="#454545" font-weight="400">can the term be built from what we have, during the search</text>
+<text x="196" y="1698" font-size="22" fill="#8a8a80" font-weight="600">2.</text>
+<text x="232" y="1732" font-size="22" fill="#454545" font-weight="400">is it actually new, after a candidate exists</text>
+<text x="196" y="1732" font-size="22" fill="#8a8a80" font-weight="600">3.</text>
+<text x="220" y="1768" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">Any one of them at zero stops the mint entirely. Which is why a system that is minting nothing may have nothing wrong with its minting.</text>
+<rect x="190" y="1749" width="4" height="29" rx="2" fill="#c8c8c8"/>
+<text x="180" y="1834" font-size="23" fill="#1a1a1a" font-weight="600">The acceptance test is a bargain, not a threshold.</text>
+<text x="180" y="1868" font-size="22" fill="#454545" font-weight="400">A new term is worth having when stating it, plus what remains unexplained after it, costs less than what was unexplained before. A term that explains everything by saying nothing</text>
+<text x="180" y="1899" font-size="22" fill="#454545" font-weight="400">fails this, and so does a term that explains one occasion perfectly.</text>
+<text x="180" y="1927" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">This is minimum description length, Rissanen 1978, which is itself a composition of Kolmogorov complexity and Shannon coding put to work on model selection.</text>
+<text x="180" y="1993" font-size="23" fill="#1a1a1a" font-weight="600">When nothing is scoring, the drive manufactures a gradient.</text>
+<text x="180" y="2027" font-size="22" fill="#454545" font-weight="400">So a system that starts with nothing can still be shaped, by seeking the gap that is large and compressible, which is the same quantity the acceptance test scores.</text>
+<text x="180" y="2061" font-size="22" fill="#1a1a1a" font-weight="600">Its own output is never a measure of success. A system can be enthusiastically curious and produce nothing.</text>
+<text x="180" y="2115" font-size="19" fill="#8a8a80" font-weight="400">Machinery firing is not the milestone. A running system can mint and still return nothing new, which is exactly what the third guard exists to record.</text>
+</svg>

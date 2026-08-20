@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1910" viewBox="0 0 2400 1910" font-family="DejaVu Sans"><rect width="2400" height="1910" fill="#ffffff"/>
+<defs><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0f6b4a"/></marker><marker id="agr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5f5f5f"/></marker></defs>
+<text x="200" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 8</text>
+<text x="200" y="120" font-size="46" fill="#111111" font-weight="700">The Union Surplus: Where Imports Live</text>
+<text x="200" y="164" font-size="25" fill="#5f5f5f">Why two frames together reach what neither reaches alone.</text>
+<line x1="200" y1="196" x2="2200" y2="196" stroke="#111111" stroke-width="3"/>
+<rect x="160" y="342" width="700" height="480" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="510" y="318" text-anchor="middle" font-size="29" fill="#1a1a1a" font-weight="600">collapse 4: the blend</text>
+<text x="510" y="872" text-anchor="middle" font-size="25" fill="#9c2b1f">&#8594; vocabulary, never an atom</text>
+<rect x="880" y="342" width="700" height="480" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="1230" y="318" text-anchor="middle" font-size="29" fill="#1a1a1a" font-weight="600">collapse 5: the undirected union</text>
+<text x="1230" y="872" text-anchor="middle" font-size="25" fill="#9c2b1f">&#8594; interdisciplinarity, no mint</text>
+<rect x="1600" y="342" width="700" height="480" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="1950" y="318" text-anchor="middle" font-size="29" fill="#1a1a1a" font-weight="600">grounded: triangulation</text>
+<text x="1950" y="872" text-anchor="middle" font-size="25" fill="#0f6b4a">&#8594; the wall moves</text>
+<circle cx="452" cy="510" r="104" fill="#e6e6fa" fill-opacity="0.75" stroke="#5b5bd6" stroke-width="3"/>
+<circle cx="568" cy="510" r="104" fill="#e6e6fa" fill-opacity="0.75" stroke="#5b5bd6" stroke-width="3"/>
+<text x="374" y="520" text-anchor="middle" font-size="30" fill="#3a3a9e" font-weight="400">A</text>
+<text x="646" y="520" text-anchor="middle" font-size="30" fill="#3a3a9e" font-weight="400">B</text>
+<text x="510" y="472" text-anchor="middle" font-size="22" fill="#9c2b1f" font-weight="400">high overlap</text>
+<text x="510" y="686" text-anchor="middle" font-size="23" fill="#3a3a3a" font-weight="400">same atoms, different names</text>
+<text x="510" y="726" text-anchor="middle" font-size="23" fill="#9c2b1f" font-weight="400">their union adds nothing</text>
+<text x="510" y="766" text-anchor="middle" font-size="23" fill="#6a6a6a" font-weight="400">two names for one frame</text>
+<circle cx="1112" cy="510" r="94" fill="#e6e6fa" fill-opacity="0.75" stroke="#5b5bd6" stroke-width="3"/>
+<circle cx="1348" cy="510" r="94" fill="#e6e6fa" fill-opacity="0.75" stroke="#5b5bd6" stroke-width="3"/>
+<text x="1112" y="520" text-anchor="middle" font-size="30" fill="#3a3a9e" font-weight="400">A</text>
+<text x="1348" y="520" text-anchor="middle" font-size="30" fill="#3a3a9e" font-weight="400">B</text>
+<text x="1230" y="522" text-anchor="middle" font-size="36" fill="#8a8a80" font-weight="400">?</text>
+<text x="1230" y="686" text-anchor="middle" font-size="23" fill="#3a3a3a" font-weight="400">closures differ, so a surplus exists</text>
+<text x="1230" y="726" text-anchor="middle" font-size="23" fill="#9c2b1f" font-weight="400">but no residual is described</text>
+<text x="1230" y="766" text-anchor="middle" font-size="23" fill="#6a6a6a" font-weight="400">nothing was aimed; the union is mute</text>
+<circle cx="1832" cy="510" r="94" fill="#e6e6fa" fill-opacity="0.75" stroke="#5b5bd6" stroke-width="3"/>
+<circle cx="2068" cy="510" r="94" fill="#dff0e8" fill-opacity="0.8" stroke="#0f6b4a" stroke-width="3"/>
+<text x="1760" y="444" text-anchor="middle" font-size="26" fill="#3a3a9e" font-weight="400">A</text>
+<text x="2140" y="444" text-anchor="middle" font-size="26" fill="#0f6b4a" font-weight="400">B</text>
+<circle cx="1832" cy="516" r="29" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3"/>
+<text x="1832" y="524" text-anchor="middle" font-size="21" fill="#9c2b1f" font-weight="400">R</text>
+<circle cx="2068" cy="516" r="29" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3" stroke-dasharray="5,4"/>
+<text x="2068" y="524" text-anchor="middle" font-size="21" fill="#9c2b1f" font-weight="400">R</text>
+<path d="M 2042 446 Q 1950 386 1858 446" stroke="#0f6b4a" stroke-width="3.5" fill="none" marker-end="url(#ag)"/>
+<text x="1950" y="374" text-anchor="middle" font-size="21" fill="#0f6b4a" font-weight="400">2: the atom crosses back</text>
+<path d="M 1858 584 Q 1950 636 2040 584" stroke="#5f5f5f" stroke-width="2.5" fill="none" stroke-dasharray="7,6" marker-end="url(#agr)"/>
+<text x="1950" y="662" text-anchor="middle" font-size="21" fill="#5f5f5f" font-weight="400">1: describe R, then find the frame</text>
+<text x="1950" y="714" text-anchor="middle" font-size="22" fill="#5f5f5f" font-weight="400">that already predicts its shape</text>
+<text x="1950" y="752" text-anchor="middle" font-size="22" fill="#3a3a3a" font-weight="400">low overlap: B does not draw on A&#8217;s evidence</text>
+<text x="1950" y="790" text-anchor="middle" font-size="22" fill="#0f6b4a" font-weight="400">underivable, and searchable</text>
+<rect x="200" y="920" width="2000" height="370" rx="14" fill="#f4f3ee" stroke="#c9c6bb" stroke-width="2.5"/>
+<text x="234" y="982" font-size="23" fill="#1a1a1a" font-weight="600">Why A cannot derive the atom on its own</text>
+<text x="286" y="1016" font-size="22" fill="#454545" font-weight="400">Closure is idempotent. Composing inside a closed set never leaves it, so no search, however long, adds an atom. This one is definitional: it is what closure means.</text>
+<text x="250" y="1016" font-size="22" fill="#8a8a80" font-weight="600">1.</text>
+<text x="286" y="1050" font-size="22" fill="#454545" font-weight="400">A frame cannot reach its own metaframe. Godel&#8217;s second theorem: a consistent system cannot prove its own consistency. Tarski: truth for a language is not definable</text>
+<text x="286" y="1081" font-size="22" fill="#454545" font-weight="400">within that language.</text>
+<text x="250" y="1050" font-size="22" fill="#8a8a80" font-weight="600">2.</text>
+<text x="286" y="1115" font-size="22" fill="#454545" font-weight="400">A frame cannot certify its own limit. Chaitin: beyond a fixed constant, no system proves that any object exceeds its own complexity.</text>
+<text x="250" y="1115" font-size="22" fill="#8a8a80" font-weight="600">3.</text>
+<text x="234" y="1149" font-size="22" fill="#8a2a1e" font-weight="600">So a search that finds nothing is never a proof of absence.</text>
+<text x="234" y="1183" font-size="22" fill="#454545" font-weight="400">Scope. These prove the metaframe is underivable. They do not prove any particular atom is far away. Underivable-in-principle and unreachable-at-this-budget are</text>
+<text x="234" y="1214" font-size="22" fill="#454545" font-weight="400">different facts, and they issue the same instruction: go outside.</text>
+<text x="234" y="1242" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">Godel 1931; Tarski 1936; Chaitin 1974.</text>
+<line x1="200" y1="1314" x2="2200" y2="1314" stroke="#dcdcdc" stroke-width="2"/>
+<text x="200" y="1366" font-size="28" fill="#1a1a1a" font-weight="700">Two frames together reach what neither reaches alone.</text>
+<text x="200" y="1400" font-size="22" fill="#454545" font-weight="400">Composition crosses the boundary between them, and that surplus is where imports live.</text>
+<text x="200" y="1466" font-size="23" fill="#1a1a1a" font-weight="600">Independence is one quantity read twice.</text>
+<text x="200" y="1500" font-size="22" fill="#454545" font-weight="400">How much two frames draw on the same evidence decides both whether their agreement means anything and whether their union has any surplus. Two frames that overlap almost</text>
+<text x="200" y="1531" font-size="22" fill="#454545" font-weight="400">completely are one frame wearing two names.</text>
+<text x="240" y="1567" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">But shared atoms are not the signature. Two frames can hold the same atom by convergence, reaching it separately, which is corroboration at maximum independence.</text>
+<rect x="210" y="1548" width="4" height="29" rx="2" fill="#c8c8c8"/>
+<text x="200" y="1601" font-size="22" fill="#454545" font-weight="400">Convergent derivation and adopted import look identical in the contents. Only the record of where each came from separates them, and the surplus lives only where the closures</text>
+<text x="200" y="1632" font-size="22" fill="#454545" font-weight="400">differ.</text>
+<text x="200" y="1698" font-size="23" fill="#1a1a1a" font-weight="600">Residual first, frame second.</text>
+<text x="200" y="1732" font-size="22" fill="#454545" font-weight="400">The atom cannot be derived from inside A. But the union is searchable from contact, so underivable is not unknowable.</text>
+<text x="200" y="1786" font-size="19" fill="#8a8a80" font-weight="400">Figure 6 says only import moves the wall. Figure 8 says why nothing else can, where the atom comes from, and in which direction it is found.</text>
+<text x="200" y="1816" font-size="19" fill="#8a8a80" font-weight="400">How to read the claims here. Rules 1 to 3 are proved theorems. The triangulation claim fits four cases already known and has not been tested forward: Wiles and Frey, Montgomery and Dyson, Bekenstein and</text>
+<text x="200" y="1842" font-size="19" fill="#8a8a80" font-weight="400">holography, the relativization barriers in complexity theory.</text>
+</svg>

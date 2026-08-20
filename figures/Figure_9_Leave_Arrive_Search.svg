@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1879" viewBox="0 0 2400 1879" font-family="DejaVu Sans"><rect width="2400" height="1879" fill="#ffffff"/>
+<text x="180" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 9</text>
+<text x="180" y="120" font-size="46" fill="#111111" font-weight="700">When Composition Stops Working</text>
+<text x="180" y="164" font-size="25" fill="#5f5f5f">How you know to leave, where to go, and what it costs to arrive.</text>
+<line x1="180" y1="196" x2="2220" y2="196" stroke="#111111" stroke-width="3"/>
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1a7f5a"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#b03a2e"/></marker>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3a3a3a"/></marker>
+</defs>
+
+<text x="1200" y="264" text-anchor="middle" font-size="25" fill="#8f2f24">First: is there a fact here? Disagreements that do not shrink with effort, where each rule keeps working well on a different subset,</text>
+<text x="1200" y="298" text-anchor="middle" font-size="25" fill="#8f2f24">are not one hard question but several well-formed ones. Split it rather than search.</text>
+
+<text x="415" y="374" text-anchor="middle" font-size="34" fill="#2b2b2b">1 &#183; the verdict: is &#966;* in here at all?</text>
+<text x="1200" y="374" text-anchor="middle" font-size="34" fill="#2b2b2b">2 &#183; the lookup: which frame holds it?</text>
+<text x="1985" y="374" text-anchor="middle" font-size="34" fill="#2b2b2b">3 &#183; the narrowing: which one is it?</text>
+
+<rect x="50" y="407" width="730" height="600" rx="18" fill="none" stroke="#b8b8b0" stroke-width="2.5" stroke-dasharray="12,9"/>
+<rect x="835" y="407" width="730" height="600" rx="18" fill="none" stroke="#b8b8b0" stroke-width="2.5" stroke-dasharray="12,9"/>
+<rect x="1620" y="407" width="730" height="600" rx="18" fill="none" stroke="#b8b8b0" stroke-width="2.5" stroke-dasharray="12,9"/>
+
+<circle cx="345" cy="612" r="145" fill="#e6e6fa" fill-opacity="0.8" stroke="#5b5bd6" stroke-width="3"/>
+<text x="330" y="508" text-anchor="middle" font-size="26" fill="#3c3ca8">closure(&#915;)</text>
+<circle cx="335" cy="642" r="26" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="335" y="651" text-anchor="middle" font-size="21" fill="#3c3ca8">&#966;</text>
+<circle cx="672" cy="502" r="40" fill="#fdeae6" stroke="#b03a2e" stroke-width="3"/>
+<text x="672" y="513" text-anchor="middle" font-size="26" fill="#8f2f24">&#966;*</text>
+<path d="M 415 584 L 545 530" fill="none" stroke="#b03a2e" stroke-width="3.5" marker-end="url(#ar)"/>
+<line x1="452" y1="534" x2="508" y2="590" stroke="#b03a2e" stroke-width="6"/>
+<line x1="508" y1="534" x2="452" y2="590" stroke="#b03a2e" stroke-width="6"/>
+<text x="600" y="586" text-anchor="middle" font-size="19" fill="#8f2f24">REACHABILITY fails</text>
+<rect x="545" y="626" width="205" height="118" rx="14" fill="#dbf3e8" stroke="#1a7f5a" stroke-width="3"/>
+<text x="647" y="664" text-anchor="middle" font-size="24" fill="#12664a">the witness</text>
+<text x="647" y="696" text-anchor="middle" font-size="19" fill="#1a7f5a">a frame whose</text>
+<text x="647" y="722" text-anchor="middle" font-size="19" fill="#1a7f5a">closure differs</text>
+<path d="M 545 670 L 474 644" fill="none" stroke="#12664a" stroke-width="3.5" marker-end="url(#ag)"/>
+<text x="415" y="792" text-anchor="middle" font-size="22" fill="#666666">the edge can only be named from beyond it</text>
+<text x="415" y="840" text-anchor="middle" font-size="24" fill="#4a4a4a">&#966; found: one composition that pays, proved inside</text>
+<text x="415" y="878" text-anchor="middle" font-size="24" fill="#8f2f24">&#966;* out of reach: nothing inside can prove that</text>
+<text x="415" y="916" text-anchor="middle" font-size="24" fill="#12664a">the witness is always imported</text>
+<text x="415" y="1064" text-anchor="middle" font-size="29" fill="#8f2f24">&#8594; "it is not in here" cannot be proved from inside</text>
+
+<rect x="862" y="512" width="292" height="150" rx="14" fill="#fdeae6" stroke="#b03a2e" stroke-width="3"/>
+<text x="1008" y="570" text-anchor="middle" font-size="26" fill="#8f2f24">R, described</text>
+<text x="1008" y="608" text-anchor="middle" font-size="20" fill="#b03a2e">arity &#183; symmetry &#183; scale</text>
+<rect x="1270" y="512" width="255" height="150" rx="14" fill="#dbf3e8" stroke="#1a7f5a" stroke-width="3"/>
+<text x="1397" y="570" text-anchor="middle" font-size="25" fill="#12664a">the frame whose</text>
+<text x="1397" y="604" text-anchor="middle" font-size="25" fill="#12664a">closure predicts it</text>
+<path d="M 1160 587 L 1264 587" fill="none" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ak)"/>
+<text x="1212" y="498" text-anchor="middle" font-size="22" fill="#3a3a3a">one lookup</text>
+<text x="1200" y="752" text-anchor="middle" font-size="24" fill="#4a4a4a">R's own predicates name the habitat that holds &#966;*</text>
+<text x="1200" y="840" text-anchor="middle" font-size="24" fill="#4a4a4a">describe it before you go looking, or</text>
+<text x="1200" y="878" text-anchor="middle" font-size="24" fill="#8f2f24">any frame you pick will seem to fit</text>
+<text x="1200" y="916" text-anchor="middle" font-size="24" fill="#12664a">matching is a one-pass check, not a search</text>
+<text x="1200" y="954" text-anchor="middle" font-size="22" fill="#8f2f24">your words are borrowed too, so describe the effect</text>
+<text x="1200" y="982" text-anchor="middle" font-size="20" fill="#9c2b1f">rather than the cause</text>
+<text x="1200" y="1064" text-anchor="middle" font-size="29" fill="#12664a">&#8594; you get a kind of thing, never the answer itself</text>
+
+<circle cx="1770" cy="587" r="118" fill="#eeeef8" stroke="#b0b0c8" stroke-width="3"/>
+<text x="1770" y="604" text-anchor="middle" font-size="25" fill="#7a7a95">closure(&#915;)</text>
+<circle cx="1990" cy="587" r="62" fill="#e6e6fa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="1990" y="595" text-anchor="middle" font-size="19" fill="#3c3ca8">candidates</text>
+<circle cx="2185" cy="587" r="32" fill="#dbf3e8" stroke="#1a7f5a" stroke-width="3"/>
+<text x="2185" y="595" text-anchor="middle" font-size="18" fill="#12664a">kept</text>
+<path d="M 1896 587 L 1922 587" fill="none" stroke="#12664a" stroke-width="3.5" marker-end="url(#ag)"/>
+<path d="M 2056 587 L 2147 587" fill="none" stroke="#12664a" stroke-width="3.5" marker-end="url(#ag)"/>
+<text x="1909" y="552" text-anchor="middle" font-size="21" fill="#12664a">+ &#966;*</text>
+<text x="2101" y="552" text-anchor="middle" font-size="21" fill="#12664a">ground</text>
+<text x="1985" y="752" text-anchor="middle" font-size="24" fill="#4a4a4a">elimination compounds here, and only here</text>
+<text x="1985" y="840" text-anchor="middle" font-size="24" fill="#4a4a4a">cheap because the new atom shrank the space</text>
+<text x="1985" y="878" text-anchor="middle" font-size="24" fill="#8f2f24">a wrong cut removes the answer and speeds up</text>
+<text x="1985" y="916" text-anchor="middle" font-size="24" fill="#4a4a4a">so keep every cut ranked and reversible</text>
+<text x="1985" y="1064" text-anchor="middle" font-size="29" fill="#3c3ca8">&#8594; narrowing gets you close, the ground decides</text>
+
+
+
+<line x1="180" y1="1142" x2="2220" y2="1142" stroke="#dcdcdc" stroke-width="2"/>
+<text x="180" y="1194" font-size="28" fill="#1a1a1a" font-weight="700">The verdict tells you to leave. The lookup tells you where to go. Elimination is what you do after you arrive.</text>
+<text x="220" y="1230" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">Only a sealed room can be searched to the end, and no frame is a sealed room. So searching and finding nothing proves nothing.</text>
+<rect x="190" y="1211" width="4" height="29" rx="2" fill="#c8c8c8"/>
+<text x="180" y="1264" font-size="22" fill="#1a1a1a" font-weight="600">Describing the residual is the expensive part. Leaving, looking up and recognising are one step each, and cheap only in that order.</text>
+<text x="180" y="1330" font-size="23" fill="#1a1a1a" font-weight="600">The residual selects at three ranges.</text>
+<text x="232" y="1364" font-size="22" fill="#454545" font-weight="400">the question it is a residual of</text>
+<text x="196" y="1364" font-size="22" fill="#8a8a80" font-weight="600">1.</text>
+<text x="232" y="1398" font-size="22" fill="#454545" font-weight="400">the frame whose closure predicts its shape</text>
+<text x="196" y="1398" font-size="22" fill="#8a8a80" font-weight="600">2.</text>
+<text x="232" y="1432" font-size="22" fill="#454545" font-weight="400">what the verifier may see: evidence bearing on the residual is admissible; evidence bearing only on its maker is a stake-inducing channel, and the verifier is denied it</text>
+<text x="196" y="1432" font-size="22" fill="#8a8a80" font-weight="600">3.</text>
+<text x="180" y="1466" font-size="22" fill="#1a1a1a" font-weight="600">Nobody chooses. The gap does, and the gap is only as good as its description.</text>
+<text x="180" y="1532" font-size="23" fill="#1a1a1a" font-weight="600">And when the split lands on a union rather than a partition, unbundle before you search again.</text>
+<text x="180" y="1566" font-size="22" fill="#454545" font-weight="400">A bundled problem is usually a union of overlapping conditions, not a list of separate ones. A single lever clears the region where only one condition holds and leaves the</text>
+<text x="180" y="1597" font-size="22" fill="#454545" font-weight="400">intersections standing, because the second condition still binds.</text>
+<text x="220" y="1633" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">What remains is smaller and it is also categorically different: a case in two conditions is not a harder case of either. It stops being a mixture and becomes a specific</text>
+<text x="220" y="1665" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">compound.</text>
+<rect x="190" y="1614" width="4" height="61" rx="2" fill="#c8c8c8"/>
+<text x="180" y="1699" font-size="22" fill="#454545" font-weight="400">Which is the second-order value of a big lever, and usually the larger one: not that the pile is smaller, but that the residue is finally describable.</text>
+<text x="180" y="1757" font-size="22" fill="#1a1a1a" font-weight="600">Use filters for the budget and witnesses for the verdict. Never let a filter hand you a verdict.</text>
+<text x="180" y="1811" font-size="19" fill="#8a8a80" font-weight="400">Figure 8 says where the new atom comes from. Figure 9 says how you know to leave, where to go, and what it costs to arrive. Figure 11 says where the actors come from once you are there.</text>
+
+</svg>

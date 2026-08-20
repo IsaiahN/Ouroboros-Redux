@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="2394" viewBox="0 0 2400 2394" font-family="DejaVu Sans"><rect width="2400" height="2394" fill="#ffffff"/>
+<text x="180" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 11</text>
+<text x="180" y="120" font-size="46" fill="#111111" font-weight="700">The Habitat: Survival, Arrival, and Isolation</text>
+<text x="180" y="164" font-size="25" fill="#5f5f5f">Where the actors come from, who may act on them, and what it costs to move a residual somewhere else.</text>
+<line x1="180" y1="196" x2="2220" y2="196" stroke="#111111" stroke-width="3"/>
+<rect x="140" y="290" width="740" height="500" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="510" y="338" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">1 &#183; unmaintained</text>
+<text x="510" y="374" text-anchor="middle" font-size="23" fill="#6a6a6a">survival of the fittest</text>
+<rect x="830" y="290" width="740" height="500" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="1200" y="338" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">2 &#183; maintained</text>
+<text x="1200" y="374" text-anchor="middle" font-size="23" fill="#6a6a6a">arrival worked on</text>
+<rect x="1520" y="290" width="740" height="500" rx="18" fill="none" stroke="#c8c8c8" stroke-width="2.5" stroke-dasharray="9,7"/>
+<text x="1890" y="338" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">3 &#183; isolated</text>
+<text x="1890" y="374" text-anchor="middle" font-size="23" fill="#6a6a6a">the habitat substituted</text>
+<circle cx="510" cy="490" r="82" fill="#eef0e8" stroke="#8a8a80" stroke-width="3"/>
+<text x="510" y="486" text-anchor="middle" font-size="25" fill="#2b2b2b">the habitat</text>
+<text x="510" y="514" text-anchor="middle" font-size="20" fill="#6a6a6a">pure contact</text>
+<circle cx="305" cy="432" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 332 432 L 424 490" stroke="#8a8a80" stroke-width="2.5"/>
+<circle cx="305" cy="548" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 332 548 L 424 490" stroke="#8a8a80" stroke-width="2.5"/>
+<circle cx="715" cy="432" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 688 432 L 596 490" stroke="#8a8a80" stroke-width="2.5"/>
+<circle cx="715" cy="548" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 688 548 L 596 490" stroke="#8a8a80" stroke-width="2.5"/>
+<rect x="385" y="614" width="250" height="50" rx="10" fill="#e6f2ec" stroke="#0f6b4a" stroke-width="2.5"/>
+<text x="510" y="647" text-anchor="middle" font-size="23" fill="#0f6b4a">the ground</text>
+<text x="510" y="708" text-anchor="middle" font-size="21" fill="#9c2b1f">no seat, no live frame</text>
+<text x="510" y="736" text-anchor="middle" font-size="20" fill="#4f4f4f">nothing selects; what survives</text>
+<text x="510" y="762" text-anchor="middle" font-size="20" fill="#4f4f4f">is what the ground kept</text>
+<circle cx="1200" cy="490" r="82" fill="#eef0e8" stroke="#8a8a80" stroke-width="3"/>
+<text x="1200" y="486" text-anchor="middle" font-size="25" fill="#2b2b2b">the habitat</text>
+<text x="1200" y="514" text-anchor="middle" font-size="20" fill="#6a6a6a">pure contact</text>
+<circle cx="995" cy="432" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 1022 432 L 1114 490" stroke="#8a8a80" stroke-width="2.5"/>
+<circle cx="995" cy="548" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 1022 548 L 1114 490" stroke="#8a8a80" stroke-width="2.5"/>
+<circle cx="1405" cy="548" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 1378 548 L 1286 490" stroke="#8a8a80" stroke-width="2.5"/>
+<circle cx="1400" cy="432" r="25" fill="#dff0e8" stroke="#0f6b4a" stroke-width="3"/>
+<path d="M 1375 432 L 1288 488" stroke="#0f6b4a" stroke-width="3"/>
+<text x="1436" y="420" font-size="19" fill="#0f6b4a">introduced</text>
+<rect x="1075" y="614" width="250" height="50" rx="10" fill="#e6f2ec" stroke="#0f6b4a" stroke-width="2.5"/>
+<text x="1200" y="647" text-anchor="middle" font-size="23" fill="#0f6b4a">the ground</text>
+<text x="1200" y="708" text-anchor="middle" font-size="21" fill="#0f6b4a">a seat acts on the habitat</text>
+<text x="1200" y="736" text-anchor="middle" font-size="20" fill="#4f4f4f">instrument, distil, introduce;</text>
+<text x="1200" y="762" text-anchor="middle" font-size="20" fill="#4f4f4f">the ground still decides</text>
+<circle cx="1890" cy="490" r="82" fill="#eef0e8" stroke="#8a8a80" stroke-width="3" stroke-dasharray="7,6"/>
+<text x="1890" y="486" text-anchor="middle" font-size="25" fill="#2b2b2b">new habitat</text>
+<text x="1890" y="514" text-anchor="middle" font-size="20" fill="#6a6a6a">substituted</text>
+<circle cx="1685" cy="432" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 1712 432 L 1804 490" stroke="#8a8a80" stroke-width="2.5" stroke-dasharray="5,5"/>
+<circle cx="1685" cy="548" r="25" fill="#e8e6f5" stroke="#5b5bd6" stroke-width="2.5"/>
+<path d="M 1712 548 L 1804 490" stroke="#8a8a80" stroke-width="2.5" stroke-dasharray="5,5"/>
+<text x="1596" y="590" font-size="19" fill="#0f6b4a">reproduced</text>
+<circle cx="2095" cy="490" r="25" fill="#f7dcd6" stroke="#9c2b1f" stroke-width="3"/>
+<path d="M 2070 490 L 1978 490" stroke="#9c2b1f" stroke-width="3"/>
+<text x="2044" y="446" font-size="19" fill="#9c2b1f">unchosen</text>
+<rect x="1765" y="614" width="250" height="50" rx="10" fill="#e6f2ec" stroke="#0f6b4a" stroke-width="2.5"/>
+<text x="1890" y="647" text-anchor="middle" font-size="23" fill="#0f6b4a">the ground</text>
+<text x="1890" y="708" text-anchor="middle" font-size="21" fill="#9c2b1f">two silent failure modes</text>
+<text x="1890" y="736" text-anchor="middle" font-size="20" fill="#4f4f4f">what you failed to reproduce,</text>
+<text x="1890" y="762" text-anchor="middle" font-size="20" fill="#4f4f4f">and what you brought with you</text>
+<text x="510"  y="844" text-anchor="middle" font-size="25" fill="#9c2b1f">&#8594; nothing chooses</text>
+<text x="1200" y="844" text-anchor="middle" font-size="25" fill="#0f6b4a">&#8594; introduce, never subtract</text>
+<text x="1890" y="844" text-anchor="middle" font-size="25" fill="#3a3a9e">&#8594; substituted, not removed</text>
+<line x1="180" y1="896" x2="2220" y2="896" stroke="#dcdcdc" stroke-width="2"/>
+<text x="180" y="950" font-size="30" fill="#8a6a12" font-weight="700">What is intelligence?</text>
+<text x="180" y="984" font-size="22" fill="#1a1a1a" font-weight="600">The wrong question, and this figure is the replacement for it.</text>
+<text x="180" y="1018" font-size="22" fill="#454545" font-weight="400">Where nothing maintains anything, intelligence is a label applied afterwards to a lineage that met its ground. Nothing was intelligent; selection ran. The word does no work there.</text>
+<text x="180" y="1052" font-size="22" fill="#454545" font-weight="400">Where a seat exists, something is doing work, and it is exactly what the seat does: enumerate the habitat, rank by cascade, introduce actors, build instruments, read the ground.</text>
+<text x="180" y="1083" font-size="22" fill="#454545" font-weight="400">That is not a metaphor for intelligence. It is a description of the practice.</text>
+<text x="220" y="1119" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">So the answerable question is not what intelligence is, but what makes a system capable. And capability is a property of agent-and-habitat, never of the agent alone.</text>
+<rect x="190" y="1100" width="4" height="29" rx="2" fill="#c8c8c8"/>
+<text x="180" y="1153" font-size="22" fill="#1a1a1a" font-weight="600">A system cannot be made more capable by improving the agent in isolation. An improvement that does not change contact changes nothing, however much it improves.</text>
+<text x="180" y="1187" font-size="22" fill="#454545" font-weight="400">Which is the same move as asking what generates lift rather than whether a thing is a bird. The substrate question dissolves; the contact question does not.</text>
+<text x="180" y="1215" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">The lift move is Cayley&#8217;s, 1799: separating the forces from the flapping is what made powered flight a problem anyone could work on.</text>
+<text x="180" y="1291" font-size="28" fill="#1a1a1a" font-weight="700">The habitat is enumerated, never composed.</text>
+<text x="180" y="1325" font-size="22" fill="#454545" font-weight="400">List everything in contact with the residual, then what is in contact with those, and outward until the cascade stops mattering.</text>
+<text x="224" y="1359" font-size="22" fill="#454545" font-weight="400">actors: what acts on it, and what it acts on</text>
+<circle cx="200" cy="1352" r="4.5" fill="#8a8a80"/>
+<text x="224" y="1393" font-size="22" fill="#454545" font-weight="400">conditions: light, water, temperature, season, terrain</text>
+<circle cx="200" cy="1386" r="4.5" fill="#8a8a80"/>
+<text x="224" y="1427" font-size="22" fill="#454545" font-weight="400">relations: pollination, predation, competition, dependency</text>
+<circle cx="200" cy="1420" r="4.5" fill="#8a8a80"/>
+<text x="180" y="1461" font-size="22" fill="#1a1a1a" font-weight="600">You do not invent the list. You read it off the world, and what you cannot perceive or measure yet is the residual.</text>
+<text x="180" y="1527" font-size="23" fill="#1a1a1a" font-weight="600">An actor&#8217;s valence is relative to the residual, not a property it carries.</text>
+<text x="180" y="1561" font-size="22" fill="#454545" font-weight="400">The same actor is a benefactor to one residual and a malfactor to another, so mutualism and parasitism are relations rather than kinds.</text>
+<text x="180" y="1595" font-size="22" fill="#1a1a1a" font-weight="600">No standing list of good actors survives a change of residual.</text>
+<text x="180" y="1629" font-size="22" fill="#454545" font-weight="400">And contact cascades. Scoping the habitat to direct contact is how DDT reached the eagles: first-order enumeration, second-order effect, and the residual that mattered was three</text>
+<text x="180" y="1660" font-size="22" fill="#454545" font-weight="400">steps out.</text>
+<text x="180" y="1688" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">Carson, Silent Spring, 1962. The mechanism, biomagnification through the food chain to eggshell thinning, was established over the following decade.</text>
+<text x="180" y="1754" font-size="23" fill="#1a1a1a" font-weight="600">Two modes, and only one of them has a seat.</text>
+<text x="232" y="1788" font-size="22" fill="#454545" font-weight="400">Unmaintained. No maintainer and no live frame in the seat. The habitat is pure contact, nothing selects, and what survives is what the ground kept.</text>
+<text x="196" y="1788" font-size="22" fill="#8a8a80" font-weight="600">1.</text>
+<text x="232" y="1822" font-size="22" fill="#454545" font-weight="400">Maintained. A seat exists and can act: choose the instruments, distil the impactful actors, introduce what was not there. That is the garden, and it is how arrival is worked on</text>
+<text x="232" y="1853" font-size="22" fill="#454545" font-weight="400">rather than waited for.</text>
+<text x="196" y="1822" font-size="22" fill="#8a8a80" font-weight="600">2.</text>
+<text x="220" y="1889" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">The seat&#8217;s power is asymmetric. Introduction is available; exclusion is not. You can add an actor and you cannot subtract the habitat, because contact is a fact about</text>
+<text x="220" y="1921" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">the world and does not consult you.</text>
+<rect x="190" y="1870" width="4" height="61" rx="2" fill="#c8c8c8"/>
+<text x="180" y="1955" font-size="22" fill="#454545" font-weight="400">Which is why a managed ecosystem is permanent work rather than a solved state. And in neither mode is the habitat composed: unmaintained nothing composes it, maintained the seat</text>
+<text x="180" y="1986" font-size="22" fill="#454545" font-weight="400">adds to a habitat it still did not author.</text>
+<text x="180" y="2014" font-size="18" fill="#8a8a80" font-weight="400" font-style="italic">Introducing an actor for its cascade is ecosystem engineering, after Jones, Lawton and Shachak, 1994. Cane toads and kudzu are the same move with the cascade unenumerated.</text>
+<text x="180" y="2080" font-size="23" fill="#1a1a1a" font-weight="600">Isolation is not removal of the habitat. It is substitution of one habitat for another.</text>
+<text x="180" y="2114" font-size="22" fill="#454545" font-weight="400">Move the residual and you must reproduce everything its goal required, and you inherit the new habitat&#8217;s actors, which you did not choose.</text>
+<text x="224" y="2148" font-size="22" fill="#454545" font-weight="400">what you failed to reproduce is invisible until the goal fails</text>
+<circle cx="200" cy="2141" r="4.5" fill="#8a8a80"/>
+<text x="224" y="2182" font-size="22" fill="#454545" font-weight="400">what you unintentionally introduced is invisible until it acts</text>
+<circle cx="200" cy="2175" r="4.5" fill="#8a8a80"/>
+<text x="180" y="2216" font-size="22" fill="#1a1a1a" font-weight="600">A test harness is a substituted habitat. Which is why a synthetic solve proves wiring and never capability.</text>
+<text x="180" y="2270" font-size="19" fill="#8a8a80" font-weight="400">How to read the claims here. Enumeration and asymmetry are rules this framework imposes on itself. The isolation law and the capability claim fit cases already known and have not been tested forward, so they</text>
+<text x="180" y="2296" font-size="19" fill="#8a8a80" font-weight="400">can still come back wrong: an agent-only improvement that moved the ground would refute the capability claim.</text>
+<text x="180" y="2326" font-size="19" fill="#8a8a80" font-weight="400">The habitat is not the ground. The habitat is where actors come from and it updates; the ground is what settles, and it does not.</text>
+</svg>

@@ -35,6 +35,25 @@ class DatabaseInterface:
             db_path: Path to the SQLite database file
         """
         self.db_path = db_path
+        # ── D-6 PROBE (temporary, 2026-08-20) ──────────────────────────────────
+        # An unlocated creator rebuilds a schema-only core_data.db at the REPO
+        # ROOT on every swarm launch. Two grep hunts missed it, so this catches
+        # it in the act: whenever a DatabaseInterface resolves to the repo-root
+        # file, the full call stack is appended to .runs/root_db_probe.log.
+        # Observation only -- nothing about behaviour changes. Remove once the
+        # creator is identified and fixed (the removal is the probe's undo).
+        try:
+            _here = os.path.dirname(os.path.abspath(__file__))
+            if os.path.abspath(db_path) == os.path.join(_here, "core_data.db"):
+                import time as _t
+                import traceback as _tb
+                with open(os.path.join(_here, ".runs", "root_db_probe.log"),
+                          "a", encoding="utf-8") as _fh:
+                    _fh.write("=== ROOT DB OPENED %s (cwd=%s) ===\n%s\n"
+                              % (_t.strftime("%Y-%m-%d %H:%M:%S"), os.getcwd(),
+                                 "".join(_tb.format_stack()[:-1])))
+        except Exception:
+            pass
         self._local = threading.local()
         # Ensure connections close even if caller forgets (prevents ResourceWarning)
         self._finalizer = weakref.finalize(self, DatabaseInterface._finalize_cleanup, weakref.ref(self))

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2100" height="2053" viewBox="0 0 2100 2053" font-family="DejaVu Sans"><rect width="2100" height="2053" fill="#ffffff"/>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3a3a3a"/></marker></defs>
+<text x="180" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 3</text>
+<text x="180" y="120" font-size="46" fill="#111111" font-weight="700">The Dependency Chain: Status Per Link</text>
+<text x="180" y="164" font-size="25" fill="#5f5f5f">Why a chain that is strong at the top and broken in the middle produces nothing at all.</text>
+<line x1="180" y1="196" x2="1920" y2="196" stroke="#111111" stroke-width="3"/>
+<rect x="470" y="320" width="1160" height="132" rx="16" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3"/>
+<text x="1050" y="370" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">1 &#183; perception</text>
+<text x="1050" y="412" text-anchor="middle" font-size="21" fill="#7a5049">the system can tell what is in front of it, and tell it apart from what was there before</text>
+<path d="M 1050 452 L 1050 506" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<rect x="470" y="538" width="1160" height="132" rx="16" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3"/>
+<text x="1050" y="588" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">2 &#183; vocabulary</text>
+<text x="1050" y="630" text-anchor="middle" font-size="21" fill="#7a5049">it has terms for what things afford: what can be moved, opened, joined, blocked</text>
+<text x="440" y="612" text-anchor="end" font-size="20" fill="#7a7a72">what the search can reach</text>
+<path d="M 1050 670 L 1050 724" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<rect x="470" y="756" width="1160" height="132" rx="16" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3"/>
+<text x="1050" y="806" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">3 &#183; the objective</text>
+<text x="1050" y="848" text-anchor="middle" font-size="21" fill="#7a5049">it can say what would count as progress here, in its own terms</text>
+<text x="440" y="830" text-anchor="end" font-size="20" fill="#7a7a72">what the search is for</text>
+<path d="M 1050 888 L 1050 942" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<rect x="470" y="974" width="1160" height="132" rx="16" fill="#f3f3f0" stroke="#b8b8b0" stroke-width="3" stroke-dasharray="9,7"/>
+<text x="1050" y="1024" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">4 &#183; planning</text>
+<text x="1050" y="1066" text-anchor="middle" font-size="21" fill="#7a7a72">a route to that objective, chosen under incomplete information</text>
+<path d="M 1050 1106 L 1050 1160" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<rect x="470" y="1192" width="1160" height="132" rx="16" fill="#f3f3f0" stroke="#b8b8b0" stroke-width="3" stroke-dasharray="9,7"/>
+<text x="1050" y="1242" text-anchor="middle" font-size="30" fill="#1a1a1a" font-weight="600">5 &#183; learn and carry</text>
+<text x="1050" y="1284" text-anchor="middle" font-size="21" fill="#7a7a72">name what worked, verify it, and carry it to the next problem</text>
+<rect x="470" y="1414" width="34" height="24" rx="4" fill="#fbeeea" stroke="#9c2b1f" stroke-width="2.5"/>
+<text x="520" y="1435" font-size="22" fill="#5f5f5f">measured, and failing</text>
+<rect x="900" y="1414" width="34" height="24" rx="4" fill="#f3f3f0" stroke="#b8b8b0" stroke-width="2.5" stroke-dasharray="5,4"/>
+<text x="950" y="1435" font-size="22" fill="#5f5f5f">never reached, so never assessed</text>
+<line x1="180" y1="1504" x2="1920" y2="1504" stroke="#dcdcdc" stroke-width="2"/>
+<text x="180" y="1556" font-size="28" fill="#1a1a1a" font-weight="700">Optimising a link that already works cannot rescue one that does not.</text>
+<text x="180" y="1590" font-size="22" fill="#454545" font-weight="400">The chain is ordered by dependency, not by importance. Each link consumes what the one above produces, so effort spent above the break arrives at a step</text>
+<text x="180" y="1621" font-size="22" fill="#454545" font-weight="400">that cannot use it.</text>
+<text x="220" y="1657" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">A step whose input never arrives cannot be diagnosed, only its predecessor can. Which is why a reading taken below the break is not a weak</text>
+<text x="220" y="1689" font-size="23" fill="#2b2b2b" font-weight="400" font-style="italic">reading. It is a reading of nothing.</text>
+<rect x="190" y="1638" width="4" height="61" rx="2" fill="#c8c8c8"/>
+<text x="180" y="1755" font-size="23" fill="#1a1a1a" font-weight="600">Why the middle link is where chains usually break.</text>
+<text x="180" y="1789" font-size="22" fill="#454545" font-weight="400">Perception has obvious failures and obvious tests. Planning has obvious failures and obvious tests. The link between them, having terms for what a</text>
+<text x="180" y="1820" font-size="22" fill="#454545" font-weight="400">situation offers and being able to say what would count as progress, has neither, so it attracts the least attention and the fewest instruments.</text>
+<text x="180" y="1854" font-size="22" fill="#1a1a1a" font-weight="600">A link with no instrument is not a link that works. It is a link nobody has looked at.</text>
+<text x="180" y="1920" font-size="23" fill="#1a1a1a" font-weight="600">What this figure is for.</text>
+<text x="180" y="1954" font-size="22" fill="#454545" font-weight="400">Before asking whether a system is good, ask which link it currently stops at, and whether the answer was measured or assumed. Most improvement effort in</text>
+<text x="180" y="1985" font-size="22" fill="#454545" font-weight="400">practice lands above the break, because that is where the measurements already exist.</text>
+</svg>

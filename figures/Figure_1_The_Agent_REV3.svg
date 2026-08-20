@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1635" viewBox="0 0 2000 1635" font-family="DejaVu Sans"><rect width="2000" height="1635" fill="#ffffff"/>
+<text x="180" y="62" font-size="21" fill="#8a8a80" font-weight="600" letter-spacing="3.5">FIGURE 1</text>
+<text x="180" y="120" font-size="46" fill="#111111" font-weight="700">The Agent: How Structure Grows</text>
+<text x="180" y="164" font-size="25" fill="#5f5f5f">Everything here either produces a residual or consumes the library.</text>
+<line x1="180" y1="196" x2="1820" y2="196" stroke="#111111" stroke-width="3"/>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3a3a3a"/></marker></defs>
+<rect x="600" y="270" width="800" height="110" rx="14" fill="#eceafa" stroke="#5b5bd6" stroke-width="3"/>
+<text x="1000" y="318" text-anchor="middle" font-size="29" fill="#3a3a9e" font-weight="600">&#915;: typed DSL + library</text>
+<text x="1000" y="356" text-anchor="middle" font-size="21" fill="#5b5bd6">holds structure</text>
+<rect x="120" y="390" width="420" height="110" rx="14" fill="#e2f2ec" stroke="#0f6b4a" stroke-width="3"/>
+<text x="330" y="438" text-anchor="middle" font-size="29" fill="#0f6b4a" font-weight="600">ground: RLVR</text>
+<text x="330" y="476" text-anchor="middle" font-size="21" fill="#0f6b4a">the only metric</text>
+<rect x="600" y="420" width="800" height="140" rx="14" fill="#f0f0ec" stroke="#8a8a80" stroke-width="3"/>
+<text x="1000" y="468" text-anchor="middle" font-size="29" fill="#1a1a1a" font-weight="600">per-step loop (POMDP)</text>
+<text x="1000" y="506" text-anchor="middle" font-size="21" fill="#5f5f5f">perceive &#183; plan &#183; act &#183; predict</text>
+<text x="1000" y="538" text-anchor="middle" font-size="21" fill="#5f5f5f">one bet per object slot, every action</text>
+<rect x="600" y="600" width="800" height="150" rx="14" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3"/>
+<text x="1000" y="648" text-anchor="middle" font-size="29" fill="#9c2b1f" font-weight="600">residual R indexed by object slot</text>
+<text x="1000" y="686" text-anchor="middle" font-size="21" fill="#9c2b1f">transition &#183; reward &#183; bracket</text>
+<text x="1000" y="718" text-anchor="middle" font-size="21" fill="#9c2b1f">a global R near zero with one live slot residual is a legal state</text>
+<rect x="600" y="790" width="800" height="120" rx="14" fill="#f0f0ec" stroke="#8a8a80" stroke-width="3"/>
+<text x="1000" y="838" text-anchor="middle" font-size="29" fill="#1a1a1a" font-weight="600">boundary diff</text>
+<text x="1000" y="876" text-anchor="middle" font-size="21" fill="#5f5f5f">where to look: broken vs novel</text>
+<rect x="600" y="950" width="800" height="150" rx="14" fill="#fbeeea" stroke="#9c2b1f" stroke-width="3"/>
+<text x="1000" y="998" text-anchor="middle" font-size="29" fill="#9c2b1f" font-weight="600">mint &#966; if the description length pays</text>
+<text x="1000" y="1036" text-anchor="middle" font-size="21" fill="#9c2b1f">guards: support &#183; reach &#183; novel</text>
+<text x="1000" y="1068" text-anchor="middle" font-size="21" fill="#9c2b1f">support evaluated per slot</text>
+<path d="M 1000 382 L 1000 415" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1000 562 L 1000 595" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1000 752 L 1000 785" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1000 912 L 1000 945" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 545 445 L 595 445" stroke="#3a3a3a" stroke-width="3.5" marker-end="url(#ar)"/>
+<path d="M 1405 1025 L 1560 1025 L 1560 325 L 1408 325" stroke="#3a3a3a" stroke-width="3.5" fill="none" marker-end="url(#ar)"/>
+
+<line x1="180" y1="1160" x2="1820" y2="1160" stroke="#dcdcdc" stroke-width="2"/>
+<text x="180" y="1212" font-size="28" fill="#1a1a1a" font-weight="700">The residual is indexed by object slot, not aggregated.</text>
+<text x="180" y="1246" font-size="22" fill="#454545" font-weight="400">Support is satisfied when some slot carries positive mass, so a global residual near zero with one live slot is a legal state and not an inert</text>
+<text x="180" y="1277" font-size="22" fill="#454545" font-weight="400">one.</text>
+<text x="180" y="1311" font-size="22" fill="#1a1a1a" font-weight="600">Aggregating across slots is how a live signal disappears into an average.</text>
+<text x="180" y="1377" font-size="23" fill="#1a1a1a" font-weight="600">The ground enters as the only metric.</text>
+<text x="180" y="1411" font-size="22" fill="#454545" font-weight="400">Everything else either produces a residual or consumes the library. These do not count:</text>
+<text x="224" y="1445" font-size="22" fill="#454545" font-weight="400">coverage, and compression achieved</text>
+<circle cx="200" cy="1438" r="4.5" fill="#8a8a80"/>
+<text x="224" y="1479" font-size="22" fill="#454545" font-weight="400">predicates minted, and credibility accrued</text>
+<circle cx="200" cy="1472" r="4.5" fill="#8a8a80"/>
+<text x="180" y="1513" font-size="22" fill="#454545" font-weight="400">They are frame-internal. A frame cannot score itself with a quantity it also produces.</text>
+<text x="180" y="1567" font-size="19" fill="#8a8a80" font-weight="400">The gap is measured per object, not per step. A system that averages across objects has thrown away the only signal that says where to look.</text>
+
+</svg>
