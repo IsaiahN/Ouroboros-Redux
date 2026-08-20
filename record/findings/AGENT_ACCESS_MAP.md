@@ -11,13 +11,13 @@ unmeasured cell is a specification of what to measure, not a guess.
 |---|---|---|---|---|
 | 1 | **Frame** (env observation) | 64×64 grid(s) | ~free | multi-frame payloads normalised to last (the `post` fix) |
 | 2 | **Perceiver / object extraction** | objects, palette, regions | UNMEASURED | inside the 2.7–10 act/min envelope for L0 workers |
-| 3 | **Context dict** (`ContextBuilder.to_dict`) | **83 keys provided; 34 consumed by rungs** | ~free | 55 provided-and-unread; 2 read-and-never-written (`game_state_mode` dead branch) |
+| 3 | **Context dict** (`ContextBuilder.to_dict`) | **83 keys provided; 34 consumed by rungs** | **MEASURED ~0** (225 calls, 0.0s/420s window) | 55 provided-and-unread; 2 read-and-never-written (`game_state_mode` dead branch) |
 | 4 | **75 decision rungs** (registry-ordered) | candidate action + confidence each | UNMEASURED per-rung | priority table diverges from class defaults (known defect) |
 | 5 | **Banked routes** — `winning_sequences` | replayable sequences | **~136–730 s at startup** (replay tail) | recordings; mastery-lite gated; the "handed" item under W3 earn-through |
 | 6 | **Salient prefixes** | banked prefix + divergence detection | UNMEASURED | consumption-recorded (corpse guard) |
 | 7 | **Frontier book** | avoid-set of fatal cells | cheap (set lookup) | earned, per-level |
 | 8 | **Γ atoms** (fabric `atoms` stream) | learned EFFECT/COMPOSITE atoms | query per call: UNMEASURED; **application: the 95% term** | 1,829 structural; no applicability index yet (W2a) |
-| 9 | **The planner** (`plan_to_identity`) | steps or nothing — **has only ever returned nothing** | **~80 s/call; 95.3% of slow-worker runtime** | goal-blind candidate selection (PLANNER_ALGORITHM_READ); W2a/b/c aimed here |
+| 9 | **The planner** (`plan_to_identity`) | steps or nothing — **has only ever returned nothing** | **92.5% post-index (was 95.3%); ~40s/call (was ~80)** | index landed, share held → vectorisation successor (F1_VERDICT); W2b/c next |
 | 10 | **Goal hypotheses** (abduction stream) | structural predicates from own level-ups | cheap (tail read) | earned; feeds pred-mode planning |
 | 11 | **Import queue / collective fabrics** | other agents' residual records | tail-read WINDOW=32: cheap | **cross-mounted at boot (OURO_FABRIC_SEEDS)** — the Stream-B-as-A defect, W3 removes auto-load |
 | 12 | **Seed primitives registry** (~4,000 lines) | executable primitives via `PrimitiveSuggesterRung` | UNMEASURED | the handed-capability mass; W3 sorts priors from capabilities |
@@ -41,3 +41,7 @@ unmeasured cell is a specification of what to measure, not a guess.
 *Sources: D5_PROFILE_RESULT, PLANNER_ALGORITHM_READ, scan_context_keys run, F8A/LINK3 reads,
 the live-closure computation, and the startup-tail measurement. Each number carries its
 origin; each UNMEASURED is a named gap.*
+
+**Amendment (2026-08-20):** cost × contribution is the ranking, per Seat 4 — see the map
+amendment section in `F1_VERDICT_AND_SHADOW_TEST.md`. Row 3's cost is now measured (~0);
+row 9 updated post-index.

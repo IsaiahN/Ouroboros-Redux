@@ -14,3 +14,13 @@ measured factor with no depth regression on the split-half read; F2 known-negati
 where cheap routes fail MUST still reach the planner (starvation guard: the scheduler may
 delay, never permanently deny); F3 the deferral is narrated, never silent.
 **UNDO:** remove the two gate conditions; the planner reverts to engage-on-atoms.
+
+**RIDER (2026-08-20, the shadow test's Interruption finding):** on a mid-plan abort the
+scheduler must ROUTE the abort — *world moved* (state key changed under the plan: re-plan,
+do not penalise the plan) vs *plan wrong* (state as predicted, step failed: penalise). The
+rebinding conflation one layer up; one discriminator closes it. Falsifier at briefing:
+constructed cases both directions.
+
+**EVIDENCE UPGRADE (F1 window):** engage-on-atoms DOUBLED planner calls (5→10) in the
+capacity the index freed — every speedup is reabsorbed by the search that returns nothing.
+W2b is what stops that, not an optimisation.
