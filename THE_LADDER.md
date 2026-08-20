@@ -1103,3 +1103,56 @@ they were repairs forgot before anyone asked.
 
 **STATUS: READ ONLY. NOT BUILT.** It is agent code and it needs its own prereg — the retention
 window, what clears the mark, and a falsifier that the mark cannot leak into unrelated slots.
+
+## NO THRESHOLD IN WALL-CLOCK (canon, Seat 3, 2026-08-19)
+
+> **Any threshold expressed in wall-clock is a threshold that will be wrong when the
+> throughput changes.**
+
+**THREE INSTANCES IN ONE DAY, WHICH IS WHY IT IS CANON AND NOT A NOTE:**
+1. **The VACUUM trigger** was `size > VACUUM_AT_MB` at a 2-hour recycle. A 5-minute boundary
+   would have fired it ~24× more often on the same files. **Re-derived onto FRAGMENTATION**
+   (`freelist_count/page_count`) — the condition VACUUM actually repairs — which is
+   cadence-free by construction.
+2. **The split-half read** was specified at "24 h and 72 h". **Replaced by a SESSION COUNT
+   derived per game** from its own event rate, `k = ceil(ln(0.05)/ln(1-p))`. The mode flip
+   changed throughput the same day, which would have made any hour-based window mean a
+   different amount of evidence before and after.
+3. **`RECYCLE_MIN = 120` minutes** — still wall-clock, and **correctly so**: it is a bound on
+   *leak accumulation in a process*, and a leak grows with elapsed time and allocations, not
+   with sessions. **Named here so the exception is deliberate rather than overlooked.**
+
+**THE TEST TO APPLY:** *what is this threshold really about?* If the answer is a **state** —
+fragmentation, evidence, sessions, residual mass — express it in that state. If the answer is
+genuinely **elapsed time** — process age, cache expiry, a rate limit's window — wall-clock is
+correct and should say why. **A clock standing in for a state is the defect; a clock measuring
+time is not.**
+
+**AND THE FAILURE IS SILENT, WHICH IS WHAT MAKES IT WORTH A RULE.** A clock-based threshold
+does not break when throughput changes — **it keeps firing, at the wrong frequency, reporting
+nothing unusual.** The disk trigger would have vacuumed 300×/hour and looked healthy; the
+24-hour read would have compared a slow day against a fast one and called the difference a
+trend. **Neither would have announced itself.**
+
+**COROLLARY, FROM SEAT 3:** *"when possible try not to run on clock-time (it's too slow)."*
+A state-based trigger fires **when the condition holds**, which is generally sooner than the
+next scheduled tick and never later. The split-half read crosses **per game, in hours rather
+than a day** — and games cross at different times because of the replay-startup tail, so
+**each is read as it crosses rather than the whole roster waiting for the slowest.**
+
+### THE SWEEP, AND THE PRINCIPLE ALREADY HAD PRECEDENT HERE
+`safe_cleanup.py` retains **by count** almost everywhere — `system_logs_retention = 50000`,
+`action_traces_retention = 50000`, `player_state_history_retention = 100000` — and **by clock
+in exactly two places**: `score_history_retention_days = 7` (:171) and
+`cohort_wisdom_retention_days = 7` (:180). Under the offline throughput, "7 days" is a
+different quantity of evidence than it was last week, and neither will say so.
+
+**AND THE CONVERSION ALREADY HAPPENED ONCE, 500 LINES AWAY.** `_clean_zero_score_games`
+(:676-684) was rewritten on 2026-08-13 to retain by **generation**, and its docstring ends
+with the rule verbatim: ***"No time assumptions."*** So this project derived the principle,
+applied it at one site, and left two siblings on the clock in the same file.
+
+**THAT IS SITE-SCOPED KNOWLEDGE, arriving on the very rule that was just made canon** — the
+knowledge existed, in writing, in that file, and did not reach the two settings beside it.
+**Not fixed here:** `safe_cleanup` is the deletion path and D-1/D-2 are still open on it, so
+these two go to Seat 3 with the rest rather than being changed under a general principle.
