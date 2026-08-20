@@ -86,3 +86,35 @@ The fix is W2b (the planner engages as last resort) + stage-2 candidate selectio
 which the colour read now proposes the relational signature as lead, pending the π-replay
 falsifier. W2b's brief is pinned and dispatched; stage-2 waits on the π-replay read per
 Seat 3's "answer before stage 2".
+
+
+---
+
+# WINDOW FOUR (2026-08-20, post-W2b): THE SHARE COLLAPSED — AND THE GENERATION FINISHED
+
+| | w1 (base) | w2 (index) | w3 (vector) | **w4 (scheduled)** |
+|---|---|---|---|---|
+| `apply_effect` share | 95.3% | 92.5% | 87.7% | **27.0%** |
+| planner calls | 5 | 10 | 17 | **4** |
+| loop cycles | 10 | 15 | 22 | **75** |
+| window used | 420s (killed) | 420s (killed) | 420s (killed) | **56s — RAN OUT OF GENERATION** |
+
+**W2b's F1 PASSES.** Engagement fell from 77% of cycles (17/22) to **5% (4/75)** — the gates
+bound the planner instead of the planner absorbing the budget. The reabsorption law did not
+hold this window **because W2b is the thing built to break it**, and it did.
+
+**The milestone under the numbers: cn04 — the slowest worker in the fleet, 0.1 actions/min
+at the baseline — completed a FULL GENERATION in 56 seconds.** Windows one through three
+could not finish inside 420s at all; the measurement that was obstructed by the thing it
+measured now has 6.5× headroom. Cycle throughput vs window three: ~25×.
+
+**And the map's prediction fired on schedule:** with row 9 shrunk, the unmeasured cluster
+surfaced — `decision_rung_system.decide` is now visible at 19.7% (75 calls), the next
+largest term after the (now bounded) planner. The 32-engine/rung decomposition read is no
+longer a blind spot on a map; it is the next number in the profile.
+
+Composition note: four builds each did their stated job — index pruned safely, vectorisation
+cut per-application cost ~29×, scheduling bounded engagement — and the fifth (extent premium)
+now gates what enters Γ going forward. The remaining planner cost per call (~5.9s cum) is
+still the search-that-returns-nothing; it is now RARE instead of constant, and the re-point
+build (coarse-signature intersection) is what makes it fertile instead of empty.
