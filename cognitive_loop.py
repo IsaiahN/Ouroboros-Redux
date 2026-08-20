@@ -92,6 +92,8 @@ def _seed_imp(loop) -> None:
             from engines.egocentric.consumer import seed_imports
             _n = seed_imports(_g, _f, str(getattr(loop, "_game_id", "") or "game"),
                               int(getattr(loop, "_ego_level", 0) or 0) + 1)
+            # W1 narration: cross-role candidates in play -> [COL]/cross-role
+            loop._narr_import_n = int(_n or 0)
             if _n:
                 print(f"[IMPORT] seeded {_n} candidate atom(s) imported=True")
     except Exception:
@@ -214,6 +216,135 @@ def _hyd_ver(loop) -> Dict[str, int]:
     except Exception:
         pass
     return out
+
+
+def _narr_range(loop):
+    """W1 (PREREG_W1_NARRATION.md): the step's memory-range tag, resolved from
+    O(1) IN-HAND state only (no scans, no queries -- the F2 overhead law):
+    read-only seed mounts with inherited ideas active -> [COL]/inherited-library;
+    cross-agent import candidates seeded into Gamma -> [COL]/cross-role;
+    book-hydrated own history (or own re-seeded priors) -> [OWN]; else [EP].
+    Nothing reads the kin scope at decision time today, so role-pool is
+    resolvable by the pure function but never claimed falsely here."""
+    from engines.egocentric import narration as _na
+    _fab = getattr(loop, "_ego_fabric", None)
+    _seeded = (len(getattr(loop, "_ego_seeded", None) or {})
+               + len(getattr(loop, "_ego_seeded_clicks", None) or {}))
+    _inh = _seeded if (_fab is not None and getattr(_fab, "seeds", None)) else 0
+    _own = (len(getattr(loop, "_atom_verified", None) or {})
+            + (0 if _inh else _seeded))
+    return _na.memory_range(
+        replay=False, inherited_n=_inh, kin_n=0,
+        collective_n=int(getattr(loop, "_narr_import_n", 0) or 0), own_n=_own)
+
+
+def _narr_bet(loop, action_num, cf, pg0) -> None:
+    """W1 (PREREG_W1_NARRATION.md): the BET-SIDE narration -- emitted in
+    cycle() BEFORE the action executes. Narration is the decision, not a log:
+    the per-slot prediction, ROUTE bin + why-not-the-neighbour-bin, mint
+    candidate/guard-zero and the memory-range tag are written at decision
+    time, and ACT then references the BET record's id (earlier per-step
+    sequence number -- falsifier F1's precedence check). PLAN narrates
+    drove/shadowed/no-steps with the g-gate that stopped it (pg0 = the gate
+    counters before this cycle's plan block ran). One-line call site by the
+    window law; containment: never raises. O(1) per event."""
+    try:
+        from engines.egocentric import narration as _na
+        _fab = getattr(loop, "_ego_fabric", None)
+        _gid = str(getattr(loop, "_game_id", "") or "")
+        if _fab is None:
+            if not _gid:
+                return          # no started game: nothing to narrate about
+            # REACHABILITY (the _goal_bank seam): the lazy fabric init lives in
+            # record_result, so without this the first step's bet would be
+            # silent -- and a bet recorded after the action is no bet at all.
+            from engines.egocentric.fabric import KnowledgeFabric
+            _fab = KnowledgeFabric(
+                "ego_fabric",
+                agent_id=str(getattr(loop, "_ego_agent_id", "") or "agent"),
+                kin_key="v4")
+            loop._ego_fabric = _fab
+        _nsp = getattr(loop, "_narration", None)
+        if _nsp is None or _nsp.fabric is not _fab:
+            # rebind when the seeded fabric replaces the pre-cycle instance
+            _nsp = _na.NarrationSpine(_fab, game=_gid or "game")
+            loop._narration = _nsp
+        _nsp.start_step(int(getattr(loop, "_actions_taken", 0) or 0))
+        _rng, _cc = _narr_range(loop)
+        # per-slot predictions: the bank's committed slots (consumed here)
+        _slots = getattr(loop, "_narr_slots", None) or []
+        loop._narr_slots = None
+        _own_n = len(getattr(loop, "_atom_verified", None) or {})
+        _pbin, _why = _na.predict_bin(bool(_slots), _own_n > 0)
+        _slotmap = {str(_s): {"predicted": "holds"} for _s in _slots}
+        # mint at bet time: a queued candidate, or SUPPORT is the zero (no
+        # residual exists before the action lands)
+        _rt = getattr(loop, "_residual_router", None)
+        _pend = bool(_rt is not None and _rt.mint_queue)
+        _nsp.bet(slots=_slotmap, route_bin=_pbin, why_not=_why,
+                 mint_candidate=("pending" if _pend else None),
+                 guard_zero=(None if _pend else _na.GUARD_SUPPORT),
+                 rng=_rng, col_class=_cc)
+        _pv = _na.plan_verdict(pg0, getattr(loop, "_plan_gate", None) or {})
+        _nsp.plan(_pv["mode"], _pv["gate"], rng=_rng, col_class=_cc)
+        _rung = (getattr(cf, "rung_name", "") or getattr(cf, "action_speed", "")
+                 or "")
+        _nsp.act(int(action_num), _rung, rng=_rng, col_class=_cc)
+        # clear the outcome caches: record_result closes THIS step only
+        loop._narr_settle = None
+        loop._narr_mint = None
+    except Exception:
+        _swal(loop, "OTHER")
+
+
+def _narr_close(loop, post_array, frame_changed) -> None:
+    """W1 (PREREG_W1_NARRATION.md): the OUTCOME-SIDE narration -- record_result
+    closes the loop against the pre-action bet by reference: PERCEIVE (per
+    slot, never aggregated), ROUTE (settled bin + why-not-the-neighbour), MINT
+    (candidate or guard-zero + both sides of the MDL bargain), ECHO (settled
+    vs candidate). Reads ONLY this step's cached settle/mint state -- no
+    scans, no queries (F2). One-line call site; containment: never raises."""
+    try:
+        from engines.egocentric import narration as _na
+        _nsp = getattr(loop, "_narration", None)
+        if _nsp is None:
+            return
+        _rng, _cc = _narr_range(loop)
+        _ns = getattr(loop, "_narr_settle", None) or {}
+        loop._narr_settle = None
+        # PERCEIVE: prediction vs outcome, PER SLOT -- never aggregated
+        _slots = {str(_s): {"bet": bool(_v.get("bet")),
+                            "residual": float(_v.get("residual", 0.0) or 0.0),
+                            "bin": _v.get("bin")}
+                  for _s, _v in _ns.items()}
+        _nsp.perceive(_slots, rng=_rng, col_class=_cc)
+        # ROUTE: the primary slot's bin + the discriminating fact vs neighbour
+        _prim = ("WORKSPACE" if "WORKSPACE" in _ns
+                 else (sorted(_ns)[0] if _ns else None))
+        _pbin = (_ns.get(_prim) or {}).get("bin") if _prim else None
+        _nsp.route(_pbin, _na.route_why_not(_pbin),
+                   {_s: _v.get("bin") for _s, _v in _ns.items()},
+                   rng=_rng, col_class=_cc)
+        # MINT: the verdict this step (if any offer reached the mint), the
+        # guard that zeroed otherwise, and both sides of the MDL bargain
+        _mv = getattr(loop, "_narr_mint", None)
+        loop._narr_mint = None
+        _chg = None
+        _pre = getattr(loop, "_w4c_pre_frame", None)
+        if (_pre is not None and post_array is not None
+                and getattr(_pre, "shape", None) == post_array.shape):
+            _chg = int((_pre != post_array).sum())
+        _mc = _na.mint_close(_mv, _chg)
+        _nsp.mint_point(_mc["candidate"], _mc["verdict"], _mc["guard_zero"],
+                        _mc["bargain"], rng=_rng, col_class=_cc)
+        # ECHO: what settled, or *candidate* stated as such
+        _settled = any(bool(_v.get("bet")) for _v in _ns.values())
+        _status = ("candidate" if _mc["candidate"]
+                   else ("settled" if _settled else "silent"))
+        _nsp.echo(_status, {"frame_changed": bool(frame_changed)},
+                  rng=_rng, col_class=_cc)
+    except Exception:
+        _swal(loop, "OTHER")
 
 
 # =============================================================================
@@ -548,6 +679,13 @@ class CognitiveLoop:
         self._prev_hud_region_states = {}
         self._reference_panel = None
         self._productive_rotation_index = 0  # Fix 3: rotate among productive targets
+
+        # ═══ W1 (PREREG_W1_NARRATION.md): fresh narration state per game ═══
+        self._narration = None      # spine rebinds to this game's fabric/id
+        self._narr_slots = None     # the bet's per-slot stake (per step)
+        self._narr_settle = None    # the step's per-slot outcome (per step)
+        self._narr_mint = None      # the step's mint verdict (per step)
+        self._narr_import_n = 0     # cross-role candidates seeded (per game)
 
         # ═══ RESET COUNTER (instrumentation pair) + MOVEMENT STACK state ═══
         self._reset_anchor = None        # (shape, bytes) of the anchor board
@@ -1071,6 +1209,9 @@ class CognitiveLoop:
             timestamp=time.time(),
             level=self._current_level,
         )
+        # W1 narration: the plan-gate counters BEFORE this cycle's plan block
+        # runs -- the delta names drove/shadowed/no-steps + the stopping gate.
+        _npg0 = dict(getattr(self, "_plan_gate", None) or {})
 
         # ═══════════════════════════════════════════════════════════════
         # PHASE 1: PERCEIVE
@@ -1383,12 +1524,22 @@ class CognitiveLoop:
                             _slot_states["REFERENCE"] = _cframe
                         self._predictor_bank.commit(_slot_states,
                                                     action=int(action_num))
+                        # W1 narration: the bet's per-slot stake, consumed by
+                        # the bet-side emitter below (O(1))
+                        self._narr_slots = sorted(_slot_states)
                         # retain the committed pre-frame: the mint's `before`
                         self._w4c_pre_frame = _cframe.copy()
             except Exception:
                 _swal(self, "BANK_SETTLE")
         except Exception:
             _swal(self, "SPINE")
+
+        # ═══ W1 (PREREG_W1_NARRATION.md): BET BEFORE ACT — the bet-side narration
+        # (BET, PLAN, ACT) is emitted HERE, after every pre-empt has settled the
+        # final action but BEFORE the action executes (the caller executes it
+        # after cycle returns). ACT references the BET record's id with an
+        # earlier per-step sequence number — falsifier F1's precedence check. ═══
+        _narr_bet(self, action_num, cf, _npg0)
 
         # Store frame and action info for next cycle
         frame_array = self._perceiver._to_numpy(frame)
@@ -1426,9 +1577,10 @@ class CognitiveLoop:
         Feeds the egocentric observer and accrues the per-action centroid delta
         map on the goal spine (the same sensing path record_result uses), so a
         post-replay handoff arrives with a named body and an established
-        move-map instead of frontier amnesia. Pure by construction: no fabric,
-        no seeding, and absolutely no synthetic reward from replayed steps
-        (the wheel rule).
+        move-map instead of frontier amnesia. No seeding and absolutely no
+        synthetic reward from replayed steps (the wheel rule); the ONE write is
+        the [REPLAY] narration record (F3, PREREG_W1_NARRATION.md) -- playback
+        marked as playback, never a fresh decision, never a bet.
         """
         try:
             if getattr(self, "_ego_observer", None) is None:
@@ -1452,6 +1604,33 @@ class CognitiveLoop:
         except Exception:
             self._ego_feed_errors = getattr(self, "_ego_feed_errors", 0) + 1
             _swal(self, "OBSERVER")
+        # ═══ W1/F3 (PREREG_W1_NARRATION.md): a replayed/observe-only step
+        # narrates as [REPLAY] — side="replay", range=REPLAY, no bet, no
+        # reference. Playback is never laundered into reasoning. ═══
+        try:
+            _fab = getattr(self, "_ego_fabric", None)
+            _gid = str(getattr(self, "_game_id", "") or "")
+            if _fab is None and _gid:
+                # the _goal_bank REACHABILITY seam: replay runs BEFORE the
+                # cycle's lazy fabric init on a loop built fresh this episode.
+                # Gated on a STARTED game (_game_id set): a bare loop with no
+                # game has nothing to narrate and creates nothing on disk.
+                from engines.egocentric.fabric import KnowledgeFabric
+                _fab = KnowledgeFabric(
+                    "ego_fabric",
+                    agent_id=str(getattr(self, "_ego_agent_id", "") or "agent"),
+                    kin_key="v4")
+                self._ego_fabric = _fab
+            if _fab is not None:
+                _nsp = getattr(self, "_narration", None)
+                if _nsp is None or _nsp.fabric is not _fab:
+                    from engines.egocentric.narration import NarrationSpine
+                    _nsp = NarrationSpine(_fab, game=_gid or "game")
+                    self._narration = _nsp
+                _nsp.replay(int(action),
+                            step=int(getattr(self, "_actions_taken", 0) or 0))
+        except Exception:
+            _swal(self, "OTHER")
 
     def bank_replay_levelup(self, game, level, pre, post) -> int:
         """G-C REPLAY SEAM (LINK3_AUDIT addendum): the second — and until now
@@ -1809,6 +1988,15 @@ class CognitiveLoop:
                     self._w4c_step_atom = (None, None)
                     for _slot, _stl in out.items():
                         _bin = self._residual_router.route(_slot, _stl)
+                        # W1 narration: per-slot outcome (bet/residual/bin) for
+                        # the close; lazy init AFTER the .route anchor (the
+                        # window law), cleared per step by bet/close.
+                        if getattr(self, "_narr_settle", None) is None:
+                            self._narr_settle = {}
+                        self._narr_settle[_slot] = {
+                            "bet": bool(_stl.get("bet")),
+                            "residual": float(_stl.get("residual", 0.0) or 0.0),
+                            "bin": _bin}
                         if (_slot == "WORKSPACE"
                                 and _stl.get("from_known_atom")
                                 and _stl.get("atom_key") is not None):
@@ -1872,6 +2060,7 @@ class CognitiveLoop:
                                 _wct["mint_tried"] += 1
                                 _wct["mint_passed"] += (
                                     1 if _wv.get("verdict") == "mint" else 0)
+                            self._narr_mint = dict(_wv)  # W1 narration
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')} (NOVEL bootstrap)")
                     while _rt.mint_queue:
@@ -1887,6 +2076,7 @@ class CognitiveLoop:
                                 _wct["mint_tried"] += 1
                                 _wct["mint_passed"] += (
                                     1 if _wv.get("verdict") == "mint" else 0)
+                            self._narr_mint = dict(_wv)  # W1 narration
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')}")
                         # below the bar: dropped — desperation makes the
@@ -1913,6 +2103,7 @@ class CognitiveLoop:
                                 _wct["mint_tried"] += 1
                                 _wct["mint_passed"] += (
                                     1 if _wv.get("verdict") == "mint" else 0)
+                            self._narr_mint = dict(_wv)  # W1 narration
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')} (primal)")
             except Exception:
@@ -2225,6 +2416,12 @@ class CognitiveLoop:
                       f"established={sorted(self._goal_spine.established())}")
         except Exception:
             _swal(self, "SPINE")
+
+        # ═══ W1 (PREREG_W1_NARRATION.md): the outcome-side narration closes the
+        # loop against this step's pre-action bet by reference — PERCEIVE (per
+        # slot), ROUTE (bin + why-not), MINT (candidate/guard-zero + bargain),
+        # ECHO (settled vs candidate). O(1): cached step state only. ═══
+        _narr_close(self, post_array, frame_changed)
 
         # ═══ MOVEMENT STACK (FIRST ACTIVATION, rung 0c): CursorAgency + GridNav ═══
         # CursorAgency learns the own-avatar displacement map from REAL move

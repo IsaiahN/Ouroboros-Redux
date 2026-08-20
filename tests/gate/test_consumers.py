@@ -52,6 +52,16 @@ ALLOWLIST: Dict[str, str] = {
         "by consumer._persist_rho_readings) are read at every diagnostic "
         "beat beside the counters; runtime writes, the seat reads -- the "
         "adoption rung is unanswerable without this stream"),
+    "narration": (
+        "PREREG_W1_NARRATION.md (W1: the narration spine + memory at three "
+        "ranges): the agent narrates its own loop in the loop's vocabulary -- "
+        "bet-side records (BET/PLAN/ACT) BEFORE the action executes, "
+        "outcome-side records (PERCEIVE/ROUTE/MINT/ECHO) closing against the "
+        "bet by reference, every record tagged [EP]/[OWN]/[COL] ([REPLAY] for "
+        "playback). THE CONSUMER LANDS WITH THE FALSIFIER EXPERIMENT (arm C, "
+        "narrate-and-consume: ROUTE/MINT read their own immediately-prior "
+        "narration state vs arm W write-but-never-read); this entry is "
+        "deleted then"),
     "refit_queue": (
         "PREREG_REFIT_DESTINATION.md (Seat 3 ruling, 2026-08-19): ROUTE has four "
         "bins and BROKEN-rebinding was the only one with no destination -- it "
