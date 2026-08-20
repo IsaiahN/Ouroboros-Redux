@@ -4,9 +4,28 @@
 **STATUS: PREREG + BUILDER BRIEF. Agent code — a firewalled builder writes it.** This document
 is the brief: mechanics only, no game specifics, predicates named not answers.
 
+## THE CORRECTION THAT CHANGES WHAT GETS BUILT (Seat 3, 2026-08-20)
+> **Narration is not a log written after a decision. It IS the decision** — the loop's step 1
+> is perceive, BET, act, observe: the bet comes before the action and the residual is the gap
+> between them. **An action taken without a prediction attached produces no residual — not a
+> small one, none. There was nothing to be wrong against.**
+
+So the emitter fires **BEFORE the action**: the bet (per-slot prediction), the bin reasoning,
+the candidate, the source tags — written at decision time, with the action taken *from* that
+state. The post-action lines (ECHO, outcome) close the loop against the pre-action bet.
+An agent that acts and then explains has skipped step 1 and started at step 2; the
+explanation afterward is a reconstruction, and it may or may not be true.
+
+**And this sharpens the falsifier rather than replacing it:** if narration were written after
+the fact, the two arms would be indistinguishable **by construction** — you cannot consume
+what did not exist when the decision was made. **The narrate-and-consume arm is only a real
+arm if narration precedes the action.** F1 therefore gains a precedence check: every ACT
+record must reference the id of a BET record with an earlier sequence number in the same step.
+
 ## WHAT IT IS
 One build, two faces (Seat 3: *"one change, not two"*):
-1. **The agent narrates its own loop, in the loop's vocabulary** — at six points per cycle:
+1. **The agent narrates its own loop, in the loop's vocabulary** — bet-side lines BEFORE the
+   action, outcome-side lines after, at six points per cycle:
    - **PERCEIVE**: prediction vs outcome, per slot — never aggregated.
    - **ROUTE**: which of the four bins, **and why not the neighbour bin** (the discriminating
      fact, e.g. *residual > eps AND from_known_atom → BROKEN·mechanism, not NOVEL*).
