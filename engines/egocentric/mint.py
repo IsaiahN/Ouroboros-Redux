@@ -68,6 +68,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
+from engines.egocentric import applicability as _applicability
 from engines.egocentric import consumer as _consumer
 from engines.egocentric import effects as _effects
 
@@ -270,6 +271,14 @@ class MDLMint:
         # shared vocabulary, computed once above from the full before/after frames)
         # travels with the record; recognition later is a lookup, not an application loop.
         phi["sigma"] = sigma
+
+        # W2a STAGE 1 (PREREG_W2_APPLICABILITY_INDEX): the ANCHOR SIGNATURE at
+        # mint time -- context-patch dims, palette set, cheap content key -- so
+        # the planner's pre-filter is a lookup, not a derivation. DERIVED STATE:
+        # applicability.signature_of recomputes the identical signature on read
+        # for any atom that predates this field (backfill-on-read, never a
+        # migration); the stored copy is a cache, never the sole holder.
+        phi[_applicability.ASIG_FIELD] = _applicability.anchor_signature(phi)
 
         # Mint: pay the cost, cash the pocket. Full-surprise support is ledgered as w.
         # THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): this is THE LOCAL MINT

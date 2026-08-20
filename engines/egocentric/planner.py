@@ -36,6 +36,17 @@ untyped Gamma). No reference AND no predicate -> None: a target is evidence-back
 or absent, never invented. Everything else -- budget, depth, memoization, replay
 verification, feasibility -- is shared between the two modes.
 
+W2a STAGE 1 (PREREG_W2_APPLICABILITY_INDEX): the APPLICABILITY PRE-FILTER.
+D5 measured 95.3% of a slow worker's runtime inside apply_effect -- every atom
+applied at every anchor. Before the search starts, the frame's signature (dims
++ palette, plus the reference's in reference mode) is read ONCE and the
+candidate set is pruned to atoms whose ANCHOR SIGNATURES can possibly match
+(applicability.prune_candidates -- O(1) set/dim comparisons per atom, palette
+closure over introduced colours, inverse-path aware). Conservative: an atom
+that CAN apply is never pruned; pruned-to-empty is the same ANCHOR_MISS the
+exhaustive search would have reached with zero applications fired. Only WHICH
+candidates are evaluated changes -- never how apply_effect judges them.
+
 L1 (KNOBS A2, REGISTER L): cost_per_action is a MEASURED LATENT, not a
 constant. A caller may still pass an explicit cost (behavior and the returned
 dict byte-identical to current); with cost_per_action=None the planner asks
@@ -57,6 +68,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from engines.egocentric.applicability import frame_signature, prune_candidates
 from engines.egocentric.discrepancy import compute_d
 from engines.egocentric.effects import apply_effect, apply_inverse, invert_transform
 from engines.egocentric.goal_abduction import satisfies
@@ -201,6 +213,21 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
         _set_reason("NO_APPLICABLE_ATOMS")
         return None
     atoms = {aid: gamma.get(aid) for aid in ids}
+    # ── W2a STAGE 1 (PREREG_W2_APPLICABILITY_INDEX): the applicability pre-filter.
+    # The frame signature is read ONCE per call; each candidate then costs O(1)
+    # dim/set comparisons -- no apply_effect, no array scans (F4). An atom whose
+    # context dims exceed every target frame, or whose required palette no
+    # reachable colour set covers (closure over kept atoms' outputs; inverse
+    # path counted in reference mode), CANNOT match anywhere and is skipped.
+    # Conservative only (F2): when in doubt the candidate is kept; pruned-to-
+    # empty is the same ANCHOR_MISS the exhaustive search would have reached
+    # with zero applications fired.
+    fsig = frame_signature([ws] if pred_mode else [ws, ref])
+    ids = prune_candidates(ids, atoms, fsig, resolver=gamma.get,
+                           bidirectional=not pred_mode)
+    if not ids:
+        _set_reason("ANCHOR_MISS")        # atoms exist but none can anchor here
+        return None
     inv_ids = [aid for aid in ids if _invertible(atoms[aid])]
 
     # -- one call, one Gamma read: atoms fetched once, applications memoized --------
