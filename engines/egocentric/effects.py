@@ -810,7 +810,8 @@ def minimise_atom(atom: Dict[str, Any],
     same rule. Cells that DIFFER become DONT_CARE -- a cell that varied across
     successful firings cannot be a precondition, so dropping it is safe BY
     CONSTRUCTION. The changed cells and one ring of 8-neighbourhood around
-    them are ALWAYS retained regardless of variation (_ring_of). The stored
+    them are ALWAYS retained regardless of variation (_ring_of), as are any
+    conflict-pinned cells (ctx_conflict_cells -- see below). The stored
     context only ever SHRINKS (a DONT_CARE never comes back: monotone), and
     the ORIGINAL full context is preserved in `context_full` the first time
     minimisation touches the atom (the undo -- held until Seat 3 rules on
@@ -832,6 +833,17 @@ def minimise_atom(atom: Dict[str, Any],
         return None
     changed = ctx != out
     keep = _ring_of(changed)                # changed + one ring: always retained
+    # W2-S2 RE-POINT, CONDITION 1: cells the mint's CONFLICT CLAUSE reinstated
+    # from context_full are PINNED (atom["ctx_conflict_cells"]) -- divergence
+    # tightens, never loosens, so a later observation varying a reinstated
+    # determinant must never drop it again. Absent on untouched atoms: no-op.
+    for cell in (atom.get("ctx_conflict_cells") or []):
+        try:
+            pr, pc = int(cell[0]), int(cell[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if 0 <= pr < keep.shape[0] and 0 <= pc < keep.shape[1]:
+            keep[pr, pc] = True
     care = ctx != DONT_CARE                 # monotone: existing sentinels stay
     drop = care & ~keep & (ctx != obs)      # varied, negotiable -> DONT_CARE
     if not drop.any():

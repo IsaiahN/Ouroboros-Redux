@@ -25,11 +25,21 @@ MDLMint.consider(before, action, after, game, level) runs three guards in order:
                                               as the change it explains; W2-S2 keeps
                                               this clause as the OUTER WALL).
 
-  W2 STAGE 2 (PREREG_W2_STAGE2_CONTEXT_MIN.md): re-observation of a known key
-  additionally INTERSECTS the stored atom's context with the new observation's
-  (_intersect_context -> effects.minimise_atom): varying cells become DONT_CARE,
-  changed + one ring always retained, context_full preserved as the undo. The
-  rederivation verdict itself is unchanged.
+  W2 STAGE 2 + THE RE-POINT AMENDMENT (PREREG_W2_STAGE2_CONTEXT_MIN.md): the
+  identity is the RULE, not the situation it was seen in. Every well-formed
+  changed event whose COARSE SIGNATURE (_signature below -- change-only,
+  deliberately debris-blind) matches a minted atom INTERSECTS that atom's
+  context with the observation's (_signature_merge -> _merge_context ->
+  effects.minimise_atom): varying cells become DONT_CARE, changed + one ring
+  always retained, context_full preserved as the undo, superseding append with
+  the same id. The FULL atom key (which hashes unchanged debris too) is NOT the
+  trigger -- full-key collisions cannot carry different contexts. THE CONFLICT
+  CLAUSE (_conflict_clause, Condition 1): an observation whose signature
+  DIFFERS but whose before-frame matches a minimised atom's loosened context
+  REINSTATES the distinguishing cells from context_full (pinned via
+  ctx_conflict_cells -- divergence tightens, never loosens) and marks the
+  record ctx_conflict. context_full is NEVER deleted here (Condition 2). The
+  verdicts themselves are unchanged throughout.
   A 1-cell recolour on 5x5: cost 2.0 < R 3.0, 2.0 < 2.7, bbox 1 < 12.5 -> mint.
   A 6x6 scramble (24 changed cells, bbox 6x5=30 of 36): 30 >= 18.0 -> reject.
 
@@ -125,6 +135,11 @@ EXTENT_RATE = 0.05
 SUPPORT_FULL = 1.0
 # Memory bound on the seen-count map: LRU-evicted beyond this many signatures.
 SEEN_CAP = 4096
+# W2-S2 RE-POINT (THE RE-POINT AMENDMENT): the CONFLICT CLAUSE anchor-scans at
+# most this many minimised atoms per consider() call, most-recently-touched
+# first, each pre-screened by the applicability signature (dims + palette)
+# BEFORE any anchor scan -- the check stays bounded whatever Gamma grows to.
+CONFLICT_SCAN_CAP = 64
 
 
 class MDLMint:
@@ -143,6 +158,22 @@ class MDLMint:
         # or an explicit bump_episode(); stamped on every verdict record.
         self._ep = 0
         self._ep_ctx: Optional[Tuple[str, str]] = None
+        # W2-S2 RE-POINT: the coarse-signature index. STATE CHOICE, stated:
+        # IN-MEMORY per process, exactly like the _seen support state above --
+        # AND lazily derivable from Gamma (_refresh_sig_index scans the atoms
+        # stream incrementally and derives each record's signature from its own
+        # stored patches), so a RESTARTED worker re-links signature -> atom on
+        # its first consider() with no persisted side file. _rec_by_id caches
+        # the LAST record per atom id (Gamma.get's last-wins); _min_ids tracks
+        # minimised atoms (context_full present) for the conflict clause's
+        # bounded scan. Memory is bounded by the atoms stream itself: at most
+        # one entry per atom id / distinct signature, never more than Gamma
+        # already holds in the fabric.
+        self._sig2id: Dict[str, str] = {}
+        self._id_sig: Dict[str, str] = {}
+        self._rec_by_id: Dict[str, Dict[str, Any]] = {}
+        self._min_ids: OrderedDict[str, None] = OrderedDict()
+        self._scan_pos = 0
 
     # -- internals -----------------------------------------------------------------
 
@@ -269,13 +300,18 @@ class MDLMint:
         sig = self._signature(b, a, phi.get("action", 0))
         w = self._surprise(game, level, phi.get("action", 0), sig)
 
+        # W2-S2 RE-POINT (THE RE-POINT AMENDMENT): the DETECTION POINT -- the
+        # coarse signature, the candidate's context and the full before-frame
+        # are all in hand right here, for EVERY well-formed changed event. A
+        # signature match on a minted atom (full key equal or not) intersects
+        # that atom's context with this observation's; a signature MISMATCH
+        # whose before-frame matches a minimised atom's loosened context fires
+        # the conflict clause. Verdicts below are untouched either way.
+        self._signature_merge(sig, phi, b)
+
         # NOVELTY: a known key is a re-derivation, never a second atom. (Unchanged --
         # a transition already reproduced by an existing atom contributes rederivation.)
-        # W2-S2: a re-observation is EVIDENCE about the stored precondition --
-        # intersect the stored context with this observation's before it is ledgered.
-        # The verdict itself is untouched.
         if key in self._known_keys():
-            self._intersect_context(key, phi)
             self._record("rederivation", game, level, key=key, ep=ep_now, sigma=sigma)
             return {"verdict": "rederivation", "id": None}
 
@@ -332,48 +368,198 @@ class MDLMint:
         self._record("mint", game, level, key=key, w=w, ep=ep_now, sigma=sigma)
         return {"verdict": "mint", "id": aid, "w": w}
 
-    # -- W2 STAGE 2: intersection at re-observation (PREREG_W2_STAGE2_CONTEXT_MIN.md) --
+    # -- W2 STAGE 2 + RE-POINT: the coarse-signature evidence merge -----------------
+    # (PREREG_W2_STAGE2_CONTEXT_MIN.md, THE RE-POINT AMENDMENT)
 
-    def _intersect_context(self, key: str, phi: Dict[str, Any]) -> None:
-        """At each re-observation of an existing key, intersect the stored
-        atom's context with this observation's (effects.minimise_atom): cells
-        that differ become DONT_CARE; changed cells + one ring are always
-        retained; the stored context only ever SHRINKS; the original full
-        context is preserved in `context_full` on first touch (the undo). The
-        update is a SUPERSEDING APPEND on the atoms stream -- same id, marked
-        `ctx_min` -- never an in-place rewrite: Gamma.get reads the LAST record
-        for an id, so the append IS the update (archive law: evidence added,
-        never replaced). STRUCTURAL FACT, stated not papered over: the atom key
-        hashes the full context patch, so a same-key re-observation carries an
-        IDENTICAL raw context and this intersection shrinks nothing until
-        stored contexts have already been minimised (the retro pass,
-        tools/context_minimiser.py) or the key ever loosens -- this is the
-        going-forward wire the prereg names, priced at one stream query per
-        rederivation. Never raises into the verdict path; the verdict is
-        untouched either way."""
+    @staticmethod
+    def _atom_signature(atom: Dict[str, Any]) -> Optional[str]:
+        """The coarse signature DERIVED from a stored atom's own patches.
+        learn_effect crops context/after to the changed-cell bbox, which is
+        exactly the region _signature hashes of a live frame pair -- so
+        _signature(context, after, action) reproduces the live event's
+        signature. STABLE under minimisation AND conflict reinstatement:
+        DONT_CARE (and any reinstated value) lands in context and after
+        TOGETHER, never at a changed cell, so the diff mask, the changed
+        values and the bbox shape are untouched. None on anything unreadable
+        -- such a record simply never joins the index."""
         try:
-            recs = self.gamma.fabric.query(
-                "collective", self.gamma.TOPIC,
-                where=lambda r: (r.get("atom") or {}).get("key",
-                                                          r.get("key")) == key)
-            if not recs:
-                return
-            rec = recs[-1]
-            minimised = _effects.minimise_atom(rec.get("atom") or {},
-                                               phi.get("context"))
-            if minimised is None:
-                return                                   # nothing shrank
-            # Restamp the anchor signature: the cache must never outlive the
-            # context it was derived from (same write-site family as the
-            # mint-time stamp below).
-            minimised[_applicability.ASIG_FIELD] = (
-                _applicability.anchor_signature(minimised))
-            sup = dict(rec)
-            sup["atom"] = minimised
-            sup["ctx_min"] = True                        # the superseding append, marked
-            self.gamma.fabric.append("collective", self.gamma.TOPIC, sup)
+            ctx = np.asarray(atom.get("context"))
+            out = np.asarray((atom.get("transform") or {}).get("after"))
+            if (ctx.ndim != 2 or ctx.size == 0 or ctx.shape != out.shape
+                    or not bool((ctx != out).any())):
+                return None
+            return MDLMint._signature(ctx, out, atom.get("action", 0))
+        except Exception:
+            return None
+
+    def _refresh_sig_index(self) -> None:
+        """THE MAPPING (RE-POINT AMENDMENT): coarse signature -> minted atom
+        id, plus the last record per id and the minimised-atom roster.
+        Incremental: each stream record is processed ONCE per process
+        (_scan_pos); a fresh instance starts at 0 and re-derives the whole
+        index from Gamma -- the restart re-link. Superseding appends re-map
+        to the same id (the signature is stable under minimisation, so the
+        mapping never splits an atom). Where two minted atoms share one
+        coarse signature (same transition minted in different games/levels),
+        the LATEST record wins the mapping -- one merge target, stated."""
+        recs = self.gamma.fabric.query("collective", self.gamma.TOPIC)
+        if len(recs) < self._scan_pos:
+            self._scan_pos = 0                           # stream re-based: full rescan
+        for rec in recs[self._scan_pos:]:
+            try:
+                aid = rec.get("id")
+                atom = rec.get("atom") or {}
+                if not aid or atom.get("kind") != "EFFECT":
+                    continue
+                self._rec_by_id[aid] = rec
+                s = self._atom_signature(atom)
+                if s is not None:
+                    self._sig2id[s] = aid
+                    self._id_sig[aid] = s
+                if ("context_full" in atom or rec.get("ctx_min")
+                        or rec.get("ctx_conflict")):
+                    self._min_ids.pop(aid, None)
+                    self._min_ids[aid] = None            # most-recently-touched last
+            except Exception:
+                self.errors += 1
+        self._scan_pos = len(recs)
+
+    def _signature_merge(self, sig: str, phi: Dict[str, Any],
+                         b: np.ndarray) -> None:
+        """THE RE-POINT trigger + THE CONFLICT CLAUSE, run once per
+        well-formed changed event. Never raises into the verdict path; the
+        verdict is untouched either way."""
+        try:
+            self._refresh_sig_index()
+            aid = self._sig2id.get(sig)
+            if aid is not None:
+                self._merge_context(aid, phi)
+            self._conflict_clause(sig, phi.get("action", 0), b)
         except Exception:
             self.errors += 1                             # never break the verdict path
+
+    def _merge_context(self, aid: str, phi: Dict[str, Any]) -> None:
+        """At each observation whose COARSE SIGNATURE matches minted atom
+        `aid` -- same change pattern, whatever the surrounding debris, so the
+        full key may well differ -- intersect the stored atom's context with
+        this observation's (effects.minimise_atom): cells that differ become
+        DONT_CARE; changed cells + one ring (and conflict-pinned cells) are
+        always retained; the stored context only ever SHRINKS; the original
+        full context is preserved in `context_full` on first touch (the undo
+        -- Seat 3's disposal ruling is outstanding and NOTHING here deletes
+        it, Condition 2). The update is a SUPERSEDING APPEND on the atoms
+        stream -- same id, marked `ctx_min` -- never an in-place rewrite:
+        Gamma.get reads the LAST record for an id, so the append IS the
+        update (archive law: evidence added, never replaced). Same-signature
+        patches share the changed-cell bbox, hence the patch shape, by
+        construction; a same-KEY re-observation carries an identical raw
+        context and no-ops here -- the re-point exists precisely because the
+        full key could never see a different-debris re-observation."""
+        rec = self._rec_by_id.get(aid)
+        if rec is None:
+            return
+        minimised = _effects.minimise_atom(rec.get("atom") or {},
+                                           phi.get("context"))
+        if minimised is None:
+            return                                   # nothing shrank
+        # Restamp the anchor signature: the cache must never outlive the
+        # context it was derived from (same write-site family as the
+        # mint-time stamp in consider()).
+        minimised[_applicability.ASIG_FIELD] = (
+            _applicability.anchor_signature(minimised))
+        sup = dict(rec)
+        sup["atom"] = minimised
+        sup["ctx_min"] = True                        # the superseding append, marked
+        sup.pop("ctx_conflict", None)                # markers are event-scoped
+        self.gamma.fabric.append("collective", self.gamma.TOPIC, sup)
+        self._rec_by_id[aid] = sup
+        self._min_ids.pop(aid, None)
+        self._min_ids[aid] = None
+
+    def _conflict_clause(self, sig: str, action: int, b: np.ndarray) -> None:
+        """CONDITION 1 (RE-POINT AMENDMENT, Seat 3: outcome-divergence is
+        information, not noise). Same-signature observations cannot diverge --
+        the signature hashes the change -- so divergence appears BETWEEN
+        signatures: after intersection, a loosened context can come to match
+        a frame where a DIFFERENT outcome occurred. When this observation's
+        signature DIFFERS from a minimised atom's, the action matches, and
+        the before-frame matches that atom's minimised context, the
+        distinguishing cells -- where context_full is specific and this
+        frame differs from it -- are REINSTATED (_reinstate). Bounded: at
+        most CONFLICT_SCAN_CAP minimised atoms per call, most-recently-
+        touched first, each pre-screened by the applicability signature
+        (dims + palette) before any anchor scan runs."""
+        if not self._min_ids:
+            return
+        bh, bw = b.shape
+        fpal: Optional[set] = None
+        checked = 0
+        for aid in list(self._min_ids)[::-1]:
+            if checked >= CONFLICT_SCAN_CAP:
+                break
+            if self._id_sig.get(aid) == sig:
+                continue    # same outcome: intersection territory, no conflict
+            rec = self._rec_by_id.get(aid)
+            atom = (rec or {}).get("atom") or {}
+            full = atom.get("context_full")
+            if full is None or int(atom.get("action", -1)) != int(action):
+                continue    # nothing to reinstate / a different rule family
+            checked += 1
+            asig = _applicability.signature_of(atom)     # the prefilter pre-screen
+            if asig["h"] > bh or asig["w"] > bw:
+                continue
+            if fpal is None:
+                fpal = {int(v) for v in np.unique(b)}
+            if not set(asig["pal"]) <= fpal:
+                continue
+            ctx = np.asarray(atom.get("context"))
+            fl = np.asarray(full)
+            if ctx.ndim != 2 or ctx.shape != fl.shape:
+                continue
+            ph, pw = ctx.shape
+            for r, c in _effects._context_anchors(b, ctx):
+                region = b[r:r + ph, c:c + pw]
+                distinguish = (ctx == _effects.DONT_CARE) & (fl != region)
+                if not bool(distinguish.any()):
+                    continue    # the FULL context matches here too: no discriminator
+                self._reinstate(aid, rec, atom, fl, distinguish)
+                break           # one conflict event per atom per consider()
+
+    def _reinstate(self, aid: str, rec: Dict[str, Any], atom: Dict[str, Any],
+                   full: np.ndarray, distinguish: np.ndarray) -> None:
+        """The conflict clause's write: reinstate the distinguishing cells
+        from context_full into the context AND the after-patch (a dropped
+        cell is unchanged by construction, so its after value IS its
+        context_full value), PIN them (ctx_conflict_cells -- minimise_atom
+        keeps pinned cells forever after: divergence tightens, never
+        loosens), restamp the anchor signature, supersede with the same id,
+        record ctx_conflict on the appended record. context_full itself is
+        carried forward UNTOUCHED (Condition 2)."""
+        ctx = np.asarray(atom["context"]).copy()
+        out = np.asarray((atom.get("transform") or {}).get("after")).copy()
+        ctx[distinguish] = full[distinguish]
+        out[distinguish] = full[distinguish]
+        pins = {(int(r), int(c))
+                for r, c in (atom.get("ctx_conflict_cells") or [])}
+        pins |= {(int(r), int(c)) for r, c in np.argwhere(distinguish)}
+        ctx_lists = [[int(v) for v in row] for row in ctx]
+        transform = dict(atom.get("transform") or {})
+        transform["before"] = ctx_lists
+        transform["after"] = [[int(v) for v in row] for row in out]
+        restored = dict(atom)
+        restored["context"] = ctx_lists
+        restored["transform"] = transform
+        restored["ctx_conflict_cells"] = sorted([r, c] for r, c in pins)
+        restored[_applicability.ASIG_FIELD] = (
+            _applicability.anchor_signature(restored))
+        sup = dict(rec)
+        sup["atom"] = restored
+        sup["ctx_conflict"] = True                   # the event, recorded
+        sup.pop("ctx_min", None)                     # markers are event-scoped
+        self.gamma.fabric.append("collective", self.gamma.TOPIC, sup)
+        self._rec_by_id[aid] = sup
+        self._min_ids.pop(aid, None)
+        self._min_ids[aid] = None
 
     # -- the letters-wall watchdog ------------------------------------------------------
 

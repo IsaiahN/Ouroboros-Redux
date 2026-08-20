@@ -5,14 +5,20 @@ change -- a dense snapshot of a sparse rule that can match nothing but its own
 source frame -- with the MDL inequality extent-blind and the half-board clause
 a binary cap atoms crowd against).
 
-The build under test: (1) intersection at re-observation of a known key
-(mint._intersect_context -> effects.minimise_atom): cells that varied become
+The build under test: (1) intersection at re-observation, keyed by the COARSE
+change-only signature since THE RE-POINT AMENDMENT (mint._signature_merge ->
+mint._merge_context -> effects.minimise_atom -- the full atom key hashes debris
+and could never see a different-debris re-observation): cells that varied become
 effects.DONT_CARE, changed cells + one 8-ring are ALWAYS retained, the stored
 context only ever shrinks, `context_full` preserves the original (the undo);
 (2) the EXTENT PREMIUM: cost = 1.0 + changed + mint.EXTENT_RATE *
 retained_unchanged_cells, the half-board clause staying as the outer wall;
 (3) the retro pass tools/context_minimiser.py (a tool, never auto-run;
-read-only on its source stream).
+read-only on its source stream); (4) THE CONFLICT CLAUSE (Condition 1): a
+different-signature observation whose before-frame matches a minimised atom's
+loosened context reinstates the distinguishing cells from context_full, pinned
+(ctx_conflict_cells), record marked ctx_conflict -- divergence tightens, never
+loosens; context_full is never deleted (Condition 2).
 
 The falsifiers, as gated here:
   F1 (ABSOLUTE)  every minimised constructed atom still matches and correctly
@@ -34,6 +40,17 @@ The falsifiers, as gated here:
   DC-EQUIV       the vectorised and scalar match paths agree byte-for-byte on
                  don't-care-bearing atoms (the scalar oracle defines the
                  semantics; corpus extension also in test_vectorised_scan.py).
+  RE-POINT       (THE RE-POINT AMENDMENT) the PROVING CASE: rule A fires at
+                 X in {3,4} (same change), rule B's different change at X=5;
+                 intersection drops X, the X=5 conflict reinstates it from
+                 context_full with A's observed value, A stops matching X=5;
+                 sensitivity AND specificity asserted (ctx_conflict present
+                 after conflict, absent after a same-outcome re-observation),
+                 pinned against re-dropping. LIVE-NESS: same change,
+                 different debris (different full keys, same signature) --
+                 the second observation SHRINKS the first's atom, which the
+                 full-key trigger could never do. RESTART: a fresh mint
+                 instance re-links signature -> atom from Gamma.
 
 Seeded with a FIXED CONSTANT (the prereg date), never a clock.
 """
@@ -504,6 +521,181 @@ def test_minimised_atom_survives_the_applicability_prefilter(tmp_path):
     assert kept == ["m:0"], (
         "a minimised atom apply_effect can fire was pruned -- the sentinel "
         "must never become a palette requirement")
+
+
+# ── THE RE-POINT AMENDMENT: signature-keyed merge + the conflict clause ───────
+
+def _repoint_board(x_value, seed=SEED + 11):
+    """A fixed-seed textured 9x9 board for the PROVING CASE. The distant cell
+    X sits at board (1,5) -- patch (0,4) of the 5x5 changed-cell bbox, outside
+    both changed cells' 8-rings -- and the changed cells carry pinned known
+    values so rule A (-> 0) and rule B (-> 7) always actually change them."""
+    rng = np.random.default_rng(seed)
+    b = rng.integers(1, 9, size=(9, 9)).astype(int)
+    b[1, 1] = 2                                       # change site 1 (patch 0,0)
+    b[5, 5] = 3                                       # change site 2 (patch 4,4)
+    b[1, 5] = x_value                                 # X (patch 0,4)
+    return b
+
+
+def _rule_a(x_value, debris=None):
+    """Rule A: (1,1)->0 and (5,5)->0 -- the same coarse signature at every X."""
+    b = _repoint_board(x_value)
+    if debris is not None:
+        (r, c), v = debris
+        b[r, c] = v
+    a = b.copy()
+    a[1, 1] = 0
+    a[5, 5] = 0
+    return b, 6, a
+
+
+def _rule_b(x_value):
+    """Rule B: the SAME cells go to 7 -- a different change, hence a different
+    coarse signature, on an otherwise A-shaped frame."""
+    b = _repoint_board(x_value)
+    a = b.copy()
+    a[1, 1] = 7
+    a[5, 5] = 7
+    return b, 6, a
+
+
+def _last_for(g, aid):
+    recs = g.fabric.query("collective", g.TOPIC,
+                          where=lambda r: r.get("id") == aid)
+    assert recs, "construction: atom %s has no records" % aid
+    return recs[-1]
+
+
+def test_repoint_proving_case_conflict_clause(tmp_path):
+    """THE PROVING CASE, exactly as the prereg states it: two rules with
+    byte-identical change SITES distinguished only by the distant cell X --
+    rule A fires at X in {3,4} (same change), rule B's different change occurs
+    at X=5."""
+    g = _gamma(tmp_path, "proving")
+    mint = MDLMint(g)
+    b3, act, a3 = _rule_a(3)
+    r1 = mint.consider(b3, act, a3, game="g1", level=1)
+    assert r1["verdict"] == "mint", "construction: rule A must mint"
+    aid = r1["id"]
+
+    # (i) intersection over A's two observations drops X (varied, correctly)
+    b4, _, a4 = _rule_a(4)
+    mint.consider(b4, act, a4, game="g1", level=1)
+    rec = _last_for(g, aid)
+    assert rec.get("ctx_min") is True, (
+        "RE-POINT FALSIFIED: A's second firing (different full key, same "
+        "signature) did not shrink the stored atom")
+    assert rec["atom"]["context"][0][4] == DC, (
+        "(i) FALSIFIED: X varied across A's firings and was not dropped")
+    full = rec["atom"]["context_full"]
+    assert full == b3[1:6, 1:6].tolist(), "context_full must hold A's original"
+
+    # (ii) THE CONFLICT: rule B's different change at X=5, on a frame A's
+    # loosened context matches -> X reinstated from context_full with A's
+    # observed value, and A no longer matches the X=5 frame
+    b5, _, a5 = _rule_b(5)
+    assert E.apply_effect(rec["atom"], b5) is not None, (
+        "construction: loosened A must match the X=5 frame BEFORE the clause")
+    mint.consider(b5, act, a5, game="g1", level=1)
+    rec2 = _last_for(g, aid)
+    assert rec2.get("ctx_conflict") is True, (
+        "(ii) FALSIFIED: outcome divergence left no ctx_conflict record")
+    atom2 = rec2["atom"]
+    assert atom2["context"][0][4] == 3, (
+        "(ii) FALSIFIED: X must be reinstated from context_full with A's "
+        "observed value, not left DONT_CARE")
+    assert atom2["context_full"] == full, (
+        "CONDITION 2 FALSIFIED: the conflict clause touched context_full")
+    assert [0, 4] in atom2["ctx_conflict_cells"], "the reinstated cell is pinned"
+    assert E.apply_effect(atom2, b5) is None, (
+        "(ii) FALSIFIED: A still matches the X=5 frame after reinstatement")
+    res = E.apply_effect(atom2, b3)
+    assert res is not None and np.array_equal(res, a3), (
+        "F1 still binds: A must keep predicting its own first observation")
+
+    # (iii)+(iv) SPECIFICITY: a same-outcome re-observation does NOT trigger
+    # reinstatement -- a new varying debris cell shrinks (ctx_min append) and
+    # the conflict marker is ABSENT from that record
+    b6, _, a6 = _rule_a(3, debris=((5, 1), 0))        # patch (4,0): outside rings
+    mint.consider(b6, act, a6, game="g1", level=1)
+    rec3 = _last_for(g, aid)
+    assert rec3.get("ctx_min") is True and "ctx_conflict" not in rec3, (
+        "(iv) FALSIFIED: a same-outcome re-observation carried the conflict "
+        "marker")
+    atom3 = rec3["atom"]
+    assert atom3["context"][4][0] == DC, "the new varying debris cell drops"
+    assert atom3["context"][0][4] == 3, (
+        "(iii) FALSIFIED: same-outcome evidence moved the reinstated X")
+
+    # divergence tightens, NEVER loosens: a same-outcome observation varying
+    # X must not re-drop the reinstated determinant (the pin holds)
+    n0 = len(g.fabric.query("collective", g.TOPIC))
+    b7, _, a7 = _rule_a(4)
+    mint.consider(b7, act, a7, game="g1", level=1)
+    assert len(g.fabric.query("collective", g.TOPIC)) == n0, (
+        "a pinned-only variation must not append (nothing else shrank)")
+    assert g.get(aid)["context"][0][4] == 3, (
+        "RE-POINT FALSIFIED: divergence tightened X, then a variation "
+        "LOOSENED it -- the pin failed")
+
+
+def test_repoint_same_change_different_debris_shrinks(tmp_path):
+    """RE-POINT LIVE-NESS: under the full-key trigger this pair was
+    structurally vacuous -- different keys, so the intersection could never
+    fire. Under the coarse-signature trigger the second observation SHRINKS
+    the first's atom."""
+    b1, act, a1 = _distant_event()
+    b2 = b1.copy()
+    b2[1, 5] = 0                                      # different debris, patch (0,4)
+    a2 = b2.copy()
+    a2[1, 1] = 0
+    a2[5, 5] = 0
+    assert E.learn_effect(b1, act, a1)["key"] != E.learn_effect(b2, act, a2)["key"], (
+        "construction: the full keys must differ")
+    assert MDLMint._signature(b1, a1, act) == MDLMint._signature(b2, a2, act), (
+        "construction: the coarse signatures must be identical")
+    g = _gamma(tmp_path, "liveness")
+    mint = MDLMint(g)
+    r1 = mint.consider(b1, act, a1, game="g1", level=1)
+    assert r1["verdict"] == "mint"
+    aid = r1["id"]
+    out = mint.consider(b2, act, a2, game="g1", level=1)
+    assert out["verdict"] != "mint", "a same-signature repeat is not novel support"
+    rec = _last_for(g, aid)
+    assert rec.get("ctx_min") is True, (
+        "RE-POINT FALSIFIED: a different-key same-signature observation did "
+        "not shrink the stored atom (the trigger is still the full key)")
+    assert rec["atom"]["context"][0][4] == DC
+    served = g.get(aid)
+    for bb, aa in ((b1, a1), (b2, a2)):               # F1 through the merge
+        got = E.apply_effect(served, bb)
+        assert got is not None and np.array_equal(got, aa), (
+            "the merged atom must still predict BOTH of its observations")
+
+
+def test_repoint_restart_relinks_signature_to_atom_from_gamma(tmp_path):
+    """The mapping is in-memory (the _seen pattern, stated in mint.__init__):
+    a FRESH mint instance over the same Gamma must re-derive signature -> atom
+    by scanning the stream, and the intersection must fire on its very next
+    observation."""
+    b1, act, a1 = _distant_event()
+    b2 = b1.copy()
+    b2[1, 5] = 0
+    a2 = b2.copy()
+    a2[1, 1] = 0
+    a2[5, 5] = 0
+    g = _gamma(tmp_path, "relink")
+    r1 = MDLMint(g).consider(b1, act, a1, game="g1", level=1)
+    assert r1["verdict"] == "mint"
+    aid = r1["id"]
+    fresh = MDLMint(g)                                # restarted worker: empty maps
+    fresh.consider(b2, act, a2, game="g1", level=1)
+    rec = _last_for(g, aid)
+    assert rec.get("ctx_min") is True, (
+        "RESTART RE-LINK FALSIFIED: a fresh mint never re-derived the "
+        "signature -> atom mapping from Gamma")
+    assert rec["atom"]["context"][0][4] == DC
 
 
 # ── the retro pass: the tool itself ───────────────────────────────────────────
