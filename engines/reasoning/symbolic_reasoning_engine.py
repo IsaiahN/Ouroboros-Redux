@@ -45,8 +45,15 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
-# Database path - go up 2 levels from engines/reasoning/ to project root
-DB_PATH = Path(__file__).parent.parent.parent / "core_data.db"
+# Database path -- CWD-RELATIVE, matching every other engine's default (2026-08-20).
+# This was `Path(__file__).parent.parent.parent / "core_data.db"`: anchored to the REPO
+# ROOT regardless of cwd. Workers run with cwd=<their box>, so via the `db_path or
+# str(DB_PATH)` fallback below, ALL 25 workers held open handles on ONE shared file at
+# the repo root -- a single evidence pool wearing 25 boxes' clothes, found because the
+# file was LOCKED during the 2026-08-20 audit while holding no writes since 08-18.
+# CWD-relative resolves to the worker's own box DB, which is what every sibling engine
+# (object_detector, sequence_abstraction, registry) already does.
+DB_PATH = Path("core_data.db")
 
 logger = logging.getLogger(__name__)
 
