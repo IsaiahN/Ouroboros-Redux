@@ -1353,3 +1353,17 @@ caution: an absence claim owes a constructed presence.
 **THE 33-PREREG REVIEW IS DONE** (see `record/prereg/PREREG_REVIEW_2026-08-20.md`): 17 keep,
 8 resolved-kept as records, 5 amended into workstreams, 3 retired with notes. The swarm stays
 held until Seat 3 reads the review.
+
+
+## ENTRY 40 — 2026-08-20. **GAMES WON: 0/25.** LEVELS DELTA: 0. **FREEZE HOLDS; W1 BASELINE LANDED.**
+Read-only beat (HOLD set, 0 workers): L1+ 9/25, L2+ 1/25 (ar25), 13,010 sessions cn04-profile
+delta only. No vitals (frozen), no improvement (the plan owns the queue).
+**THE BEAT-PROTOCOL ESCALATION IS ANSWERED AND CLOSED**: the chain atoms -> 2x TRANSFERRED ->
+shadow -> DRIVE is still zero NOT by starvation at the gates but because **the planner search
+itself has never returned a plan while consuming ~95% of slow-worker runtime** — profiled:
+97.6% plan_to_identity, 95.3% apply_effect, 77.7M numpy .all() calls in 420s, every atom
+applied at every anchor with no pruning (D5_PROFILE_RESULT.md, ab2290e). D-5 mechanical:
+atoms x levels = search space x search engagement. W2 re-scoped by its own pre-stated rule:
+first deliverable is the APPLICABILITY INDEX. W1 narration prereg pinned (permutation null,
+three pre-named statistics). Awaiting: builder for W1 narration; word to prereg the
+applicability index as W2's first build.
