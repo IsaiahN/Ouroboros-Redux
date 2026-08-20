@@ -320,3 +320,14 @@ line, opposite dispositions.**
 
 **STATUS: ACCEPTED AS AMENDED (Seat 3, 2026-08-20).** The PREREG review fires first; the
 swarm stays held until the review says what is still relevant.
+
+
+## W4/W5 RIDERS (2026-08-20, from the review's checks)
+- **W4 rider — the ALLOWLIST self-destruct**: when `binding_stale` retention lands and the
+  refit stream gains its consumer, the `refit_queue` ALLOWLIST entry in
+  `tests/gate/test_consumers.py` **must be deleted in the same change** — the gate tightens
+  monotonically and will fail loudly if forgotten, but the failure would land weeks from its
+  cause; this rider is the reminder at the cause's site.
+- **W5 rider — renames carry their tests**: `standing_half_life` / `newcomer_handicap`
+  renames must update `tests/gate/test_frontier_pariah.py` (and any test citing the old
+  names) in the same commit, or the wiring receipts dangle.

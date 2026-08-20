@@ -25,7 +25,7 @@ than by moving them.
 | PREREG_CRASHFIX | **RESOLVED** | landed |
 | PREREG_OVERNIGHT_RUN | **RESOLVED** | executed; results in RUN_RESULT_OVERNIGHT |
 | PREREG_SWARM_OFFLINE_MODE | **RESOLVED** | executed; mode live; baseline still cited |
-| PREREG_PHASE1 / PHASE2 / PHASE3A / PHASE3B / PHASE3B2 / PHASE3C | **RESOLVED / superseded** | the phase roadmap's landed items stand as records; **every unexecuted phase item is superseded by the accepted plan** — the workstreams are the roadmap now |
+| PREREG_PHASE1 / PHASE2 / PHASE3A / PHASE3B / PHASE3B2 / PHASE3C | **RESOLVED, with LIVE GUARDS** | CORRECTED (Seat 4's check fired): these are NOT roadmap-only — **five gate tests cite phase preregs by name** (`test_click_economy`, `test_egocentric_substrate`, `test_goal_spine`, `test_knowledge_fabric`, `test_replay_handoff`), so landed phase items have living guards and the documents are load-bearing citations. They stay in place. Only the UNEXECUTED remainder is superseded by the workstreams. |
 | PREREG_DRAIN_ORIGIN | **AMEND → W2** | origin stamps live; W2 widens the stamp into full provenance tags |
 | PREREG_MASTERY_LITE | **AMEND → W3/W5** | mastery-lite live; the plan elevates the mastery pattern to the template for every crossing and every earn-through |
 | PREREG_PLAN_WIRE | **AMEND → W1** | the g1–g7 gate counters live; W1's narration is their successor and superset |
@@ -39,3 +39,14 @@ than by moving them.
 
 **Tally: 10 KEEP · 12 RESOLVED · 5 AMEND · 3 RETIRE · 1 SUPERSEDED-in-place** (phase series
 counted as 6 files under one verdict). Retirements moved to `record/retired/` with notes.
+
+
+## POST-REVIEW CORRECTIONS (2026-08-20, from Seat 4's three checks)
+1. **Phase series**: "roadmap-only" was too broad — five gate tests cite phase preregs by
+   name. Verdict corrected in the table above. *The check that caught it: grep tests/ for the
+   citation, not reasoning about what a roadmap is.*
+2. **PREREG_REFIT_DESTINATION's self-destruct**: the ALLOWLIST entry for `refit_queue` must be
+   DELETED when W4's `binding_stale` retention lands, or `test_consumers`' monotone rule
+   fails. **Recorded in W4's spec, not only here.**
+3. **FRONTIER_PARIAH rename**: `tests/gate/test_frontier_pariah.py` cites the prereg — the
+   `standing_half_life` rename must carry the test in the same change or the receipt dangles.
