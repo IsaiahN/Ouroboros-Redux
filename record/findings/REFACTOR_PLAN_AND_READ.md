@@ -29,10 +29,10 @@ layer was carried forward whole and is largely idle, not lost.
 ### Answers to the specific check-questions
 - **HGT vs viral: TWO mechanisms, genuinely different.** Different object (traits vs patterns), different topology (pairwise vs broadcast), different gate (compatibility vs success). Not one thing with two names.
 - **Voting: the consumer writes the vote.** `update_sequence_role_reputation` is called *"after an agent uses a sequence"* by that agent's own outcome — **self-vote by construction**, and votes pool into per-role columns, so **same-role votes are the correlated pool counted as if independent.** Both of Seat 3's suspicions confirmed: it is a popularity measure over a pool that already agrees.
-- **Ranking decay: NONE found on the reputation path.** Pariah toxicity decays by formula; **package/sequence reputation does not** — a score earned early stands forever. *Standing surviving its outcome, in code.*
+- **Ranking decay, scoped precisely: BOTH halves of the designed decay policy EXIST** — prestige decays 3%/generation (`prestige_engine.py:214-231`, *"prevent coasting"*) and the youth bonus exists (`evolutionary_engine.py:42`, 1.5× newborn → 1.0, wired into tournament selection at :666). **What lacks decay is sequence/package REPUTATION** — the viral ranking — a score earned early stands forever there. So the restoration scope is narrow: extend the existing decay policy to reputation, under the ruled names.
 - **The affect leak, unasked but found:** the consumer's `frustration_level`/`satisfaction_level` enter the reputation update — **affect is priced into the ranking**, exactly what the held convention (*affect is a derived readout, never a price*) forbids.
 - **A memory-vs-code divergence:** the summary's mode tables say 60/30/10 and 70/15/15; **the code says EXPLORATION 60/10/20/10 and OPTIMIZATION 10/50/25/15.** The code is the fact; the summary mis-remembers.
-- **Role self-determination (label-follows-behaviour): NOT FOUND in `agent_operating_mode_system.py`.** Either it lived elsewhere or was never built — the part Seat 3 cares most about is currently **an intention, not an implementation.**
+- **Role self-determination: FOUND — my earlier "not found" was wrong** (bad search tokens, corrected same day). `agent_operating_mode_system.py:1028+`: per-role fit scores from performance history, `preferred_role`, `role_locked`, `request_role_change` with cooldown (:1480), and wA/wB reset hooks in `i_thread`/`episodic_memory`. **It exists and is rich.** One boundary case: fit scoring consumes frustration/satisfaction — affect entering an allocation gate; flagged under the affect ruling for Seat 3's call.
 - **The macro mechanism EXISTS:** `effects.compose()` memoises id-sequences into `COMPOSITE` atoms with structural/lexical typing. Seat 3's hunch was right — it needs **indexing and naming**, not a second mechanism.
 
 ## I.2 Each mechanism against the framework
@@ -48,9 +48,10 @@ layer was carried forward whole and is largely idle, not lost.
 | **Roles/streams** | filter (allocation) | w_B is **the population's independence distributed across members** — unmonitored aggregate | live | n/a |
 | **Seed primitives** | — | — | live as INVENTORY | **the registry itself is handed, which is fine for priors and forbidden for capabilities — the sort in II.4 is the fix** |
 
-**Survivors as-is:** pariah decay, mastery gate, prestige separation (with a breeding counterweight added), HGT.
-**Survive re-scoped:** viral packages (methods only), reputation (decay + de-correlated votes + affect removed), streams (re-classified by contact).
-**Not found, must be built:** role self-determination; the library-know-how channel (I.4).
+**Survivors as-is:** pariah decay, prestige decay (3%/gen), youth bonus (renamed `newcomer_handicap`), mastery gate, prestige-vs-actions separation, HGT, role self-determination (ported, with its affect input flagged).
+**Survive re-scoped:** viral packages (methods only), reputation (gains `standing_half_life` + de-correlated outcomes + affect removed), streams (re-classified by contact).
+**Excluded entirely (directive):** prestige in breeding/survival (removal site: `evolutionary_engine.py:666` tournament weighting), consumer-voted rank, the single A/B dial.
+**Must be built new:** the visible catalogue (see RULINGS §L), the library-know-how channel.
 
 ## I.3 The current agent on the ladder — earned, handed, missing
 
@@ -211,3 +212,93 @@ standing-red test ruling, memory profile of the five L0 workers, D-6 probe remov
 **Review all 33 PREREG files for continued relevance** — W4 alone supersedes at least
 `PREREG_EMPTY_PLAN_ATTRIBUTION` and touches `PREREG_REFIT_DESTINATION`; each gets kept /
 amended / retired-with-note, per the hygiene rule.
+
+
+---
+
+# RULINGS APPLIED (2026-08-20, Seat 3) — supersede the matching plan text above
+
+## R1 · Survival protection: excluded, confirmed
+Worse than the breeding case — breeding weight biases the next generation; **survival immunity
+prevents selection from operating at all** on exactly the agents whose standing is highest.
+Both leave the design; the removal site for the pair is the tournament weighting at
+`evolutionary_engine.py:666`.
+
+## R2 · The innateness line, ruled in the framework's own terms
+> **A prior is a primitive that can produce a QUESTION. A capability is one that can only
+> ever be an ANSWER.**
+
+`detect_motion` produces a gap (*something changed, unexplained*) — it may seed.
+`object_permanence` is a conclusion drawn from gaps — it must be earned. **W3 sorts
+`seed_primitives.py` on this test**: source-of-residual → prior, may seed; resolution-of-
+residual → capability, earn-through required.
+
+## L · The library, redesigned: TWO OBJECTS, not a market
+**The agent's own library is SILOED** — earned content only; its closure is its entire
+composition space. **The visible CATALOGUE is population-wide** — every agent sees *what
+exists*: that a capability of this kind is held somewhere, what it affords, roughly what it
+was composed from. **Content never crosses; the fact of existence does.** Knowing people can
+play piano vs playing piano.
+
+**Catalogue entry shape (the design asked for):**
+`{kind, affordance-predicates (goal-abduction vocabulary), composed_from tag summary
+(provenance, no parameters), prior-base, holder count + roles (never holder content),
+mastery tier of best holder, first-existence generation}` — everything a target needs,
+nothing a playback could use.
+
+**Aiming:** an agent aims at an entry by adopting its affordance-predicates as a goal
+hypothesis (the abduction machinery already consumes exactly this shape) and requesting the
+METHOD from a holder via the know-how channel — a `composed_from` + applicability-guard
+record, which is a generator by construction.
+
+**Earn-through verification, not assertion:** the mastery pattern at library grain — the
+earner must regenerate the capability's effect under ablation on its own board (its own
+obstacle), and only then does the entry tag as *earned* in its silo. Consumption of the
+method alone leaves it *studied*, usable for aiming, not for composition.
+
+**The aggregate reading it still needs (Seat 3's addition):** a population **library-overlap
+monitor** — if every agent's earned silo converges on the same entries, the population is one
+frame regardless of route. Per-agent weights cannot show this; the monitor reads pairwise
+silo overlap per generation and joins the standing beat vitals.
+
+## R3 · Vampire/youth: RESTORATION, not invention — and renamed
+Found in code (correcting this document's first draft): **prestige decay exists**
+(3%/generation) and **the youth bonus exists** (1.5×→1.0, tournament-wired). The missing
+half is decay on **package/sequence reputation** only. Work: extend the decay policy to
+reputation; rename mechanism-first per ruling — **`standing_half_life`** (standing expires
+unless re-earned) and **`newcomer_handicap`** (not age — not being outranked by history you
+had no chance to accumulate).
+
+## R4 · The SECOND ROOT, added to the exclusions
+> **Pricing a past outcome as a present one.** Any mechanism whose weight is earned once and
+> never re-tested inherits this. Standing is a stake that survives the outcome it was earned
+> on — which is why it decays or is handicapped, and never simply accumulates.
+Distinct from root one (agreement priced as evidence); both now guard future mechanisms.
+
+## R5 · Affect, corrected to the ruling
+**Keep:** the two book-computed modulators — risk tolerance (exploration temperature, hold
+time, abandonment) computed FROM the books, per the Anthropic result (desperation changed
+what corner-cutting was tolerable, not any option's estimate).
+**Drop:** affect in any price — reputation, ranking, credibility, breeding.
+**Keep as `[BELIEVED, unrun]`** with its falsifier attached, not foreclosed: *frustration
+opens the proposer and tightens the mint* — a risk modulation, not a price. **The falsifier
+runs before it is wired to anything:** is there a residual today that frustration predicts
+and actions-since-last-settlement does not? If not, it is the same number with a better name
+and is not minted.
+
+## R6 · The ladder-falsifier arm gains a THIRD arm
+Arm H (handed another agent's routes) confounds the ladder with cross-agent transfer.
+**Arm S: handed its OWN earlier routes.** Ladder-only failure predicts S extends better than
+H; transfer-only failure predicts S ≈ E. Without S the experiment tests a transfer claim
+while reporting a ladder claim.
+
+## R7 · Mode tables: code is intent
+60/10/20/10 exploration, 10/50/25/15 optimization stand as written in code; the summary's
+memory is noted as divergent, not reconciled to. **Truncation guard mandatory**: role counts
+computed with a floor (`max(1, …)` or largest-remainder), because `int(6 × 0.15) = 0`
+produced zero of two role classes once already.
+
+## Confirmed right, kept verbatim
+Mastery as the template for every crossing · the library-know-how channel as the primary
+viral payload · I.3 as the finding of the read (the ladder's three forbidden moves, all live
+in production — the strongest evidence the ladder describes something real).
