@@ -285,8 +285,17 @@ def _narr_bet(loop, action_num, cf, pg0) -> None:
                  mint_candidate=("pending" if _pend else None),
                  guard_zero=(None if _pend else _na.GUARD_SUPPORT),
                  rng=_rng, col_class=_cc)
-        _pv = _na.plan_verdict(pg0, getattr(loop, "_plan_gate", None) or {})
-        _nsp.plan(_pv["mode"], _pv["gate"], rng=_rng, col_class=_cc)
+        # W2b (PREREG_W2B_PLANNER_SCHEDULING.md): a scheduler skip owns the
+        # PLAN point this cycle -- the skip is narrated WITH ITS REASON (F3,
+        # mode="skipped", gate=reason), never silent; otherwise the g-gate
+        # verdict narrates exactly as before. One PLAN record per cycle.
+        _w2s = getattr(loop, "_w2b_narr", None)
+        loop._w2b_narr = None
+        if _w2s is not None:
+            _nsp.plan(str(_w2s[0]), _w2s[1], rng=_rng, col_class=_cc)
+        else:
+            _pv = _na.plan_verdict(pg0, getattr(loop, "_plan_gate", None) or {})
+            _nsp.plan(_pv["mode"], _pv["gate"], rng=_rng, col_class=_cc)
         _rung = (getattr(cf, "rung_name", "") or getattr(cf, "action_speed", "")
                  or "")
         _nsp.act(int(action_num), _rung, rng=_rng, col_class=_cc)
@@ -345,6 +354,106 @@ def _narr_close(loop, post_array, frame_changed) -> None:
                   rng=_rng, col_class=_cc)
     except Exception:
         _swal(loop, "OTHER")
+
+
+def _w2b_mark(loop) -> tuple:
+    """W2b (PREREG_W2B_PLANNER_SCHEDULING.md): the world-change mark GATE B
+    compares -- (Gamma mints passed, cross-role imports seeded), both already
+    counted by the loop (R1 mint socket counter + the _seed_imp narration
+    count). O(1) reads of in-hand state; an unchanged mark alongside an
+    unchanged state key means nothing was minted or imported since the last
+    planner attempt."""
+    return (int((getattr(loop, "_w4c_counters", None) or {}
+                 ).get("mint_passed", 0) or 0),
+            int(getattr(loop, "_narr_import_n", 0) or 0))
+
+
+def _w2b_engage(loop, pframe, cf) -> bool:
+    """W2b (PREREG_W2B_PLANNER_SCHEDULING.md): THE PLANNER AS LAST RESORT --
+    the ONE engagement decision, shared by both plan seams in cycle() (the
+    reference-mode identity search and the abduced-goal path). NOTE: the
+    planner's own name is deliberately not written here -- the source laws in
+    tests/gate key on its FIRST occurrence being the live seam, not a
+    docstring mention.
+
+    GATE A (cheap routes first): a CANDIDATE-PRODUCING route (mapped = a plan
+    step from the causal map; reasoned = a rung's decision -- cf.action_speed,
+    set by _act before this runs) whose cf.action_confidence is at or above
+    scheduler.CHEAP_ROUTE_CONF_BAR already holds the wheel and no search runs.
+    Explore/random speeds ARE the cheap routes having failed to produce a
+    candidate (a heuristic info-gain score is not an option above a rung's
+    confidence), so they pass conf=None and GATE A stays open -- the prereg's
+    "no rung above a stated confidence produced an option this cycle" read
+    literally. GATE B (no re-search of an unchanged
+    world): same state key + same (mint, import) mark as the last attempt on
+    (game, level) -> SKIP. STARVATION GUARD (absolute, F2): conf below the bar
+    with no retained identical attempt opens BOTH gates by construction -- a
+    cycle where every cheap route failed reaches the planner IN THAT CYCLE;
+    the gates defer within a cycle, never deny across cycles. A skip is
+    narrated at the PLAN point with its reason (F3) via _narr_bet's emitter
+    (loop._w2b_narr), never silent. Containment: FAILS OPEN -- any internal
+    error engages the planner, so the scheduler can never starve it."""
+    try:
+        from engines.egocentric import scheduler as _s2b
+        if getattr(loop, "_w2b_sched", None) is None:
+            loop._w2b_sched = _s2b.PlannerScheduler()
+        _g = str(getattr(loop, "_game_id", "") or "game")
+        _lv = int(getattr(loop, "_ego_level", 0) or 0)
+        _key = _s2b.state_key(pframe)
+        _spd = str(getattr(cf, "action_speed", "") or "")
+        _conf = (float(getattr(cf, "action_confidence", 0.0) or 0.0)
+                 if _spd in ("mapped", "reasoned") else None)
+        _v = loop._w2b_sched.decide(_g, _lv, _key, _conf, _w2b_mark(loop))
+        if _v["engage"]:
+            loop._w2b_sched.note_attempt(_g, _lv, _key, _w2b_mark(loop))
+            loop._w2b_key = _key    # the abort router's plan-time key
+            print(f"[PLAN] engage reason={_v['reason']}")
+            return True
+        loop._w2b_narr = ("skipped", _v["reason"])
+        print(f"[PLAN] skip reason={_v['reason']}")
+        return False
+    except Exception:
+        _swal(loop, "PLANNER")
+        return True     # the starvation guard outranks: never deny on error
+
+
+def _w2b_abort(loop, frame_changed, level_changed) -> None:
+    """W2b RIDER (the shadow test's Interruption finding): ROUTE a driven
+    plan's abort -- WORLD-MOVED (the state key changed under the plan:
+    re-plan, no penalty; the retained key drops so GATE B cannot block the
+    re-plan) vs PLAN-WRONG (state as predicted, the step failed: recorded
+    against the plan's atoms). Each narrated at the PLAN point with its
+    discriminator (F4). Today a driven plan is a single same-cycle step, so
+    live aborts compare equal keys and route PLAN-WRONG; WORLD-MOVED is the
+    seam a multi-cycle drive inherits, gate-tested via constructed calls
+    (tests/gate/test_planner_scheduling.py). A level change also clears the
+    retained state key here (binder.on_level_change's pattern). One-line call
+    site in record_result; containment: never raises."""
+    try:
+        _sch = getattr(loop, "_w2b_sched", None)
+        _dr = getattr(loop, "_w2b_driven", None)
+        loop._w2b_driven = None          # one step, one routing -- never stale
+        if _sch is None:
+            return
+        if level_changed:
+            _sch.on_level_change()       # the board redraws; the key re-earns
+            return
+        if _dr is None or frame_changed or _dr.get("key") is None:
+            return                       # no driven plan, or the step landed
+        from engines.egocentric import scheduler as _s2b
+        _pf = getattr(loop, "_prev_frame", None)
+        _obs = _s2b.state_key(_pf) if _pf is not None else str(_dr.get("key"))
+        _rt = _s2b.route_abort(str(_dr.get("key")), _obs)
+        _sch.on_abort(_rt["route"], str(getattr(loop, "_game_id", "") or "game"),
+                      int(getattr(loop, "_ego_level", 0) or 0),
+                      list(_dr.get("steps") or []))
+        _nsp = getattr(loop, "_narration", None)
+        if _nsp is not None:
+            _rng, _cc = _narr_range(loop)
+            _nsp.plan("abort", _rt["route"], rng=_rng, col_class=_cc)
+        print(f"[PLAN] abort routed={_rt['route']} ({_rt['fact']})")
+    except Exception:
+        _swal(loop, "PLANNER")
 
 
 # =============================================================================
@@ -1342,6 +1451,11 @@ class CognitiveLoop:
                             where=lambda r: r.get("game") == str(self._game_id))
                         if _atoms:
                             _pg["g6"] += 1
+                        # ═══ W2b (PREREG_W2B_PLANNER_SCHEDULING.md): LAST RESORT.
+                        # GATE A (cheap routes first) + GATE B (no re-search of an
+                        # unchanged world) + the absolute STARVATION GUARD live in
+                        # _w2b_engage; skips are narrated at the PLAN point. ═══
+                        if _atoms and _w2b_engage(self, _pframe, cf):
                             from engines.egocentric.discrepancy import compute_d
                             from engines.egocentric.planner import plan_to_identity
                             _d = compute_d(_pframe, _refsnap)
@@ -1404,6 +1518,11 @@ class CognitiveLoop:
                                     action_data = {'x': int(_site[0]),
                                                    'y': int(_site[1])}
                                     _pg["drive"] += 1
+                                    # W2b rider: the abort router's stash --
+                                    # plan-time key + the plan's step atoms
+                                    self._w2b_driven = {
+                                        "key": getattr(self, "_w2b_key", None),
+                                        "steps": list(_plan["steps"])}
                                     print(f"[PLAN] DRIVE steps={len(_plan['steps'])} "
                                           f"site={_site} d={_d.get('differing')}")
                                 else:
@@ -1421,7 +1540,9 @@ class CognitiveLoop:
                 elif (_gm is not None and _rbind is not None and _refsnap is None
                         and getattr(self, "_ego_fabric", None) is not None):
                     _pframe = self._perceiver._to_numpy(frame)
-                    if _pframe is not None:
+                    # W2b: the abduced path is the SAME planner engagement --
+                    # the same two gates + starvation guard decide it.
+                    if _pframe is not None and _w2b_engage(self, _pframe, cf):
                         from engines.egocentric.goal_abduction import (
                             GoalBook, abduced_plan)
                         # LINK3: rebind when the fabric instance changed — the
@@ -1457,6 +1578,10 @@ class CognitiveLoop:
                                 action_data = {'x': int(_ap["site"][0]),
                                                'y': int(_ap["site"][1])}
                                 _pg["drive"] += 1
+                                # W2b rider: the abort router's stash
+                                self._w2b_driven = {
+                                    "key": getattr(self, "_w2b_key", None),
+                                    "steps": list(_ap["steps"])}
                                 print(f"[PLAN] DRIVE steps={len(_ap['steps'])} "
                                       f"site={_ap['site']} goal={_ap['sig']}")
                             else:
@@ -2028,6 +2153,12 @@ class CognitiveLoop:
             except Exception:
                 _swal(self, "BANK_SETTLE")
             _goal_abd(self, level_changed, post_array)  # G-C: bank the level-up delta
+            # W2b RIDER: route a driven plan's abort (world-moved vs plan-wrong,
+            # each narrated with its discriminator -- F4); a level change clears
+            # the retained planner state key (binder.on_level_change's pattern).
+            # One-line call site placed AFTER the .credit/.route anchors by the
+            # window law; containment inside: never raises.
+            _w2b_abort(self, frame_changed, level_changed)
             # W4c-3: THE MINT — bar-gated by affect (picky when desperate).
             try:
                 _rt = getattr(self, "_residual_router", None)

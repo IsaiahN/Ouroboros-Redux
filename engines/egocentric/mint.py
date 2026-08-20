@@ -15,12 +15,21 @@ MDLMint.consider(before, action, after, game, level) runs three guards in order:
                                          encoding_cost_route's per-element scale plus a
                                          +1.0 leaving-it-unexplained premium)
       cost = encoding_cost_atom(phi)    (= 1.0 + changed)
+             + EXTENT_RATE * retained   (W2-S2: retained-but-unchanged context cells
+                                         PAY -- extent in the bargain, not just the wall)
   Accept iff  cost + 0.0 < R            (residual after phi explains the event is 0)
       AND     cost < 0.9 * R            (the atom must clear R with margin, not scrape it)
       AND     bbox_area < 0.5 * board_area   (compressibility: an "atom" whose
                                               context/transform patch covers half the
                                               world or more is no pocket -- it is as big
-                                              as the change it explains).
+                                              as the change it explains; W2-S2 keeps
+                                              this clause as the OUTER WALL).
+
+  W2 STAGE 2 (PREREG_W2_STAGE2_CONTEXT_MIN.md): re-observation of a known key
+  additionally INTERSECTS the stored atom's context with the new observation's
+  (_intersect_context -> effects.minimise_atom): varying cells become DONT_CARE,
+  changed + one ring always retained, context_full preserved as the undo. The
+  rederivation verdict itself is unchanged.
   A 1-cell recolour on 5x5: cost 2.0 < R 3.0, 2.0 < 2.7, bbox 1 < 12.5 -> mint.
   A 6x6 scramble (24 changed cells, bbox 6x5=30 of 36): 30 >= 18.0 -> reject.
 
@@ -85,6 +94,29 @@ MDL_MARGIN = 0.9
 # Compressibility: the atom's patch (changed-cells bounding box) must be a pocket,
 # strictly smaller than half the board -- else it is as big as the world it "explains".
 MAX_BBOX_BOARD_FRACTION = 0.5
+# W2 STAGE 2 (PREREG_W2_STAGE2_CONTEXT_MIN.md): THE EXTENT PREMIUM. The accept
+# inequality becomes
+#     cost = 1.0 + changed + EXTENT_RATE * retained_unchanged_cells
+# where retained_unchanged_cells = context cells that are neither DONT_CARE nor
+# changed (effects.context_retained_cells) -- so a precondition PAYS per cell it
+# insists on instead of merely PASSING the binary half-board clause, which stays
+# as the outer wall. At 0.0 the term vanishes and mint decisions are
+# byte-identical to the pre-premium code (the F3 dial).
+#
+# THE STARTING VALUE, derived from the pi-replay median (PI_REPLAY_RESULT.md:
+# median context 976 cells licensing changed = 26):
+#     R = 2*26 + 1 = 53;  margin bar = 0.9*R = 47.7;  base cost = 1 + 26 = 27.
+#     Median-shaped atom: retained = 976 - 26 = 950, so rejection needs
+#         27 + rate*950 >= 47.7   =>   rate >= 20.7/950 ~= 0.0218.
+#     Tight atom (changed + one ring; worst case 26 fully scattered cells,
+#     <= 8 ring cells each => retained <= 208) must still mint comfortably:
+#         27 + rate*208 < 47.7    =>   rate < 20.7/208 ~= 0.0995.
+# EXTENT_RATE = 0.05 sits between: the median-shaped candidate prices at
+# 27 + 0.05*950 = 74.5 (rejected, over both bars) while the fully scattered
+# tight twin prices at <= 27 + 0.05*208 = 37.4 (mints with ~10 of margin; a
+# compact 26-cell change retains ~0 and prices at 27). In general rejection
+# begins near retained ~= 16.4x changed -- i.e. below ~6% change density.
+EXTENT_RATE = 0.05
 # CK-2c (Rescorla-Wagner): evidence contributes support weighted by SURPRISE.
 # weight = 1 / (1 + seen) per (game, level, action, transition-signature); the first
 # occurrence carries full support (1.0) and only full support clears the SUPPORT gate,
@@ -239,7 +271,11 @@ class MDLMint:
 
         # NOVELTY: a known key is a re-derivation, never a second atom. (Unchanged --
         # a transition already reproduced by an existing atom contributes rederivation.)
+        # W2-S2: a re-observation is EVIDENCE about the stored precondition --
+        # intersect the stored context with this observation's before it is ledgered.
+        # The verdict itself is untouched.
         if key in self._known_keys():
+            self._intersect_context(key, phi)
             self._record("rederivation", game, level, key=key, ep=ep_now, sigma=sigma)
             return {"verdict": "rederivation", "id": None}
 
@@ -252,7 +288,10 @@ class MDLMint:
             return {"verdict": "reject", "id": None, "w": w}
 
         # MDL: accept iff |phi| + |R given phi| < |R|, with margin and a pocket test.
-        cost = _effects.encoding_cost_atom(phi)                # 1.0 + changed
+        # W2-S2: the EXTENT PREMIUM -- every retained-but-unchanged context cell
+        # is priced at EXTENT_RATE (arithmetic at the constant's definition).
+        cost = (_effects.encoding_cost_atom(phi)               # 1.0 + changed
+                + EXTENT_RATE * _effects.context_retained_cells(phi))
         residual_given_phi = 0.0                               # phi explains the event fully
         R = RESIDUAL_CELL_COST * float(changed) + UNEXPLAINED_PREMIUM
         ctx = phi.get("context") or [[]]
@@ -292,6 +331,49 @@ class MDLMint:
         self._split[typ] = self._split.get(typ, 0) + 1
         self._record("mint", game, level, key=key, w=w, ep=ep_now, sigma=sigma)
         return {"verdict": "mint", "id": aid, "w": w}
+
+    # -- W2 STAGE 2: intersection at re-observation (PREREG_W2_STAGE2_CONTEXT_MIN.md) --
+
+    def _intersect_context(self, key: str, phi: Dict[str, Any]) -> None:
+        """At each re-observation of an existing key, intersect the stored
+        atom's context with this observation's (effects.minimise_atom): cells
+        that differ become DONT_CARE; changed cells + one ring are always
+        retained; the stored context only ever SHRINKS; the original full
+        context is preserved in `context_full` on first touch (the undo). The
+        update is a SUPERSEDING APPEND on the atoms stream -- same id, marked
+        `ctx_min` -- never an in-place rewrite: Gamma.get reads the LAST record
+        for an id, so the append IS the update (archive law: evidence added,
+        never replaced). STRUCTURAL FACT, stated not papered over: the atom key
+        hashes the full context patch, so a same-key re-observation carries an
+        IDENTICAL raw context and this intersection shrinks nothing until
+        stored contexts have already been minimised (the retro pass,
+        tools/context_minimiser.py) or the key ever loosens -- this is the
+        going-forward wire the prereg names, priced at one stream query per
+        rederivation. Never raises into the verdict path; the verdict is
+        untouched either way."""
+        try:
+            recs = self.gamma.fabric.query(
+                "collective", self.gamma.TOPIC,
+                where=lambda r: (r.get("atom") or {}).get("key",
+                                                          r.get("key")) == key)
+            if not recs:
+                return
+            rec = recs[-1]
+            minimised = _effects.minimise_atom(rec.get("atom") or {},
+                                               phi.get("context"))
+            if minimised is None:
+                return                                   # nothing shrank
+            # Restamp the anchor signature: the cache must never outlive the
+            # context it was derived from (same write-site family as the
+            # mint-time stamp below).
+            minimised[_applicability.ASIG_FIELD] = (
+                _applicability.anchor_signature(minimised))
+            sup = dict(rec)
+            sup["atom"] = minimised
+            sup["ctx_min"] = True                        # the superseding append, marked
+            self.gamma.fabric.append("collective", self.gamma.TOPIC, sup)
+        except Exception:
+            self.errors += 1                             # never break the verdict path
 
     # -- the letters-wall watchdog ------------------------------------------------------
 

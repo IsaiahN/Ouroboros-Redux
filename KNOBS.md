@@ -39,6 +39,15 @@ G13 planner: MAX_DEPTH=8, MAX_NODES=2000                                 (planne
 G14 consumer: budget_n=8/episode; near-miss = all-but-one; 1 retry       (consumer.py)
 G15 rho: RHO_COLLAPSE=0.9                                                (rho.py)
 G16 starvation thresholds: PLAN_N=50, BOOK_N=10                          (starvation.py)
+G25 PLANNER LAST-RESORT BAR: CHEAP_ROUTE_CONF_BAR=0.5 [GUESSED] — W2b GATE A
+    (PREREG_W2B_PLANNER_SCHEDULING.md): a cheap-route candidate (mapped/reasoned/
+    explore, cf.action_confidence) AT or ABOVE the bar holds the wheel and the
+    planner does not engage. Mirrors the loop's existing 0.5 exploit-certainty
+    bar (_derive_strategy) — no prior NAMED constant existed, so it is named
+    here. The bar defers only WITHIN a cycle: the starvation guard is absolute
+    (a cycle where every cheap route fails always reaches the planner). NOT the
+    verification bar (F2) and NOT GATE B — those are evidence semantics, not
+    dials.                                       (engines/egocentric/scheduler.py)
 G22 CORPSE GUARD: CORPSE_GUARD=True [GUESSED] — the salient-prefix death guard
     (never bank a terminal step; refuse selecting a prefix whose LAST RECORDED
     OUTCOME was `died`). Env CORPSE_GUARD outranks the class flag

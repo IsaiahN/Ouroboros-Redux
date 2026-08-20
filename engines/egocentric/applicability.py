@@ -85,7 +85,11 @@ def _patch_dims(patch: Any) -> Optional[Tuple[int, int]]:
 
 
 def _patch_palette(patch: List[List[Any]]) -> Set[int]:
-    return {int(v) for row in patch for v in row}
+    # W2-S2: a DONT_CARE cell (context minimisation's sentinel) constrains
+    # nothing, so it is never a palette requirement -- an atom minimised down
+    # to sparse retained cells must not demand -1 of any frame.
+    return {int(v) for row in patch for v in row
+            if int(v) != _effects.DONT_CARE}
 
 
 def _content_key(patch: Any) -> str:

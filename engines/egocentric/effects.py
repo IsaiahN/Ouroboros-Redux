@@ -40,7 +40,24 @@ __all__ = ["learn_effect", "apply_effect", "classify_transform", "Gamma",
            "encoding_cost_route", "encoding_cost_atom",
            "NONE_REASONS", "none_reasons", "none_summary",
            "ORIGIN_LOCAL", "ORIGIN_IMPORTED", "ORIGIN_UNKNOWN", "ORIGINS",
-           "origin_of"]
+           "origin_of",
+           "DONT_CARE", "minimise_atom", "context_retained_cells"]
+
+
+# ── W2 STAGE 2: the DON'T-CARE sentinel (PREREG_W2_STAGE2_CONTEXT_MIN.md) ─────
+#
+# A context cell that VARIED across successful firings of the same rule cannot
+# be a precondition of that rule. Context minimisation (minimise_atom below)
+# marks such cells DONT_CARE. The match path (the anchor scans) treats a
+# DONT_CARE context cell as matching ANY frame value, and the raw stamp in
+# apply_effect leaves the frame's own value in place at DONT_CARE cells of the
+# after-patch. ARC colours are non-negative integers, so -1 can never collide
+# with content. No atom minted before this build carries the sentinel, and on
+# sentinel-free atoms every path below is byte-identical to the pre-sentinel
+# code (gates: tests/gate/test_context_min.py, tests/gate/test_vectorised_scan.py
+# -- the SCALAR path is the semantics oracle for don't-care too).
+
+DONT_CARE = -1
 
 
 # ── THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B; CLAIM.md) ───────────────────
@@ -394,13 +411,17 @@ _SCAN_CHUNK_BYTES = 4 * 1024 * 1024  # cap on the boolean reduction per chunk
 
 
 def _context_anchors_scalar(b: np.ndarray, ctx: np.ndarray):
-    """The pre-W2a-2 scan, verbatim: slice the frame at every candidate anchor
-    and compare per-anchor. Kept as the undo path and the equivalence oracle."""
+    """The pre-W2a-2 scan: slice the frame at every candidate anchor and
+    compare per-anchor. Kept as the undo path and the equivalence oracle.
+    W2-S2: a DONT_CARE context cell matches any frame value (the `care` mask);
+    on a sentinel-free patch the mask is all-True and the comparison is the
+    original whole-patch equality."""
     ph, pw = ctx.shape
     bh, bw = b.shape
+    care = ctx != DONT_CARE
     for r in range(bh - ph + 1):
         for c in range(bw - pw + 1):
-            if (b[r:r + ph, c:c + pw] == ctx).all():
+            if (b[r:r + ph, c:c + pw][care] == ctx[care]).all():
                 yield r, c
 
 
@@ -408,17 +429,20 @@ def _context_anchors_vector(b: np.ndarray,
                             ctx: np.ndarray) -> List[Tuple[int, int]]:
     """Every anchor (r, c) where the frame slice equals ctx, row-major, in one
     numpy pass. np.nonzero on the C-contiguous hit grid returns row-major
-    order, so the FIRST list element is exactly the scalar scan's first hit."""
+    order, so the FIRST list element is exactly the scalar scan's first hit.
+    W2-S2: DONT_CARE context cells match anything -- OR-ed in as `loose`
+    before the reduction; all-False on sentinel-free patches (identical)."""
     ph, pw = ctx.shape
     bh, bw = b.shape
     nr, nc = bh - ph + 1, bw - pw + 1
     if nr <= 0 or nc <= 0:
         return []
     win = np.lib.stride_tricks.sliding_window_view(b, (ph, pw))
+    loose = ctx == DONT_CARE
     step = max(1, _SCAN_CHUNK_BYTES // max(1, nc * ph * pw))
     out: List[Tuple[int, int]] = []
     for r0 in range(0, nr, step):   # chunk loop: O(rows/step), NEVER per-anchor
-        hits = (win[r0:r0 + step] == ctx).all(axis=(2, 3))
+        hits = ((win[r0:r0 + step] == ctx) | loose).all(axis=(2, 3))
         rs, cs = np.nonzero(hits)
         out.extend(zip((rs + r0).tolist(), cs.tolist(), strict=True))
     return out
@@ -580,9 +604,15 @@ def _apply_typed(atom: Dict[str, Any], b: np.ndarray) -> Optional[np.ndarray]:
     if ttype in ("OBJ_APPEAR", "OBJ_VANISH") or (ttype == "COLOUR_PERM"
                                                  and params.get("shape")):
         return _apply_object_typed(ttype, params, b)      # B8: shape-bound ops
+    if ttype == "TRANSLATE" and params.get("shape"):
+        return _apply_shape_translate(params["shape"], params, b)
+    if bool((ctx == DONT_CARE).any()):
+        # W2-S2: a minimised context is no longer the literal patch the
+        # mechanism was named on -- the ctx-bound ops below would treat the
+        # sentinel as content and stamp it into the frame. The DONT_CARE-aware
+        # raw scan (apply_effect's fallback) is the authority for these atoms.
+        return None
     if ttype == "TRANSLATE":
-        if params.get("shape"):
-            return _apply_shape_translate(params["shape"], params, b)
         return _apply_translate(ctx, params, b)
     if ttype == "ROTATE":
         rep = np.rot90(ctx, int(params.get("k", 0)) % 4)
@@ -637,9 +667,17 @@ def apply_effect(atom: Dict[str, Any], before: np.ndarray) -> Optional[np.ndarra
     out = np.asarray(atom["transform"]["after"])
     b = np.asarray(before)
     ph, pw = ctx.shape
+    # W2-S2: a DONT_CARE cell in the after-patch means "leave the frame's own
+    # value in place" -- the masked stamp. Sentinel-free after-patches keep the
+    # original whole-patch write verbatim (byte-identical, failure modes included).
+    stamp = out != DONT_CARE
+    masked = not bool(stamp.all())
     for r, c in _context_anchors(b, ctx):                 # W2a-2 vectorised scan
         res = b.copy()
-        res[r:r + ph, c:c + pw] = out
+        if masked:
+            res[r:r + ph, c:c + pw][stamp] = out[stamp]
+        else:
+            res[r:r + ph, c:c + pw] = out
         return res
     return None
 
@@ -728,6 +766,91 @@ def apply_inverse(atom: Dict[str, Any], frame: np.ndarray) -> Optional[np.ndarra
         return apply_effect(inv_atom, np.asarray(frame))
     except Exception:
         return None                                       # inversion must never break a caller
+
+
+# ── W2 STAGE 2: context minimisation (PREREG_W2_STAGE2_CONTEXT_MIN.md) ────────
+#
+# The pi-replay null (PI_REPLAY_RESULT.md): the median atom demands ~976 cells
+# be identical to license a change to ~26 of them -- a dense snapshot of a
+# sparse rule, structurally unable to match anything but its own source frame.
+# The repair's evidence-side half: cells that VARIED across observed firings of
+# the same rule are demonstrably not preconditions -- intersect them away.
+
+def _ring_of(changed: np.ndarray) -> np.ndarray:
+    """The changed cells plus one ring of 8-neighbourhood around them, clipped
+    to the patch: the region whose retention is never up for negotiation."""
+    h, w = changed.shape
+    ring = np.zeros_like(changed)
+    for dr in (-1, 0, 1):
+        for dc in (-1, 0, 1):
+            src = changed[max(0, -dr):h - max(0, dr), max(0, -dc):w - max(0, dc)]
+            ring[max(0, dr):h - max(0, -dr), max(0, dc):w - max(0, -dc)] |= src
+    return ring
+
+
+def context_retained_cells(atom: Optional[Dict[str, Any]]) -> int:
+    """The EXTENT an atom still insists on: context cells that are neither
+    DONT_CARE nor changed by the effect. This is the quantity the mint's
+    extent premium prices (mint.EXTENT_RATE); a freshly learned atom has
+    bbox_area - changed of them. 0 on anything malformed -- a malformed atom
+    must fail MDL on its own terms, never crash the pricing."""
+    try:
+        ctx = np.asarray((atom or {}).get("context"))
+        out = np.asarray(((atom or {}).get("transform") or {}).get("after"))
+        if ctx.ndim != 2 or ctx.size == 0 or ctx.shape != out.shape:
+            return 0
+        return int(((ctx != DONT_CARE) & (ctx == out)).sum())
+    except Exception:
+        return 0
+
+
+def minimise_atom(atom: Dict[str, Any],
+                  observed_context: Any) -> Optional[Dict[str, Any]]:
+    """Intersect the atom's stored context with ONE more observation of the
+    same rule. Cells that DIFFER become DONT_CARE -- a cell that varied across
+    successful firings cannot be a precondition, so dropping it is safe BY
+    CONSTRUCTION. The changed cells and one ring of 8-neighbourhood around
+    them are ALWAYS retained regardless of variation (_ring_of). The stored
+    context only ever SHRINKS (a DONT_CARE never comes back: monotone), and
+    the ORIGINAL full context is preserved in `context_full` the first time
+    minimisation touches the atom (the undo -- held until Seat 3 rules on
+    disposal). Returns a NEW atom dict, or None when nothing shrank or the
+    inputs are unusable (shape mismatch, malformed patches) -- the caller then
+    keeps the stored atom untouched. Pure: never mutates its arguments.
+    NOTE: the returned atom's stale anchor-signature cache (applicability's
+    "asig" field) is dropped so the read side re-derives it; write sites that
+    stamp it (the mint) restamp after minimising."""
+    try:
+        transform = (atom or {}).get("transform") or {}
+        ctx = np.asarray(atom.get("context"))
+        out = np.asarray(transform.get("after"))
+        obs = np.asarray(observed_context)
+    except Exception:
+        return None
+    if (ctx.ndim != 2 or ctx.size == 0 or ctx.shape != out.shape
+            or ctx.shape != obs.shape):
+        return None
+    changed = ctx != out
+    keep = _ring_of(changed)                # changed + one ring: always retained
+    care = ctx != DONT_CARE                 # monotone: existing sentinels stay
+    drop = care & ~keep & (ctx != obs)      # varied, negotiable -> DONT_CARE
+    if not drop.any():
+        return None                         # nothing shrank: stored atom stands
+    new_ctx = ctx.copy()
+    new_ctx[drop] = DONT_CARE
+    new_out = out.copy()
+    new_out[drop] = DONT_CARE               # the stamp skips these cells too
+    minimised = dict(atom)
+    if "context_full" not in minimised:
+        minimised["context_full"] = _to_lists(ctx)        # first touch: the undo
+    ctx_lists = _to_lists(new_ctx)
+    new_transform = dict(transform)
+    new_transform["before"] = ctx_lists
+    new_transform["after"] = _to_lists(new_out)
+    minimised["context"] = ctx_lists
+    minimised["transform"] = new_transform
+    minimised.pop("asig", None)             # stale cache (applicability.ASIG_FIELD)
+    return minimised
 
 
 # ── B9: conditional effects -- arity-3 EFFECT_IF atoms ────────────────────────

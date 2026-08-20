@@ -92,6 +92,15 @@ def import_verify_plan(tmp_path_factory):
         stage: dict = {"out": {}}
 
         def run_cycle(name, frame):
+            # W2b STAGING (PREREG_W2B_PLANNER_SCHEDULING.md): this fixture
+            # replays an IDENTICAL board frame to stage verification, which a
+            # live episode reaches only through a CHANGED world (the settle
+            # that verifies also moves the frame) -- so the scheduler's
+            # retained attempt key is cleared before each staged cycle, or
+            # GATE B would (correctly) refuse to re-search an unchanged world.
+            # The unchanged-world skip has its own gate:
+            # tests/gate/test_planner_scheduling.py (F3).
+            loop._w2b_sched = None
             buf = io.StringIO()
             with redirect_stdout(buf):
                 action, data, _cf = loop.cycle(frame, obs)

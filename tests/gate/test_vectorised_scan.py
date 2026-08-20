@@ -181,6 +181,51 @@ def _typed_battery(rng):
     return pairs
 
 
+def _dontcare_battery(rng):
+    """W2-S2 (PREREG_W2_STAGE2_CONTEXT_MIN.md): DON'T-CARE-bearing atoms. The
+    SCALAR path is the semantics oracle for the sentinel too: a DONT_CARE
+    context cell matches any frame value, a DONT_CARE after-patch cell leaves
+    the frame's value in place, and both scan modes must agree byte-for-byte
+    across match / no-match / multi-match / edge anchors."""
+    dc = E.DONT_CARE
+    # a 3x3 minimised patch: centre changed, corners DON'T-CARE, edges retained
+    ctx = [[dc, 1, dc], [1, 2, 1], [dc, 1, dc]]
+    out = [[dc, 1, dc], [1, 7, 1], [dc, 1, dc]]
+    wild = _raw(ctx, out)
+    # a fully retained twin (no sentinel) for contrast on the same frames
+    lit = _raw([[3, 1, 3], [1, 2, 1], [3, 1, 3]],
+               [[3, 1, 3], [1, 7, 1], [3, 1, 3]])
+    # a minimised TYPED atom: the typed path must bail to the raw scan,
+    # never stamp the sentinel into a frame
+    typed_wild = _typed("COLOUR_PERM", {"mapping": [[2, 7]]}, ctx, out)
+    row = _raw([[dc, 5, dc]], [[dc, 6, dc]])              # 1x3, sparse retained
+    alldc = _raw([[dc, dc]], [[dc, dc]])                  # degenerate: all wildcard
+    pairs = []
+    for i, atom in enumerate((wild, lit, typed_wild, row)):
+        actx = np.asarray(atom["context"])
+        ph, pw = actx.shape
+        for j in range(6):
+            fh = ph + int(rng.integers(0, 10))
+            fw = pw + int(rng.integers(0, 10))
+            f = rng.integers(0, 10, size=(fh, fw)).astype(int)
+            pairs.append((atom, f, "dc-%d/random-%d" % (i, j)))
+            g = f.copy()
+            er = int(rng.integers(0, fh - ph + 1))
+            ec = int(rng.integers(0, fw - pw + 1))
+            reg = g[er:er + ph, ec:ec + pw]
+            m = actx != dc
+            reg[m] = actx[m]                              # retained cells placed,
+            pairs.append((atom, g, "dc-%d/placed-%d" % (i, j)))  # wildcards left random
+        pairs.append((atom, np.full((5, 5), 9, dtype=int), "dc-%d/nomatch" % i))
+    # multi-match tie-break with wildcards: retained column repeated
+    tie = np.zeros((4, 6), dtype=int)
+    tie[1, 1] = tie[1, 4] = tie[2, 2] = 5
+    pairs.append((row, tie, "dc/multi-match"))
+    pairs.append((alldc, np.arange(12).reshape(3, 4), "dc/all-wild"))
+    pairs.append((alldc, np.array([[8]]), "dc/all-wild-too-small"))
+    return pairs
+
+
 def _oddities():
     """Dims/dtypes/degenerates the prereg's 'spanning' clause demands."""
     one = _raw([[3]], [[4]])
@@ -216,7 +261,8 @@ def _oddities():
 
 def _corpus():
     rng = np.random.default_rng(SEED)
-    return _learned_pairs(rng) + _typed_battery(rng) + _oddities()
+    return (_learned_pairs(rng) + _typed_battery(rng) + _dontcare_battery(rng)
+            + _oddities())
 
 
 # ── F1: EQUIVALENCE, absolute -- byte-identical including None ────────────────
