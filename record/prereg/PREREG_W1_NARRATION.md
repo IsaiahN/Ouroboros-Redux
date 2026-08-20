@@ -36,11 +36,25 @@ Per Seat 4's caution, this is checked **before** W2–W6 are built on top: *six 
 resting on a narration layer that turns out to be decoration would be the elaboration trap at
 architecture scale.*
 
-**Operationalised:** run N episodes narrating-and-consuming (the ROUTE/MINT decisions read
-their own immediately-prior narration state, e.g. the retained stale-mark) vs N narrating-only
-(write-but-never-read). **If the consuming arm's bin distribution, mint verdicts, and action
-choices are statistically indistinguishable from write-only, the falsifier FIRES** — recorded
-as a finding, and W2+ redesigns around instruments rather than narration.
+**Operationalised, with the null PINNED BEFORE THE RUN** (Seat 4: *"stating it afterward is
+how a null gets absorbed"* — same discipline as the seed-stability criterion, stated against
+a shuffle rather than a number):
+
+- **Arms**: C (narrate-and-consume: ROUTE/MINT read their own immediately-prior narration
+  state, e.g. the retained stale-mark) vs W (narrate-only: write-but-never-read). Same game,
+  same seeds regime, alternating episodes.
+- **N, derived not asserted**: enough episodes per arm that the rarest ROUTE bin's expected
+  count is ≥ 20 in each arm, computed from that game's observed bin rates before the run.
+- **Three statistics, pre-named**: (1) total-variation distance between the arms' ROUTE-bin
+  distributions; (2) TVD between mint-verdict distributions; (3) per-step action agreement
+  rate against matched episode indices.
+- **The null**: permutation — shuffle episode→arm labels 1,000 times, recompute all three
+  statistics per shuffle. **The falsifier FIRES (narration is decoration) iff ALL THREE
+  observed statistics fall inside their shuffled 95% bands.** Narration drives iff at least
+  one pre-named statistic exceeds its band. No other statistic may be substituted after the
+  run; a surprise elsewhere is a new finding, not a rescue.
+- On firing: recorded as a finding, and W2+ redesigns around instruments rather than
+  narration.
 
 ## FALSIFIERS FOR THE BUILD ITSELF
 - **F1 · IT NARRATES**: every step emits exactly one record with bin + why-not-neighbour +
