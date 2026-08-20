@@ -66,3 +66,20 @@ falsifier that costs one script (Q3). Recommended order: the replay falsifier FI
 read), then the fallback signature as stage 2's opening move if it fires — displacing, not
 joining, the diff-directed selection as stage 2's lead, since a transported atom changes
 WHICH candidates exist before any question of how to order them.
+
+
+## THE π-REPLAY READ DESIGN, AMENDED BY SEAT 3 BEFORE THE RUN (2026-08-20)
+
+1. **The two cohorts report SEPARATELY, always.** The 66% π-transportable (result ⊆
+   context: the permutation from the match determines the result) and the 34% needing
+   `colour_delta` as an anchor are different claims with different failure modes — a strong
+   result on the easy two-thirds must not read as a result on everything. Every table this
+   read produces carries both columns; no aggregate is reported without its split.
+2. **lp85 IS THE CONTROL.** Perfectly stable palette (98/98 level-ups unchanged), the most
+   banked content, 7 mem-kills against 137. Pinned prediction: transported atoms help the
+   three recolouring games (cn04, m0r0, sp80) and do **nothing** for lp85. That pattern
+   confirms the MECHANISM; a uniform improvement including lp85 would instead indicate a
+   general speedup riding under the colour story, and the claim would be rejected as
+   mechanism-evidence even if welcome as engineering.
+
+Both pinned before the replay runs, so neither can be absorbed afterward.
