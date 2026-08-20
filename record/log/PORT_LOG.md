@@ -1323,3 +1323,17 @@ bites whoever next writes a state comparison from the documentation rather than 
 GameAction, GameState` (`game_player.py:25`).** Two toolkits are installed and only one is on
 the live path. *Reading the import line is what separated them — the same "which thing is
 actually live" check that the log-line-as-channel error needed this afternoon.*
+
+
+## ENTRY 38 — 2026-08-20. **GAMES WON: 0/25.** LEVELS DELTA: 0. **SWARM DELIBERATELY STOPPED.**
+**FREEZE, NOT AN OUTAGE:** Seat 3 ordered all players and tests stopped ahead of a major
+refactor. HOLD is set; this beat does NOT relaunch, overriding the beat protocol's
+stale-status rule — a directive from the maintainer outranks the cron.
+Scoreboard from the frozen boxes: L1+ 9/25, L2+ 1/25 (ar25), 12,940 sessions. No vitals
+(nothing runs), no improvement taken (the improvement queue is suspended pending the
+refactor plan, which will absorb or retire it — absorbed items will be NAMED).
+Day's closures before the freeze: D-6 closed (import-time logger creating a root DB;
+deferred-init fix, falsifier passed), dead code-lineage retired (4 tests + 5 modules),
+dead DATA-lineage retired (2 test files whose greens read the archived pre-swarm DB),
+13 tooling candidates quarantined. Suite baseline 1986 green / 4 known-red.
+Standing post-plan action: REVIEW EVERY PREREG (33) for continued relevance.

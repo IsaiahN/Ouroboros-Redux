@@ -62,7 +62,7 @@ cover/
 
 # Log files
 *.log
-log/
+/log/
 
 #images
 *.png
