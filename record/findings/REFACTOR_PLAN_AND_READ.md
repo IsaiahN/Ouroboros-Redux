@@ -331,3 +331,14 @@ swarm stays held until the review says what is still relevant.
 - **W5 rider — renames carry their tests**: `standing_half_life` / `newcomer_handicap`
   renames must update `tests/gate/test_frontier_pariah.py` (and any test citing the old
   names) in the same commit, or the wiring receipts dangle.
+
+
+## W2 RE-SCOPED BY THE D-5 PROFILE (2026-08-20) — the decision rule, applied
+The profile named the term: 95.3%% of a slow worker's runtime is apply_effect inside
+plan_to_identity -- 77.7M numpy .all() calls from applying every atom at every anchor with no
+pruning. Per the rule stated before the profile ran, W2 is re-scoped: FIRST deliverable is
+the APPLICABILITY INDEX (anchor signatures pruning the candidate set before apply_effect),
+which attacks the named term; provenance tags + the catalogue are deliverables two and three
+(same write-sites, layer above). Success = the planner share collapses on the same window;
+if pruning does not collapse it, the cost is per-application work and the fix is
+vectorisation, a different build. Full result: record/findings/D5_PROFILE_RESULT.md
