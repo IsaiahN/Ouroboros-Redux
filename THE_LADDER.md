@@ -1156,3 +1156,52 @@ applied it at one site, and left two siblings on the clock in the same file.
 knowledge existed, in writing, in that file, and did not reach the two settings beside it.
 **Not fixed here:** `safe_cleanup` is the deletion path and D-1/D-2 are still open on it, so
 these two go to Seat 3 with the rest rather than being changed under a general principle.
+
+## D-5 — **PROGRESS BUYS SLOWDOWN** (2026-08-20, live defect, urgent)
+
+Seat 3 asked why four workers had no completed sessions since the offline flip, whether it
+was the same cause for all, and whether the local game roster needed redownloading.
+
+**IT IS NOT THE ROSTER AND NOT THE FLIP.** Zero of 25 workers have zero `action_traces` since
+the flip — **all 25 are playing**, logs show clean initialisation, no game-lookup failures,
+and offline resolves every game. *(My tool read `game_results`, which is written at episode
+END; the workers were playing and not finishing.)*
+
+**IT IS ONE CAUSE, AND IT IS THE SAME FOR ALL OF THEM: THEY ARE 100× SLOWER PER ACTION.**
+
+| | L0 | **L1+** |
+|---|---|---|
+| **0 atoms** | **9–10 act/min** — `tu93 tr87 re86 wa30 ls20 g50t` | **6.5** — `sk48` |
+| **has atoms** | **2.7–5.0** — `bp35`(299 atoms) `tn36`(191) `su15`(179) `sb26` `lf52` `sc25` | **0.1–1.8** — `r11l cn04 m0r0 sp80 cd82 ar25 ft09 lp85` |
+
+**NEITHER FACTOR ALONE EXPLAINS IT.** `bp35` holds the most atoms on the roster (299) and runs
+at **5.0/min** because it is L0. `sp80` holds **16** atoms and runs at **0.6/min** because it
+is L1. And `sk48` — **L1 with zero atoms** — runs at **6.5/min**, which is the cell that
+separates the two costs. **Atoms cost roughly 2–3×; reaching L1 costs roughly another 4×;
+together about 100×.**
+
+**THE CONSEQUENCE, AND IT IS THE POINT.** At **0.1 actions/min** a ~100-action episode takes
+**~16 hours**. `cn04` and `lp85` have therefore completed **zero** episodes since the flip —
+last finished episode ~13 h ago — while `tu93` completed 67. They are not stalled, not
+erroring, and not being killed: `r/m/c = 0/0/2` across the roster, recycling normally at 120
+minutes. **They are simply too slow to finish anything.**
+
+### WHY THIS IS THE MOST IMPORTANT DEFECT ON THE BOARD
+**The games that have made progress get the fewest attempts.** Every level reached and every
+atom minted makes the next action slower, so the roster's leaders are throttled in proportion
+to their lead. **That is anti-compounding: the architecture claims accumulation helps, and
+the measured effect of accumulation is a 100× reduction in attempts.**
+
+**AND IT EXPLAINS THE READ IT WAS BLOCKING.** *0 of 25 improved* is what a split-half
+necessarily reports when the only games that could improve are running at a hundredth of the
+rate needed to produce the episodes the comparison requires. The skew warning I built into
+`tools/split_half.py` — *"a short window drops the games closest to a win"* — is this defect
+seen from the measurement side. **It is not that the leaders are unreadable because the window
+is young; the window can never catch up at 0.1/min.**
+
+### WHAT IS NOT YET ESTABLISHED
+**The mechanism inside the action.** The correlation is strong and the 2×2 separates the two
+costs, but *what* consumes the time per action — Γ evaluation, replay, planning, predicate
+matching — is unmeasured. **That is the next read and it needs a per-action timing breakdown,
+not another correlation.** Naming a cause from this table would be exactly the inference this
+seat keeps catching in others.
