@@ -304,6 +304,37 @@ class GamePlayer:
     # Trace / symbolic recording (per-action data capture)
     # ------------------------------------------------------------------
 
+    def _serialise_trace_frame(self, obs: Any) -> Optional[str]:
+        """Frame -> JSON of tolist() -- the exact format `levelup_frames` uses
+        (goal_abduction.GoalBook.observe_levelup: json.dumps of
+        np.asarray(frame).tolist()), so json.loads reconstructs the array.
+
+        TRACE-WRITER FIX (2026-08-20): the old writer stored str(frame) --
+        numpy's repr with `...` ellipsis truncation -- unparseable and
+        unreconstructable. ~800k rows carry that loss; they stay as they are
+        (forward-only, no migration).
+
+        Multi-frame payloads normalise to THE LAST frame, the same rule the
+        loop's normaliser uses (_get_frame_array: a stack is ordered
+        oldest -> newest and "the frame now" is the last one).
+
+        None (or a payload that cannot become an array) -> None, loudly when
+        verbose -- never a lossy repr, never a raise into the write path."""
+        if obs is None or getattr(obs, 'frame', None) is None:
+            return None
+        data = obs.frame
+        try:
+            if isinstance(data, list) and data and isinstance(data[0], np.ndarray):
+                data = data[-1]          # [f0, f1, f2] -> f2 (len==1 unchanged)
+            arr = np.asarray(data)
+            if arr.ndim == 3:
+                arr = arr[-1]            # a stack that arrived as one array
+            return json.dumps(arr.tolist())
+        except (ValueError, TypeError) as e:
+            if self.verbose:
+                print(f"    [TRACE-ERR] frame not serialisable, storing NULL: {e}")
+            return None
+
     def _record_action_trace(
         self,
         game_id: str,
@@ -316,22 +347,20 @@ class GamePlayer:
         level_after: int,
         is_game_over: bool,
         coordinates: Optional[Dict] = None,
+        budget_total: Optional[float] = None,
+        budget_spend: Optional[float] = None,
     ) -> None:
-        """Record action trace with frame hash and score change."""
+        """Record action trace with frame hash, score change, and (when the
+        caller carries a live per-level budget) the budget telemetry columns:
+        budget_total = the level's funded budget at the moment of the write,
+        budget_spend = actions consumed against it, this action included."""
         try:
             frame_hash_before = self._compute_frame_hash(obs_before)
             frame_hash_after = self._compute_frame_hash(obs_after)
             frame_changed = frame_hash_before != frame_hash_after
 
-            frame_before_str = None
-            frame_after_str = None
-            try:
-                if obs_before and hasattr(obs_before, 'frame'):
-                    frame_before_str = str(obs_before.frame.tolist() if hasattr(obs_before.frame, 'tolist') else obs_before.frame)
-                if obs_after and hasattr(obs_after, 'frame'):
-                    frame_after_str = str(obs_after.frame.tolist() if hasattr(obs_after.frame, 'tolist') else obs_after.frame)
-            except Exception:
-                pass
+            frame_before_str = self._serialise_trace_frame(obs_before)
+            frame_after_str = self._serialise_trace_frame(obs_after)
 
             coords_json = None
             if coordinates:
@@ -343,8 +372,8 @@ class GamePlayer:
                     frame_before, frame_after, frame_changed,
                     score_before, score_after, score_change,
                     level_number, resulted_in_game_over,
-                    frame_hash, created_at
-                ) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    frame_hash, budget_total, budget_spend, created_at
+                ) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
             """, (
                 self._current_session_id,
                 game_id,
@@ -359,6 +388,8 @@ class GamePlayer:
                 level_after,
                 1 if is_game_over else 0,
                 frame_hash_before,
+                budget_total,
+                budget_spend,
             ))
         except Exception as e:
             if self.verbose:

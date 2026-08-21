@@ -609,6 +609,14 @@ class CognitiveGamePlayer:
                     level_before=prev_levels, level_after=current_levels,
                     is_game_over=(new_obs.state == GameState.GAME_OVER if new_obs else False),
                     coordinates=action_data,
+                    # TRACE-WRITER FIX (2026-08-20): the live per-level budget
+                    # state, previously never passed (NULL in ~800k rows).
+                    # action_budget = this level's funded budget at the moment
+                    # of the write (the level-up extension below has not fired
+                    # yet for THIS step); actions_taken = actions consumed
+                    # against it, this one included (incremented above).
+                    budget_total=action_budget,
+                    budget_spend=actions_taken,
                 )
             except Exception:
                 pass
