@@ -2221,6 +2221,17 @@ class CognitiveLoop:
                     _wpre = getattr(self, "_w4c_pre_frame", None)
                     _wexec = int((getattr(self, "_last_action_info", None)
                                   or {}).get('type', 0) or 0)
+                    # COMPOSER STAGE 2 (PREREG_COMPOSER_STAGE2_ENABLES.md):
+                    # the acting cell, (row, col) = (y, x) — the click
+                    # coordinates already in _last_action_info — captured so
+                    # the mint can stamp act_offset at write time. None
+                    # unless the executed action was a click with recorded
+                    # coordinates (movement actions carry none).
+                    _wlai0 = getattr(self, "_last_action_info", None) or {}
+                    _wact = ((int(_wlai0['y']), int(_wlai0['x']))
+                             if (_wexec == 6
+                                 and _wlai0.get('x') is not None
+                                 and _wlai0.get('y') is not None) else None)
                     # MINT BOOTSTRAP: with an empty Gamma, BROKEN-mechanism can
                     # never fire (it needs a KNOWN atom to be wrong), so every
                     # residual routes NOVEL and the mint starves. NOVEL WORKSPACE
@@ -2238,7 +2249,8 @@ class CognitiveLoop:
                             _wv = self._mdl_mint.consider(
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
-                                level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                                level=int(getattr(self, "_ego_level", 0) or 0) + 1,
+                                act=_wact)
                             if _wct is not None:
                                 _wct["mint_tried"] += 1
                                 _wct["mint_passed"] += (
@@ -2259,7 +2271,8 @@ class CognitiveLoop:
                             _wv = self._mdl_mint.consider(
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
-                                level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                                level=int(getattr(self, "_ego_level", 0) or 0) + 1,
+                                act=_wact)
                             if _wct is not None:
                                 _wct["mint_tried"] += 1
                                 _wct["mint_passed"] += (
@@ -2289,7 +2302,8 @@ class CognitiveLoop:
                             _wv = self._mdl_mint.consider(
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
-                                level=int(getattr(self, "_ego_level", 0) or 0) + 1)
+                                level=int(getattr(self, "_ego_level", 0) or 0) + 1,
+                                act=_wact)
                             if _wct is not None:
                                 _wct["mint_tried"] += 1
                                 _wct["mint_passed"] += (

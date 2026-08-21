@@ -105,6 +105,7 @@ import numpy as np
 from engines.egocentric import applicability as _applicability
 from engines.egocentric import consumer as _consumer
 from engines.egocentric import effects as _effects
+from engines.egocentric import enables as _enables
 
 __all__ = ["MDLMint"]
 
@@ -327,7 +328,12 @@ class MDLMint:
     # -- the operator ----------------------------------------------------------------
 
     def consider(self, before, action, after, game, level,
-                 ep: Optional[int] = None) -> Dict[str, Any]:
+                 ep: Optional[int] = None,
+                 act: Optional[Tuple[int, int]] = None) -> Dict[str, Any]:
+        # COMPOSER STAGE 2 (PREREG_COMPOSER_STAGE2_ENABLES.md): `act` is the
+        # event's ACTING CELL, (row, col) -- the offer sites pass the click
+        # coordinates ((x, y) = (col, row) in the loop; callers convert).
+        # None (the default: every pre-existing caller) stamps nothing.
         # A3-4: the episode ordinal for THIS call (context-derived unless given),
         # plus the event's sigma -- both stamped on whatever verdict follows.
         ep_now = self._episode_of(game, level, ep)
@@ -456,6 +462,26 @@ class MDLMint:
         # read for every atom that predates the field -- never a migration.
         phi[_applicability.PSIG_FIELD] = (
             _applicability.postcondition_signature(phi))
+
+        # COMPOSER STAGE 2 (PREREG_COMPOSER_STAGE2_ENABLES.md): THE
+        # ACT-RELATIVE OFFSET, stamped beside psig at the same write site
+        # when the minting action carried coordinates. The matched anchor
+        # origin at mint time IS the changed-cell bbox origin: learn_effect
+        # crops the context patch there, so the patch matches the before-
+        # frame at exactly that cell. UNLIKE asig/psig there is NO content
+        # backfill -- the click cell is no function of the atom's patches --
+        # so an absent field stays absent (the prereg's "absent otherwise");
+        # enables.act_offset is total and a malformed capture stamps nothing.
+        # The offset survives minimisation/reinstatement by construction
+        # (both preserve the patch bbox; the offset is anchor-relative), so
+        # the supersede sites carry it forward without a restamp.
+        if act is not None:
+            diff = b != a                       # changed > 0 here: bbox exists
+            rows = np.flatnonzero(diff.any(axis=1))
+            cols = np.flatnonzero(diff.any(axis=0))
+            off = _enables.act_offset(act, (int(rows[0]), int(cols[0])))
+            if off is not None:
+                phi[_enables.ACT_OFFSET_FIELD] = off
 
         # Mint: pay the cost, cash the pocket. Full-surprise support is ledgered as w.
         # THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): this is THE LOCAL MINT

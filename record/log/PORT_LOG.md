@@ -1392,3 +1392,17 @@ clause suspected as a metal key measuring extent in an egocentric frame. The rea
 gate designed, approved through stage 1, most of it salvage-with-citations (no_posthoc's
 wall, primitive_ledger's observe ladder, the validator's check discipline). Two builders
 in flight under HOLD (writer fix, verdict reason).
+
+
+## ENTRY 42 — 2026-08-21. SPRINT MODE + COMPOSER STAGES 1-2 LIVE. **GAMES WON: 0/25. L1+ 10/25 (g50t NEW — never-scored → scoreable).**
+Seat 3 ruled sprint mode: fleet at 3 (sk48 split-half tail, ar25, g50t smoke), 22 paused,
+suite 25min → ~7min, builds get the cores. Composer stage 1 (the factoring: psig, csig,
+derived price, admission hole closed) and stage 2 (ENABLES indices; act_offset SHIPPED —
+the coordinates died at the offer calls with values in scope, the never-wired family's
+parameter-not-passed sub-kind, fixed by one capture; cross-shelf reach returns
+verified=False chains structurally) both landed. Book rebuild done (clean-window numbers
+next read). One suite failure was a MISSING NEWLINE concatenating two registry rows —
+caught by the 6-field unpack, split, both gates green. The family counter now carries the
+sub-split: parameter-not-passed (one site, one capture) vs field-not-read (siteless,
+found only by asking who-reads-this). Next: stage 3 (compose loop), stage 4 (settlement
+wire), then g7.
