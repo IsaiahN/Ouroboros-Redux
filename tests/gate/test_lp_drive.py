@@ -61,6 +61,12 @@ def _supervisor_src():
         return f.read()
 
 
+def _fleet_env_src():
+    with open(os.path.join(REPO, "tools", "fleet_env.py"), encoding="utf-8",
+              errors="replace") as f:
+        return f.read()
+
+
 # ── the synthetic NOVEL-bin evidence (all frames derived, no magic constants) ────────
 
 def _compressible_pair():
@@ -289,13 +295,14 @@ class TestTheNarration:
 class TestTheSupervisorAssignment:
 
     def _games(self):
-        tree = ast.parse(_supervisor_src())
+        # the roster's home since 2026-08-21: tools/fleet_env.py (shared with the keeper)
+        tree = ast.parse(_fleet_env_src())
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
                 for t in node.targets:
                     if isinstance(t, ast.Name) and t.id == "GAMES":
                         return ast.literal_eval(node.value)
-        pytest.fail("GAMES list not found in tools/swarm_supervisor.py")
+        pytest.fail("GAMES list not found in tools/fleet_env.py")
 
     def test_assignment_is_deterministic_and_pinned(self):
         """sha1(game) mod 3 -- never the salted builtin hash: the same game gets
@@ -316,8 +323,11 @@ class TestTheSupervisorAssignment:
     def test_the_supervisor_wires_the_env(self):
         src = _supervisor_src()
         spawn = src[src.find("def spawn"):src.find("def working_sets")]
-        assert 'env["LP_DRIVE_ARM"]' in spawn and "assign_arm(" in spawn, (
-            "spawn() must hand each worker its arm via LP_DRIVE_ARM")
+        assert "LP_DRIVE_ARM" in spawn and "fleet_env_for(" in spawn, (
+            "spawn() must hand each worker its arm via LP_DRIVE_ARM (fleet_env_for)")
+        fe = _fleet_env_src()
+        assert '"LP_DRIVE_ARM": assign_arm(' in fe, (
+            "fleet_env_for must set LP_DRIVE_ARM from assign_arm")
 
 
 class TestTheWiring:

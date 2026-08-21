@@ -506,12 +506,16 @@ def _required_cells(ctx: List[List[Any]]) -> List[Tuple[int, int]]:
 
 def _established(ctx: List[List[Any]], dims: Tuple[int, int],
                  req: List[Tuple[int, int]],
-                 priors: List[Tuple[List[List[Any]], Tuple[int, int]]]) -> int:
-    """Max count of `req` cells one single prior after-patch guarantees under
-    full containment of the context patch, over all alignments and priors."""
+                 priors: List[Tuple[List[List[Any]], Tuple[int, int]]],
+                 ) -> Tuple[int, Optional[int]]:
+    """(max count of `req` cells ONE SINGLE prior after-patch guarantees under
+    full containment of the context patch over all alignments and priors,
+    the index of THAT prior -- None when no prior establishes any cell).
+    The index is what keeps the palette credit single-prior too (below)."""
     ch, cw = dims
     best = 0
-    for after, (ah, aw) in priors:
+    who: Optional[int] = None
+    for i, (after, (ah, aw)) in enumerate(priors):
         if ah < ch or aw < cw:
             continue
         for r0 in range(ah - ch + 1):
@@ -522,10 +526,10 @@ def _established(ctx: List[List[Any]], dims: Tuple[int, int],
                     if v != _effects.DONT_CARE and v == int(ctx[r][c]):
                         n += 1
                 if n > best:
-                    best = n
+                    best, who = n, i
                     if best == len(req):
-                        return best
-    return best
+                        return best, who
+    return best, who
 
 
 def composite_signature(part_ids: List[str], resolver) -> Optional[Dict[str, Any]]:
@@ -540,6 +544,18 @@ def composite_signature(part_ids: List[str], resolver) -> Optional[Dict[str, Any
 
 
 def _derive_composite(part_ids: List[str], resolver) -> Optional[Dict[str, Any]]:
+    """The derivation proper (composite_signature's body). COMPOSER STAGE
+    4.5 (the seam read's point 4): the CELL-COUNT credit (_established) and
+    the PALETTE credit are now CONSISTENT -- both single-prior. A later
+    step's unguaranteed residue is its required cells minus what the ONE
+    best-establishing prior after-patch guarantees, and the residue colours
+    that join the composite's requirement are credited against THAT SAME
+    prior's writable universe only (never the union of every prior). The
+    pricing rule itself is the prereg'd one and is NOT changed here: a
+    multi-prior union is still not credited, so MULTI-STEP CHAINS ARE
+    OVERPRICED BY DESIGN pending the union credit -- a BODY prefix's after-
+    patches can never contain a Gamma core's context, so the core's whole
+    requirement bills as residue. Doubt overprices, never underprices."""
     leaves = _flatten_parts([str(i) for i in (part_ids or [])], resolver)
     if leaves is None:
         return None
@@ -567,21 +583,25 @@ def _derive_composite(part_ids: List[str], resolver) -> Optional[Dict[str, Any]]
     start_extent = sum(1 for r in range(dims0[0]) for c in range(dims0[1])
                        if int(ctx0[r][c]) != _effects.DONT_CARE
                        and int(ctx0[r][c]) == int(out0[r][c]))
-    writable: Set[int] = set()
+    universes: List[Optional[Set[int]]] = []
     residue_total = 0
     priors: List[Tuple[List[List[Any]], Tuple[int, int]]] = []
     for i, (atom, ctx, out, dims) in enumerate(steps):
         if i > 0:
             req = _required_cells(ctx)
-            residue_total += len(req) - _established(ctx, dims, req, priors)
+            n_est, who = _established(ctx, dims, req, priors)
+            residue_total += len(req) - n_est
             # The residue's COLOURS join the composite's requirement -- minus
-            # anything a prior step could write (colour_universe is a
+            # what THE ONE ESTABLISHING PRIOR could write (single-prior, the
+            # same treatment as the cell count above; colour_universe is a
             # SUPERSET of writable, so subtracting it only weakens the
-            # requirement: kept-too-much, never over-pruned).
-            pal |= ({int(ctx[r][c]) for r, c in req} - writable)
-        u = colour_universe(atom, resolver)
-        if u:
-            writable |= u
+            # requirement: kept-too-much, never over-pruned). No establishing
+            # prior -> no credit.
+            credit: Set[int] = set()
+            if who is not None and universes[who]:
+                credit = set(universes[who])
+            pal |= ({int(ctx[r][c]) for r, c in req} - credit)
+        universes.append(colour_universe(atom, resolver))
         priors.append((out, dims))
     price = int(start_extent + residue_total + len(steps))
     pre = {"v": ASIG_VERSION, "h": int(h), "w": int(w),

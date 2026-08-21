@@ -13,7 +13,10 @@ per-game recycle counter into assign_arm at every spawn and LOGS the pair --
 an arm assignment that leaves no trace is unauditable.
 
 Wiring is asserted by AST (the calls exist in the supervisor's spawn), never
-by char-offset windows (KNOBS A4-2: no character economy).
+by char-offset windows (KNOBS A4-2: no character economy). Since 2026-08-21 the
+assembly lives in tools/fleet_env.py (the one statement the supervisor and the
+sprint keeper share): spawn() hands its recycle counter to fleet_env_for, and
+fleet_env_for is where assign_arm(game, recycles) is called.
 """
 from __future__ import annotations
 
@@ -34,19 +37,34 @@ def _lp():
     return lp_drive
 
 
-def _supervisor_tree():
-    path = os.path.join(REPO, "tools", "swarm_supervisor.py")
+def _tree(*rel):
+    path = os.path.join(REPO, *rel)
     with open(path, encoding="utf-8", errors="replace") as f:
         return ast.parse(f.read())
 
 
+def _supervisor_tree():
+    return _tree("tools", "swarm_supervisor.py")
+
+
+def _fleet_env_tree():
+    return _tree("tools", "fleet_env.py")
+
+
 def _games():
-    for node in ast.walk(_supervisor_tree()):
+    for node in ast.walk(_fleet_env_tree()):
         if isinstance(node, ast.Assign):
             for t in node.targets:
                 if isinstance(t, ast.Name) and t.id == "GAMES":
                     return ast.literal_eval(node.value)
-    pytest.fail("GAMES list not found in tools/swarm_supervisor.py")
+    pytest.fail("GAMES list not found in tools/fleet_env.py")
+
+
+def _calls_to(fn_node, name):
+    return [n for n in ast.walk(fn_node)
+            if isinstance(n, ast.Call)
+            and ((isinstance(n.func, ast.Name) and n.func.id == name)
+                 or (isinstance(n.func, ast.Attribute) and n.func.attr == name))]
 
 
 class TestTheRotationFormula:
@@ -93,21 +111,29 @@ class TestTheSupervisorWiring:
                 return node
         pytest.fail("def spawn not found in tools/swarm_supervisor.py")
 
+    def _fleet_env_for(self):
+        for node in ast.walk(_fleet_env_tree()):
+            if isinstance(node, ast.FunctionDef) and node.name == "fleet_env_for":
+                return node
+        pytest.fail("def fleet_env_for not found in tools/fleet_env.py")
+
     def test_spawn_rotates_by_the_recycle_counter(self):
-        """spawn() must call assign_arm with TWO arguments -- the game and the
-        recycle count -- so the arm rotates on every recycle (AST, no windows)."""
-        calls = [n for n in ast.walk(self._spawn())
-                 if isinstance(n, ast.Call)
-                 and ((isinstance(n.func, ast.Name) and n.func.id == "assign_arm")
-                      or (isinstance(n.func, ast.Attribute)
-                          and n.func.attr == "assign_arm"))]
-        assert calls, "spawn() never calls assign_arm -- workers get no arm"
-        assert any(len(c.args) >= 2 for c in calls), (
-            "spawn() calls assign_arm without the recycle count -- the arm can "
+        """spawn() must hand the per-game recycle counter to fleet_env_for, and
+        fleet_env_for must call assign_arm with TWO arguments -- the game and that
+        count -- so the arm rotates on every recycle (AST, no windows)."""
+        calls = _calls_to(self._spawn(), "fleet_env_for")
+        assert calls, "spawn() never calls fleet_env_for -- workers get no arm"
+        assert any(len(c.args) + len(c.keywords) >= 4 for c in calls), (
+            "spawn() calls fleet_env_for without the recycle count -- the arm can "
             "never rotate and the arm/game confound stands")
         src = ast.unparse(self._spawn())
         assert "recycles" in src, (
-            "the second argument must be the per-game recycle counter")
+            "the recycles argument must be the per-game recycle counter")
+        arm_calls = _calls_to(self._fleet_env_for(), "assign_arm")
+        assert arm_calls, "fleet_env_for never calls assign_arm"
+        assert any(len(c.args) >= 2 for c in arm_calls), (
+            "fleet_env_for calls assign_arm without the recycle count")
+        assert "recycles" in ast.unparse(self._fleet_env_for())
 
     def test_the_arm_and_recycle_count_are_logged_per_spawn(self):
         """Every spawn logs arm AND recycle count -- nothing silent."""

@@ -865,25 +865,19 @@ def admission_price(atom: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     EXTENT_RATE = 0 every derivable composite admits: byte-identical
     outcomes to the pre-build door (the dial).
 
+    COMPOSER STAGE 4.5 (the seam read's silent #2): the inequality itself is
+    ONE STATEMENT, extent_bargain below -- both branches here and the
+    composer's LOCAL mint (composer._attempt, before Gamma.compose) call
+    it, so the door and the local mint can never quote different verdicts
+    for the same (changed, extent). The stage-1 "third consumer" is real.
+
     Pure, deterministic, degrades to None, never raises."""
     try:
-        from engines.egocentric import mint as mint_mod  # lazy: no import cycle
         if (atom or {}).get("kind") == "COMPOSITE":
             csig = applicability_mod.csig_of(atom)
             if csig is None or int(csig["changed"]) <= 0:
                 return None             # underivable: passes the door as it always did
-            changed = int(csig["changed"])
-            price = int(csig["price"])
-            cost = (effects_mod.encoding_cost_atom({"kind": "COMPOSITE",
-                                                    "changed": changed})
-                    + mint_mod.EXTENT_RATE * float(price))
-            r_cost = (mint_mod.RESIDUAL_CELL_COST * float(changed)
-                      + mint_mod.UNEXPLAINED_PREMIUM)
-            bar = mint_mod.MDL_MARGIN * r_cost
-            return {"admit": bool(cost < r_cost and cost < bar),
-                    "cost": float(cost), "bar": float(bar),
-                    "changed": int(changed), "retained": int(price),
-                    "rate": float(mint_mod.EXTENT_RATE)}
+            return extent_bargain(int(csig["changed"]), float(int(csig["price"])))
         ctx = np.asarray((atom or {}).get("context"))
         out = np.asarray(((atom or {}).get("transform") or {}).get("after"))
         if ctx.ndim != 2 or ctx.size == 0 or ctx.shape != out.shape:
@@ -892,17 +886,46 @@ def admission_price(atom: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if changed == 0:
             return None                     # no residual priced: the mint never emits these
         retained = effects_mod.context_retained_cells(atom)
-        cost = (effects_mod.encoding_cost_atom(atom)
-                + mint_mod.EXTENT_RATE * float(retained))
-        r_cost = (mint_mod.RESIDUAL_CELL_COST * float(changed)
-                  + mint_mod.UNEXPLAINED_PREMIUM)
-        bar = mint_mod.MDL_MARGIN * r_cost
-        return {"admit": bool(cost < r_cost and cost < bar),
-                "cost": float(cost), "bar": float(bar),
-                "changed": int(changed), "retained": int(retained),
-                "rate": float(mint_mod.EXTENT_RATE)}
+        return extent_bargain(changed, float(retained),
+                              base_cost=effects_mod.encoding_cost_atom(atom))
     except Exception:
         return None                         # a malformed copy degrades, never raises
+
+
+def extent_bargain(changed: int, extent: float,
+                   base_cost: Optional[float] = None) -> Dict[str, Any]:
+    """THE ONE STATEMENT of the mint's admission inequality (COMPOSER STAGE
+    4.5): for `changed` residual cells priced against `extent` (an atom's
+    retained context cells, or a composite's DERIVED price standing where
+    retained extent stands),
+
+        cost = base_cost + mint.EXTENT_RATE * extent
+               (base_cost defaults to effects.encoding_cost_atom on
+                `changed` = 1.0 + changed; the atom door passes the atom's
+                own encoding cost so its verdict stays byte-identical)
+        R    = mint.RESIDUAL_CELL_COST * changed + mint.UNEXPLAINED_PREMIUM
+        admit iff cost < R and cost < mint.MDL_MARGIN * R.
+
+    CONSUMERS: admission_price (both branches, the import door) and
+    composer._attempt (the local mint, before Gamma.compose -- a chain
+    failing here is refused with price-refused and the price stated).
+    Constants are the MINT'S, imported lazily (mint imports this module).
+    Returns {admit, cost, bar, changed, retained (= extent), rate}. Pure;
+    raises only on non-numeric input (callers wrap)."""
+    from engines.egocentric import mint as mint_mod  # lazy: no import cycle
+    changed = int(changed)
+    extent = float(extent)
+    base = (float(base_cost) if base_cost is not None
+            else effects_mod.encoding_cost_atom({"kind": "EFFECT",
+                                                 "changed": changed}))
+    cost = base + mint_mod.EXTENT_RATE * extent
+    r_cost = (mint_mod.RESIDUAL_CELL_COST * float(changed)
+              + mint_mod.UNEXPLAINED_PREMIUM)
+    bar = mint_mod.MDL_MARGIN * r_cost
+    return {"admit": bool(cost < r_cost and cost < bar),
+            "cost": float(cost), "bar": float(bar),
+            "changed": int(changed), "retained": int(extent),
+            "rate": float(mint_mod.EXTENT_RATE)}
 
 
 # ── the W1 interface (EXACT SIGNATURE -- the loop wave wires this call) ───────

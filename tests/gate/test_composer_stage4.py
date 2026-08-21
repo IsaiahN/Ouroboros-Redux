@@ -419,8 +419,12 @@ class TestF4G7Identity:
         assert res["chain"] == [bid]
         assert pg["g7"] == 0 and pg["drive"] == 0, (
             "F4 FALSIFIED: composing alone moved g7/drive")
+        # STAGE 4.5: the record also states the avatar source -- this
+        # namespace holds a centroid and no exact self-locus cell, so the
+        # fallback token is exactly what must be stated.
         assert ns._w2b_narr == ("composed", res["composite"],
-                                {"settled": False, "driven": False}), (
+                                {"settled": False, "driven": False,
+                                 "avatar": C.AVATAR_CENTROID}), (
             "the PLAN record must carry the unsettled state at the compose")
         cl._narr_bet(ns, 6, _cf(0.0), {})
         plans = _plan_records(ns)
@@ -549,24 +553,27 @@ class TestR4ExactSequences:
             assert len(_records(g, pid)) == 1
 
     def test_one_step_chain_through_the_loops_own_compose_seam(self, tmp_path):
-        """_w3c_compose -> _w3d_drive -> _w3d_settle end to end on the
-        no-movement chain [B]: the click site is the planner's context-centre
-        convention (B carries no act_offset), the settle lands in one step."""
+        """_w3c_compose -> _w3d_drive on the no-movement chain [B] where B
+        carries NO act_offset. STAGE 4.5 (the seam read's silent #3): the
+        composite is COMPOSE-ONLY -- the drive never synthesises a click
+        site from the patch centre; it shadows with no-act-offset stated on
+        the PLAN record, g7 untouched, no chain pending. (Before stage 4.5
+        this test asserted the guessed site (0, 0) drove and settled.)"""
         f, g, bid = _one_step_world(tmp_path, "r4e")
         ns = _ns(tmp_path, "r4e_n", g, verified={bid: 2})
         assert cl._w2b_engage(ns, f, _cf(0.0)) is True
         res = cl._w3c_compose(ns, f, [(0, 0, 9)])
         assert res is not None and res["reason"] == C.COMPOSED
         step = _drive(ns, f, res)
-        assert step == (6, {'x': 0, 'y': 0}), "R4 FALSIFIED: site %r" % (step,)
-        assert ns._plan_gate["g7"] == 1
-        live = np.array([[9, 0], [0, 1]], dtype=int)
-        _land(ns, f, live)
-        modes = [(r["mode"], r["gate"]) for r in _plan_records(ns)]
-        cid = res["composite"]
-        assert modes == [("composed", cid), ("settled", cid)], modes
-        assert C.is_citable(C.composite_record(g, cid))
+        assert step is None, "R4 FALSIFIED: an offset-less part drove %r" % (step,)
+        assert ns._plan_gate["g7"] == 0 and ns._plan_gate["shadow"] == 1
         assert ns._w3d_chain is None and ns._w2b_driven is None
+        plans = _plan_records(ns)
+        cid = res["composite"]
+        assert [(r["mode"], r["gate"]) for r in plans] == [("composed", cid)]
+        assert plans[0]["reason"] == C.NO_ACT_OFFSET and plans[0]["driven"] is False
+        assert plans[0]["parts"] == [bid]
+        assert not C.is_citable(C.composite_record(g, cid))
 
     def test_a_planner_stash_is_left_for_the_abort_router(self, tmp_path):
         """The seam consumes COMPOSITE stashes only: the planner's own

@@ -24,10 +24,12 @@ THE LOOP (design par.3, verbatim):
        a one-step enabler A -> chain [A, B] (no movement combined with the
        enabler prefix at this stage -- stated scope, not a silent limit)
     -> chain = [BODY atoms..., Gamma atom] simulated seam by seam (below)
-    -> verified chains ranked by the DERIVED price
-       (applicability.composite_signature -- the stage-1 derivation, one
-       computation, this is its third consumer)
-    -> cheapest verified chain -> Gamma.compose() -> COMPOSITE minted as
+    -> verified chains PRICED by the DERIVED price
+       (applicability.composite_signature -- the stage-1 derivation) and
+       ADMITTED by the mint's own bargain (consumer.extent_bargain -- the
+       ONE inequality the import door applies; stage 4.5 made the local
+       mint its third consumer), ranked cheapest first
+    -> cheapest admitted chain -> Gamma.compose() -> COMPOSITE minted as
        CANDIDATE. Nothing here (or anywhere yet) marks it citable: the
        settlement wire is STAGE 4's build, so every composite this loop
        mints is proposable-not-standable by construction. Simulation NEVER
@@ -37,7 +39,9 @@ THE SIMULATION APPROACH, EXACT SCOPE (Seat 4's amendment: the algebra
 proposes, the simulation decides -- and the boundary of what we can simulate
 is GATED, never blurred):
   * A no-movement chain ([B] or [A, B]) simulates exactly: each Gamma seam is
-    effects.apply_effect on the running frame; any None kills the chain.
+    stamped AT A NAMED ANCHOR (_apply_at: the raw after-patch at a cell the
+    same vectorised matcher confirmed) on the running frame; any None kills
+    the chain.
   * A movement-prefixed chain simulates ONLY when every BODY action resolves
     to a minted Gamma TRANSLATE atom (same action, params (dx, dy) equal to
     the reach's delta for that action). The prefix then simulates by
@@ -56,11 +60,37 @@ is GATED, never blurred):
     otherwise (the composite's parts must all be Gamma ids anyway).
   * The final Gamma seam must ADVANCE the WANT on the simulated frame: some
     want cell attains its target colour (cells mode), or the predicate
-    holds (goal_abduction.satisfies -- the planner's own stopping test).
-    The seam applies at apply_effect's first matching anchor, which may not
-    be the reach's chosen anchor -- context-keyed, not coordinate-keyed, is
-    exactly the recording discriminator (design F3), and the WANT-advance
-    check is the decider.
+    FLIPS -- false on the plan-time frame, true on the result (predicate
+    mode; goal_abduction.satisfies is the planner's own stopping test, and
+    a WANT the frame already satisfies composes NOTHING: reason
+    want-already-satisfied, stated before any candidate is read).
+
+STAGE 4.5 -- THE SEAM REPAIRS (record/findings/COMPOSER_SEAM_READ.md: four
+silent successes found where stages 1-4 met). Each now fails loudly or
+cannot occur:
+  #1 a satisfied WANT composes nothing (want-already-satisfied); predicate
+     advance means a FLIP against the plan-time baseline; the drive record
+     carries the predicate and the live settle re-verifies the flip
+     (predicate-unmet) -- want_cells=None never means "no check".
+  #2 a chain whose composite_signature is None is REFUSED (csig-underivable),
+     never ranked; every local mint is PRICED by the import door's own
+     inequality before compose() (price-refused, the price stated).
+  #3 ONE ANCHOR: the reach's chosen anchor, the simulation's stamp and the
+     drive's click site are the same cell, carried on the chain (no
+     anchors[0] assumption anywhere); an offset-less atom composes as a
+     no-movement chain ONLY and is never driven from a synthesised site
+     (cognitive_loop._w3d_drive shadows it with no-act-offset).
+  #4 after a BODY prefix the avatar's colour must occupy the act cell before
+     the click seam (the AVATAR-AT-ACT-CELL CHECK); where the plan-time
+     frame already wears it there, the shorter chain is proposed and
+     preferred (prefix-unnecessary) over billing a prefix that contributed
+     nothing; an actually needed prefix is stated prefix-required.
+  handoffs: reach["verified"] is READ (True is a contract breach ->
+     reach-contract-breach, the whole attempt refused); is_citable /
+     citation_allowed read the STREAM RECORD through gamma's record access
+     (an atom dict -- gamma.get's shape, which cannot carry the settled
+     flag -- is refused, not misread); the loop narrates the avatar
+     source (self-cell exact, or centroid-rounded as the stated fallback).
 
 THE WANT, TRANSLATED (conservative, stated): cells mode is a sequence of
 (row, col, target_colour) triples (the reference diff, cellwise); predicate
@@ -102,6 +132,12 @@ from engines.egocentric import enables as _enables
 __all__ = ["compose_attempt", "COMPOSED", "R_EMPTY_WANT",
            "R_WANT_UNDERIVABLE", "R_NO_FRAME", "R_NO_CANDIDATES",
            "R_UNREACHABLE", "R_UNVERIFIED", "R_ERROR",
+           # stage 4.5: the seam repairs' tokens
+           "R_WANT_SATISFIED", "R_CSIG_UNDERIVABLE", "R_PRICE_REFUSED",
+           "R_REACH_BREACH", "R_NO_AVATAR", "PREFIX_REQUIRED",
+           "PREFIX_UNNECESSARY", "NO_ACT_OFFSET", "AVATAR_EXACT",
+           "AVATAR_CENTROID", "AVATAR_NONE", "NOT_A_RECORD", "S_PRED_UNMET",
+           "citation_state",
            # stage 4: the settlement wire
            "SETTLED_FIELD", "ROLE_BET", "ROLE_GROUND", "S_SETTLED",
            "S_ALREADY", "S_NO_DRIVE", "S_NO_RECORD", "S_DIVERGED",
@@ -118,6 +154,20 @@ R_NO_CANDIDATES = "no-candidates"      # no atom's written colours touch the WAN
 R_UNREACHABLE = "unreachable"          # candidates, but no chain even proposable
 R_UNVERIFIED = "unverified-only"       # chains proposed; none simulation-verified
 R_ERROR = "compose-error"              # containment: an internal error, stated
+
+# stage 4.5 tokens
+R_WANT_SATISFIED = "want-already-satisfied"  # silent #1: the frame already holds the WANT
+R_CSIG_UNDERIVABLE = "csig-underivable"  # silent #2: no derived signature -> no mint
+R_PRICE_REFUSED = "price-refused"      # silent #2: the mint's bargain refused the chain
+R_REACH_BREACH = "reach-contract-breach"  # handoff: a reach claimed verified=True
+R_NO_AVATAR = "no-avatar"              # a positional candidate with no self-locus (stated)
+PREFIX_REQUIRED = "prefix-required"    # silent #4: the BODY prefix put the avatar there
+PREFIX_UNNECESSARY = "prefix-unnecessary"  # silent #4: the act cell already wore it
+NO_ACT_OFFSET = "no-act-offset"        # silent #3: compose-only; never driven (PLAN record)
+AVATAR_EXACT = "self-cell"             # handoff: the self-locus exact cell was used
+AVATAR_CENTROID = "centroid-rounded"   # handoff: the stated fallback (float mean, rounded)
+AVATAR_NONE = "no-avatar"              # handoff: no self-locus at all
+NOT_A_RECORD = "not-a-stream-record"   # handoff: gamma.get's atom cannot carry settled
 
 # the abduced predicate kinds whose target colour is NAMED -- the only shapes
 # the written-colours candidate edge can consume (conservative, stated).
@@ -151,6 +201,20 @@ def _pred_colours(pred: Dict[str, Any]) -> Optional[Set[int]]:
     return None
 
 
+def _satisfied(frame: np.ndarray,
+               cells: Optional[List[Tuple[int, int, int]]],
+               pred: Optional[Dict[str, Any]]) -> bool:
+    """SILENT #1's guard: the WANT already holds in `frame` -- every want
+    cell is at its target (cells mode), or the predicate is true (predicate
+    mode). A satisfied WANT composes nothing; nothing can advance it."""
+    if cells is not None:
+        h, w = frame.shape[:2]
+        return all(0 <= r < h and 0 <= c < w and int(frame[r, c]) == int(t)
+                   for r, c, t in cells)
+    from engines.egocentric.goal_abduction import satisfies
+    return bool(satisfies(pred, frame))
+
+
 # ── the pieces of the loop (each pure over its inputs) ────────────────────────
 
 def _anchors(frame: np.ndarray, atom: Any) -> List[Tuple[int, int]]:
@@ -167,6 +231,34 @@ def _anchors(frame: np.ndarray, atom: Any) -> List[Tuple[int, int]]:
                 for r, c in _effects._context_anchors(frame, ctx)]
     except Exception:
         return []
+
+
+def _apply_at(atom: Any, frame: np.ndarray,
+              anchor: Tuple[int, int]) -> Optional[np.ndarray]:
+    """STAGE 4.5 (silent #3/#4): the Gamma seam stamped AT A NAMED ANCHOR --
+    the atom's stored after-patch written at `anchor` (row, col) with
+    apply_effect's own masked-stamp rule (a DONT_CARE after-cell leaves the
+    frame's value), ONLY if `anchor` is among the cells the same vectorised
+    matcher confirms for the context patch. None otherwise: the reconciled
+    anchor is either a real match or the seam fails -- never apply's first
+    anchor by default. The raw stored patch is the application this anchor
+    means (the anchor came from the raw-context matcher); a typed op's
+    parameterised path is not consulted here."""
+    if tuple(anchor) not in _anchors(frame, atom):
+        return None
+    try:
+        ctx = np.asarray(atom["context"])
+        out = np.asarray(atom["transform"]["after"])
+        if out.shape != ctx.shape:
+            return None
+        r, c = int(anchor[0]), int(anchor[1])
+        ph, pw = ctx.shape
+        res = np.asarray(frame).copy()
+        stamp = out != _effects.DONT_CARE
+        res[r:r + ph, c:c + pw][stamp] = out[stamp]
+        return res
+    except Exception:
+        return None
 
 
 def _body_atom_id(order: List[str], atoms: Dict[str, Any], action: int,
@@ -196,7 +288,9 @@ def _advances(frame: np.ndarray, result: np.ndarray,
               pred: Optional[Dict[str, Any]]) -> bool:
     """The final seam's decider: the simulated frame ADVANCES the WANT --
     some want cell attained a target it did not hold (cells mode), or the
-    predicate holds (the planner's own stopping test)."""
+    predicate FLIPPED: false on the pre-frame, true on the result (predicate
+    mode, baseline compared -- silent #1's repair: holding already is not
+    advancing)."""
     if cells is not None:
         h, w = result.shape[:2]
         for r, c, t in cells:
@@ -205,22 +299,33 @@ def _advances(frame: np.ndarray, result: np.ndarray,
                 return True
         return False
     from engines.egocentric.goal_abduction import satisfies
-    return bool(satisfies(pred, result))
+    return (not bool(satisfies(pred, frame))) and bool(satisfies(pred, result))
 
 
 def _simulate(frame: np.ndarray, atoms: Dict[str, Any],
               body_ids: List[str], trace: Optional[List[Tuple[int, int]]],
               core: List[str],
               cells: Optional[List[Tuple[int, int, int]]],
-              pred: Optional[Dict[str, Any]]) -> Optional[List[np.ndarray]]:
+              pred: Optional[Dict[str, Any]],
+              anchor: Optional[Tuple[int, int]] = None,
+              act: Optional[Tuple[int, int]] = None,
+              avatar_colour: Optional[int] = None,
+              ) -> Optional[Tuple[List[np.ndarray],
+                                  List[Optional[Tuple[int, int]]]]]:
     """Simulate the whole chain seam by seam on a COPY (self-settlement is
     banned by design par.5 -- this is admission-to-candidacy, nothing more).
-    None on any seam failure, endpoint mismatch, or a WANT not advanced;
-    otherwise the PREDICTED FRAME AFTER EACH PART, in chain order (stage 4
-    carries these in the drive stash and compares them against the LIVE
-    frame -- the simulation itself never settles anything)."""
+    None on any seam failure, endpoint mismatch, a failed AVATAR-AT-ACT-CELL
+    CHECK, or a WANT not advanced; otherwise (the PREDICTED FRAME AFTER EACH
+    PART in chain order, the ANCHOR each Gamma part was stamped at -- None
+    for BODY parts). Stage 4 carries both in the drive stash: the frames are
+    compared against the LIVE frame and the anchors are the drive's click
+    sites, so reach, simulation and drive name ONE anchor (silent #3). The
+    final Gamma seam stamps at `anchor` when the proposal reconciled one
+    (the reach's), else at the matcher's first anchor on the running frame
+    -- recorded either way. The simulation itself never settles anything."""
     cur = frame.copy()
     frames: List[np.ndarray] = []
+    anchors: List[Optional[Tuple[int, int]]] = []
     for i, bid in enumerate(body_ids):
         nxt = _effects.apply_effect(atoms.get(bid), cur)
         if nxt is None:
@@ -239,15 +344,50 @@ def _simulate(frame: np.ndarray, atoms: Dict[str, Any],
                 return None
         cur = nxt
         frames.append(cur.copy())
-    for aid in core:
-        res = _effects.apply_effect(atoms.get(aid), cur)
+        anchors.append(None)
+    if body_ids and act is not None:
+        # THE AVATAR-AT-ACT-CELL CHECK (silent #4): after the prefix the
+        # avatar's colour must occupy the act cell, or the prefix did not
+        # deliver what the click seam stands on.
+        try:
+            if (avatar_colour is None
+                    or int(cur[int(act[0]), int(act[1])]) != int(avatar_colour)):
+                return None
+        except (IndexError, TypeError, ValueError):
+            return None
+    for k, aid in enumerate(core):
+        atom = atoms.get(aid)
+        at: Optional[Tuple[int, int]] = (
+            anchor if (k == len(core) - 1 and anchor is not None) else None)
+        if at is None:
+            found = _anchors(cur, atom)
+            if not found:
+                return None
+            at = found[0]
+        res = _apply_at(atom, cur, at)
         if res is None:
             return None
         cur = np.asarray(res)
         frames.append(cur.copy())
+        anchors.append((int(at[0]), int(at[1])))
     if not _advances(frame, cur, cells, pred):
         return None
-    return frames
+    return frames, anchors
+
+
+def _proposal(body: Optional[List[str]],
+              trace: Optional[List[Tuple[int, int]]], core: List[str],
+              actions: List[int], anchor: Optional[Tuple[int, int]],
+              act: Optional[Tuple[int, int]],
+              prefix: Optional[str]) -> Dict[str, Any]:
+    """One proposed chain: [BODY prefix..., core...] with the RECONCILED
+    anchor (the cell the final Gamma seam stamps at and the drive clicks
+    from) and act cell (anchor + act_offset, where the avatar must stand).
+    body None = the movement is unmintable AND unsimulable (proposed-
+    unverified, counted, never minted)."""
+    return {"body": body, "trace": trace, "core": list(core),
+            "actions": list(actions), "anchor": anchor, "act": act,
+            "prefix": prefix}
 
 
 # ── THE COMPOSE ATTEMPT ───────────────────────────────────────────────────────
@@ -268,12 +408,18 @@ def compose_attempt(want: Any, frame: Any, gamma: Any,
     Returns a dict ALWAYS (containment: never raises):
       {"composite": id-or-None, "chain": [part ids] (mint order),
        "actions": [BODY actions], "price": derived-or-None,
-       "reason": fixed token, "candidates"/"proposed"/"verified": counts}.
+       "reason": fixed token, "candidates"/"proposed"/"verified": counts,
+       "refused": [{"reason": token, "price": n-or-None}] (verified chains
+       the pricing refused, discovery order), "notes": {token: count}
+       (stated per-candidate non-proposals)}.
     composite is non-None ONLY on reason "composed" -- and it is a CANDIDATE:
-    nothing marks it citable (stage 4's settlement wire)."""
+    nothing marks it citable (stage 4's settlement wire). A composed result
+    also carries "anchor"/"anchors"/"act"/"prefix"/"pred" -- the drive's
+    reconciled inputs (drive_record)."""
     out: Dict[str, Any] = {"composite": None, "chain": [], "actions": [],
                            "price": None, "reason": R_ERROR,
-                           "candidates": 0, "proposed": 0, "verified": 0}
+                           "candidates": 0, "proposed": 0, "verified": 0,
+                           "refused": [], "notes": {}}
     try:
         return _attempt(out, want, frame, gamma, avatar, deltas, fatal,
                         game, level)
@@ -310,6 +456,22 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
         out["reason"] = R_NO_FRAME
         return out
     shape = (int(f.shape[0]), int(f.shape[1]))
+    # -- SILENT #1 CLOSED: a WANT the frame already holds composes NOTHING ----
+    if _satisfied(f, cells, pred):
+        out["reason"] = R_WANT_SATISFIED
+        return out
+    # -- the avatar: its cell and the colour it wears there (the patch the
+    #    BODY prefix moves; the AVATAR-AT-ACT-CELL CHECK compares against it)
+    av: Optional[Tuple[int, int]] = None
+    av_colour: Optional[int] = None
+    if avatar is not None:
+        try:
+            cand_av = (int(avatar[0]), int(avatar[1]))
+            if 0 <= cand_av[0] < shape[0] and 0 <= cand_av[1] < shape[1]:
+                av = cand_av
+                av_colour = int(f[av[0], av[1]])
+        except (TypeError, ValueError, IndexError):
+            av = None
     # -- the pool (stream order; LAST record per id wins -- the supersede) -----
     recs = gamma.fabric.query("collective", gamma.TOPIC,
                               where=lambda r: r.get("game") == str(game))
@@ -344,77 +506,134 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
                     enablers.setdefault(b, []).append(a)
         return enablers.get(bid, [])
 
+    notes: Dict[str, int] = out["notes"]
+
+    def _note(token: str) -> None:
+        notes[token] = int(notes.get(token, 0)) + 1
+
     # -- proposals: [BODY prefix..., enabler?, candidate] ----------------------
-    # Each: (body_ids, trace, core_ids, body_actions); body unresolvable ->
-    # proposed-unverified (counted, never simulated, never minted).
-    proposals: List[Tuple[Optional[List[str]],
-                          Optional[List[Tuple[int, int]]],
-                          List[str], List[int]]] = []
+    proposals: List[Dict[str, Any]] = []
     for bid in cand:
         atom = atoms.get(bid)
         anch = _anchors(f, atom)
         off = _enables.act_offset_of(atom)
         if anch:
-            if off is None or (avatar is not None and any(
-                    (a[0] + off[0], a[1] + off[1]) == tuple(avatar)
-                    for a in anch)):
-                proposals.append(([], None, [bid], []))
+            if off is None:
+                # SILENT #3: no act_offset -> a no-movement chain ONLY. The
+                # composite is compose-only; the drive refuses it
+                # (no-act-offset) rather than guessing a site.
+                _note(NO_ACT_OFFSET)
+                proposals.append(_proposal([], None, [bid], [], None, None,
+                                           None))
                 continue
-            if avatar is None:
-                continue                       # positional atom, no self-locus
-            reach = _enables.cross_shelf_reach(atom, anch, avatar, deltas,
+            at_avatar = [a for a in anch
+                         if av is not None
+                         and (a[0] + off[0], a[1] + off[1]) == av]
+            if at_avatar:
+                # the avatar already stands at this anchor's act cell: THAT
+                # anchor is the reconciled one (not anchors[0])
+                proposals.append(_proposal([], None, [bid], [], at_avatar[0],
+                                           av, None))
+                continue
+            if av is None:
+                _note(R_NO_AVATAR)           # positional atom, no self-locus
+                continue
+            reach = _enables.cross_shelf_reach(atom, anch, av, deltas,
                                                shape, fatal=fatal)
             if reach is None:
                 continue                       # unreachable: stated, no guess
+            if reach.get("verified") is not False:
+                # THE CONTRACT, READ: the algebra may only PROPOSE. A reach
+                # claiming otherwise is a breach -- the attempt refuses.
+                out["reason"] = R_REACH_BREACH
+                return out
+            anchor = (int(reach["anchor"][0]), int(reach["anchor"][1]))
+            act = (int(reach["target"][0]), int(reach["target"][1]))
+            actions = [int(a) for a in reach["chain"]]
             body: Optional[List[str]] = []
-            for action in reach["chain"]:
-                mid = _body_atom_id(order, atoms, int(action),
-                                    deltas.get(int(action), (0, 0)))
+            for action in actions:
+                mid = _body_atom_id(order, atoms, action,
+                                    deltas.get(action, (0, 0)))
                 if mid is None:
                     body = None                # unmintable AND unsimulable
                     break
                 body.append(mid)
-            proposals.append((body, list(reach["cells"]), [bid],
-                              [int(a) for a in reach["chain"]]))
+            if (av_colour is not None
+                    and int(f[act[0], act[1]]) == int(av_colour)):
+                # SILENT #4: the plan-time frame ALREADY wears the avatar's
+                # colour at the act cell -- the click seam verifies without
+                # the prefix. Propose the shorter chain first; the price
+                # ranking prefers it (shorter is never dearer).
+                proposals.append(_proposal([], None, [bid], [], anchor, act,
+                                           PREFIX_UNNECESSARY))
+            proposals.append(_proposal(body, list(reach["cells"]), [bid],
+                                       actions, anchor, act, PREFIX_REQUIRED))
         else:
             for enabler in _enablers_of(bid):
                 if _anchors(f, atoms.get(enabler)):
-                    proposals.append(([], None, [enabler, bid], []))
+                    proposals.append(_proposal([], None, [enabler, bid], [],
+                                               None, None, None))
     out["proposed"] = len(proposals)
     if not proposals:
         out["reason"] = R_UNREACHABLE
         return out
-    # -- simulate (the decider), rank verified by the DERIVED price ------------
-    scored: List[Tuple[float, int, List[str], List[int],
-                       List[np.ndarray]]] = []
-    for idx, (body, trace, core, actions) in enumerate(proposals):
-        if body is None:
+    # -- simulate (the decider); PRICE + ADMIT (the mint's own bargain) -------
+    from engines.egocentric import consumer as _consumer  # lazy: no cycle
+    scored: List[Tuple[float, int, Dict[str, Any], List[str], List[np.ndarray],
+                       List[Optional[Tuple[int, int]]]]] = []
+    verified = 0
+    refused: List[Dict[str, Any]] = out["refused"]
+    for idx, p in enumerate(proposals):
+        if p["body"] is None:
             continue                           # outside the simulable scope
-        frames = _simulate(f, atoms, body, trace, core, cells, pred)
-        if frames is None:
+        sim = _simulate(f, atoms, p["body"], p["trace"], p["core"], cells,
+                        pred, anchor=p["anchor"], act=p["act"],
+                        avatar_colour=av_colour)
+        if sim is None:
             continue
-        parts = list(body) + list(core)
+        verified += 1
+        frames, anchors = sim
+        parts = list(p["body"]) + list(p["core"])
+        # SILENT #2 CLOSED: no derived signature -> NO mint (never inf-ranked)
         csig = _app.composite_signature(parts, gamma.get)
-        price = float(csig["price"]) if csig is not None else float("inf")
-        scored.append((price, idx, parts, actions, frames))
-    out["verified"] = len(scored)
+        if csig is None or int(csig.get("changed", 0)) <= 0:
+            refused.append({"reason": R_CSIG_UNDERIVABLE, "price": None})
+            continue
+        price = int(csig["price"])
+        # the THIRD CONSUMER of the derived price: the local mint pays the
+        # SAME inequality the import door applies (consumer.extent_bargain)
+        bargain = _consumer.extent_bargain(int(csig["changed"]), float(price))
+        if not bargain["admit"]:
+            refused.append({"reason": R_PRICE_REFUSED, "price": price,
+                            "cost": bargain["cost"], "bar": bargain["bar"]})
+            continue
+        scored.append((float(price), idx, p, parts, frames, anchors))
+    out["verified"] = verified
     if not scored:
-        out["reason"] = R_UNVERIFIED
+        if refused:
+            out["reason"] = str(refused[0]["reason"])
+            out["price"] = refused[0]["price"]
+        else:
+            out["reason"] = R_UNVERIFIED
         return out
     scored.sort(key=lambda s: (s[0], s[1]))    # cheapest; discovery order ties
-    price, _idx, parts, actions, frames = scored[0]
+    price_f, _idx, p, parts, frames, anchors = scored[0]
     cid = gamma.compose(parts, str(game), int(level))
     if cid is None:
         return out                             # R_ERROR: compose refused
     out.update({"composite": str(cid), "chain": list(parts),
-                "actions": list(actions),
-                "price": (None if price == float("inf") else int(price)),
+                "actions": list(p["actions"]), "price": int(price_f),
                 "reason": COMPOSED,
                 # STAGE 4's inputs: the plan-time frame, the predicted frame
-                # after each part, the WANT cells (None in predicate mode).
+                # after each part, the WANT cells (None in predicate mode --
+                # then "pred" carries the predicate the settle re-verifies),
+                # the reconciled anchors (the drive's click sites).
                 # Predictions, not claims -- the record minted above carries
                 # no settlement field; only live_settle ever writes one.
                 "frame0": f.copy(), "frames": list(frames),
+                "anchors": list(anchors), "anchor": anchors[-1],
+                "act": p["act"], "prefix": p["prefix"],
+                "pred": (dict(pred) if pred is not None else None),
                 "want_cells": ([(r, c) for r, c, _t in cells]
                                if cells is not None else None)})
     return out
@@ -447,31 +666,51 @@ S_ALREADY = "already-settled"          # idempotent: nothing appended
 S_NO_DRIVE = "no-drive-record"         # refused: no driven chain to settle
 S_NO_RECORD = "no-composite-record"    # refused: the id has no record
 S_DIVERGED = "diverged"                # the live frame contradicts the prediction
+S_PRED_UNMET = "predicate-unmet"       # stage 4.5: the predicate did not flip live
 
 
 def drive_record(result: Any) -> Optional[Dict[str, Any]]:
     """The drive stash from a COMPOSED compose_attempt result: the composite
     id, its chain, the plan-time frame, the predicted frame after each part,
-    the WANT cells. None unless the result composed and carries one
-    predicted frame per part -- a malformed prediction never drives."""
+    the reconciled anchor per part, the WANT cells OR the predicate. None
+    unless the result composed and carries one predicted frame and one
+    anchor slot per part -- a malformed prediction never drives. STAGE 4.5:
+    want_cells None with no predicate is refused (None never means "no
+    check"), and a predicate already true on the plan-time frame is refused
+    (the settle verifies a FLIP; its baseline must be false)."""
     if not isinstance(result, dict) or result.get("reason") != COMPOSED:
         return None
     chain = [str(p) for p in (result.get("chain") or [])]
     frames = result.get("frames")
     frame0 = result.get("frame0")
+    anchors = result.get("anchors")
     if (not chain or not result.get("composite") or frame0 is None
-            or not isinstance(frames, list) or len(frames) != len(chain)):
+            or not isinstance(frames, list) or len(frames) != len(chain)
+            or not isinstance(anchors, list) or len(anchors) != len(chain)):
         return None
     try:
         f0 = np.asarray(frame0)
         fr = [np.asarray(x) for x in frames]
         if f0.ndim != 2 or any(x.shape != f0.shape for x in fr):
             return None
+        an = [(None if a is None else (int(a[0]), int(a[1]))) for a in anchors]
     except Exception:
         return None
     wc = result.get("want_cells")
+    pred = result.get("pred")
+    if wc is None and not isinstance(pred, dict):
+        return None                            # no WANT to verify: never drives
+    if isinstance(pred, dict):
+        from engines.egocentric.goal_abduction import satisfies
+        if satisfies(pred, f0):
+            return None                        # no flip possible: never drives
+    act = result.get("act")
     return {"composite": str(result["composite"]), "chain": chain,
             "frame0": f0.copy(), "frames": [x.copy() for x in fr],
+            "anchors": an, "anchor": an[-1],
+            "act": (None if act is None else (int(act[0]), int(act[1]))),
+            "prefix": result.get("prefix"),
+            "pred": (dict(pred) if isinstance(pred, dict) else None),
             "want_cells": ([(int(r), int(c)) for r, c in wc]
                            if wc is not None else None),
             "actions": list(result.get("actions") or [])}
@@ -533,18 +772,37 @@ def divergence(drive: Dict[str, Any], i: int, live: Any) -> Dict[str, Any]:
 def settle_verdict(drive: Dict[str, Any], live: Any) -> Dict[str, Any]:
     """THE settle's live comparison: the chain complete, the predicted FINAL
     frame against the LIVE frame on the WANT cells and every cell the chain
-    predicted. {"settled": bool} + divergence()'s fields. Pure: reads the
-    drive stash and the live frame, writes nothing."""
+    predicted. {"settled": bool, "predicate": flip-or-None} + divergence()'s
+    fields. STAGE 4.5: in predicate mode (want_cells None) the predicate
+    must FLIP on the LIVE frame -- false on the plan-time frame, true on the
+    observed one -- or the verdict is not settled (predicate-unmet); a cell
+    match alone never settles a predicate WANT. Pure: reads the drive stash
+    and the live frame, writes nothing."""
     try:
         v = divergence(drive, len(drive["chain"]) - 1, live)
     except Exception:
         v = {"diverged": [(-1, -1)], "component": None, "index": None}
-    return {**v, "settled": not v["diverged"]}
+    settled = not v["diverged"]
+    flip: Optional[bool] = None
+    try:
+        if drive.get("want_cells") is None:
+            pred = drive.get("pred")
+            from engines.egocentric.goal_abduction import satisfies
+            flip = bool(isinstance(pred, dict)
+                        and not satisfies(pred, drive["frame0"])
+                        and satisfies(pred, live))
+            settled = settled and flip
+    except Exception:
+        flip = False
+        settled = False
+    return {**v, "settled": settled, "predicate": flip}
 
 
 def composite_record(gamma: Any, cid: str) -> Optional[Dict[str, Any]]:
     """The LAST stream record for a composite id (Gamma.get's read rule --
-    the superseding append IS the update), or None."""
+    the superseding append IS the update), or None. THIS is the record
+    access every citability read goes through: the envelope carries the
+    settled flag; gamma.get's atom cannot."""
     try:
         recs = gamma.fabric.query("collective", gamma.TOPIC,
                                   where=lambda r: r.get("id") == str(cid))
@@ -556,36 +814,71 @@ def composite_record(gamma: Any, cid: str) -> Optional[Dict[str, Any]]:
     return rec if (rec.get("atom") or {}).get("kind") == "COMPOSITE" else None
 
 
-def is_citable(composite_record: Any) -> bool:
+def _as_record(composite_record_or_id: Any, gamma: Any) -> Optional[Dict[str, Any]]:
+    """The stream record behind a citability read: a record dict is taken as
+    is; an id string is resolved through composite_record(gamma, id). An
+    ATOM dict -- gamma.get's shape: kind COMPOSITE at the top level, no
+    envelope -- is REFUSED loudly (TypeError, NOT_A_RECORD): it cannot carry
+    the settled flag, so reading it would silently say "never citable".
+    Anything else (None, non-dict, an empty dict) reads as no record."""
+    x = composite_record_or_id
+    if isinstance(x, str):
+        if gamma is None:
+            raise TypeError("is_citable: %s -- an id needs gamma to reach the "
+                            "stream record" % NOT_A_RECORD)
+        return composite_record(gamma, x)
+    if not isinstance(x, dict):
+        return None
+    if "atom" not in x and x.get("kind") == "COMPOSITE":
+        raise TypeError("is_citable: %s -- gamma.get's atom cannot carry %r; "
+                        "pass composite_record(gamma, id) or (id, gamma)"
+                        % (NOT_A_RECORD, SETTLED_FIELD))
+    return x
+
+
+def citation_state(gamma: Any, cid: str) -> Dict[str, Any]:
+    """The production read (pure over the stream): {"citable": bool,
+    "reason": token} for a composite id through gamma's record access --
+    "settled" (citable), "candidate" (a record without the flag), or
+    "no-record" (no composite record for the id)."""
+    rec = composite_record(gamma, cid)
+    if rec is None:
+        return {"citable": False, "reason": S_NO_RECORD}
+    if rec.get(SETTLED_FIELD) is True:
+        return {"citable": True, "reason": S_SETTLED}
+    return {"citable": False, "reason": "candidate"}
+
+
+def is_citable(composite_record: Any, gamma: Any = None) -> bool:
     """THE CITABILITY RULE (pure): a composite record is citable iff its
     envelope carries settled: True -- written only by live_settle, only from
-    a live-frame comparison. Anything else (no record, a non-composite,
-    a candidate) is not citable."""
-    if not isinstance(composite_record, dict):
+    a live-frame comparison. Reads the STREAM RECORD (or an id resolved via
+    `gamma`); an atom dict is refused (TypeError, NOT_A_RECORD) rather than
+    misread. Anything else (no record, a non-composite, a candidate) is not
+    citable."""
+    rec = _as_record(composite_record, gamma)
+    if rec is None:
         return False
-    atom = composite_record.get("atom")
-    kind = (atom.get("kind") if isinstance(atom, dict)
-            else composite_record.get("kind"))
-    if kind != "COMPOSITE":
+    if (rec.get("atom") or {}).get("kind") != "COMPOSITE":
         return False
-    return composite_record.get(SETTLED_FIELD) is True
+    return rec.get(SETTLED_FIELD) is True
 
 
-def citation_allowed(composite_record: Any, role: str) -> bool:
+def citation_allowed(composite_record: Any, role: str,
+                     gamma: Any = None) -> bool:
     """THE DISCIPLINE (pure): in a BET any composite record may appear
     (proposable-not-standable -- driving it IS the test); as GROUND only a
-    settled one (is_citable). Unknown roles are refused."""
-    if not isinstance(composite_record, dict):
+    settled one (is_citable). Unknown roles are refused. Same record access
+    as is_citable: a stream record or (id, gamma); never an atom dict."""
+    rec = _as_record(composite_record, gamma)
+    if rec is None:
         return False
-    atom = composite_record.get("atom")
-    kind = (atom.get("kind") if isinstance(atom, dict)
-            else composite_record.get("kind"))
-    if kind != "COMPOSITE":
+    if (rec.get("atom") or {}).get("kind") != "COMPOSITE":
         return False
     if role == ROLE_BET:
         return True
     if role == ROLE_GROUND:
-        return is_citable(composite_record)
+        return is_citable(rec)
     return False
 
 
@@ -598,7 +891,8 @@ def live_settle(gamma: Any, drive: Optional[Dict[str, Any]],
     LIVE frame: a match -> superseding append, same id, settled: True +
     the settle's facts (Gamma's supersede idiom: dict(rec) appended to the
     same stream; the candidate record stays readable history); a divergence
-    -> nothing written, the mispredicting component named (S_DIVERGED).
+    -> nothing written, the mispredicting component named (S_DIVERGED); a
+    predicate that did not flip live -> nothing written (S_PRED_UNMET).
     Never raises; always returns {"settled", "reason", "written", ...}."""
     out: Dict[str, Any] = {"settled": False, "reason": S_NO_DRIVE,
                            "written": False, "composite": None}
@@ -616,15 +910,20 @@ def live_settle(gamma: Any, drive: Optional[Dict[str, Any]],
             return out
         v = settle_verdict(drive, live)
         if not v["settled"]:
-            out.update({"reason": S_DIVERGED, "component": v["component"],
-                        "index": v["index"], "diverged": v["diverged"]})
+            out.update({"reason": (S_DIVERGED if v["diverged"] else S_PRED_UNMET),
+                        "component": v["component"], "index": v["index"],
+                        "diverged": v["diverged"],
+                        "predicate": v.get("predicate")})
             return out
         sup = dict(rec)
         sup[SETTLED_FIELD] = True                # the transition, recorded
-        sup["settle"] = {"steps": len(drive["chain"]),
-                         "cells": len({c for k in range(len(drive["chain"]))
-                                       for c in step_cells(drive, k)}),
-                         "want": len(drive.get("want_cells") or [])}
+        facts = {"steps": len(drive["chain"]),
+                 "cells": len({c for k in range(len(drive["chain"]))
+                               for c in step_cells(drive, k)}),
+                 "want": len(drive.get("want_cells") or [])}
+        if v.get("predicate") is not None:
+            facts["predicate"] = bool(v["predicate"])
+        sup["settle"] = facts
         gamma.fabric.append("collective", gamma.TOPIC, sup)
         out.update({"settled": True, "reason": S_SETTLED, "written": True})
         return out

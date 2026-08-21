@@ -95,3 +95,11 @@ route NOVEL and are consumed by NOTHING**: the offer filter is slot=="WORKSPACE"
 exactly the wall knowledge the frontier mask lacks, produced at volume. PROPOSAL (Seat 3):
 a BODY-slot consumer — blocked-move evidence into the action book / a wall book the
 cross-shelf reach can mask on. Not built.
+
+## THE LATE-BBOX CHECK (2026-08-21, n=59 of the pinned 100 — answered in shape)
+Movement-box rejects with reason: mdl_cost 21 · support 17 · no_change 13 · extent_premium
+8 · **bbox_half_board 0**. No late cluster; branch 1 stays dead. The spread is 2b-shaped
+for the few movement transitions that reach the mint — consistent with the offer-path
+mechanism (most never reach it). Sensitivity: 1,875 reason-bearing records (685 reject,
+1,182 rederivation, 8 mint). The count continues to 100 on the full fleet; the verdict is
+not expected to change.

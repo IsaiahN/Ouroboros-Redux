@@ -19,18 +19,31 @@ and LP_DRIVE_ARM per worker; a keeper that relaunched with a bare env ran an und
 different config. So:
   PARITY          for a constructed root, the keeper's env for game X equals the
                   supervisor's assembly for X -- same seed set, same ';' separator, own box
-                  excluded, arm = assign_arm(X, 0) -- with the expected value derived HERE
-                  from the supervisor's source, not from the keeper's helpers
+                  excluded, arm = assign_arm(X, 0). The expected value is the supervisor's
+                  PRE-fleet_env lines, FROZEN HERE as the oracle (commit e1cce38,
+                  swarm_supervisor.py 64-65 + 191-192 + 200) -- not any helper's idea of
+                  them -- and the supervisor's OWN spawn() (Popen faked) must produce the
+                  same bytes, at every recycle count
   OPT-OUT         --no-fleet-env sets neither variable, and the log line says bare-env
-  NO IMPORT       the keeper never imports swarm_supervisor (import = spawn the fleet)
+  ONE STATEMENT   (2026-08-21, the third gap) the keeper carries NO transcription: roster
+                  and assembly come from tools/fleet_env.py, which the supervisor imports
+                  too. A transcription drifts; a shared function cannot.
+  CLEAN IMPORT    the supervisor imports with NO side effects -- no .env read, no mkdir,
+                  no spawn, no loop (the D-6 lesson at tooling grain) -- so the parity gate
+                  can run the real spawn() instead of a copy of it
 
 No .runs, no real processes: enumeration is a constructed list, Popen is a fake.
 """
 from __future__ import annotations
 
 import ast
+import builtins
+import importlib
 import os
+import subprocess
 import sys
+import time
+from unittest import mock
 
 import pytest
 
@@ -39,9 +52,12 @@ if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
 from engines.egocentric.lp_drive import assign_arm  # noqa: E402
+from tools import fleet_env as fe  # noqa: E402
 from tools import sprint_keeper as sk  # noqa: E402
 
 SUPERVISOR_SRC = os.path.join(REPO, "tools", "swarm_supervisor.py")
+FLEET_ENV_SRC = os.path.join(REPO, "tools", "fleet_env.py")
+KEEPER_SRC = os.path.join(REPO, "tools", "sprint_keeper.py")
 
 PY = r"C:\Users\Admin\Documents\GitHub\Ouroboros-Redux\.venv\Scripts\python.exe"
 RUNNER = r"C:\Users\Admin\Documents\GitHub\Ouroboros-Redux\evolution_runner.py"
@@ -206,53 +222,165 @@ def test_log_line_format(tmp_path):
 
 # ── fleet-env parity with the supervisor ─────────────────────────────────────
 
-def _supervisor_games_from_source():
-    """This test's OWN read of the supervisor's GAMES literal -- independent of the
-    keeper's helper, so the parity assertion is against the supervisor, not against
-    the keeper's idea of the supervisor."""
-    tree = ast.parse(open(SUPERVISOR_SRC, encoding="utf-8").read())
+def _roster_from_source():
+    """This test's OWN read of the GAMES literal from its home, tools/fleet_env.py --
+    by ast, not by import -- so the parity assertion below is against the roster as
+    written, not against any module's idea of it."""
+    tree = ast.parse(open(FLEET_ENV_SRC, encoding="utf-8").read())
     lits = [ast.literal_eval(n.value) for n in tree.body
             if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name)
             and n.targets[0].id == "GAMES"]
-    assert len(lits) == 1, "swarm_supervisor.GAMES literal not found exactly once"
+    assert len(lits) == 1, "fleet_env.GAMES literal not found exactly once"
     return lits[0]
 
 
-def _supervisor_assembly(game, root, redux=REPO):
-    """swarm_supervisor.py lines 64-65 + 191-192 + 200, transcribed: the expected
-    value the keeper must reproduce for `game` under `root`."""
-    games = _supervisor_games_from_source()
+def _supervisor_assembly(game, root, recycles=0, redux=REPO):
+    """THE ORACLE: swarm_supervisor.py lines 64-65 + 191-192 + 200 AS THEY STOOD
+    BEFORE fleet_env existed (commit e1cce38), transcribed and frozen here. Every
+    launcher -- the keeper, fleet_env_for, the supervisor's own spawn() -- must
+    reproduce these bytes for `game` under `root`. Do not 'simplify' this to a call
+    into tools/fleet_env: then the gate would compare the function with itself."""
+    games = _roster_from_source()
     box = os.path.join(root, game)
     seed_dirs = [os.path.join(redux, ".runs", "compound2", "ego_fabric")] + \
                 [os.path.join(root, g, "ego_fabric") for g in games]
     return {"OURO_FABRIC_SEEDS": ";".join(d for d in seed_dirs
                                           if d != os.path.join(box, "ego_fabric")),
-            "LP_DRIVE_ARM": assign_arm(game, 0)}
+            "LP_DRIVE_ARM": assign_arm(game, recycles)}
+
+
+def _keeper_imports():
+    """(module, [names]) for every `from X import ...` / `import X` in the keeper."""
+    tree = ast.parse(open(KEEPER_SRC, encoding="utf-8").read())
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom):
+            out.append((n.module or "", [a.name for a in n.names]))
+        elif isinstance(n, ast.Import):
+            out.extend((a.name, []) for a in n.names)
+    return out
 
 
 def test_the_keeper_never_imports_the_supervisor():
-    """Importing swarm_supervisor reads .env, mkdirs, spawns all 25 workers and loops
-    forever. The keeper must get the roster WITHOUT importing it, and must not have."""
-    text = open(os.path.join(REPO, "tools", "sprint_keeper.py"), encoding="utf-8").read()
-    for forbidden in ("import swarm_supervisor", "from tools import swarm_supervisor",
-                      "from tools.swarm_supervisor", "from swarm_supervisor"):
-        assert forbidden not in text, forbidden
-    assert not any(m.endswith("swarm_supervisor") for m in sys.modules), (
-        "swarm_supervisor is loaded in this process -- something imported it")
-    assert sk.supervisor_games() == _supervisor_games_from_source()
-    assert len(sk.supervisor_games()) == 25 and "sk48" in sk.supervisor_games()
+    """The keeper takes the roster and the assembly from tools/fleet_env.py -- the
+    module the supervisor ALSO imports -- and never from the supervisor itself: the
+    sprint watchdog must not depend on the full-fleet tool, only on what they share."""
+    mods = [m for m, _names in _keeper_imports()]
+    assert not any("swarm_supervisor" in m for m in mods), mods
+    assert ("tools.fleet_env", ["GAMES", "SEED_SEP", "fleet_env_for"]) in _keeper_imports(), (
+        "the keeper must import GAMES and fleet_env_for from tools.fleet_env")
+    assert sk.GAMES is fe.GAMES and list(sk.GAMES) == _roster_from_source()
+    assert len(sk.GAMES) == 25 and "sk48" in sk.GAMES
 
 
-def test_fleet_env_parity_with_supervisor_assembly(tmp_path):
-    """For a constructed root with a few real box dirs (and many absent ones), the
-    keeper's fleet env for X equals the supervisor's assembly for X: same seed set,
-    same order, same ';' separator, own box excluded, arm = assign_arm(X, 0)."""
+def test_the_keeper_carries_no_transcription():
+    """THE THIRD GAP. Asserted on the shipped file: no local fleet_env_for /
+    fleet_seed_dirs / supervisor_games, no ast read of the supervisor's source, and
+    none of the assembly's ingredients ('ego_fabric', 'compound2', assign_arm) in
+    the keeper's CODE (docstrings stripped -- prose may still explain the history)."""
+    tree = ast.parse(open(KEEPER_SRC, encoding="utf-8").read())
+    defs = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    for banned in ("fleet_env_for", "fleet_seed_dirs", "supervisor_games"):
+        assert banned not in defs, "the keeper still defines its own %s" % banned
+    assert "ast" not in [m for m, _n in _keeper_imports()], "the ast-roster hack is back"
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef)) and ast.get_docstring(node):
+            node.body = node.body[1:]
+    code = ast.unparse(tree)
+    for ingredient in ("ego_fabric", "compound2", "assign_arm", "SUPERVISOR_FILE",
+                       "_GAMES_CACHE", "swarm_supervisor.py"):
+        assert ingredient not in code, (
+            "the keeper's code still carries the transcription ingredient %r" % ingredient)
+
+
+def _import_supervisor_with_env_absent(monkeypatch):
+    """Import tools.swarm_supervisor FRESH with .env unreadable and every side-effect
+    primitive faked: open(.env) raises, os.makedirs / subprocess.Popen are Mocks,
+    time.sleep raises (the loop must not start). Returns (module, makedirs, popen)."""
+    real_open = builtins.open
+
+    def no_env(path, *a, **kw):
+        if str(path).endswith(".env"):
+            raise FileNotFoundError(".env is absent in this test: %s" % path)
+        return real_open(path, *a, **kw)
+
+    makedirs, popen = mock.Mock(name="os.makedirs"), mock.Mock(name="subprocess.Popen")
+    monkeypatch.setattr(builtins, "open", no_env)
+    monkeypatch.setattr(os, "makedirs", makedirs)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    monkeypatch.setattr(time, "sleep", mock.Mock(side_effect=AssertionError("the poll loop ran")))
+    sys.modules.pop("tools.swarm_supervisor", None)
+    return importlib.import_module("tools.swarm_supervisor"), makedirs, popen
+
+
+def test_the_supervisor_imports_with_no_side_effects(monkeypatch):
+    """CLEAN IMPORT. Before this gate, importing the supervisor read .env (raised if
+    absent), made .runs/swarm, spawned all 25 workers and looped forever -- which is
+    why the keeper transcribed it. Now: zero makedirs, zero Popen, no sleep, no .env
+    read, and everything that DID those things sits in main() under __main__."""
+    sup, makedirs, popen = _import_supervisor_with_env_absent(monkeypatch)
+    assert makedirs.call_count == 0, makedirs.call_args_list
+    assert popen.call_count == 0, popen.call_args_list
+    assert sup.KEY is None, "the key was read at import time"
+    assert sup.procs == {} and all(v["recycles"] == 0 for v in sup.stats.values())
+    assert callable(sup.main) and callable(sup.read_arc_key)
+    text = open(SUPERVISOR_SRC, encoding="utf-8").read()
+    assert 'if __name__ == "__main__":\n    main()' in text
+    # the side effects are all INSIDE main(): none at module level
+    tree = ast.parse(text)
+    top = ast.unparse(ast.Module(body=[n for n in tree.body
+                                       if not isinstance(n, (ast.FunctionDef, ast.If))],
+                                 type_ignores=[]))
+    for effect in ("makedirs", "Popen", "read_arc_key(", "code_fingerprint(", "while True"):
+        assert effect not in top, "module level still performs %r" % effect
+    main_src = ast.unparse(next(n for n in tree.body
+                                if isinstance(n, ast.FunctionDef) and n.name == "main"))
+    for piece in ("read_arc_key()", "os.makedirs(ROOT", "for g in GAMES:", "spawn(g)",
+                  "record_deploy(deployed_fp, 'initial')", "while True:", "HOLD_FILE",
+                  "code_fingerprint()", "status.txt"):
+        assert piece in main_src, "main() lost %r -- RUN behaviour changed" % piece
+    # the supervisor takes the roster and the assembly from the same place the keeper does
+    assert sup.GAMES is fe.GAMES and sup.fleet_env_for is fe.fleet_env_for
+
+
+def _supervisor_spawn_env(sup, monkeypatch, game, root, recycles):
+    """Run the supervisor's REAL spawn() for `game` under `root` with Popen faked
+    and return the env it handed the worker. Box dir + worker.log are really made
+    (under tmp), exactly as spawn() does them."""
+    seen = {}
+
+    class FakePopen:
+        def __init__(self, argv, **kw):
+            seen["argv"], seen["env"] = argv, dict(kw["env"])
+            seen["cwd"] = kw["cwd"]
+            self.pid = 4242
+
+    monkeypatch.setattr(sup.subprocess, "Popen", FakePopen)
+    monkeypatch.setattr(sup, "ROOT", root)
+    monkeypatch.setattr(sup, "KEY", "test-key-not-the-real-one")
+    monkeypatch.setitem(sup.stats[game], "recycles", recycles)
+    sup.spawn(game)
+    _p, logf, _t0 = sup.procs.pop(game)
+    logf.close()
+    assert seen["cwd"] == os.path.join(root, game)
+    assert seen["argv"][seen["argv"].index("--game") + 1] == game
+    return seen["env"]
+
+
+def test_fleet_env_parity_with_supervisor_assembly(tmp_path, monkeypatch):
+    """THREE-WAY PARITY against the frozen oracle, for EVERY roster game on a
+    constructed root (a few real box dirs, many absent): the supervisor's own spawn()
+    env == fleet_env_for == the keeper's env, byte for byte, with the arm rotating
+    identically through recycles 0..3 on the supervisor side."""
     root = str(tmp_path / "swarm")
     for g in ("sk48", "ar25", "g50t", "bp35"):
         os.makedirs(os.path.join(root, g, "ego_fabric"))
-    games = _supervisor_games_from_source()
+    games = _roster_from_source()
+    sup = importlib.import_module("tools.swarm_supervisor")
+    monkeypatch.delenv("OURO_FABRIC_SEEDS", raising=False)
+    monkeypatch.delenv("LP_DRIVE_ARM", raising=False)
     for x in ("sk48", "ar25", "g50t", "wa30"):
-        got = sk.fleet_env_for(x, root)
+        got = fe.fleet_env_for(x, root)
         assert got == _supervisor_assembly(x, root), x
         seeds = got["OURO_FABRIC_SEEDS"].split(";")
         assert os.path.join(root, x, "ego_fabric") not in seeds, "own box was cross-mounted"
@@ -260,11 +388,32 @@ def test_fleet_env_parity_with_supervisor_assembly(tmp_path):
         assert seeds[1:] == [os.path.join(root, g, "ego_fabric") for g in games if g != x]
         assert len(seeds) == len(games), "one other box per roster game, plus compound2"
         assert got["LP_DRIVE_ARM"] == assign_arm(x, 0) and got["LP_DRIVE_ARM"] in ("fixed", "random", "lp")
-    # every roster game, not just the sprint three
+        assert list(got) == ["OURO_FABRIC_SEEDS", "LP_DRIVE_ARM"], "insertion order changed"
     for x in games:
-        assert sk.fleet_env_for(x, root) == _supervisor_assembly(x, root), x
-    # the arm is the STATIC assignment: the keeper has no recycle stats
-    assert sk.fleet_env_for("sk48", root)["LP_DRIVE_ARM"] == assign_arm("sk48", 0)
+        # 1) fleet_env_for == oracle, at every recycle count the supervisor will use
+        for rc in range(4):
+            assert fe.fleet_env_for(x, root, recycles=rc) == _supervisor_assembly(x, root, rc), (x, rc)
+            assert fe.fleet_env_for(x, root, games, rc) == _supervisor_assembly(x, root, rc), (x, rc)
+        # 2) the SUPERVISOR'S spawn() == oracle, same recycle counts, same fixed vars
+        for rc in range(4):
+            env = _supervisor_spawn_env(sup, monkeypatch, x, root, rc)
+            exp = _supervisor_assembly(x, root, rc)
+            assert env["OURO_FABRIC_SEEDS"] == exp["OURO_FABRIC_SEEDS"], (x, rc)
+            assert env["LP_DRIVE_ARM"] == exp["LP_DRIVE_ARM"], (x, rc)
+            assert env["PYTHONPATH"] == REPO and env["PYTHONDONTWRITEBYTECODE"] == "1"
+            assert env["ARC_API_KEY"] == "test-key-not-the-real-one"
+            added = [k for k in env if k not in os.environ]
+            assert added in (["ARC_API_KEY", "PYTHONPATH", "OURO_FABRIC_SEEDS", "LP_DRIVE_ARM"],
+                             ["ARC_API_KEY", "PYTHONPATH", "PYTHONDONTWRITEBYTECODE",
+                              "OURO_FABRIC_SEEDS", "LP_DRIVE_ARM"]), (
+                "the env's key insertion order changed: %r" % added)
+        # 3) the KEEPER'S env == oracle at recycles=0 (it keeps no recycle stats)
+        kenv = sk._worker_env(x, root, fleet_env=True)
+        exp0 = _supervisor_assembly(x, root, 0)
+        assert kenv["OURO_FABRIC_SEEDS"] == exp0["OURO_FABRIC_SEEDS"], x
+        assert kenv["LP_DRIVE_ARM"] == exp0["LP_DRIVE_ARM"] == assign_arm(x, 0), x
+        assert kenv["PYTHONPATH"] == REPO and kenv["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert sup.procs == {}, "the parity run left a worker handle behind"
 
 
 def test_spawn_default_is_fleet_env_and_says_so(tmp_path, monkeypatch):

@@ -23,15 +23,12 @@ OURO_FABRIC_SEEDS (the ego_fabric dirs of every OTHER box, ';'-joined, so fabric
 cross-mounted) and LP_DRIVE_ARM (assign_arm(game, recycles)). A keeper that relaunched
 with a bare inherited env ran the sprint under a DIFFERENT, UNDECLARED config than the
 fleet, and that contaminated a read. So the keeper now sets both, BY DEFAULT, the way
-the supervisor would for that game:
-  * the roster is the supervisor's own GAMES literal, read from its source with `ast`
-    (tools/swarm_supervisor.py is NOT importable without side effects: importing it
-    reads .env, creates dirs, spawns all 25 workers and never returns);
-  * the seed list is the supervisor's formula verbatim -- compound2/ego_fabric plus
-    <ROOT>/<g>/ego_fabric for every g in GAMES -- minus this game's own box, no
-    existence filter, because the supervisor applies none and parity means identical;
-  * LP_DRIVE_ARM = assign_arm(game, 0): the keeper keeps no recycle stats (it never
-    recycles), so the arm is the static recycles=0 assignment, stated in worker.log.
+the supervisor would for that game -- and not by transcribing the supervisor's lines
+(a transcription drifts) but by calling the SAME function the supervisor calls:
+tools/fleet_env.py holds the roster (GAMES) and the assembly (fleet_env_for), with no
+import-time side effects, and both launchers import it. The keeper passes recycles=0:
+it keeps no recycle stats (it never recycles), so the arm is the static assignment,
+stated in worker.log.
 `--no-fleet-env` opts out (the W3 no-seeds direction needs an explicit flag, never an
 accident) and every spawn's log line says which mode it used: `spawn <pid> fleet-env`
 or `spawn <pid> bare-env`.
@@ -47,7 +44,6 @@ supervisor uses, so the evidence trail does not fork.
 from __future__ import annotations
 
 import argparse
-import ast
 import os
 import re
 import shlex
@@ -58,14 +54,13 @@ import time
 REDUX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REDUX not in sys.path:
     sys.path.insert(0, REDUX)
-from engines.egocentric.lp_drive import assign_arm  # noqa: E402  (the supervisor's arm fn)
+# The roster + the per-worker env assembly, shared with swarm_supervisor -- never a
+# transcription of it. tools/fleet_env.py has no import-time side effects.
+from tools.fleet_env import GAMES, SEED_SEP, fleet_env_for  # noqa: E402
 
 ROOT = os.path.join(REDUX, ".runs", "swarm")
 ARGV_FILE = os.path.join(REDUX, ".runs", "sprint_argv.txt")
 LOG_FILE = os.path.join(ROOT, "sprint_keeper.log")
-SUPERVISOR_FILE = os.path.join(REDUX, "tools", "swarm_supervisor.py")
-COMPOUND2_SEED = os.path.join(REDUX, ".runs", "compound2", "ego_fabric")
-SEED_SEP = ";"                     # the supervisor's join separator for OURO_FABRIC_SEEDS
 DEFAULT_GAMES = ["sk48", "ar25", "g50t"]
 DEFAULT_INTERVAL = 60.0
 RUNNER_MARK = "evolution_runner"   # the liveness predicate keys on this + --game <g>
@@ -187,60 +182,16 @@ def list_python_processes():
         return []
 
 
-# ── fleet-env parity ─────────────────────────────────────────────────────────
-
-_GAMES_CACHE = {}
-
-
-def supervisor_games(path=SUPERVISOR_FILE):
-    """The supervisor's GAMES roster, read from its SOURCE with ast -- never by
-    importing it (import = read .env, mkdir, spawn 25 workers, loop forever).
-    One source of truth for the roster; a roster edit in the supervisor reaches
-    the keeper at its next spawn. Raises loudly if the literal is not found."""
-    if path in _GAMES_CACHE:
-        return list(_GAMES_CACHE[path])
-    tree = ast.parse(open(path, encoding="utf-8").read(), filename=path)
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and len(node.targets) == 1 \
-                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "GAMES":
-            games = ast.literal_eval(node.value)
-            if not (isinstance(games, list) and games
-                    and all(isinstance(g, str) for g in games)):
-                raise ValueError("GAMES in %s is not a non-empty list of str" % path)
-            _GAMES_CACHE[path] = list(games)
-            return list(games)
-    raise ValueError("no module-level `GAMES = [...]` literal in %s" % path)
-
-
-def fleet_seed_dirs(root=ROOT, games=None, compound2=COMPOUND2_SEED):
-    """swarm_supervisor.seed_dirs, verbatim: compound2/ego_fabric first, then
-    <root>/<g>/ego_fabric for every g in GAMES, in roster order. No existence
-    filter -- the supervisor applies none, and parity means the identical list."""
-    games = supervisor_games() if games is None else list(games)
-    return [compound2] + [os.path.join(root, g, "ego_fabric") for g in games]
-
-
-def fleet_env_for(game, root=ROOT, games=None, recycles=0, compound2=COMPOUND2_SEED):
-    """The two fleet-policy variables, assembled exactly as swarm_supervisor.spawn
-    does for `game`: OURO_FABRIC_SEEDS = every seed dir except this game's own box,
-    ';'-joined; LP_DRIVE_ARM = assign_arm(game, recycles). recycles defaults to 0
-    because the keeper keeps no recycle stats -- it never recycles a worker -- so
-    this is the supervisor's static (pre-rotation) assignment for the game."""
-    own = os.path.join(root, game, "ego_fabric")
-    seeds = [d for d in fleet_seed_dirs(root, games, compound2) if d != own]
-    return {"OURO_FABRIC_SEEDS": SEED_SEP.join(seeds),
-            "LP_DRIVE_ARM": assign_arm(game, recycles)}
-
-
 # ── spawning + logging ───────────────────────────────────────────────────────
 
 def _worker_env(game=None, root=ROOT, fleet_env=True):
     """Inherit the keeper's environment (the proctor's shell) plus the two settings
     the supervisor always applies. ARC_API_KEY is filled from .env only when the
     shell did not already provide one. With fleet_env (the default) the fleet
-    policy -- OURO_FABRIC_SEEDS and LP_DRIVE_ARM -- is set as the supervisor would
-    set it for `game`; with fleet_env=False NEITHER is set (and neither is removed:
-    the shell's own value, if any, passes through untouched, as it always did)."""
+    policy -- OURO_FABRIC_SEEDS and LP_DRIVE_ARM -- is set by fleet_env_for, the
+    supervisor's own assembly, at recycles=0; with fleet_env=False NEITHER is set
+    (and neither is removed: the shell's own value, if any, passes through
+    untouched, as it always did)."""
     env = dict(os.environ)
     env["PYTHONPATH"] = REDUX
     env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -253,7 +204,7 @@ def _worker_env(game=None, root=ROOT, fleet_env=True):
         except Exception:
             pass
     if fleet_env:
-        env.update(fleet_env_for(game, root))
+        env.update(fleet_env_for(game, root, GAMES, recycles=0))
     return env
 
 
@@ -342,8 +293,6 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     template = load_template()
-    if a.fleet_env:
-        supervisor_games()  # fail now, not at the first relaunch, if the roster is unreadable
     log_event("-", "keeper_start:%s" % ",".join(a.games), os.getpid(), mode=env_mode(a.fleet_env))
     try:
         while True:

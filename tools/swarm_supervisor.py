@@ -32,13 +32,13 @@ import time
 
 REDUX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REDUX)
-from engines.egocentric.lp_drive import assign_arm  # G-D: three-arm LP-drive control
+# The roster and the per-worker env assembly (OURO_FABRIC_SEEDS + LP_DRIVE_ARM, the
+# latter via assign_arm) live in tools/fleet_env.py -- ONE statement, shared with the
+# sprint keeper, so the two launchers cannot drift apart.
+from tools.fleet_env import GAMES, fleet_env_for
 
 PY = sys.executable
 ROOT = os.path.join(REDUX, ".runs", "swarm")
-GAMES = ["ar25", "bp35", "cd82", "cn04", "dc22", "ft09", "g50t", "ka59", "lf52", "lp85",
-         "ls20", "m0r0", "r11l", "re86", "s5i5", "sb26", "sc25", "sk48", "sp80", "su15",
-         "tn36", "tr87", "tu93", "vc33", "wa30"]
 
 MEM_CAP_MB = 1200          # kill + restart a worker above this working set
 RECYCLE_MIN = 120          # bounded lifetime: recycle every 2 hours
@@ -57,12 +57,17 @@ TELEMETRY_TABLES = ["system_logs", "sensation_learning_events",
                     "cognitive_routing_traces", "i_thread_history", "player_state_history",
                     "navigation_state_history", "agent_operating_modes"]
 
-txt = open(os.path.join(REDUX, ".env"), encoding="utf-8").read()
-KEY = re.search(r"^\s*ARC_KEY\s*=\s*(.+?)\s*$", txt, re.M).group(1).strip().strip('"').strip("'")
+ENV_FILE = os.path.join(REDUX, ".env")
 
-os.makedirs(ROOT, exist_ok=True)
-seed_dirs = [os.path.join(REDUX, ".runs", "compound2", "ego_fabric")] + \
-            [os.path.join(ROOT, g, "ego_fabric") for g in GAMES]
+
+def read_arc_key(path=ENV_FILE):
+    """ARC_KEY from .env. Raises if the file or the line is absent -- a supervisor
+    with no key spawns 25 workers that all fail the same way, so fail here, first."""
+    txt = open(path, encoding="utf-8").read()
+    return re.search(r"^\s*ARC_KEY\s*=\s*(.+?)\s*$", txt, re.M).group(1).strip().strip('"').strip("'")
+
+
+KEY = None     # set by main() before the first spawn; importing this module reads nothing
 
 procs = {}     # game -> (Popen, logfile, t0)
 stats = {g: {"restarts": 0, "mem_kills": 0, "recycles": 0} for g in GAMES}
@@ -188,8 +193,9 @@ def spawn(g):
     env["ARC_API_KEY"] = KEY
     env["PYTHONPATH"] = REDUX
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    env["OURO_FABRIC_SEEDS"] = ";".join(d for d in seed_dirs
-                                        if d != os.path.join(box, "ego_fabric"))
+    # OURO_FABRIC_SEEDS (every other box's ego_fabric + compound2's, ';'-joined) and
+    # LP_DRIVE_ARM, assembled by tools/fleet_env.fleet_env_for -- the ONE statement
+    # the keeper shares.
     # G-D (PREREG_FINAL_GAPS) + ROTATION: the three-arm LP-drive control runs
     # LIVE, and the arm ROTATES per recycle -- assign_arm(game, recycles) =
     # ARMS[(sha1(game) + recycles) mod 3] -- so every game visits every arm
@@ -197,7 +203,7 @@ def spawn(g):
     # deterministic across restarts, recycles and supervisor reboots. Crash
     # restarts and mem-kills keep the arm (only the bounded-lifetime recycle
     # counter rotates it); recycles=0 is the original static assignment.
-    env["LP_DRIVE_ARM"] = assign_arm(g, stats[g]["recycles"])
+    env.update(fleet_env_for(g, ROOT, GAMES, recycles=stats[g]["recycles"]))
     logf = open(os.path.join(box, "worker.log"), "a", encoding="utf-8", errors="replace")
     logf.write("[SUPERVISOR] LP_DRIVE_ARM=%s recycles=%d\n"
                % (env["LP_DRIVE_ARM"], stats[g]["recycles"]))
@@ -296,74 +302,88 @@ def stop_and_gc(g, reason):
     logf.close()
 
 
-for g in GAMES:
-    spawn(g)
-    print("spawned", g, flush=True)
-    time.sleep(2.0)
+def main():
+    """RUN the swarm: read the key, make the root, spawn the roster, poll forever.
+    Everything with a side effect lives here, under the __main__ guard -- importing
+    this module (the keeper's tests, the parity gate) reads no .env, makes no dir,
+    spawns nothing. Same order as before the guard: key first (fail before any
+    spawn), then the root, then the staggered spawns, then the loop."""
+    global KEY  # noqa: PLW0603 -- KEY was always the module global spawn() reads; only its
+    KEY = read_arc_key()  # assignment moved here from import time
+    os.makedirs(ROOT, exist_ok=True)
 
-deployed_fp = code_fingerprint()
-record_deploy(deployed_fp, "initial")
-
-while True:
-    time.sleep(POLL_SEC)
-
-    # ── DEPLOY ON CHANGE (Seat 3, 2026-08-19) ──────────────────────────────
-    # THE POINT: queue a change, have it live within one poll, and pay the
-    # restart cost ONLY when there is a change. An unconditional short batch
-    # pays it every boundary -- and the measured startup tail says three
-    # workers (cn04 730s, lp85 310s, ft09 274s -- all of them games WITH banked
-    # sequences to replay) would produce nothing at all inside a 5-minute one.
-    #
-    # THIS REPLACES THE COMMIT GATE, which never guarded the swarm: a change is
-    # live at the restart, not at the commit (THE_LADDER, "the working tree is
-    # production"). The hold is now a FILE THE LAUNCHER READS rather than a
-    # discipline someone remembers.
-    if os.path.exists(HOLD_FILE):
-        held = True
-    else:
-        held = False
-        fp = code_fingerprint()
-        if fp != deployed_fp:
-            record_deploy(fp, "code change")
-            for g in GAMES:
-                stop_and_gc(g, "deploy: live-path code changed")
-                spawn(g)
-            deployed_fp = fp
-            print("[DEPLOY] live-path change -> all workers restarted", flush=True)
-
-    ws = working_sets()
-    lines = []
-    if held:
-        lines.append("!! HOLD present (%s) -- deploys suspended, workers left running"
-                     % HOLD_FILE)
-    if not ws:
-        lines.append("!! working_sets EMPTY -- memory cap blind this cycle")
     for g in GAMES:
-        p, logf, t0 = procs[g]
-        up_min = (time.time() - t0) / 60.0
-        rss = tree_rss(p.pid, ws)
-        if p.poll() is not None:
-            stats[g]["restarts"] += 1
-            logf.write("\n[SUPERVISOR] exited rc=%s; restart #%d\n" % (p.returncode, stats[g]["restarts"]))
-            db_gc(os.path.join(ROOT, g), logf)
-            logf.close()
-            spawn(g)
-            lines.append("%s RESTART#%d" % (g, stats[g]["restarts"]))
-        elif rss > MEM_CAP_MB:
-            stats[g]["mem_kills"] += 1
-            stop_and_gc(g, "memory cap: %.0fMB > %dMB" % (rss, MEM_CAP_MB))
-            spawn(g)
-            lines.append("%s MEM-KILL#%d(%.0fMB)" % (g, stats[g]["mem_kills"], rss))
-        elif up_min > RECYCLE_MIN:
-            stats[g]["recycles"] += 1
-            stop_and_gc(g, "bounded lifetime: %.0f min" % up_min)
-            spawn(g)
-            lines.append("%s RECYCLED#%d" % (g, stats[g]["recycles"]))
+        spawn(g)
+        print("spawned", g, flush=True)
+        time.sleep(2.0)
+
+    deployed_fp = code_fingerprint()
+    record_deploy(deployed_fp, "initial")
+
+    while True:
+        time.sleep(POLL_SEC)
+
+        # ── DEPLOY ON CHANGE (Seat 3, 2026-08-19) ──────────────────────────────
+        # THE POINT: queue a change, have it live within one poll, and pay the
+        # restart cost ONLY when there is a change. An unconditional short batch
+        # pays it every boundary -- and the measured startup tail says three
+        # workers (cn04 730s, lp85 310s, ft09 274s -- all of them games WITH banked
+        # sequences to replay) would produce nothing at all inside a 5-minute one.
+        #
+        # THIS REPLACES THE COMMIT GATE, which never guarded the swarm: a change is
+        # live at the restart, not at the commit (THE_LADDER, "the working tree is
+        # production"). The hold is now a FILE THE LAUNCHER READS rather than a
+        # discipline someone remembers.
+        if os.path.exists(HOLD_FILE):
+            held = True
         else:
-            db = os.path.join(ROOT, g, "core_data.db")
-            dbmb = os.path.getsize(db) / 1e6 if os.path.exists(db) else 0
-            lines.append("%s up=%dm rss=%.0fMB db=%.0fMB r/m/c=%d/%d/%d"
-                         % (g, int(up_min), rss, dbmb,
-                            stats[g]["restarts"], stats[g]["mem_kills"], stats[g]["recycles"]))
-    with open(os.path.join(ROOT, "status.txt"), "w", encoding="utf-8") as fh:
-        fh.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n" + "\n".join(lines) + "\n")
+            held = False
+            fp = code_fingerprint()
+            if fp != deployed_fp:
+                record_deploy(fp, "code change")
+                for g in GAMES:
+                    stop_and_gc(g, "deploy: live-path code changed")
+                    spawn(g)
+                deployed_fp = fp
+                print("[DEPLOY] live-path change -> all workers restarted", flush=True)
+
+        ws = working_sets()
+        lines = []
+        if held:
+            lines.append("!! HOLD present (%s) -- deploys suspended, workers left running"
+                         % HOLD_FILE)
+        if not ws:
+            lines.append("!! working_sets EMPTY -- memory cap blind this cycle")
+        for g in GAMES:
+            p, logf, t0 = procs[g]
+            up_min = (time.time() - t0) / 60.0
+            rss = tree_rss(p.pid, ws)
+            if p.poll() is not None:
+                stats[g]["restarts"] += 1
+                logf.write("\n[SUPERVISOR] exited rc=%s; restart #%d\n" % (p.returncode, stats[g]["restarts"]))
+                db_gc(os.path.join(ROOT, g), logf)
+                logf.close()
+                spawn(g)
+                lines.append("%s RESTART#%d" % (g, stats[g]["restarts"]))
+            elif rss > MEM_CAP_MB:
+                stats[g]["mem_kills"] += 1
+                stop_and_gc(g, "memory cap: %.0fMB > %dMB" % (rss, MEM_CAP_MB))
+                spawn(g)
+                lines.append("%s MEM-KILL#%d(%.0fMB)" % (g, stats[g]["mem_kills"], rss))
+            elif up_min > RECYCLE_MIN:
+                stats[g]["recycles"] += 1
+                stop_and_gc(g, "bounded lifetime: %.0f min" % up_min)
+                spawn(g)
+                lines.append("%s RECYCLED#%d" % (g, stats[g]["recycles"]))
+            else:
+                db = os.path.join(ROOT, g, "core_data.db")
+                dbmb = os.path.getsize(db) / 1e6 if os.path.exists(db) else 0
+                lines.append("%s up=%dm rss=%.0fMB db=%.0fMB r/m/c=%d/%d/%d"
+                             % (g, int(up_min), rss, dbmb,
+                                stats[g]["restarts"], stats[g]["mem_kills"], stats[g]["recycles"]))
+        with open(os.path.join(ROOT, "status.txt"), "w", encoding="utf-8") as fh:
+            fh.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n" + "\n".join(lines) + "\n")
+
+
+if __name__ == "__main__":
+    main()

@@ -6,7 +6,11 @@ one (post_frame, action) pair per step and get back a small dict of beliefs:
   * `colour`  -- the controllable colour named by `SelfLocus` (contingency, not correlation:
                  the Goodhart guard), or None while cold;
   * `objects` -- how many objects the tracker currently carries in view;
-  * `centroid`-- the picked controllable object's centroid, or None.
+  * `centroid`-- the picked controllable object's centroid, or None;
+  * `cell`    -- the picked object's EXACT (row, col) cell when it is a single
+                 cell, else None (COMPOSER STAGE 4.5: the self-locus exact cell
+                 for the compose seam; a multi-cell body has no one exact cell,
+                 and the loop then falls back to the rounded centroid, stated).
 
 Discipline (PREREG_PHASE1.md): deterministic (no RNG, no I/O), and EVERY exception is
 swallowed to the `errors` counter -- sensing must never crash the loop it feeds.
@@ -51,6 +55,9 @@ class EgoObserver:
                 "colour": self.locus.controllable_colour(),
                 "objects": len(current),
                 "centroid": picked.centroid if picked is not None else None,
+                "cell": ((int(next(iter(picked.cells))[0]),
+                          int(next(iter(picked.cells))[1]))
+                         if picked is not None and picked.size == 1 else None),
             }
         except Exception:
             self.errors += 1

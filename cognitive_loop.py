@@ -1795,6 +1795,10 @@ class CognitiveLoop:
                 self._goal_spine.note_move(
                     str(action), (int(round(_dr)), int(round(_dc))))
             self._ego_prev_centroid = _cen
+            # COMPOSER STAGE 4.5: the self-locus EXACT cell (single-cell body)
+            # for the compose seam; None -> _w3c_compose states its fallback
+            self._ego_self_cell = (info.get("cell")
+                                   if isinstance(info, dict) else None)
         except Exception:
             self._ego_feed_errors = getattr(self, "_ego_feed_errors", 0) + 1
             _swal(self, "OBSERVER")
@@ -2244,6 +2248,14 @@ class CognitiveLoop:
             # the retained planner state key (binder.on_level_change's pattern).
             # One-line call site placed AFTER the .credit/.route anchors by the
             # window law; containment inside: never raises.
+            # COMPOSER STAGE 4.5: the self-locus EXACT cell (single-cell body)
+            # for the compose seam; None -> _w3c_compose states its fallback.
+            # Stamped BELOW the .route anchor (the window law; the STAGE 4.5
+            # structural repair moved it out of the .credit window): the same
+            # `info` PHASE 1 bound, inside the same PHASE 2 try, and the ONLY
+            # reader is _w3c_compose in cycle -- the value is identical.
+            self._ego_self_cell = (info.get("cell")
+                                   if isinstance(info, dict) else None)
             # COMPOSER STAGE 4: a driven composite's step settles or routes
             # FIRST (it consumes its own stash; the planner's is untouched).
             _w3d_settle(self, post_array, level_changed)
@@ -4752,17 +4764,20 @@ def _w3c_compose(loop, pframe, want):
     from cycle()'s two plan seams, ONLY inside an open W2b gate (_w2b_engage
     True -- no new scheduling), ONLY after the planner's search returned
     None (the fallback ordering: a found plan means no compose attempt).
-    Assembles the loop-held inputs -- Gamma, the self-locus cell (row, col),
-    the action book's deltas (enables.book_deltas), the frontier mask
-    (enables.fatal_cells, the one (x, y) -> (row, col) conversion) -- and
-    narrates the outcome at the PLAN point via the W2b channel
-    (loop._w2b_narr): mode "composed" with the composite id (+ its citation
-    state: settled False -- stage 4), or "compose-none" with the attempt's
-    fixed reason token. The composite is a CANDIDATE: nothing here cites it;
-    stage 4's _w3d_drive may DRIVE it (the test), and only the live settle
-    makes it citable. Returns the attempt's result dict on a compose, else
-    None. Containment: never raises; an internal error narrates nothing new
-    and changes nothing."""
+    Assembles the loop-held inputs -- Gamma, the self-locus cell (row, col):
+    the observer's EXACT cell where the body is a single cell (stage 4.5,
+    token self-cell), else the rounded centroid as the STATED fallback
+    (token centroid-rounded, on the PLAN record), the action book's deltas
+    (enables.book_deltas), the frontier mask (enables.fatal_cells, the one
+    (x, y) -> (row, col) conversion) -- and narrates the outcome at the PLAN
+    point via the W2b channel (loop._w2b_narr): mode "composed" with the
+    composite id (+ its citation state: settled False -- stage 4; + the
+    avatar source and, for a reach chain, the prefix verdict), or
+    "compose-none" with the attempt's fixed reason token. The composite is
+    a CANDIDATE: nothing here cites it; stage 4's _w3d_drive may DRIVE it
+    (the test), and only the live settle makes it citable. Returns the
+    attempt's result dict on a compose, else None. Containment: never
+    raises; an internal error narrates nothing new and changes nothing."""
     try:
         from engines.egocentric import composer as _cmp
         from engines.egocentric import enables as _en
@@ -4771,25 +4786,39 @@ def _w3c_compose(loop, pframe, want):
             return None
         _g = str(getattr(loop, "_game_id", "") or "game")
         _lv = int(getattr(loop, "_ego_level", 0) or 0)
+        _cell = getattr(loop, "_ego_self_cell", None)
         _cen = getattr(loop, "_ego_prev_centroid", None)
-        _av = ((int(round(_cen[0])), int(round(_cen[1])))
-               if _cen is not None else None)
+        if _cell is not None:
+            _av, _src = (int(_cell[0]), int(_cell[1])), _cmp.AVATAR_EXACT
+        elif _cen is not None:
+            _av = (int(round(_cen[0])), int(round(_cen[1])))
+            _src = _cmp.AVATAR_CENTROID          # the stated fallback
+        else:
+            _av, _src = None, _cmp.AVATAR_NONE
         _bk = getattr(loop, "_ego_frontier_book", None)
         _res = _cmp.compose_attempt(
             want, pframe, _gm, _av, _en.book_deltas(_g),
             (_en.fatal_cells(_bk, _g, _lv) if _bk is not None else set()),
             _g, _lv + 1)
+        _res["avatar"] = _src
         if _res.get("composite"):
-            loop._w2b_narr = ("composed", str(_res["composite"]),
-                              {"settled": False, "driven": False})
+            _extra = {"settled": False, "driven": False, "avatar": _src}
+            if _res.get("prefix") is not None:
+                _extra["prefix"] = str(_res["prefix"])
+            loop._w2b_narr = ("composed", str(_res["composite"]), _extra)
             print(f"[PLAN] composed id={_res['composite']} "
                   f"parts={len(_res.get('chain') or [])} "
-                  f"price={_res.get('price')}")
+                  f"price={_res.get('price')} avatar={_src} "
+                  f"prefix={_res.get('prefix')} "
+                  f"refused={len(_res.get('refused') or [])}")
             return _res
         loop._w2b_narr = ("compose-none", str(_res.get("reason")))
         print(f"[PLAN] compose-none reason={_res.get('reason')} "
               f"candidates={_res.get('candidates')} "
-              f"proposed={_res.get('proposed')}")
+              f"proposed={_res.get('proposed')} "
+              f"verified={_res.get('verified')} "
+              f"refused={_res.get('refused')} notes={_res.get('notes')} "
+              f"avatar={_src}")
         return None
     except Exception:
         _swal(loop, "PLANNER")
@@ -4821,33 +4850,55 @@ def _w3c_compose(loop, pframe, want):
 # ═════════════════════════════════════════════════════════════════════════════
 
 
-def _w3d_site(pframe, atom):
-    """The click site (x, y) for a Gamma part on `pframe`: the act cell
-    (first matching anchor + the stored act_offset -- stage 2's stamp, the
-    cell the action was actually performed at) when the atom carries one,
-    else the planner's own convention (the first full-context match's
-    centre). None when nothing matches: no site is never a guessed site."""
+def _w3d_site(pframe, atom, anchor):
+    """The click site (x, y) for a Gamma part on `pframe`: the RECONCILED
+    anchor (the cell the reach chose and the simulation stamped at --
+    carried per part on the drive record, stage 4.5) + the stored
+    act_offset (stage 2's stamp, the cell the action was actually performed
+    at). None when the atom carries NO act_offset (compose-only: the
+    NO-ACT-OFFSET composite is never driven from a synthesised site), when
+    no anchor was reconciled, or when that anchor no longer matches on the
+    frame the part faces. No site is never a guessed site -- the patch-
+    centre convention is gone from this seam."""
     try:
         from engines.egocentric import composer as _cmp
         from engines.egocentric import enables as _en
-        anch = _cmp._anchors(np.asarray(pframe), atom)
-        if not anch:
-            return None
         off = _en.act_offset_of(atom)
-        r0, c0 = anch[0]
-        if off is not None:
-            return (int(c0 + off[1]), int(r0 + off[0]))
-        ph, pw = np.asarray(atom.get("context")).shape
-        return (int(c0 + pw // 2), int(r0 + ph // 2))
+        if off is None or anchor is None:
+            return None
+        a = (int(anchor[0]), int(anchor[1]))
+        if a not in _cmp._anchors(np.asarray(pframe), atom):
+            return None
+        return (int(a[1] + off[1]), int(a[0] + off[0]))
     except Exception:
         return None
+
+
+def _w3d_offsetless(loop, drive):
+    """The click parts (action 6) of a driven chain that carry NO act_offset
+    -- the composite is then compose-only (NO-ACT-OFFSET): it is shadowed,
+    never driven. [] when every click part carries its offset."""
+    from engines.egocentric import enables as _en
+    _gm = getattr(loop, "_gamma", None)
+    out = []
+    for _pid in drive["chain"]:
+        atom = _gm.get(_pid) if _gm is not None else None
+        if not isinstance(atom, dict):
+            continue
+        try:
+            is_click = int(atom.get("action")) == 6
+        except (TypeError, ValueError):
+            is_click = False
+        if is_click and _en.act_offset_of(atom) is None:
+            out.append(str(_pid))
+    return out
 
 
 def _w3d_step(loop, pframe, drive, i):
     """(action_num, action_data) for part i of a driven chain on `pframe`:
     the part atom's own action; a click (6) needs its site resolved on the
-    frame it faces, a movement carries no coordinates. None when the part
-    cannot be issued."""
+    frame it faces AT THE RECONCILED ANCHOR (drive["anchors"][i]), a
+    movement carries no coordinates. None when the part cannot be issued."""
     try:
         _gm = getattr(loop, "_gamma", None)
         atom = _gm.get(drive["chain"][i]) if _gm is not None else None
@@ -4855,7 +4906,9 @@ def _w3d_step(loop, pframe, drive, i):
             return None
         act = int(atom.get("action"))
         if act == 6:
-            site = _w3d_site(pframe, atom)
+            _anchors = drive.get("anchors") or []
+            site = _w3d_site(pframe, atom,
+                             (_anchors[i] if i < len(_anchors) else None))
             if site is None:
                 return None
             return (6, {'x': int(site[0]), 'y': int(site[1])})
@@ -4919,17 +4972,47 @@ def _w3d_drive(loop, pframe, res):
     try:
         from engines.egocentric import composer as _cmp
         from engines.egocentric import scheduler as _s2b
+        if not hasattr(loop, "_plan_gate") or loop._plan_gate is None:
+            loop._plan_gate = {"g1": 0, "g2": 0, "g3": 0, "g4": 0, "g5": 0,
+                               "g6": 0, "g7": 0, "shadow": 0, "drive": 0,
+                               "cycles": 0}
+        _pg = loop._plan_gate                  # THE planner path's counter dict
+        _src = (res.get("avatar") if isinstance(res, dict) else None)
         drive = _cmp.drive_record(res)
         if drive is None:
+            if isinstance(res, dict) and res.get("reason") == _cmp.COMPOSED:
+                # a composed result whose prediction is malformed (no frame
+                # per part, no WANT to verify, a predicate already true):
+                # stated on the PLAN record, never driven
+                _pg["shadow"] = int(_pg.get("shadow", 0) or 0) + 1
+                loop._w2b_narr = ("composed", str(res.get("composite")),
+                                  {"settled": False, "driven": False,
+                                   "reason": "drive-record-malformed",
+                                   "avatar": _src})
+                print(f"[PLAN] composite shadow id={res.get('composite')} "
+                      f"reason=drive-record-malformed")
             return None
         _cid = drive["composite"]
+        _n = len(drive["chain"])
+        _prefix = drive.get("prefix")
+        # STAGE 4.5 (silent #3): an offset-less click part is compose-only
+        _offless = _w3d_offsetless(loop, drive)
+        if _offless:
+            _pg["shadow"] = int(_pg.get("shadow", 0) or 0) + 1
+            loop._w2b_narr = ("composed", _cid,
+                              {"settled": False, "driven": False,
+                               "reason": _cmp.NO_ACT_OFFSET,
+                               "parts": list(_offless), "avatar": _src,
+                               "prefix": _prefix})
+            print(f"[PLAN] composite shadow id={_cid} parts={_n} "
+                  f"reason={_cmp.NO_ACT_OFFSET} offset-less={_offless}")
+            return None
         _av = getattr(loop, "_atom_verified", None) or {}
         _verified = all(int(_av.get(_pid, 0) or 0) >= 2 for _pid in drive["chain"])
-        _n = len(drive["chain"])
         _gm = getattr(loop, "_gamma", None)
         _last = _gm.get(drive["chain"][-1]) if _gm is not None else None
         _pre_last = drive["frame0"] if _n == 1 else drive["frames"][-2]
-        _site = _w3d_site(_pre_last, _last)
+        _site = _w3d_site(_pre_last, _last, drive.get("anchor"))
         from engines.egocentric.frontier import plan_veto
         _fb = getattr(loop, "_ego_frontier_book", None)
         _lv = int(getattr(loop, "_ego_level", 0) or 0)
@@ -4939,17 +5022,13 @@ def _w3d_drive(loop, pframe, res):
             avoid=(_fb.avoid_set(_g, _lv) if _fb is not None else None))
         _step = (_w3d_step(loop, pframe, drive, 0)
                  if (_verified and _site is not None and not _veto) else None)
-        if not hasattr(loop, "_plan_gate") or loop._plan_gate is None:
-            loop._plan_gate = {"g1": 0, "g2": 0, "g3": 0, "g4": 0, "g5": 0,
-                               "g6": 0, "g7": 0, "shadow": 0, "drive": 0,
-                               "cycles": 0}
-        _pg = loop._plan_gate                  # THE planner path's counter dict
         if _step is None:
             _pg["shadow"] = int(_pg.get("shadow", 0) or 0) + 1
             loop._w2b_narr = ("composed", _cid,
                               {"settled": False, "driven": False,
                                "verified": bool(_verified),
-                               "site": _site is not None, "veto": bool(_veto)})
+                               "site": _site is not None, "veto": bool(_veto),
+                               "avatar": _src, "prefix": _prefix})
             print(f"[PLAN] composite shadow id={_cid} parts={_n} "
                   f"verified={_verified} site={_site} veto={_veto}")
             return None
@@ -4962,9 +5041,10 @@ def _w3d_drive(loop, pframe, res):
                             "composite": _cid, "step": 0}
         loop._w2b_narr = ("composed", _cid,
                           {"settled": False, "driven": True, "step": 0,
-                           "of": _n})
+                           "of": _n, "avatar": _src, "prefix": _prefix})
         print(f"[PLAN] DRIVE composite id={_cid} parts={_n} step=0/{_n} "
-              f"action={_step[0]} site={_site}")
+              f"action={_step[0]} site={_site} anchor={drive.get('anchor')} "
+              f"prefix={_prefix}")
         return _step
     except Exception:
         _swal(loop, "PLANNER")
@@ -5003,6 +5083,10 @@ def _w3d_continue(loop, frame):
         _step = _w3d_step(loop, pframe, drive, i)
         if _step is None:
             loop._w3d_chain = None
+            _w3d_narrate(loop, "abort", "could-not-issue",
+                         {"composite": drive["composite"], "settled": False,
+                          "component": None, "part": i,
+                          "reason": "could-not-issue"})
             print(f"[PLAN] composite step {i}/{_n} could not issue; "
                   f"id={drive['composite']} dropped (candidate intact)")
             return None

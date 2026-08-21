@@ -1462,3 +1462,42 @@ SPLIT-HALF ROW NOTE (g50t): its 1→1 baseline was exploration luck, banked and 
 not a capability floor the composer must beat. Rulings: standing_half_life "silence never
 evicts" TAKEN (+ decay-must-bite rider; the counter's first YES); shadow gate accepted with
 the stage-2 deadline as a mechanism; persistence monitor approved.
+
+## ENTRY 47 — 2026-08-21. STAGE 4.5 LANDED (verifying): the four silent successes now fail loudly.
+Silent #1: want-already-satisfied refused before the pool is read; predicate mode requires
+a FLIP (false on frame0, true on result) and the flip is re-verified on the LIVE frame at
+settle (predicate-unmet otherwise). Silent #2: csig-less chains refused (csig-underivable);
+local mints now pay consumer.extent_bargain — ONE statement shared with the import door;
+"nothing prices what's made at home" closed. Silent #3: patch-centre site synthesis
+removed; offset-less atoms compose-only, shadowed with no-act-offset, never driven; anchors
+reconciled reach→simulation→drive. Silent #4: final seam applied AT the reached anchor
+after an avatar-at-act-cell check; unnecessary prefixes dropped (prefix-unnecessary) —
+the cross-shelf claim is now tested at the seam where it matters. Handoffs: exact
+self-cell with centroid-rounded as a stated fallback; is_citable reads the stream record;
+reach["verified"] READ (breach refuses). Multi-prior union left as the prereg'd limitation,
+palette and cell credits made consistent. 123 scoped green. NOTED: stage 4's own test R4e
+had ASSERTED silent #3 (offset-less drive from a synthesised site) — a test encoding the
+defect, rewritten to assert the refusal. Fleet-env helper landed (100 pairs, 0 mismatches;
+supervisor import-side-effects fixed under main guard — D-6 at tooling grain).
+Settled suite running; on green: commit → D-8 instrument → lift → fleet → THE RUN.
+SETTLED SUITE AFTER 4.5: 1468 passed, 7 FAILED — none semantic. Five are the .credit/.route
+WINDOW LAWS (source-position bounds in cognitive_loop, <60 chars headroom per Seat 4's
+earlier warning; 4.5's two in-body feed-site inserts consumed it), one is the law that
+_plan_gate stays out of record_result (stage 4's settle seam touches it there), two are
+rotted receipts (router-core, mint-core). Repair builder dispatched with the rule: the code
+moves, the laws never weaken. THE APPARATUS NOTE: window laws are position-based like
+file:line receipts — the symbol-anchored apparatus (approved) now has a second customer;
+today the debt blocked instead of taxed.
+STRUCTURAL REPAIR LANDED: the four window laws recovered by a CODE MOVE (one 280-char
+self-cell stamp relocated past .route(; headroom back to HEAD's 50/15); the _plan_gate law
+CONVERTED to its AST form (record_result's body had NO violation — the tail slice was
+failing on module-bottom helpers; conversion authorized, name kept, KNOBS A4-2 cited,
+reach over the body preserved exactly); router-core/mint-core refreshed — and the finding:
+the stage-4 refresh sweep had committed those two rows ALREADY RED (+37). Builder's full
+suite 1475 green; proctor's independent settled run follows; then commit → D-8 → lift.
+KNOWN RESIDUAL (beat-carried): the self-cell stamp now sits after .route(; if a pre-existing
+PHASE-2 statement between the old and new sites raises (spine/credit/mint bug paths), that
+step's stamp is skipped and _w3c_compose sees the PRIOR cell. Non-raising paths identical.
+A stale avatar cell after a PHASE-2 exception is this, not a new defect.
+GUARD-GREEN-FOR-THE-WRONG-REASON genus: fourth instance — two receipts committed red by a
+sweep that missed them. All four found by reads to the fact, not the verdict.
