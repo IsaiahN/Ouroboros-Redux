@@ -173,3 +173,33 @@ all three utterances and their two links.
 
 Both halves scale with events, not area — pinned before the third profile window has to
 discover it.
+
+
+## THE PROBE-SHARE PIN (Seat 3's addition 2 — named before stage 2, so a high rate at flip
+## gets read instead of argued)
+
+The probe is the pressure valve: honest, valid, and capable of carrying everything if
+coverage is thin. What a given share MEANS is pinned now:
+
+- **The number alone decides nothing. The TRAJECTORY against the action book's fill does.**
+  Probe share is read jointly with action-book evidence density (per action, per game):
+  - **Library-young (healthy)**: probe share high WHERE evidence is thin, and falling as
+    evidence accumulates — the learning curve. Expected on new games and fresh workers.
+  - **GATE-FAILING (the finding)**: probe share high WHERE THE ACTION BOOK IS RICH — the
+    agent holds the evidence to derive and routes through "I don't know" anyway. Since the
+    gate rejects false ignorance (the ledger check), a high probe rate in evidence-rich
+    contexts that PASSES the gate means the book's evidence is not composable into
+    derivations — a grammar/coverage failure, localised to the contexts where it happens.
+- **The pinned discriminator**: probe-share stratified by action-book evidence density,
+  reported as a curve, not a scalar. Flat-high across rich strata after circulation =
+  gate/grammar failing. High only in thin strata = library young. The stage-2 flip
+  decision cites this curve, and no scalar threshold is invented at flip time.
+- **One hard floor, stated so drift is visible**: if fleet-wide probe share in the RICHEST
+  evidence stratum has not fallen below its own starting value after the stratum doubled
+  its evidence, the gate is failing there regardless of any other argument.
+
+## THE THREE-NUMBER RULE (Seat 3's addition 3)
+The beat reports **derivations : negative derivations : probes** as three numbers, never
+folded. Negative derivations (earned-prior exclusions — 19.2% today) are real
+because-clauses and the 2.1% headline undersells what is already statable; folding them
+either way hides the thing the gate is supposed to grow.
