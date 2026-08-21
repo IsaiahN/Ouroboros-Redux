@@ -96,3 +96,13 @@ scoreable game reaches its derived 2k sessions (lp85 already there; sk48 the tai
 then the read runs and reports improved/regressed/unchanged per game. A fleet running
 because it is up is what produced eight dirty deploys — this run has a number it is for
 and a condition that ends it.
+
+
+## THE CROSS-SHELF ENABLES EDGE (Seat 4, post-branch — into the composer brief)
+The two-shelf finding changes the ENABLES edge: a chain that moves the avatar then edits
+the world crosses shelves, so the edge must span **BODY deltas × Γ atoms**, not live inside
+Γ alone. A locomotion step's postcondition is a POSITION fact (the bank's (dr,dc) algebra);
+a Γ atom's precondition is a PATCH fact (context at an anchor). The edge between them —
+"this movement puts the avatar where that click's context anchors" — is the first place
+the two shelves actually meet, **and it is where the composer's real work is**: everything
+else in the design composes within one shelf's own algebra.
