@@ -1563,6 +1563,14 @@ class CognitiveLoop:
                                           f"feasible={_plan.get('feasible')} "
                                           f"verified={_verified} veto={_veto} "
                                           f"d={_d.get('differing')}")
+                            # ═══ COMPOSER STAGE 3 (PROPOSAL_COMPOSER_DESIGN.md
+                            # par.3/6.3): the search found NOTHING -- the compose
+                            # fallback runs INSIDE the same open W2b gate, with
+                            # the SAME WANT (the reference diff, cellwise).
+                            # Outcome narrated at the PLAN point. ═══
+                            if _plan is None:
+                                _w3c_compose(self, _pframe,
+                                             _w3c_want_cells(_pframe, _refsnap))
                 # ═══ G-C (PREREG_FINAL_GAPS): reference first, then ABDUCED ═══
                 # The g4=0 episodes get a target: with NO reference snapshot but
                 # a credible abduced goal (>= 2 co-occurrences on the collective
@@ -1622,6 +1630,14 @@ class CognitiveLoop:
                                       f"feasible={_ap['feasible']} "
                                       f"verified={_ap['verified']} "
                                       f"veto={_ap['veto']} goal={_ap['sig']}")
+                        # COMPOSER STAGE 3: the abduced twin -- same open gate,
+                        # same fallback; the WANT is the top abduced predicate
+                        # (an empty producer means no WANT: nothing runs).
+                        if _ap is None:
+                            _t3 = self._goal_book.top(str(self._game_id),
+                                                      _lv4 + 1)
+                            if _t3 is not None and _t3.get("pred") is not None:
+                                _w3c_compose(self, _pframe, _t3["pred"])
             except Exception:
                 _swal(self, "PLANNER")
             # ═══ C33 STEP 1 (EGO-BET): every action carries a bet — commit at choice ═══
@@ -4682,3 +4698,70 @@ def _narr_mint_mark(loop, pre, post, action, route) -> None:
                                "route": route}
     except Exception:
         _swal(loop, "MINT_DRAIN")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# COMPOSER STAGE 3 (PROPOSAL_COMPOSER_DESIGN.md par.3/6.3): the compose
+# fallback's loop-side seam. Appended at MODULE BOTTOM (the ARM build's
+# pattern) so the helper block itself moves no registry receipt.
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def _w3c_want_cells(pframe, refsnap):
+    """The reference WANT as CELLS -- the SAME diff the planner just searched
+    (compute_d's mask, kept cellwise instead of counted): every cell where
+    the workspace differs from the reference, target = the reference's value.
+    [] on any doubt (shape mismatch, unreadable arrays): no WANT is never an
+    invented WANT. (row, col, target) triples, row-major."""
+    try:
+        ws, ref = np.asarray(pframe), np.asarray(refsnap)
+        if ws.ndim != 2 or ws.shape != ref.shape:
+            return []
+        return [(int(r), int(c), int(ref[r, c]))
+                for r, c in np.argwhere(ws != ref)]
+    except Exception:
+        return []
+
+
+def _w3c_compose(loop, pframe, want) -> None:
+    """THE ONE compose_attempt CALL SITE (COMPOSER STAGE 3). Reached ONLY
+    from cycle()'s two plan seams, ONLY inside an open W2b gate (_w2b_engage
+    True -- no new scheduling), ONLY after the planner's search returned
+    None (the fallback ordering: a found plan means no compose attempt).
+    Assembles the loop-held inputs -- Gamma, the self-locus cell (row, col),
+    the action book's deltas (enables.book_deltas), the frontier mask
+    (enables.fatal_cells, the one (x, y) -> (row, col) conversion) -- and
+    narrates the outcome at the PLAN point via the W2b channel
+    (loop._w2b_narr): mode "composed" with the composite id, or
+    "compose-none" with the attempt's fixed reason token. The composite is a
+    CANDIDATE only -- nothing here or downstream cites it (stage 4's wire).
+    Containment: never raises; an internal error narrates nothing new and
+    changes nothing."""
+    try:
+        from engines.egocentric import composer as _cmp
+        from engines.egocentric import enables as _en
+        _gm = getattr(loop, "_gamma", None)
+        if _gm is None:
+            return
+        _g = str(getattr(loop, "_game_id", "") or "game")
+        _lv = int(getattr(loop, "_ego_level", 0) or 0)
+        _cen = getattr(loop, "_ego_prev_centroid", None)
+        _av = ((int(round(_cen[0])), int(round(_cen[1])))
+               if _cen is not None else None)
+        _bk = getattr(loop, "_ego_frontier_book", None)
+        _res = _cmp.compose_attempt(
+            want, pframe, _gm, _av, _en.book_deltas(_g),
+            (_en.fatal_cells(_bk, _g, _lv) if _bk is not None else set()),
+            _g, _lv + 1)
+        if _res.get("composite"):
+            loop._w2b_narr = ("composed", str(_res["composite"]))
+            print(f"[PLAN] composed id={_res['composite']} "
+                  f"parts={len(_res.get('chain') or [])} "
+                  f"price={_res.get('price')}")
+        else:
+            loop._w2b_narr = ("compose-none", str(_res.get("reason")))
+            print(f"[PLAN] compose-none reason={_res.get('reason')} "
+                  f"candidates={_res.get('candidates')} "
+                  f"proposed={_res.get('proposed')}")
+    except Exception:
+        _swal(loop, "PLANNER")
