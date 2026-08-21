@@ -84,3 +84,14 @@ missing, only half catalogued. **The composer proceeds now; it waits for nothing
 boxes showing BODY-slot TRANSFERRED settlements dominating — the bank predicting movement
 in the stream, closing the causal chain. And the reason count keeps accumulating toward
 100 as a check that no late bbox cluster appears.
+
+## CAUSAL CHAIN CLOSED IN THE STREAM (2026-08-21, the queued confirmation)
+Per-slot ROUTE verdicts on movement boxes (28,691): BODY·TRANSFERRED 5,084 vs BODY·NOVEL
+2,467; WORKSPACE·None 9,780, WORKSPACE·TRANSFERRED 435, WORKSPACE·BROKEN 74 — WORKSPACE·
+NOVEL does not even reach the top eight. The mint's offer path reads WORKSPACE witnesses
+only; movement settles on BODY. Branch 2's mechanism observed, not inferred.
+**NEW FINDING — BODY·NOVEL = 2,467 unexplained self-motions (blocked moves, walls, edges)
+route NOVEL and are consumed by NOTHING**: the offer filter is slot=="WORKSPACE". This is
+exactly the wall knowledge the frontier mask lacks, produced at volume. PROPOSAL (Seat 3):
+a BODY-slot consumer — blocked-move evidence into the action book / a wall book the
+cross-shelf reach can mask on. Not built.

@@ -81,6 +81,13 @@ WIRING: consumed at cognitive_loop._w3c_compose (the ONE compose_attempt
 call site), invoked from the two already-gated plan seams in cycle() when
 the search returns None. This build flips enables_edges and
 cross_shelf_reach SEVERED -> LIVE (WIRING_REGISTRY.md).
+
+STAGE 4 (PREREG_COMPOSER_STAGE4_SETTLEMENT.md) appends the settlement wire
+at the bottom of this module: drive_record / divergence / settle_verdict /
+live_settle / is_citable / citation_allowed / conflict_component. Consumed
+by cognitive_loop's _w3d_drive (the drive, under the planner's own gates),
+_w3d_continue (the multi-cycle chain) and _w3d_settle (the ONE live_settle
+call site, in record_result beside _w2b_abort).
 """
 from __future__ import annotations
 
@@ -94,7 +101,13 @@ from engines.egocentric import enables as _enables
 
 __all__ = ["compose_attempt", "COMPOSED", "R_EMPTY_WANT",
            "R_WANT_UNDERIVABLE", "R_NO_FRAME", "R_NO_CANDIDATES",
-           "R_UNREACHABLE", "R_UNVERIFIED", "R_ERROR"]
+           "R_UNREACHABLE", "R_UNVERIFIED", "R_ERROR",
+           # stage 4: the settlement wire
+           "SETTLED_FIELD", "ROLE_BET", "ROLE_GROUND", "S_SETTLED",
+           "S_ALREADY", "S_NO_DRIVE", "S_NO_RECORD", "S_DIVERGED",
+           "drive_record", "step_cells", "divergence", "settle_verdict",
+           "composite_record", "is_citable", "citation_allowed",
+           "live_settle", "conflict_component"]
 
 # fixed reason tokens (narrated verbatim at the PLAN point -- never free prose)
 COMPOSED = "composed"                  # a composite was minted as CANDIDATE
@@ -199,15 +212,19 @@ def _simulate(frame: np.ndarray, atoms: Dict[str, Any],
               body_ids: List[str], trace: Optional[List[Tuple[int, int]]],
               core: List[str],
               cells: Optional[List[Tuple[int, int, int]]],
-              pred: Optional[Dict[str, Any]]) -> bool:
+              pred: Optional[Dict[str, Any]]) -> Optional[List[np.ndarray]]:
     """Simulate the whole chain seam by seam on a COPY (self-settlement is
     banned by design par.5 -- this is admission-to-candidacy, nothing more).
-    False on any seam failure, endpoint mismatch, or a WANT not advanced."""
+    None on any seam failure, endpoint mismatch, or a WANT not advanced;
+    otherwise the PREDICTED FRAME AFTER EACH PART, in chain order (stage 4
+    carries these in the drive stash and compares them against the LIVE
+    frame -- the simulation itself never settles anything)."""
     cur = frame.copy()
+    frames: List[np.ndarray] = []
     for i, bid in enumerate(body_ids):
         nxt = _effects.apply_effect(atoms.get(bid), cur)
         if nxt is None:
-            return False
+            return None
         nxt = np.asarray(nxt)
         if trace is not None:
             # THE ENDPOINT CHECK: the application must visibly move the
@@ -219,14 +236,18 @@ def _simulate(frame: np.ndarray, atoms: Dict[str, Any],
             frm = (int(trace[i][0]), int(trace[i][1]))
             to = (int(trace[i + 1][0]), int(trace[i + 1][1]))
             if frm not in changed or to not in changed:
-                return False
+                return None
         cur = nxt
+        frames.append(cur.copy())
     for aid in core:
         res = _effects.apply_effect(atoms.get(aid), cur)
         if res is None:
-            return False
+            return None
         cur = np.asarray(res)
-    return _advances(frame, cur, cells, pred)
+        frames.append(cur.copy())
+    if not _advances(frame, cur, cells, pred):
+        return None
+    return frames
 
 
 # ── THE COMPOSE ATTEMPT ───────────────────────────────────────────────────────
@@ -364,27 +385,303 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
         out["reason"] = R_UNREACHABLE
         return out
     # -- simulate (the decider), rank verified by the DERIVED price ------------
-    scored: List[Tuple[float, int, List[str], List[int]]] = []
+    scored: List[Tuple[float, int, List[str], List[int],
+                       List[np.ndarray]]] = []
     for idx, (body, trace, core, actions) in enumerate(proposals):
         if body is None:
             continue                           # outside the simulable scope
-        if not _simulate(f, atoms, body, trace, core, cells, pred):
+        frames = _simulate(f, atoms, body, trace, core, cells, pred)
+        if frames is None:
             continue
         parts = list(body) + list(core)
         csig = _app.composite_signature(parts, gamma.get)
         price = float(csig["price"]) if csig is not None else float("inf")
-        scored.append((price, idx, parts, actions))
+        scored.append((price, idx, parts, actions, frames))
     out["verified"] = len(scored)
     if not scored:
         out["reason"] = R_UNVERIFIED
         return out
     scored.sort(key=lambda s: (s[0], s[1]))    # cheapest; discovery order ties
-    price, _idx, parts, actions = scored[0]
+    price, _idx, parts, actions, frames = scored[0]
     cid = gamma.compose(parts, str(game), int(level))
     if cid is None:
         return out                             # R_ERROR: compose refused
     out.update({"composite": str(cid), "chain": list(parts),
                 "actions": list(actions),
                 "price": (None if price == float("inf") else int(price)),
-                "reason": COMPOSED})
+                "reason": COMPOSED,
+                # STAGE 4's inputs: the plan-time frame, the predicted frame
+                # after each part, the WANT cells (None in predicate mode).
+                # Predictions, not claims -- the record minted above carries
+                # no settlement field; only live_settle ever writes one.
+                "frame0": f.copy(), "frames": list(frames),
+                "want_cells": ([(r, c) for r, c, _t in cells]
+                               if cells is not None else None)})
     return out
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# COMPOSER STAGE 4: THE SETTLEMENT WIRE (PREREG_COMPOSER_STAGE4_SETTLEMENT.md)
+#
+# ONE transition: CANDIDATE -> SETTLED, written ONLY by live_settle after
+# settle_verdict compared the chain's predicted final frame against the LIVE
+# frame observed when the driven chain completed. Simulation never settles
+# (_simulate returns predictions; nothing here reads them as outcomes).
+# Failure routes through machinery that already exists: scheduler.route_abort
+# names world-moved vs plan-wrong from state keys; plan-wrong tightens the
+# MISPREDICTING COMPONENT through the mint's own conflict/reinstate path
+# (MDLMint._reinstate: context_full reinstated + pinned, superseding append,
+# ctx_conflict recorded). Nothing is deleted; the composite stays a candidate.
+# CITATION DISCIPLINE: an unsettled composite may appear in a BET, never as
+# GROUND -- citation_allowed is the pure rule the shadow gate consumes.
+# ═════════════════════════════════════════════════════════════════════════════
+
+SETTLED_FIELD = "settled"              # envelope field; absent until live_settle
+
+ROLE_BET = "BET"                       # proposable: any composite record
+ROLE_GROUND = "GROUND"                 # standable: settled records only
+
+# fixed outcome tokens for live_settle (narrated verbatim, never free prose)
+S_SETTLED = "settled"                  # written this call: citable from here on
+S_ALREADY = "already-settled"          # idempotent: nothing appended
+S_NO_DRIVE = "no-drive-record"         # refused: no driven chain to settle
+S_NO_RECORD = "no-composite-record"    # refused: the id has no record
+S_DIVERGED = "diverged"                # the live frame contradicts the prediction
+
+
+def drive_record(result: Any) -> Optional[Dict[str, Any]]:
+    """The drive stash from a COMPOSED compose_attempt result: the composite
+    id, its chain, the plan-time frame, the predicted frame after each part,
+    the WANT cells. None unless the result composed and carries one
+    predicted frame per part -- a malformed prediction never drives."""
+    if not isinstance(result, dict) or result.get("reason") != COMPOSED:
+        return None
+    chain = [str(p) for p in (result.get("chain") or [])]
+    frames = result.get("frames")
+    frame0 = result.get("frame0")
+    if (not chain or not result.get("composite") or frame0 is None
+            or not isinstance(frames, list) or len(frames) != len(chain)):
+        return None
+    try:
+        f0 = np.asarray(frame0)
+        fr = [np.asarray(x) for x in frames]
+        if f0.ndim != 2 or any(x.shape != f0.shape for x in fr):
+            return None
+    except Exception:
+        return None
+    wc = result.get("want_cells")
+    return {"composite": str(result["composite"]), "chain": chain,
+            "frame0": f0.copy(), "frames": [x.copy() for x in fr],
+            "want_cells": ([(int(r), int(c)) for r, c in wc]
+                           if wc is not None else None),
+            "actions": list(result.get("actions") or [])}
+
+
+def step_cells(drive: Dict[str, Any], i: int) -> Set[Tuple[int, int]]:
+    """The cells part `i` PREDICTED to change: predicted frame after part i
+    vs the frame before it (frame0 for i == 0). Empty on any doubt."""
+    try:
+        frames = drive["frames"]
+        before = drive["frame0"] if i == 0 else frames[i - 1]
+        after = frames[i]
+        return {(int(r), int(c)) for r, c in np.argwhere(before != after)}
+    except Exception:
+        return set()
+
+
+def divergence(drive: Dict[str, Any], i: int, live: Any) -> Dict[str, Any]:
+    """THE LIVE COMPARISON at step `i` (pure): the observed frame after part
+    i against the predicted frame after part i, on the cells the chain
+    predicted so far (parts 0..i) -- plus the WANT cells when i is the last
+    part (the settle's "match on the WANT cells"). Cells the chain never
+    predicted are not contradictions. Returns {"diverged": sorted cells,
+    "component": the FIRST part whose own predicted cells include a diverged
+    cell (the mispredicting component) or None, "index": its index or None}.
+    A shape mismatch diverges on every predicted cell with no component."""
+    out: Dict[str, Any] = {"diverged": [], "component": None, "index": None}
+    try:
+        chain = drive["chain"]
+        pred = np.asarray(drive["frames"][i])
+        cells: Set[Tuple[int, int]] = set()
+        per_step: List[Set[Tuple[int, int]]] = []
+        for k in range(i + 1):
+            sc = step_cells(drive, k)
+            per_step.append(sc)
+            cells |= sc
+        if i == len(chain) - 1 and drive.get("want_cells"):
+            cells |= set(drive["want_cells"])
+        obs = np.asarray(live)
+        if obs.ndim != 2 or obs.shape != pred.shape:
+            out["diverged"] = sorted(cells)
+            return out
+        h, w = pred.shape
+        div = {(r, c) for r, c in cells
+               if 0 <= r < h and 0 <= c < w and int(obs[r, c]) != int(pred[r, c])}
+        out["diverged"] = sorted(div)
+        if div:
+            for k, sc in enumerate(per_step):
+                if sc & div:
+                    out["component"] = str(chain[k])
+                    out["index"] = int(k)
+                    break
+        return out
+    except Exception:
+        out["diverged"] = [(-1, -1)]            # unreadable: never a match
+        return out
+
+
+def settle_verdict(drive: Dict[str, Any], live: Any) -> Dict[str, Any]:
+    """THE settle's live comparison: the chain complete, the predicted FINAL
+    frame against the LIVE frame on the WANT cells and every cell the chain
+    predicted. {"settled": bool} + divergence()'s fields. Pure: reads the
+    drive stash and the live frame, writes nothing."""
+    try:
+        v = divergence(drive, len(drive["chain"]) - 1, live)
+    except Exception:
+        v = {"diverged": [(-1, -1)], "component": None, "index": None}
+    return {**v, "settled": not v["diverged"]}
+
+
+def composite_record(gamma: Any, cid: str) -> Optional[Dict[str, Any]]:
+    """The LAST stream record for a composite id (Gamma.get's read rule --
+    the superseding append IS the update), or None."""
+    try:
+        recs = gamma.fabric.query("collective", gamma.TOPIC,
+                                  where=lambda r: r.get("id") == str(cid))
+    except Exception:
+        return None
+    if not recs:
+        return None
+    rec = recs[-1]
+    return rec if (rec.get("atom") or {}).get("kind") == "COMPOSITE" else None
+
+
+def is_citable(composite_record: Any) -> bool:
+    """THE CITABILITY RULE (pure): a composite record is citable iff its
+    envelope carries settled: True -- written only by live_settle, only from
+    a live-frame comparison. Anything else (no record, a non-composite,
+    a candidate) is not citable."""
+    if not isinstance(composite_record, dict):
+        return False
+    atom = composite_record.get("atom")
+    kind = (atom.get("kind") if isinstance(atom, dict)
+            else composite_record.get("kind"))
+    if kind != "COMPOSITE":
+        return False
+    return composite_record.get(SETTLED_FIELD) is True
+
+
+def citation_allowed(composite_record: Any, role: str) -> bool:
+    """THE DISCIPLINE (pure): in a BET any composite record may appear
+    (proposable-not-standable -- driving it IS the test); as GROUND only a
+    settled one (is_citable). Unknown roles are refused."""
+    if not isinstance(composite_record, dict):
+        return False
+    atom = composite_record.get("atom")
+    kind = (atom.get("kind") if isinstance(atom, dict)
+            else composite_record.get("kind"))
+    if kind != "COMPOSITE":
+        return False
+    if role == ROLE_BET:
+        return True
+    if role == ROLE_GROUND:
+        return is_citable(composite_record)
+    return False
+
+
+def live_settle(gamma: Any, drive: Optional[Dict[str, Any]],
+                live: Any) -> Dict[str, Any]:
+    """THE ONE WRITER of the settled flag. Refuses without a drive record
+    (a settle needs a driven chain, S_NO_DRIVE) or without the composite's
+    record (S_NO_RECORD); idempotent on an already-settled composite
+    (S_ALREADY, nothing appended). Otherwise settle_verdict decides on the
+    LIVE frame: a match -> superseding append, same id, settled: True +
+    the settle's facts (Gamma's supersede idiom: dict(rec) appended to the
+    same stream; the candidate record stays readable history); a divergence
+    -> nothing written, the mispredicting component named (S_DIVERGED).
+    Never raises; always returns {"settled", "reason", "written", ...}."""
+    out: Dict[str, Any] = {"settled": False, "reason": S_NO_DRIVE,
+                           "written": False, "composite": None}
+    try:
+        if not isinstance(drive, dict) or not drive.get("composite"):
+            return out
+        cid = str(drive["composite"])
+        out["composite"] = cid
+        rec = composite_record(gamma, cid)
+        if rec is None:
+            out["reason"] = S_NO_RECORD
+            return out
+        if rec.get(SETTLED_FIELD) is True:
+            out.update({"settled": True, "reason": S_ALREADY})
+            return out
+        v = settle_verdict(drive, live)
+        if not v["settled"]:
+            out.update({"reason": S_DIVERGED, "component": v["component"],
+                        "index": v["index"], "diverged": v["diverged"]})
+            return out
+        sup = dict(rec)
+        sup[SETTLED_FIELD] = True                # the transition, recorded
+        sup["settle"] = {"steps": len(drive["chain"]),
+                         "cells": len({c for k in range(len(drive["chain"]))
+                                       for c in step_cells(drive, k)}),
+                         "want": len(drive.get("want_cells") or [])}
+        gamma.fabric.append("collective", gamma.TOPIC, sup)
+        out.update({"settled": True, "reason": S_SETTLED, "written": True})
+        return out
+    except Exception:
+        out["reason"] = R_ERROR
+        return out
+
+
+def conflict_component(mint: Any, gamma: Any, part_id: str,
+                       pre_frame: Any) -> Dict[str, Any]:
+    """PLAN-WRONG's write, on ONE component, through the mint's EXISTING
+    reinstate path (MDLMint._reinstate -- the conflict clause's writer):
+    where the component's context is DONT_CARE but its context_full differs
+    from the live pre-frame at the matched anchor, those cells are
+    reinstated and PINNED (divergence tightens, never loosens), the record
+    superseded with the same id and ctx_conflict recorded. A component with
+    nothing to tighten (no context_full, or the full context matches too)
+    still gets the event recorded -- the divergence is evidence against it
+    either way; context_full itself is never touched, nothing is deleted.
+    Returns {"conflicted": bool, "tightened": n} (+ "reason" on refusal)."""
+    out: Dict[str, Any] = {"conflicted": False, "tightened": 0}
+    try:
+        if mint is None:
+            out["reason"] = "no-mint"
+            return out
+        recs = gamma.fabric.query("collective", gamma.TOPIC,
+                                  where=lambda r: r.get("id") == str(part_id))
+        if not recs:
+            out["reason"] = "no-record"
+            return out
+        rec = recs[-1]
+        atom = rec.get("atom") or {}
+        if atom.get("kind") != "EFFECT":
+            out["reason"] = "not-an-effect"
+            return out
+        ctx = np.asarray(atom.get("context"))
+        if ctx.ndim != 2 or ctx.size == 0:
+            out["reason"] = "no-context"
+            return out
+        full = atom.get("context_full")
+        fl = np.asarray(full) if full is not None else None
+        has_full = fl is not None and fl.shape == ctx.shape
+        if not has_full:
+            fl = ctx.copy()                      # nothing to reinstate from
+        distinguish = np.zeros(ctx.shape, dtype=bool)
+        b = np.asarray(pre_frame)
+        if b.ndim == 2 and has_full:
+            ph, pw = ctx.shape
+            for r, c in _effects._context_anchors(b, ctx):
+                region = b[r:r + ph, c:c + pw]
+                d = (ctx == _effects.DONT_CARE) & (fl != region)
+                if bool(d.any()):
+                    distinguish = d
+                    break                        # one conflict event per atom
+        mint._reinstate(str(part_id), rec, atom, fl, distinguish)
+        out.update({"conflicted": True, "tightened": int(distinguish.sum())})
+        return out
+    except Exception:
+        out["reason"] = R_ERROR
+        return out

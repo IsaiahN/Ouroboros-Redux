@@ -297,7 +297,10 @@ def _narr_bet(loop, action_num, cf, pg0) -> None:
         _w2s = getattr(loop, "_w2b_narr", None)
         loop._w2b_narr = None
         if _w2s is not None:
-            _nsp.plan(str(_w2s[0]), _w2s[1], rng=_rng, col_class=_cc)
+            # COMPOSER STAGE 4: a third element carries the composite's
+            # citation state (settled/unsettled, driven step) on the record.
+            _nsp.plan(str(_w2s[0]), _w2s[1], rng=_rng, col_class=_cc,
+                      extra=(_w2s[2] if len(_w2s) > 2 else None))
         else:
             _pv = _na.plan_verdict(pg0, getattr(loop, "_plan_gate", None) or {})
             _nsp.plan(_pv["mode"], _pv["gate"], rng=_rng, col_class=_cc)
@@ -1465,7 +1468,16 @@ class CognitiveLoop:
                         _pg["g2"] += 1
                         if int(getattr(self, "_ego_level", 0) or 0) >= 1:
                             _pg["g3"] += 1
-                if (_gm is not None and _rbind is not None and _refsnap is not None
+                # ═══ COMPOSER STAGE 4 (PREREG_COMPOSER_STAGE4_SETTLEMENT.md): a
+                # composite drive IN PROGRESS continues here -- the plan rung
+                # already fired (g7 counted at the drive); the next part issues
+                # against the chain's predicted state or the abort router names
+                # world-moved. No search, no new engagement: a plan in execution
+                # IS the option. None changes nothing below. ═══
+                _w3d = _w3d_continue(self, frame)
+                if _w3d is not None:
+                    action_num, action_data = _w3d
+                elif (_gm is not None and _rbind is not None and _refsnap is not None
                         and int(getattr(self, "_ego_level", 0) or 0) >= 1):
                     # v1 trigger: a REFERENCE-bound class exists AND its region
                     # snapshot is stored; if unavailable, log NOTHING.
@@ -1569,8 +1581,14 @@ class CognitiveLoop:
                             # the SAME WANT (the reference diff, cellwise).
                             # Outcome narrated at the PLAN point. ═══
                             if _plan is None:
-                                _w3c_compose(self, _pframe,
-                                             _w3c_want_cells(_pframe, _refsnap))
+                                _w3r = _w3c_compose(self, _pframe,
+                                                    _w3c_want_cells(_pframe, _refsnap))
+                                # STAGE 4: the candidate DRIVES under the
+                                # planner's own gates (verified/site/veto) --
+                                # the plan rung firing, g7 counted there.
+                                _w3d = _w3d_drive(self, _pframe, _w3r)
+                                if _w3d is not None:
+                                    action_num, action_data = _w3d
                 # ═══ G-C (PREREG_FINAL_GAPS): reference first, then ABDUCED ═══
                 # The g4=0 episodes get a target: with NO reference snapshot but
                 # a credible abduced goal (>= 2 co-occurrences on the collective
@@ -1637,7 +1655,10 @@ class CognitiveLoop:
                             _t3 = self._goal_book.top(str(self._game_id),
                                                       _lv4 + 1)
                             if _t3 is not None and _t3.get("pred") is not None:
-                                _w3c_compose(self, _pframe, _t3["pred"])
+                                _w3r = _w3c_compose(self, _pframe, _t3["pred"])
+                                _w3d = _w3d_drive(self, _pframe, _w3r)  # STAGE 4
+                                if _w3d is not None:
+                                    action_num, action_data = _w3d
             except Exception:
                 _swal(self, "PLANNER")
             # ═══ C33 STEP 1 (EGO-BET): every action carries a bet — commit at choice ═══
@@ -2223,6 +2244,9 @@ class CognitiveLoop:
             # the retained planner state key (binder.on_level_change's pattern).
             # One-line call site placed AFTER the .credit/.route anchors by the
             # window law; containment inside: never raises.
+            # COMPOSER STAGE 4: a driven composite's step settles or routes
+            # FIRST (it consumes its own stash; the planner's is untouched).
+            _w3d_settle(self, post_array, level_changed)
             _w2b_abort(self, frame_changed, level_changed)
             # W4c-3: THE MINT — bar-gated by affect (picky when desperate).
             try:
@@ -4723,7 +4747,7 @@ def _w3c_want_cells(pframe, refsnap):
         return []
 
 
-def _w3c_compose(loop, pframe, want) -> None:
+def _w3c_compose(loop, pframe, want):
     """THE ONE compose_attempt CALL SITE (COMPOSER STAGE 3). Reached ONLY
     from cycle()'s two plan seams, ONLY inside an open W2b gate (_w2b_engage
     True -- no new scheduling), ONLY after the planner's search returned
@@ -4732,17 +4756,19 @@ def _w3c_compose(loop, pframe, want) -> None:
     the action book's deltas (enables.book_deltas), the frontier mask
     (enables.fatal_cells, the one (x, y) -> (row, col) conversion) -- and
     narrates the outcome at the PLAN point via the W2b channel
-    (loop._w2b_narr): mode "composed" with the composite id, or
-    "compose-none" with the attempt's fixed reason token. The composite is a
-    CANDIDATE only -- nothing here or downstream cites it (stage 4's wire).
-    Containment: never raises; an internal error narrates nothing new and
-    changes nothing."""
+    (loop._w2b_narr): mode "composed" with the composite id (+ its citation
+    state: settled False -- stage 4), or "compose-none" with the attempt's
+    fixed reason token. The composite is a CANDIDATE: nothing here cites it;
+    stage 4's _w3d_drive may DRIVE it (the test), and only the live settle
+    makes it citable. Returns the attempt's result dict on a compose, else
+    None. Containment: never raises; an internal error narrates nothing new
+    and changes nothing."""
     try:
         from engines.egocentric import composer as _cmp
         from engines.egocentric import enables as _en
         _gm = getattr(loop, "_gamma", None)
         if _gm is None:
-            return
+            return None
         _g = str(getattr(loop, "_game_id", "") or "game")
         _lv = int(getattr(loop, "_ego_level", 0) or 0)
         _cen = getattr(loop, "_ego_prev_centroid", None)
@@ -4754,14 +4780,302 @@ def _w3c_compose(loop, pframe, want) -> None:
             (_en.fatal_cells(_bk, _g, _lv) if _bk is not None else set()),
             _g, _lv + 1)
         if _res.get("composite"):
-            loop._w2b_narr = ("composed", str(_res["composite"]))
+            loop._w2b_narr = ("composed", str(_res["composite"]),
+                              {"settled": False, "driven": False})
             print(f"[PLAN] composed id={_res['composite']} "
                   f"parts={len(_res.get('chain') or [])} "
                   f"price={_res.get('price')}")
-        else:
-            loop._w2b_narr = ("compose-none", str(_res.get("reason")))
-            print(f"[PLAN] compose-none reason={_res.get('reason')} "
-                  f"candidates={_res.get('candidates')} "
-                  f"proposed={_res.get('proposed')}")
+            return _res
+        loop._w2b_narr = ("compose-none", str(_res.get("reason")))
+        print(f"[PLAN] compose-none reason={_res.get('reason')} "
+              f"candidates={_res.get('candidates')} "
+              f"proposed={_res.get('proposed')}")
+        return None
+    except Exception:
+        _swal(loop, "PLANNER")
+        return None
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# COMPOSER STAGE 4 (PREREG_COMPOSER_STAGE4_SETTLEMENT.md): THE SETTLEMENT
+# WIRE's loop-side seams. Appended at MODULE BOTTOM (the ARM build's pattern)
+# so the helper block itself moves no registry receipt.
+#
+#   _w3d_drive     the DRIVE: a CANDIDATE composite drives under the planner's
+#                  OWN gates (verified x2-TRANSFERRED per part, site, frontier
+#                  veto -- the same three the plan_to_identity path applies);
+#                  g7 and drive increment on THE SAME self._plan_gate dict the
+#                  planner path increments (one counter, asserted by identity
+#                  in tests/gate/test_composer_stage4.py F4).
+#   _w3d_continue  the multi-cycle chain: each later part issues ONLY if the
+#                  live frame's state key equals the predicted one (else the
+#                  abort router says world-moved: chain dropped, no penalty).
+#   _w3d_settle    the ONE live_settle call site: after the last part, the
+#                  LIVE frame vs the predicted frame on the WANT cells and
+#                  every predicted cell -> settled (superseding append) or
+#                  routed plan-wrong on the MISPREDICTING component via the
+#                  mint's conflict/reinstate path. Nothing deleted.
+# Each driven part rides the EXISTING _w2b_driven stash (key = the state key
+# the part bet on, steps = [the part]) exactly as a planner step does;
+# _w3d_settle consumes composite stashes before _w2b_abort sees them.
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def _w3d_site(pframe, atom):
+    """The click site (x, y) for a Gamma part on `pframe`: the act cell
+    (first matching anchor + the stored act_offset -- stage 2's stamp, the
+    cell the action was actually performed at) when the atom carries one,
+    else the planner's own convention (the first full-context match's
+    centre). None when nothing matches: no site is never a guessed site."""
+    try:
+        from engines.egocentric import composer as _cmp
+        from engines.egocentric import enables as _en
+        anch = _cmp._anchors(np.asarray(pframe), atom)
+        if not anch:
+            return None
+        off = _en.act_offset_of(atom)
+        r0, c0 = anch[0]
+        if off is not None:
+            return (int(c0 + off[1]), int(r0 + off[0]))
+        ph, pw = np.asarray(atom.get("context")).shape
+        return (int(c0 + pw // 2), int(r0 + ph // 2))
+    except Exception:
+        return None
+
+
+def _w3d_step(loop, pframe, drive, i):
+    """(action_num, action_data) for part i of a driven chain on `pframe`:
+    the part atom's own action; a click (6) needs its site resolved on the
+    frame it faces, a movement carries no coordinates. None when the part
+    cannot be issued."""
+    try:
+        _gm = getattr(loop, "_gamma", None)
+        atom = _gm.get(drive["chain"][i]) if _gm is not None else None
+        if not isinstance(atom, dict) or atom.get("kind") != "EFFECT":
+            return None
+        act = int(atom.get("action"))
+        if act == 6:
+            site = _w3d_site(pframe, atom)
+            if site is None:
+                return None
+            return (6, {'x': int(site[0]), 'y': int(site[1])})
+        return (act, None)
+    except Exception:
+        return None
+
+
+def _w3d_narrate(loop, mode, gate, extra):
+    """A PLAN-point record at record_result time (the abort router's own
+    idiom in _w2b_abort): mode + gate + the composite's state."""
+    _nsp = getattr(loop, "_narration", None)
+    if _nsp is not None:
+        _rng, _cc = _narr_range(loop)
+        _nsp.plan(str(mode), gate, rng=_rng, col_class=_cc, extra=extra)
+
+
+def _w3d_abort(loop, chain, route, fact, component, pre_frame):
+    """Apply a routed failure to a driven composite through the EXISTING
+    machinery only: PlannerScheduler.on_abort (world-moved drops GATE B's
+    retained key, penalises nothing; plan-wrong ledgers the mispredicting
+    component), composer.conflict_component for plan-wrong (the mint's
+    reinstate path, on THAT component only), the PLAN-point narration with
+    the discriminator. The chain is dropped; the composite stays a
+    CANDIDATE -- nothing is deleted."""
+    from engines.egocentric import composer as _cmp
+    from engines.egocentric import scheduler as _s2b
+    loop._w3d_chain = None
+    _cid = chain["drive"]["composite"]
+    _sch = getattr(loop, "_w2b_sched", None)
+    _steps = [str(component)] if component else []
+    if _sch is not None:
+        _sch.on_abort(route, str(getattr(loop, "_game_id", "") or "game"),
+                      int(getattr(loop, "_ego_level", 0) or 0), _steps)
+    _conf = None
+    if route == _s2b.ABORT_PLAN_WRONG and component:
+        _conf = _cmp.conflict_component(getattr(loop, "_mdl_mint", None),
+                                        getattr(loop, "_gamma", None),
+                                        str(component), pre_frame)
+    _w3d_narrate(loop, "abort", route,
+                 {"composite": _cid, "settled": False,
+                  "component": (str(component) if component else None),
+                  "conflict": _conf})
+    print(f"[PLAN] composite abort routed={route} id={_cid} "
+          f"component={component} ({fact})")
+
+
+def _w3d_drive(loop, pframe, res):
+    """THE DRIVE (stage 4, wire 1): a CANDIDATE composite just minted by
+    _w3c_compose drives under the planner's OWN three gates -- verified
+    (every part atom carries >= 2 TRANSFERRED settlements, the salience bar
+    self._atom_verified), site (the final Gamma part's click site resolves
+    on the frame the simulation says it will face), frontier veto
+    (frontier.plan_veto on that site) -- and the first part issues THIS
+    cycle. Driving IS the plan rung firing: g7 and drive increment on the
+    SAME self._plan_gate dict the plan_to_identity path increments (one
+    counter; no parallel). The chain continuation is stashed on
+    loop._w3d_chain; the part rides the existing _w2b_driven stash. Anything
+    short of the gates is shadow-narrated (the composite stays a candidate,
+    un-driven). Returns (action_num, action_data) or None; never raises."""
+    try:
+        from engines.egocentric import composer as _cmp
+        from engines.egocentric import scheduler as _s2b
+        drive = _cmp.drive_record(res)
+        if drive is None:
+            return None
+        _cid = drive["composite"]
+        _av = getattr(loop, "_atom_verified", None) or {}
+        _verified = all(int(_av.get(_pid, 0) or 0) >= 2 for _pid in drive["chain"])
+        _n = len(drive["chain"])
+        _gm = getattr(loop, "_gamma", None)
+        _last = _gm.get(drive["chain"][-1]) if _gm is not None else None
+        _pre_last = drive["frame0"] if _n == 1 else drive["frames"][-2]
+        _site = _w3d_site(_pre_last, _last)
+        from engines.egocentric.frontier import plan_veto
+        _fb = getattr(loop, "_ego_frontier_book", None)
+        _lv = int(getattr(loop, "_ego_level", 0) or 0)
+        _g = str(getattr(loop, "_game_id", "") or "game")
+        _veto = plan_veto(
+            _site, (getattr(loop, "_ego_harvest_cache", None) or {}).get(_lv),
+            avoid=(_fb.avoid_set(_g, _lv) if _fb is not None else None))
+        _step = (_w3d_step(loop, pframe, drive, 0)
+                 if (_verified and _site is not None and not _veto) else None)
+        if not hasattr(loop, "_plan_gate") or loop._plan_gate is None:
+            loop._plan_gate = {"g1": 0, "g2": 0, "g3": 0, "g4": 0, "g5": 0,
+                               "g6": 0, "g7": 0, "shadow": 0, "drive": 0,
+                               "cycles": 0}
+        _pg = loop._plan_gate                  # THE planner path's counter dict
+        if _step is None:
+            _pg["shadow"] = int(_pg.get("shadow", 0) or 0) + 1
+            loop._w2b_narr = ("composed", _cid,
+                              {"settled": False, "driven": False,
+                               "verified": bool(_verified),
+                               "site": _site is not None, "veto": bool(_veto)})
+            print(f"[PLAN] composite shadow id={_cid} parts={_n} "
+                  f"verified={_verified} site={_site} veto={_veto}")
+            return None
+        _pg["g7"] = int(_pg.get("g7", 0) or 0) + 1      # the plan rung fired
+        _pg["drive"] = int(_pg.get("drive", 0) or 0) + 1
+        loop._w3d_chain = {"drive": drive, "cursor": 0, "game": _g,
+                           "level": _lv}
+        loop._w2b_driven = {"key": _s2b.state_key(pframe),
+                            "steps": [drive["chain"][0]],
+                            "composite": _cid, "step": 0}
+        loop._w2b_narr = ("composed", _cid,
+                          {"settled": False, "driven": True, "step": 0,
+                           "of": _n})
+        print(f"[PLAN] DRIVE composite id={_cid} parts={_n} step=0/{_n} "
+              f"action={_step[0]} site={_site}")
+        return _step
+    except Exception:
+        _swal(loop, "PLANNER")
+        return None
+
+
+def _w3d_continue(loop, frame):
+    """THE MULTI-CYCLE CHAIN (stage 4): a composite drive in progress issues
+    its next part -- ONLY if the live frame's state key equals the key of
+    the frame the simulation predicted for this point (the planner's own
+    key, scheduler.state_key). A differing key is the abort router's
+    world-moved: the chain is dropped without penalty and narrated. Each
+    issued part re-stashes _w2b_driven (key = the predicted pre-state's
+    key, steps = [the part]) so _w3d_settle routes it like the first.
+    Returns (action_num, action_data) or None; never raises."""
+    try:
+        chain = getattr(loop, "_w3d_chain", None)
+        if chain is None:
+            return None
+        from engines.egocentric import scheduler as _s2b
+        drive = chain["drive"]
+        i = int(chain["cursor"])
+        _n = len(drive["chain"])
+        if i <= 0 or i >= _n:
+            loop._w3d_chain = None             # nothing pending
+            return None
+        pframe = loop._perceiver._to_numpy(frame)
+        if pframe is None:
+            return None
+        _pred_pre = drive["frames"][i - 1]
+        _rt = _s2b.route_abort(_s2b.state_key(_pred_pre),
+                               _s2b.state_key(pframe))
+        if _rt["route"] == _s2b.ABORT_WORLD_MOVED:
+            _w3d_abort(loop, chain, _rt["route"], _rt["fact"], None, pframe)
+            return None
+        _step = _w3d_step(loop, pframe, drive, i)
+        if _step is None:
+            loop._w3d_chain = None
+            print(f"[PLAN] composite step {i}/{_n} could not issue; "
+                  f"id={drive['composite']} dropped (candidate intact)")
+            return None
+        loop._w2b_driven = {"key": _s2b.state_key(_pred_pre),
+                            "steps": [drive["chain"][i]],
+                            "composite": drive["composite"], "step": i}
+        loop._w2b_narr = ("composite-drive", drive["composite"],
+                          {"settled": False, "driven": True, "step": i,
+                           "of": _n})
+        print(f"[PLAN] DRIVE composite id={drive['composite']} "
+              f"step={i}/{_n} action={_step[0]}")
+        return _step
+    except Exception:
+        _swal(loop, "PLANNER")
+        return None
+
+
+def _w3d_settle(loop, post_array, level_changed):
+    """THE SETTLE SEAM (stage 4, wire 2 + 3): the ONE live_settle call site.
+    Consumes a COMPOSITE drive stash only (a planner stash is left for
+    _w2b_abort untouched). After part i landed: the LIVE post-frame vs the
+    predicted frame after part i on every cell the chain predicted so far
+    (composer.divergence). No divergence -> the chain advances; after the
+    LAST part composer.live_settle writes settled: True (the superseding
+    append) and narrates "settled". A divergence -> scheduler.route_abort on
+    (the key the part bet on, the live pre-frame's key): plan-wrong (the
+    state was as predicted, the prediction failed) -> ctx_conflict on the
+    mispredicting component ONLY via the mint's reinstate path, the
+    composite unsettled; world-moved -> candidate intact, no penalty. A
+    level change drops the chain (the board redrew; the candidate stays).
+    Simulation never reaches this seam's writer: only the live frame does.
+    Containment: never raises."""
+    try:
+        _dr = getattr(loop, "_w2b_driven", None)
+        if not isinstance(_dr, dict) or "composite" not in _dr:
+            return                              # the planner's stash: not ours
+        loop._w2b_driven = None                 # consumed here, once
+        chain = getattr(loop, "_w3d_chain", None)
+        if chain is None or chain["drive"]["composite"] != _dr["composite"]:
+            return
+        from engines.egocentric import composer as _cmp
+        from engines.egocentric import scheduler as _s2b
+        drive = chain["drive"]
+        i = int(_dr.get("step", chain["cursor"]))
+        _n = len(drive["chain"])
+        if level_changed:
+            loop._w3d_chain = None
+            _w3d_narrate(loop, "abort", _s2b.ABORT_WORLD_MOVED,
+                         {"composite": drive["composite"], "settled": False,
+                          "component": None, "reason": "level-changed"})
+            print(f"[PLAN] composite chain dropped on level change "
+                  f"id={drive['composite']} (candidate intact)")
+            return
+        v = _cmp.divergence(drive, i, post_array)
+        if v["diverged"]:
+            _pf = getattr(loop, "_prev_frame", None)
+            _obs = (_s2b.state_key(_pf) if _pf is not None
+                    else str(_dr.get("key")))
+            _rt = _s2b.route_abort(str(_dr.get("key")), _obs)
+            _w3d_abort(loop, chain, _rt["route"], _rt["fact"],
+                       (v["component"] if _rt["route"] == _s2b.ABORT_PLAN_WRONG
+                        else None), _pf)
+            return
+        if i < _n - 1:
+            chain["cursor"] = i + 1             # the chain continues next cycle
+            return
+        loop._w3d_chain = None
+        _res = _cmp.live_settle(getattr(loop, "_gamma", None), drive, post_array)
+        _w3d_narrate(loop, "settled" if _res["settled"] else "abort",
+                     drive["composite"] if _res["settled"] else _res["reason"],
+                     {"composite": drive["composite"],
+                      "settled": bool(_res["settled"]), "reason": _res["reason"]})
+        print(f"[PLAN] composite settle id={drive['composite']} "
+              f"settled={_res['settled']} reason={_res['reason']}")
     except Exception:
         _swal(loop, "PLANNER")

@@ -1413,3 +1413,52 @@ by the from-scratch write and are RE-APPLIED. The --since filter is a queued too
 a claim already made. New and clean: COST EVIDENCE now PRESENT on boxes with post-fix rows
 (dc22, lp85, s5i5, tr87, vc33 first) -- the budget writer fix paying into the book. Stage-4
 prereg pushed (e1cce38); builder held for the user's restart. Split-half baseline 0-0-5.
+
+## ENTRY 44 — 2026-08-21 (heartbeat cycle). Stage 4 building; three reads closed.
+Stage 4 (settlement wire) relaunched after an API drop (no partial edits). --since filter
+for the book tool landed (17/17; byte-identical without the flag; unparseable frames
+skipped and counted). BODY-settlement read closed the movement causal chain in the stream
+(BODY·TRANSFERRED 5,084 vs WORKSPACE·NOVEL absent from the top eight) and found BODY·NOVEL
+= 2,467 unexplained self-motions consumed by nothing (offer filter is WORKSPACE-only) —
+PROPOSAL to Seat 3: a BODY-slot consumer for wall evidence. Mode-usage read: weighted mode
+runs live as the cognitive router's no-action fallback with no threshold — the suggester's
+influence is structurally possible, empirically zero labeled wins; retirement loses
+nothing observed. Unmarked-origin cohort = pre-marker vintage, not a third source.
+Numbers unchanged: WON 0/25 · L1+ 10 · baseline 0-0-5.
+
+## ENTRY 45 — 2026-08-21. WINDOW FIVE: the planner is GONE from the top; the sixth layer is I/O.
+g50t, composer stages 1-3 live: generation in 90s. fabric._read_stream 28% (whole-stream
+re-parse ~4x/cycle), sqlite 17.5% (~35 queries/cycle), decide 12.4%. Produced-once,
+parsed-many at the storage layer. PREREG_FABRIC_IO drafting (incremental tail reads +
+parsed-stream cache + batched per-step writes; uncached path stays the equivalence oracle).
+D-7 registered: the weighted fallback ignores every rung's confidence_threshold — frequency
+read in flight before the fix. Seven agents in flight; stage 4 is the gate for everything
+swarm-facing. Numbers unchanged.
+
+## ENTRY 46 — 2026-08-21. Stage 4 LANDED (verifying); a sprint-config caveat declared; three drafts await a word.
+STAGE 4 (settlement wire) built: one live_settle writer, g7 = the planner's own _plan_gate
+dict asserted by identity, the mispredicting component tightened via _reinstate, 87 scoped
+green, 18 receipts refreshed loudly. New behaviour stated by the builder: multi-cycle
+drive (continuation bypasses _w2b_engage while a chain executes, key-checked each cycle) —
+W2b's F1 leak-stop must be RE-READ in the next profile window.
+CAVEAT THAT TRAVELS WITH THE NUMBERS: sprint workers (sk48/ar25/g50t) ran WITHOUT
+OURO_FABRIC_SEEDS and LP_DRIVE_ARM since sprint mode began — my direct relaunches omitted
+the supervisor's per-worker env. The split-half baseline's sprint-window sessions on those
+three games are a different config from the fleet's. The full fleet resumes under the
+supervisor at the next commit; the keeper (landed, 14/14) inherits the same gap by design
+and is for sprint use only.
+g50t ATTRIBUTED: exploration luck on wall_aware_navigation — no plan, no composite, no
+atom — banked and replayed since; goal_hypotheses 0→714 after the level.
+DRAFTS LANDED, REVIEW-PENDING AT SEAT 3 on exactly these: (1) standing_half_life —
+"silence never evicts" (eviction needs low standing AND a misprediction); (2) shadow gate —
+PERCEIVE not relocated in stage 1 (gate builds its own opener on a `gate` topic; must not
+survive into stage 2 unnoticed); (3) persistence monitor — a new narration point token
+(PERSISTENCE) is a schema event. Fabric I/O and W2c drafts accepted with riders (cache
+bounded; nested-mutation falsifier). D-7 frequency read in flight.
+D-7 READ: the cognitive router yields no usable action on ~78% of steps on sk48/ar25 and
+falls through to thresholdless weighted voting — the router, not the fallback, is the
+defect; honouring thresholds would INCREASE randomness. Instrument (one field) before fix.
+SPLIT-HALF ROW NOTE (g50t): its 1→1 baseline was exploration luck, banked and replayed —
+not a capability floor the composer must beat. Rulings: standing_half_life "silence never
+evicts" TAKEN (+ decay-must-bite rider; the counter's first YES); shadow gate accepted with
+the stage-2 deadline as a mechanism; persistence monitor approved.

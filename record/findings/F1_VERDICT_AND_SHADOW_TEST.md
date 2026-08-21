@@ -118,3 +118,14 @@ cut per-application cost ~29×, scheduling bounded engagement — and the fifth 
 now gates what enters Γ going forward. The remaining planner cost per call (~5.9s cum) is
 still the search-that-returns-nothing; it is now RARE instead of constant, and the re-point
 build (coarse-signature intersection) is what makes it fertile instead of empty.
+
+---
+
+# WINDOW FIVE (2026-08-21, g50t, composer stages 1-3 live): THE SIXTH LAYER IS I/O
+Generation finished in 90s. The planner is absent from the top. record_result 29.9% ←
+fabric._read_stream 28.0% (556 calls / 130 cycles — whole-stream re-parse ~4× per cycle via
+fabric.query) + sqlite execute 17.5% (4,601 calls ≈ 35/cycle); seed_imports 13.6% (one-time);
+decide 12.4% (was 19.7%). **Produced-once, parsed-many — the week's genus at the storage
+layer.** Fix shape (a prereg, no semantics): incremental tail reads with a parsed-stream
+cache keyed by file position; batched per-step DB writes. The 32-engine decomposition read
+is answered by elimination: the engines are not the next term; the fabric reads are.

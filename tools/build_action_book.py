@@ -18,10 +18,23 @@ INVERSE PAIRINGS, evidence-counted, never a bare boolean:
   * from traces: consecutive steps f0 -a-> f1 -b-> f2 inside one session where
     f2 == f0 AND f1 != f0 (b restored a change a actually made; two no-ops
     prove nothing) AND the steps chain (frame_before of the b-step equals
-    frame_after of the a-step -- replay seams and resets never fake a pair);
+    frame_after of the a-step -- replay seams and resets never fake a pair).
+    A row whose frame text fails json.loads (the pre-fix writer stored lossy,
+    ellipsis-truncated numpy reprs) is SKIPPED for pair detection -- it can
+    neither open nor close a pair -- and counted in the header as
+    `skipped_unparseable`; truncated text is never hashed verbatim as equal;
   * from atoms: ordered pairs of TYPED atoms whose deltas compose to identity,
     checked through effects.invert_transform -- the world's own inverse
     algebra, authored nowhere here.
+
+THE CLEAN-WINDOW FILTER (--since "YYYY-MM-DD HH:MM:SS", UTC): restricts the
+TRACE side ONLY -- per-action frequency, frame-change rate, score
+distribution, cost evidence and every trace-derived inverse pair -- to rows
+with action_traces.created_at >= the given text (SQLite's CURRENT_TIMESTAMP
+form; rows with NULL created_at cannot be dated and are excluded). The atoms
+side was never lossy and is never filtered. The header records the filter
+VERBATIM as `trace_since`; without --since nothing changes and no filter
+field is written.
 
 THE ARTIFACT: <box>/ego_fabric/collective/action_book.json -- REBUILT FROM
 SCRATCH every run (the header field says so and carries the source stream
@@ -36,14 +49,16 @@ equivariance in tests/gate/test_action_book.py). The tool prints a per-game
 coverage summary (actions seen, inverses with n>=2, cost evidence present) --
 the artifact's own evidence-availability report.
 
-Usage: python tools/build_action_book.py [BOX_DIR_OR_ROOT ...]
-       (no args: every box under .runs/swarm)
+Usage: python tools/build_action_book.py [--since "YYYY-MM-DD HH:MM:SS"]
+                                          [BOX_DIR_OR_ROOT ...]
+       (no box args: every box under .runs/swarm)
 
 Deterministic: same inputs -> byte-identical artifact (gated). Stdlib +
 engines.egocentric only; no wall-clock anywhere in the output.
 """
 from __future__ import annotations
 
+import datetime as _dt
 import hashlib
 import json
 import os
@@ -69,6 +84,10 @@ R_NO_COLOUR_DELTA = "no sigma colour deltas recorded"
 R_NO_TRANSLATE = "no TRANSLATE-typed atoms recorded"
 R_NO_FRAME_PAIRS = "no repeated frame pairs for this action"
 R_NO_TYPED_ATOMS = "no composable typed atom deltas for this action"
+
+# The one accepted --since form: SQLite CURRENT_TIMESTAMP's own text, so the
+# filter is a plain text compare against created_at (UTC, no timezone suffix).
+SINCE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 # ── source readers (read-only, streaming) ─────────────────────────────────────
@@ -102,6 +121,22 @@ def canon_frame_hash(frame_text: Any) -> Optional[str]:
     except Exception:
         pass
     return hashlib.sha1(s.encode("utf-8")).hexdigest()
+
+
+def strict_frame_hash(frame_text: Any) -> Tuple[Optional[str], bool]:
+    """(canonical content hash, unparseable) for INVERSE detection: a frame
+    that is not valid JSON (a lossy numpy repr: '[[0 0 ... 0]') yields
+    (None, True) -- it is never hashed verbatim, so two truncated reprs can
+    never be 'equal'. None (absent) yields (None, False): absence is not
+    unparseability."""
+    if frame_text is None:
+        return None, False
+    try:
+        s = json.dumps(json.loads(str(frame_text)), separators=(",", ":"),
+                       sort_keys=True)
+    except Exception:
+        return None, True
+    return hashlib.sha1(s.encode("utf-8")).hexdigest(), False
 
 
 # ── the typed-mechanism identity (composition checked via the world's algebra) ─
@@ -237,13 +272,17 @@ def atom_inverse_pairs(per: Dict[int, Dict[str, Any]]) -> Dict[Tuple[int, int], 
 # ── derivation: traces side ───────────────────────────────────────────────────
 
 def fold_traces(rows: Iterable[Dict[str, Any]]) -> Tuple[Dict[int, Dict[str, Any]],
-                                                         Dict[Tuple[int, int], int]]:
-    """Per-action aggregates + inverse pair counts from action_traces rows
-    (dicts with id, session_id, action_number, score_change, budget_total,
-    budget_spend, frame_before, frame_after), streamed in id order."""
+                                                         Dict[Tuple[int, int], int],
+                                                         int]:
+    """Per-action aggregates + inverse pair counts + the number of rows whose
+    frames were unparseable (skipped for pair detection) from action_traces
+    rows (dicts with id, session_id, action_number, score_change,
+    budget_total, budget_spend, frame_before, frame_after), streamed in id
+    order."""
     per: Dict[int, Dict[str, Any]] = {}
     pairs: Dict[Tuple[int, int], int] = {}
     prev: Dict[Any, Tuple[int, Optional[str], Optional[str]]] = {}
+    skipped_unparseable = 0
     for row in rows:
         try:
             a = int(row.get("action_number") or 0)
@@ -275,17 +314,24 @@ def fold_traces(rows: Iterable[Dict[str, Any]]) -> Tuple[Dict[int, Dict[str, Any
                     w["spend"].append(float(bs))
                 except (TypeError, ValueError):
                     pass
+        # inverse detection reads the STRICT hashes: an unparseable frame is
+        # None here (the row can neither open nor close a pair), never the
+        # verbatim-text hash the change-rate above tolerates
+        sb, ub = strict_frame_hash(row.get("frame_before"))
+        sa, ua = strict_frame_hash(row.get("frame_after"))
+        if ub or ua:
+            skipped_unparseable += 1
         sess = row.get("session_id")
         got = prev.get(sess)
         if got is not None:
             pa, p_hb, p_ha = got
-            if (None not in (p_hb, p_ha, hb, ha)
-                    and hb == p_ha                    # the steps chain
+            if (None not in (p_hb, p_ha, sb, sa)
+                    and sb == p_ha                    # the steps chain
                     and p_ha != p_hb                  # a actually changed something
-                    and ha == p_hb):                  # b restored it
+                    and sa == p_hb):                  # b restored it
                 pairs[(pa, a)] = pairs.get((pa, a), 0) + 1
-        prev[sess] = (a, hb, ha)
-    return per, pairs
+        prev[sess] = (a, sb, sa)
+    return per, pairs, skipped_unparseable
 
 
 # ── assembly ──────────────────────────────────────────────────────────────────
@@ -339,16 +385,21 @@ def build_book(box: str,
                atom_records: Optional[List[Dict[str, Any]]],
                trace_rows: Optional[Iterable[Dict[str, Any]]],
                sources: Optional[Dict[str, Any]] = None,
-               trace_games: Optional[List[str]] = None) -> Dict[str, Any]:
+               trace_games: Optional[List[str]] = None,
+               trace_since: Optional[str] = None) -> Dict[str, Any]:
     """The whole derivation, pure: records in, the book dict out. `None` for a
     source means the source itself is absent (a different named reason than a
-    present-but-silent source). Deterministic; JSON-safe throughout."""
+    present-but-silent source). `trace_since` is the clean-window filter the
+    caller ALREADY applied to `trace_rows` (the DB read does the restricting);
+    here it is recorded verbatim in the header, never re-applied.
+    Deterministic; JSON-safe throughout."""
     atoms_per, atom_games = ({}, []) if atom_records is None else fold_atoms(atom_records)
+    skipped_unparseable = 0
     if trace_rows is None:
         traces_per: Dict[int, Dict[str, Any]] = {}
         trace_pairs: Dict[Tuple[int, int], int] = {}
     else:
-        traces_per, trace_pairs = fold_traces(trace_rows)
+        traces_per, trace_pairs, skipped_unparseable = fold_traces(trace_rows)
     a_pairs = atom_inverse_pairs(atoms_per)
 
     actions = sorted(set(atoms_per) | set(traces_per))
@@ -431,7 +482,7 @@ def build_book(box: str,
     for g in sorted(trace_games or []):
         if str(g) not in games:
             games.append(str(g))
-    return {
+    book = {
         "artifact": action_book.ARTIFACT,
         "version": action_book.BOOK_VERSION,
         "derived": ("REBUILT FROM SCRATCH this run from the recorded sources "
@@ -444,6 +495,16 @@ def build_book(box: str,
         "inverses": inverses,
         "coverage": coverage,
     }
+    # The header additions are written ONLY when they say something: the
+    # filter verbatim when one was applied, the skip count whenever a filter
+    # was applied or a row was actually skipped. An unfiltered build over
+    # fully parseable sources is byte-identical to one that never knew of
+    # either field (gated).
+    if trace_since is not None:
+        book["trace_since"] = str(trace_since)
+    if trace_since is not None or skipped_unparseable > 0:
+        book["skipped_unparseable"] = skipped_unparseable
+    return book
 
 
 def serialise_book(book: Dict[str, Any]) -> str:
@@ -454,21 +515,52 @@ def serialise_book(book: Dict[str, Any]) -> str:
 
 # ── per-box IO (read-only on both sources; ONE output file) ───────────────────
 
-_TRACE_SQL = ("SELECT id, session_id, action_number, score_change, "
-              "budget_total, budget_spend, frame_before, frame_after "
-              "FROM action_traces ORDER BY id")
+# Every trace-side statement exists in two FIXED forms: unfiltered, and the
+# clean window -- a text compare on created_at (SQLite CURRENT_TIMESTAMP form;
+# NULL created_at never satisfies >=, so an undatable row is outside every
+# window). The first element of each pair is today's exact statement.
+_TRACE_SQL = (
+    "SELECT id, session_id, action_number, score_change, "
+    "budget_total, budget_spend, frame_before, frame_after "
+    "FROM action_traces ORDER BY id",
+    "SELECT id, session_id, action_number, score_change, "
+    "budget_total, budget_spend, frame_before, frame_after "
+    "FROM action_traces WHERE created_at >= ? ORDER BY id",
+)
+_COUNT_SQL = (
+    "SELECT COUNT(*), COALESCE(MAX(id), 0) FROM action_traces",
+    "SELECT COUNT(*), COALESCE(MAX(id), 0) FROM action_traces WHERE created_at >= ?",
+)
+_GAMES_SQL = (
+    "SELECT DISTINCT game_id FROM action_traces "
+    "WHERE game_id IS NOT NULL ORDER BY game_id",
+    "SELECT DISTINCT game_id FROM action_traces "
+    "WHERE game_id IS NOT NULL AND created_at >= ? ORDER BY game_id",
+)
 
 
-def _trace_row_iter(cur) -> Iterable[Dict[str, Any]]:
+def _sql(pair: Tuple[str, str], trace_since: Optional[str]) -> Tuple[str, Tuple[str, ...]]:
+    """(statement, bound params): the unfiltered form, or the windowed form
+    with the verbatim --since text bound as its one parameter."""
+    if trace_since is None:
+        return pair[0], ()
+    return pair[1], (str(trace_since),)
+
+
+def _trace_row_iter(cur, trace_since: Optional[str] = None) -> Iterable[Dict[str, Any]]:
     cols = ("id", "session_id", "action_number", "score_change",
             "budget_total", "budget_spend", "frame_before", "frame_after")
-    for row in cur.execute(_TRACE_SQL):
+    sql, params = _sql(_TRACE_SQL, trace_since)
+    for row in cur.execute(sql, params):
         yield dict(zip(cols, row, strict=True))
 
 
-def build_for_box(box_dir: str) -> Optional[Dict[str, Any]]:
+def build_for_box(box_dir: str,
+                  trace_since: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Derive and write one box's book; returns the book (None when the box
-    holds NEITHER source -- nothing derivable, nothing written)."""
+    holds NEITHER source -- nothing derivable, nothing written). With
+    `trace_since`, every trace-side read (row count, game ids, the rows
+    themselves) is restricted to created_at >= trace_since."""
     box = os.path.basename(os.path.normpath(box_dir))
     atoms_path = os.path.join(box_dir, "ego_fabric", "collective", "atoms.jsonl")
     db_path = os.path.join(box_dir, "core_data.db")
@@ -500,15 +592,15 @@ def build_for_box(box_dir: str) -> Optional[Dict[str, Any]]:
         uri = "file:%s?mode=ro" % db_path.replace("\\", "/")
         conn = sqlite3.connect(uri, uri=True)
         try:
-            n_rows, max_id = conn.execute(
-                "SELECT COUNT(*), COALESCE(MAX(id), 0) FROM action_traces"
-            ).fetchone()
-            trace_games = [str(g) for (g,) in conn.execute(
-                "SELECT DISTINCT game_id FROM action_traces "
-                "WHERE game_id IS NOT NULL ORDER BY game_id")]
+            n_rows, max_id = conn.execute(*_sql(_COUNT_SQL, trace_since)).fetchone()
+            trace_games = [str(g) for (g,) in
+                           conn.execute(*_sql(_GAMES_SQL, trace_since))]
             traces_src = {"present": True, "path": "core_data.db",
                           "rows_read": int(n_rows), "max_trace_id": int(max_id)}
-            trace_rows = _trace_row_iter(conn.cursor())
+            if trace_since is not None:
+                n_all, _ = conn.execute(_COUNT_SQL[0]).fetchone()
+                traces_src["rows_excluded_by_since"] = int(n_all) - int(n_rows)
+            trace_rows = _trace_row_iter(conn.cursor(), trace_since)
         except sqlite3.Error as exc:
             conn.close()
             conn = None
@@ -519,7 +611,8 @@ def build_for_box(box_dir: str) -> Optional[Dict[str, Any]]:
         book = build_book(box, atom_records, trace_rows,
                           sources={"atoms_stream": atoms_src,
                                    "traces_db": traces_src},
-                          trace_games=trace_games)
+                          trace_games=trace_games,
+                          trace_since=trace_since)
     finally:
         if conn is not None:
             conn.close()
@@ -564,15 +657,59 @@ def _expand(args: List[str]) -> List[str]:
     return boxes
 
 
+def parse_since(text: str) -> str:
+    """Validate one --since value against SINCE_FORMAT; returns it VERBATIM
+    (the header carries exactly what the operator typed). ValueError when it
+    is not that form -- a silently normalised filter would misreport."""
+    try:
+        _dt.datetime.strptime(text, SINCE_FORMAT)   # naive by design: UTC text compare
+    except ValueError:
+        raise ValueError(
+            "--since must be 'YYYY-MM-DD HH:MM:SS' (UTC, SQLite CURRENT_TIMESTAMP "
+            "form); got %r" % (text,)) from None
+    return text
+
+
+def parse_args(argv: List[str]) -> Tuple[List[str], Optional[str]]:
+    """(box/root args, trace_since or None). Accepts --since VALUE and
+    --since=VALUE, anywhere in argv; every other arg is a path."""
+    paths: List[str] = []
+    since: Optional[str] = None
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--since":
+            if i + 1 >= len(argv):
+                raise ValueError("--since requires a value")
+            since = parse_since(argv[i + 1])
+            i += 2
+            continue
+        if arg.startswith("--since="):
+            since = parse_since(arg[len("--since="):])
+            i += 1
+            continue
+        paths.append(arg)
+        i += 1
+    return paths, since
+
+
 def main(argv: List[str]) -> int:
-    boxes = _expand(argv)
+    try:
+        paths, trace_since = parse_args(argv)
+    except ValueError as exc:
+        print("build_action_book: %s" % exc)
+        return 2
+    boxes = _expand(paths)
     if not boxes:
         print("build_action_book: no game boxes found (args: %r)" % (argv,))
         return 2
+    if trace_since is not None:
+        print("build_action_book: trace side restricted to created_at >= %r "
+              "(atoms side unfiltered)" % trace_since)
     built = 0
     for box_dir in boxes:
         try:
-            book = build_for_box(box_dir)
+            book = build_for_box(box_dir, trace_since=trace_since)
         except Exception as exc:
             print("action_book[%s]: FAILED -- %s"
                   % (os.path.basename(os.path.normpath(box_dir)), exc))

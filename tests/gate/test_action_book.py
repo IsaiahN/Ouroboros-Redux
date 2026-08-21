@@ -27,12 +27,22 @@ dependency):
   F3   rebuild identity: running the builder twice over the same box is
        byte-identical output, the header carries the source stream positions,
        and the sources are untouched (read-only, asserted on bytes).
+  F4   the clean window: --since "YYYY-MM-DD HH:MM:SS" restricts the TRACE
+       side ONLY (frequency, change rate, score, cost, every trace-derived
+       inverse pair) to created_at >= since -- EXACTLY the book a pure build
+       over the surviving rows yields; the atoms side is untouched; the header
+       carries the filter VERBATIM (`trace_since`); rows whose frames fail
+       json.loads (the pre-fix lossy numpy reprs) are skipped for pair
+       detection and counted (`skipped_unparseable`), never hashed verbatim
+       as equal; and WITHOUT --since the artifact is byte-identical to the
+       one the tool wrote before the option existed (golden sha1).
 
 Seeded with a FIXED CONSTANT (the prereg date), never a clock.
 """
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import os
 import re
@@ -310,11 +320,17 @@ def test_f2_permutation_equivariance_nothing_keys_on_what_an_action_is():
 
 # ── F3: rebuild identity, end to end, sources untouched ───────────────────────
 
-def _make_box(tmp_path):
+def _make_box(tmp_path, traces=None, dated=False):
+    """The box on disk. Default: the _corpus traces in the pre-created_at
+    schema (the golden's exact inputs). `dated=True` adds the live writer's
+    created_at column (DATETIME DEFAULT CURRENT_TIMESTAMP -> 'YYYY-MM-DD
+    HH:MM:SS' text) and writes each row's `created_at` key (None -> NULL)."""
     box = tmp_path / "boxa"
     coll = box / "ego_fabric" / "collective"
     coll.mkdir(parents=True)
-    atoms, traces = _corpus()
+    atoms, corpus_traces = _corpus()
+    if traces is None:
+        traces = corpus_traces
     with open(coll / "atoms.jsonl", "w", encoding="utf-8") as fh:
         for rec in atoms:
             fh.write(json.dumps(rec) + "\n")
@@ -323,13 +339,17 @@ def _make_box(tmp_path):
         "CREATE TABLE action_traces (id INTEGER PRIMARY KEY, session_id TEXT,"
         " game_id TEXT, action_number INTEGER, score_change REAL,"
         " budget_total REAL, budget_spend REAL, frame_before TEXT,"
-        " frame_after TEXT)")
+        " frame_after TEXT" + (", created_at DATETIME" if dated else "") + ")")
     for t in traces:
-        conn.execute(
-            "INSERT INTO action_traces VALUES (?,?,?,?,?,?,?,?,?)",
-            (t["id"], t["session_id"], t["game_id"], t["action_number"],
-             t["score_change"], t["budget_total"], t["budget_spend"],
-             t["frame_before"], t["frame_after"]))
+        vals = [t["id"], t["session_id"], t["game_id"], t["action_number"],
+                t["score_change"], t["budget_total"], t["budget_spend"],
+                t["frame_before"], t["frame_after"]]
+        if dated:
+            conn.execute("INSERT INTO action_traces VALUES (?,?,?,?,?,?,?,?,?,?)",
+                         [*vals, t.get("created_at")])
+        else:
+            conn.execute("INSERT INTO action_traces VALUES (?,?,?,?,?,?,?,?,?)",
+                         vals)
     conn.commit()
     conn.close()
     return box
@@ -419,3 +439,187 @@ def test_load_absent_or_malformed_book_is_none(tmp_path):
     (coll / "action_book.json").write_text('{"artifact": "other"}',
                                            encoding="utf-8")
     assert AB.load_action_book(str(box)) is None
+
+
+# ── F4: the clean window (--since), the unparseable skip, and the golden ──────
+
+# The artifact the tool wrote for _corpus BEFORE --since existed: 3379 bytes.
+# A build without --since must still produce exactly these bytes.
+GOLDEN_LEN = 3379
+GOLDEN_SHA1 = "7b07d82dff7f1b89f17327f81a10bc23151a5246"
+
+SINCE = "2026-08-21 03:20:00"          # the writer-fix boundary, UTC
+T_OLD = "2026-08-20 23:59:59"          # before the window
+T_NEW2 = "2026-08-21 04:00:00"         # inside the window
+
+# Pre-fix frame text: a lossy, ellipsis-truncated numpy repr. Two DIFFERENT
+# 64x64 frames collapse to these two strings; neither parses as JSON.
+LOSSY_A = "[[0 0 0 ... 0 0 0]\n [0 0 0 ... 0 0 0]]"
+LOSSY_B = "[[1 0 0 ... 0 0 0]\n [0 0 0 ... 0 0 0]]"
+
+
+def _dated(i, sess, action, fb, fa, created_at, **kw):
+    return dict(_trace(i, sess, action, fb, fa, **kw), created_at=created_at)
+
+
+def _window_traces():
+    """OLD rows (before SINCE) hold a 3/4 restoration pair, an action 8 seen
+    NOWHERE else, and the only cost evidence; one row has NULL created_at
+    (undatable); the NEW rows start EXACTLY at SINCE (the boundary is
+    inclusive) and hold one 3/4 pair and two action-6 steps."""
+    old = [
+        _dated(1, "s1", 3, F0, F1_, T_OLD),
+        _dated(2, "s1", 4, F1_, F0, T_OLD),
+        _dated(3, "s1", 8, F0, F2_, T_OLD, score=5.0, bt=3.0, bs=1.0),
+        _dated(4, "s1", 4, F2_, F2_, None),
+    ]
+    new = [
+        _dated(5, "s2", 3, F0, F1_, SINCE),
+        _dated(6, "s2", 4, F1_, F0, T_NEW2),
+        _dated(7, "s2", 6, F0, F2_, T_NEW2, score=1.0),
+        _dated(8, "s2", 6, F2_, F2_, T_NEW2),
+    ]
+    return old, new
+
+
+def _read_book(box):
+    return json.loads((box / "ego_fabric" / "collective" / "action_book.json")
+                      .read_text(encoding="utf-8"))
+
+
+def test_f4_since_excludes_older_rows_from_the_trace_side_exactly(tmp_path):
+    old, new = _window_traces()
+    box = _make_box(tmp_path, traces=old + new, dated=True)
+    atoms, _ = _corpus()
+    # the UNFILTERED build sees everything (the baseline this filter cuts)
+    assert BAB.main([str(box)]) == 0
+    full = _read_book(box)
+    assert "8" in full["actions"]
+    assert full["inverses"]["3"]["pairs"]["4"]["n_traces"] == 2
+    assert full["coverage"]["cost_evidence"] is True
+    assert "trace_since" not in full
+    # the FILTERED build
+    assert BAB.main(["--since", SINCE, str(box)]) == 0
+    book = _read_book(box)
+    # EXACTLY the pure derivation over the surviving rows, nothing else
+    expected = BAB.build_book(
+        "boxa", atoms, new,
+        sources={"atoms_stream": {"present": True,
+                                  "path": "ego_fabric/collective/atoms.jsonl",
+                                  "records_read": 9, "last_seq": 40},
+                 "traces_db": {"present": True, "path": "core_data.db",
+                               "rows_read": 4, "max_trace_id": 8,
+                               "rows_excluded_by_since": 4}},
+        trace_games=["gx-1"], trace_since=SINCE)
+    assert book == expected, (
+        "F4 FALSIFIED: the --since build is not the pure derivation over the "
+        "rows with created_at >= since")
+    # the trace side: action 8 (old-only) gone; frequency, pairs and cost
+    # count only the window; the boundary row (created_at == SINCE) survives
+    assert "8" not in book["actions"]
+    assert book["actions"]["3"]["traces"]["n"] == 1
+    assert book["inverses"]["3"]["pairs"]["4"] == {"n_traces": 1, "n_atoms": 0}
+    # the old rows' middle restoration f1-4->f0-3->f1 (the unfiltered 4<-3
+    # n=1) is gone: action 4 keeps ONLY its atoms-side COLOUR_PERM evidence
+    assert book["inverses"]["4"]["pairs"] == {"5": {"n_traces": 0, "n_atoms": 1}}
+    assert book["actions"]["6"]["traces"]["score"]["sum"] == 1.0
+    assert book["coverage"]["cost_evidence"] is False
+    assert book["actions"]["6"]["cost"] is None
+    assert book["actions"]["6"]["cost_absent"] == BAB.R_NO_BUDGET
+    # the NULL-created_at row (an action-4 step) is outside every window
+    assert book["actions"]["4"]["traces"]["n"] == 1
+    # the atoms side is NOT filtered: the TRANSLATE inverses keep their n
+    assert book["inverses"]["2"]["pairs"] == {"3": {"n_traces": 0, "n_atoms": 6}}
+    assert book["actions"]["2"]["atoms"]["n"] == 3
+    # the header: the filter verbatim, the read restricted, nothing skipped
+    assert book["trace_since"] == SINCE
+    assert book["skipped_unparseable"] == 0
+    assert book["sources"]["traces_db"]["rows_read"] == 4
+    assert book["sources"]["traces_db"]["rows_excluded_by_since"] == 4
+    assert book["sources"]["traces_db"]["max_trace_id"] == 8
+
+
+def test_f4_without_since_the_artifact_is_byte_identical_to_the_golden(tmp_path):
+    """The regression: no --since -> the bytes the tool wrote before the
+    option existed, and F3 rebuild identity still holds."""
+    box = _make_box(tmp_path)
+    assert BAB.main([str(box)]) == 0
+    out = box / "ego_fabric" / "collective" / "action_book.json"
+    first = out.read_bytes()
+    digest = hashlib.sha1(first, usedforsecurity=False).hexdigest()  # content id
+    assert len(first) == GOLDEN_LEN and digest == GOLDEN_SHA1, (
+        "F4 FALSIFIED: a build WITHOUT --since no longer matches the "
+        "pre-option artifact byte-for-byte (len %d, sha1 %s)"
+        % (len(first), digest))
+    book = json.loads(first.decode("utf-8"))
+    assert "trace_since" not in book
+    assert "skipped_unparseable" not in book
+    assert "rows_excluded_by_since" not in book["sources"]["traces_db"]
+    assert BAB.main([str(box)]) == 0
+    assert out.read_bytes() == first
+
+
+def test_f4_unparseable_frames_are_skipped_and_counted_never_matched(tmp_path):
+    # the strict hash: lossy text is (None, unparseable); absence is neither
+    assert BAB.strict_frame_hash(LOSSY_A) == (None, True)
+    assert BAB.strict_frame_hash(None) == (None, False)
+    assert BAB.strict_frame_hash(json.dumps(F0))[1] is False
+    # VERBATIM, these two rows read as a perfect restoration f0-3->f1-4->f0;
+    # the pre-fix writer produced exactly this from two different frame pairs
+    lossy = [
+        {**_trace(1, "s", 3, F0, F1_), "frame_before": LOSSY_A,
+         "frame_after": LOSSY_B},
+        {**_trace(2, "s", 4, F1_, F0), "frame_before": LOSSY_B,
+         "frame_after": LOSSY_A},
+        # a parseable a-step followed by a b-step whose frame_before is
+        # lossy: the chain cannot be verified -> no pair either way
+        _trace(3, "s", 3, F0, F1_),
+        {**_trace(4, "s", 4, F1_, F0), "frame_before": LOSSY_B},
+        _trace(5, "s", 4, F1_, F0),
+    ]
+    book = BAB.build_book("b", None, lossy)
+    assert book["inverses"]["3"]["pairs"] is None, (
+        "F4 FALSIFIED: lossy frame text was hashed verbatim and matched as "
+        "a restoration pair")
+    assert book["inverses"]["4"]["pairs"] is None
+    assert BAB.R_NO_FRAME_PAIRS in book["inverses"]["3"]["reason"]
+    assert book["skipped_unparseable"] == 3          # rows 1, 2, 4
+    # frequency is NOT skipped: every row is still an observation
+    assert book["actions"]["3"]["traces"]["n"] == 2
+    assert book["actions"]["4"]["traces"]["n"] == 3
+    # a fully parseable corpus carries no skip count at all (the golden)
+    atoms, traces = _corpus()
+    assert "skipped_unparseable" not in BAB.build_book("b", atoms, traces)
+    # end to end, the count reaches the written header
+    box = _make_box(tmp_path, traces=lossy)
+    assert BAB.main([str(box)]) == 0
+    assert _read_book(box)["skipped_unparseable"] == 3
+
+
+def test_f4_header_carries_trace_since_verbatim_and_rejects_other_forms(tmp_path):
+    old, new = _window_traces()
+    box = _make_box(tmp_path, traces=old + new, dated=True)
+    out = box / "ego_fabric" / "collective" / "action_book.json"
+    # both spellings; the header holds the operator's text, untransformed
+    assert BAB.main(["--since=" + SINCE, str(box)]) == 0
+    assert _read_book(box)["trace_since"] == SINCE
+    assert BAB.main([str(box), "--since", SINCE]) == 0
+    assert _read_book(box)["trace_since"] == SINCE
+    assert BAB.parse_args(["--since", SINCE, "x"]) == (["x"], SINCE)
+    assert BAB.parse_args(["x"]) == (["x"], None)
+    out.unlink()
+    # any other form is refused before a byte is written: a normalised or
+    # guessed filter would misreport what was excluded
+    for bad in ("2026-08-21T03:20:00Z", "2026-08-21", "yesterday", ""):
+        assert BAB.main(["--since", bad, str(box)]) == 2, bad
+        assert not out.exists(), bad
+    assert BAB.main(["--since"]) == 2
+    # a DB WITHOUT created_at cannot be windowed: the trace source is
+    # reported unreadable (named), never silently read in full
+    undated = _make_box(tmp_path / "u")
+    assert BAB.main(["--since", SINCE, str(undated)]) == 0
+    book = _read_book(undated)
+    assert book["trace_since"] == SINCE
+    assert book["sources"]["traces_db"]["present"] is False
+    assert "created_at" in book["sources"]["traces_db"]["error"]
+    assert book["actions"]["2"]["traces_absent"] == BAB.R_NO_TRACE_DB

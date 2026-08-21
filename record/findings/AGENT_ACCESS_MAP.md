@@ -45,3 +45,12 @@ origin; each UNMEASURED is a named gap.*
 **Amendment (2026-08-20):** cost × contribution is the ranking, per Seat 4 — see the map
 amendment section in `F1_VERDICT_AND_SHADOW_TEST.md`. Row 3's cost is now measured (~0);
 row 9 updated post-index.
+
+## THE UNMARKED-ORIGIN COHORT, resolved (2026-08-21)
+Not a third source and not a dropping writer: every writer stamps origin (Gamma.add,
+compose, seed_imports) and supersedes copy the envelope verbatim. The unmarked records are
+a PRE-MARKER VINTAGE — atoms minted before the origin marker landed (78d6d98), contiguous at
+each stream's head (r11l: 308/327, none sharing an id with any marked record), plus
+supersedes faithfully inheriting the absent field from legacy predecessors. The
+pre-instrument-evidence genus: rows written before the format change cannot answer the
+origin question. Origin-split reads are trustworthy for post-marker atoms only.

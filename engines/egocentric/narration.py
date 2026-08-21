@@ -387,10 +387,16 @@ class NarrationSpine:
         return rid
 
     def plan(self, mode: str, gate: Optional[str], rng: str,
-             col_class: Optional[str] = None) -> Optional[str]:
-        """PLAN: drove / shadowed / no-steps, with the g-gate that stopped it."""
-        return self._emit(PLAN, SIDE_BET, rng,
-                          {"mode": str(mode), "gate": gate},
+             col_class: Optional[str] = None,
+             extra: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """PLAN: drove / shadowed / no-steps, with the g-gate that stopped it.
+        ``extra`` (COMPOSER STAGE 4) carries a composite's citation state
+        (settled / unsettled, driven step) beside mode + gate -- the same
+        setdefault merge as route(): mode and gate are never overwritten."""
+        payload: Dict[str, Any] = {"mode": str(mode), "gate": gate}
+        for k, v in dict(extra or {}).items():
+            payload.setdefault(k, v)
+        return self._emit(PLAN, SIDE_BET, rng, payload,
                           ref=self._bet_id, col_class=col_class)
 
     def act(self, action: int, rung: str, rng: str,

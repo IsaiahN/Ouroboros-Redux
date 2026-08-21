@@ -139,3 +139,60 @@ mode:
 live, and the suggester's vote share vs typical winner scores in any weighted path. If
 weighted never runs live, the answer hardens to "the fallbacks never influenced a single
 action, in any mode" and the retirement loses provably nothing.
+
+## THE MODE-USAGE READ (2026-08-21) — the fallback bound, finalised
+Live strategy is 'cognitive' or 'ladder', never 'weighted' — BUT inside _decide_cognitive
+(decision_rung_system.py:1436-1437) weighted voting runs LIVE as the fallback whenever the
+router's selected action is unavailable, and that path (:1210-1226) has NO threshold check:
+the suggester's 0.24 confidence scores ≈0.22 > the 0.15 floor and could win. So the bound
+does NOT harden to "never in any mode": STRUCTURALLY POSSIBLE in the no-action fallback;
+EMPIRICALLY zero labeled wins in 20,952 ACT records (a weighted win is credited to the
+highest contributor, which would label it) — the residual uncertainty is the 45% unlabeled
+cohort only. Retirement still loses nothing OBSERVED. Recorded as the honest bound.
+
+## TWO CONSEQUENCES (Seat 4, 2026-08-21)
+1. **The retirement's basis is corrected: "never arrived" was wrong.** The suggester never
+   arrived through the LADDER path; it could have arrived — and won — through the cognitive
+   router's no-action FALLBACK. The bound is now the residue, not the conclusion: whether it
+   ever actually won there is UNMEASURED, and the fallback's frequency is unknown (rare or
+   common decides whether the retirement is clean). **QUEUED READ: how often
+   _decide_cognitive falls through to _decide_weighted_non_emergency in live play, and the
+   winning-rung distribution on that path.**
+2. **D-7 — a WIDER DEFECT than the suggester: the weighted fallback ignores every rung's
+   confidence_threshold** (decision_rung_system.py:1210 gates on `if result.action:` only).
+   A rung's threshold is honoured on the ladder path and ignored on the fallback — every
+   rung with a threshold is unguarded there, not just the retired one. Own line in the
+   defect register; fix shape = apply has_suggestion(threshold) on the fallback path, with
+   the fallback's own frequency read first so the fix's blast radius is known.
+
+## THE D-7 FREQUENCY READ (2026-08-21) — the fallback is not the defect; the router is
+The fallback leaks a label: `rung == "weighted_random"` on an ACT record PROVES the D-7
+path fired (lower bound — a fallback vote ≥0.15 takes the real winner's name). Share of
+labeled ACTs: **sk48 78.7% · ar25 78.4%** · bp35 32.6% · g50t 4.7% · tn36 0%. **On the two
+deepest games the cognitive router produces no usable action on ~4 of 5 steps and falls
+through to thresholdless weighted voting.** That is the real finding: D-7's missing check
+sits on a path that IS the main path for L1+ play. The suggester never appears as a winner
+in any box — the retirement's residue closes to "never won, on any path" (lower-bound
+caveat stated). BLAST RADIUS of honouring thresholds on the fallback: 3 rungs silenced
+outright (belief_system, state_matching, valence_goals), 6 partial, 27 safe, 30 undecidable
+statically — and the NET EFFECT is fewer votes → MORE weighted_random. **So the fix is not
+the threshold check alone; it is why the router yields nothing 78% of the time on the games
+closest to winning.** Instrument first: `last_decision_metadata['weighted_fallback']=True`
+at the branch (:1437), emitted on the ACT record — one field, exact count. For the gate's
+coverage census this reclassifies most of sk48/ar25's actions as PROBES by mechanism.
+
+## D-7 → D-8, and the instrument (Seat 4 + Seat 3, 2026-08-21)
+- **D-8 registered — the defect under D-7**: the cognitive router's selected rung produces
+  no usable action on ~4 of 5 cycles on sk48/ar25 (lower bound 78.7/78.4%). Not that the
+  fallback is unguarded, but that it is needed at all. The primary path on the deepest
+  games has been unlabelled.
+- **THE INSTRUMENT, taken (one line, queued as the first build after the stage-4 commit):**
+  `last_decision_metadata['weighted_fallback'] = True` at decision_rung_system.py:1437
+  before the call overwrites it, emitted on the ACT narration record. Converts a lower
+  bound into a measurement; no behaviour change.
+- **PINNED BEFORE THE FIX: honouring thresholds on the fallback will READ AS A REGRESSION.**
+  Fewer sub-threshold votes → the fallback finds nothing → more weighted_random. The random
+  share rising is the MEASUREMENT of how many actions were decided by votes their own rungs
+  declared unreliable — not damage from the fix. Stated now so it cannot be argued later.
+- The suggester's residue closes mostly clean: it could have won on a path taken ~78% of
+  the time and never appears as a winner in any box.
