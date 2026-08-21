@@ -342,3 +342,19 @@ which attacks the named term; provenance tags + the catalogue are deliverables t
 (same write-sites, layer above). Success = the planner share collapses on the same window;
 if pruning does not collapse it, the cost is per-application work and the fix is
 vectorisation, a different build. Full result: record/findings/D5_PROFILE_RESULT.md
+
+
+## W3 RIDER (2026-08-21, Seat 3): D-2 RETURNS AUTOMATICALLY IF THE CORPUS STAYS
+D-2 (prefix merge in the replay bank) is HELD pending W3's replay-corpus decision. **If W3
+decides the corpus stays, D-2's disposition is due in the same motion** — this rider is the
+reminder at the cause's site, per the ALLOWLIST-self-destruct discipline. If the corpus
+retires or goes behind earn-through, D-2 closes as moot with one line.
+
+## THE THREE OLD-ITEM RULINGS (2026-08-21): align · execute U-2 · hold for W3
+- The four test_safe_cleanup reds: ALIGN to the ruled behaviour (the code is right, the
+  tests encode the pre-ruling spec; a permanent known-red normalises a red suite).
+- D-1: EXECUTE U-2 (archive-then-truncate) BEFORE the composer wires anything — Seat 3's
+  sharpened argument on the record: D-1 is latent only because its writer was never wired,
+  and this week wired three never-wired writers; every such fix makes the latent deletion
+  more likely to go live, and nobody would connect the two when it fires.
+- D-2: HOLD for W3, with the rider above.
