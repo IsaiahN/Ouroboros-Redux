@@ -131,3 +131,11 @@ bytes, cap derived from observed stream sizes) and state the interaction with th
 memory profile explicitly. RIDER 2 — shallow copies: add a falsifier that nested mutation
 of a returned record does not alias into the cache (or audit every consumer and document
 the aliasing as a contract) — the dirty-but-invisible failure is the one to gate.
+
+## TARGET SHARPENED BY WINDOW 6-b (2026-08-21)
+PRIMARY target is now `fabric._next_seq`: each append re-parses the entire stream to find
+the next seq (28.3%; 1.5M json.loads per 130 cycles). Fix: a per-process per-stream cached
+tail seq (initialised from the last line on first touch — one read; advanced in memory on
+every append; invalidated by the same anchor rule as the read cache). The read cache
+(32.3%) and batched commits (20.0%) stay as stages 1 and 2. Before-number: 80.6% of the
+window across the three terms. Losing condition unchanged.

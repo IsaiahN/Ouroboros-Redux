@@ -1501,3 +1501,164 @@ step's stamp is skipped and _w3c_compose sees the PRIOR cell. Non-raising paths 
 A stale avatar cell after a PHASE-2 exception is this, not a new defect.
 GUARD-GREEN-FOR-THE-WRONG-REASON genus: fourth instance — two receipts committed red by a
 sweep that missed them. All four found by reads to the fact, not the verdict.
+
+## ENTRY 48 — 2026-08-21T21:02 UTC. THE RUN IS OPEN. Full fleet on b10bc12, clean deploy (dirty: none).
+Sprint ended (6 procs down); supervisor up under the side-effect-free import; deploy event
+confirmed carrying the committed head. THE RUN'S PURPOSE, stated before it runs: (a) g7's
+window -- driven composite settlements on a library that can apply, with the four silent
+successes closed before the first reading; (b) complete the split-half set (m0r0 +1);
+(c) live data for the fabric-I/O sixth window and W2b's leak-stop re-read under multi-cycle
+drive; (d) the D-8 true fallback rate per game. STOP: every scoreable game at its derived
+2k post-baseline sessions. Numbers at open: WON 0/25 · L1+ 10 · L2+ 1 · baseline 0-0-5
+(g50t's 1→1 noted as luck). HOLD goes back UP for the next serialized build (shadow gate);
+the fleet runs the committed code meanwhile.
+L0 MEMORY PROFILE, first data point (9 min post-deploy, boot ramp included): the five L0
+suspects are NOT distinguished — fleet-wide ~+22 MB/min; the OUTLIER is sp80 at +71 MB/min
+(156→799 MB), 3× the fleet. Hypothesis under test: the re-point's Γ-derived signature index
+(_rec_by_id/_sig2id, unbounded, full records) scales with atoms-stream size and sp80's is
+the largest. Correlation read + steady-state second window dispatched.
+FALSIFIED: the signature-index hypothesis for sp80's growth — sp80's streams are the
+SMALLEST in the group (atoms 0.2MB, narration 1.7MB); growth does not track stream size.
+sp80 was the fleet's heaviest RSS before the sprint too (641MB at 32m). Object unknown →
+heap-shape read (tracemalloc wrapper, 420s, top allocation sites) dispatched on sp80.
+
+## ENTRY 49 — 2026-08-21. THE RUN'S FIRST FINDINGS (10 min in).
+D-8 MEASURED: the cognitive router yields no usable action on 84.9% of decisions
+fleet-wide (796/938), 100% on ar25/cn04/sk48/sp80/ls20/ft09. Five of six actions are
+decided by thresholdless weighted voting. For the gate's census: ~85% of actions are
+PROBES by mechanism — the derivations:probes baseline.
+THE COMPOSER ENGAGES AND CANNOT REACH: 53,711 no-steps · 2,923 W2b skips · 15 compose
+attempts → 14 unreachable, 1 unverified-only · 0 composites minted · 0 settled. Root: the
+cross-shelf reach needs act_offset and the legacy library predates the stamp — offset-less
+atoms are compose-only, so nearly every candidate is unreachable BY CONSTRUCTION. g7's
+window cannot open until offset-bearing atoms exist in quantity; this is upstream of the
+design falsifier (material, not chaining), pre-named here so it is not read as the
+falsifier firing. Supply read follows.
+D-10 (the run's second finding): the act_offset stamp NEVER FIRES LIVE — 28 mints since the
+instrument, zero atoms carry act_offset; the newest atom has psig+asig from the same write
+site and no offset. Built, gated on constructed inputs, never fired on real ones — and it
+sits on the composer's entire material supply (14 of 15 compose attempts "unreachable").
+Diagnosis read dispatched; fix serialized behind the gate builder if it lives in
+cognitive_loop.py. g7's window is closed until this fires.
+L0 MEMORY, steady-state window (boot excluded): fleet growth fell to +2..+11 MB/min; the
+five L0 suspects are NOT the top growers (su15 +3.6, s5i5 +2.3) — the brief's premise
+(suspects dominate) does NOT hold on the clean code; ka59/cd82/wa30 lead at ~+11 MB/min.
+sp80 (the boot-window outlier at +71) left the top ten — fate checked in status.txt. The
+heap-shape read on sp80 is the remaining instrument; the memory brief is rewritten on it.
+sp80 CORRECTION: not settled — 799MB @9m → 1,008MB @25m (~+13 MB/min steady), the fleet's
+heaviest by 300MB, on course for the supervisor's memory cap; it fell out of my top-ten by
+RATE only. wa30 second at 685MB (db 333MB). The heap read names the object.
+sp80 HEAP READ: tracemalloc sees 75MB (peak 75.6) in a worker whose RSS reaches ~1GB — the
+growth is NATIVE (numpy buffers or sqlite page cache), invisible to the Python tracer.
+Side finding: matplotlib + scipy + fontTools are IMPORTED INSIDE GAME WORKERS (~40MB of
+plotting libraries at boot, ×25) — pure import weight; consumer check queued. Next
+instrument: a gc walk of live ndarrays by shape + referrer (dispatched on sp80).
+THREE-NUMBER CENSUS on the clean run (n=1,980 ACT): derivations 2.9% (all wa30,
+controlled_movement_planning) · negative derivations 3.8% · probes 93.2% (77.8% by
+fallback mechanism + 15.4% explore rungs). The gate's stage-1 baseline on clean data.
+HEAP READS VOID (my instrument): --max-generations 3 let sp80's ~90s generations finish
+before the timer, so both dumps ran post-teardown ("2 live arrays, 0MB" in a running
+worker is impossible — the sensitivity check that caught it). Re-run with 999 generations
+and a 300s dump; the 75MB tracemalloc figure is withdrawn as a mid-run measurement.
+MEMORY INSTRUMENT, third correction: numpy arrays are NOT GC-tracked, so a gc.get_objects()
+walk cannot see them by design (the worker DID run to the dump — confirmed by PLAN records
+immediately before it). Replaced by a ROOT-WALK from GC-tracked holders (CognitiveLoop,
+PredictorBank, Gamma, KnowledgeFabric, …) recursing attributes and summing ndarray bytes
+by attribute PATH — with a constructed 4MB known-positive asserted before the real run.
+Two instruments falsified by their own sensitivity checks before a number was reported.
+
+D-10 WITHDRAWN (proctor error). act_offset fires live: 4/4 local click mints written since
+the 16:01 relaunch carry it (bp35 dc=-1 = click outside the bbox, the designed geometry).
+The "28 mints, 0 carry act_offset" census filtered on COMMIT time; the workers that wrote
+them were still resident with pre-stage-2 code (a commit does not reload a process).
+Rule: censuses of live output filter on PROCESS START, never on commit time. No code change.
+
+MEMORY, root-walk (known-positive OK): ndarray bytes reachable from the 12 cognitive roots =
+0.1MB; corrected tracemalloc = 75MB, ~40MB of it import machinery. The agent's own state is
+NOT where sp80's RSS lives. Growth is native and outside the cognitive objects: sqlite
+connections / page cache, or arrays held by non-cognitive holders (env objects). v2 walks
+every gc container at depth 1 and DIFFS two dumps in one process (growth attributed, not
+inferred).
+
+D-12 OPENED (the real composer blocker). sp80 live: compose-none reason=unreachable
+candidates=17 proposed=0 notes={} on EVERY cycle. notes={} rules out the noted branches
+(no-act-offset, no-avatar) -> all 17 fall through the two UNNOTED paths; with zero sp80
+act_offset atoms the reach path is impossible -> NO CANDIDATE ANCHORS ON THE PLAN-TIME
+FRAME. The label "unreachable" conflates no-anchor with no-path. Read-only diagnosis out:
+vintage vs level vs matcher. g7's window on sp80 is closed by anchoring, not by act_offset.
+
+MEMORY, root-walk v2 (every gc container, two dumps 270s apart, known-positive OK): ndarray
+bytes 1.1 -> 1.4MB; Python objects +9k; sqlite connections 23 -> 23. Python heap 75MB. The
+~1GB on the heavy workers is NATIVE AND UNHELD by any Python object -- the profile of heap
+fragmentation from large transient allocations. The named suspect is the fabric I/O defect
+already prereg'd (PREREG_FABRIC_IO: _next_seq re-reads the whole stream per append): one fix
+would close two defects. Test before believing: RSS growth rate per box should track stream
+size per box (correlation read out). Instrument note: hasattr() does not swallow werkzeug's
+RuntimeError -- guard attribute probes with a bare except when walking a foreign heap.
+MEMORY, correlation read: growth does NOT track stream size (cd82 17.8MB grows +11 MB/min;
+sc25 52MB grows +2.6). The fragmentation-from-fabric-I/O hypothesis is falsified at the
+file-size grain. The fast growers cluster (ka59/cd82/wa30 ~+11; the rest +2..4): a shared
+property of the three, not a per-box size. Arm checked next (deterministic, free).
+Arm read: the three fast growers are all arm=fixed, but so are lp85 and sc25 (slow) ->
+inconclusive at recycles=0 (the supervisor rotates arms on recycle; the live arm is in each
+worker's env, not derivable from the game name alone). Next cheap discriminator: the live
+LP_DRIVE_ARM + level + mode per worker, read from worker.log heads, against the rate table.
+
+D-12 DIAGNOSED -- the composer is starved AT THE STAMP, not in the chain.
+sp80's Γ shelf: 20 EFFECT atoms, 17 candidates for WANT colour 8/9. Anchoring is exact
+equality over atom["context"] = the FULL bbox crop of the before-frame (800-1440 cells,
+effects.py:369-380). 0/17 anchor on the first level-2 frame; 0/17 on the worker's own 31
+frames; 18/461 stored level-2 frames match exactly one. The [[14]]-class atoms anchor
+62-64x: the matcher works; the large WANT-writing effects are single-use by construction.
+Not vintage (asig v1 where present; matcher ignores asig), not level (minted and played
+at level 2).
+WHY MINIMISATION NEVER FIRED: context minimisation exists (W2-S2 re-point, mint.py:391
+_signature_merge -> _merge_context -> effects.minimise_atom) and runs before the
+rederivation verdict -- yet 0/20 atoms carry a DONT_CARE. The candidates' colour_delta is
+[[8,9],[9,8],[14,0]]: THE AVATAR'S OWN 14->0 TRAIL CELL IS INSIDE THE CHANGED SET. The
+coarse signature is change-only, so the same world-edit seen from another avatar position
+hashes differently, never merges, and MINTS A NEW 40x28 ATOM -- seventeen near-twins.
+THE STAMP DOES NOT FACTOR SELF-MOTION OUT OF WORLD-EDITS. The composer's two-shelf premise
+(Γ vs BODY separated at the stamp) is false at the stamp.
+g7 STATUS: the design falsifier cannot be READ -- neither "g7 > 0" nor "route to the WANT
+supply". A third branch the prereg did not name: the chain is unreachable because Γ holds
+no anchorable large effect. The composer's test is BLOCKED, not failed; the blocker is
+upstream of every stage built this week.
+Smallest instrument (builder, one line each): _note("no-anchor") at composer.py:571 and
+_note("no-reach") at :543 -- notes={} would have named this on the first PLAN line.
+Other boxes: ar25 unreachable candidates=73 x372 (pre-ccbd272 build, notes unobservable);
+cd82 candidates=9 x3 avatar=no-avatar -- same zero-anchor shape.
+TO SEAT 3: the fix direction is factoring at the stamp -- subtract the BODY's own cells
+(the avatar colour at its previous and new cell, which the BODY shelf already knows per
+action) from the changed set BEFORE signature and context crop, so a world-edit's
+signature is position-invariant and minimisation can merge. That is a change to what an
+EFFECT atom IS; it needs a ruling and a prereg, not a patch.
+SEAT 4 on D-12: the over-specification finding (contexts too wide) and D-12 are ONE defect
+seen from two sides -- the width IS the avatar's trail. Stages 2-3 built a cross-shelf reach
+between two shelves that were one contaminated shelf; the index, the re-point, the extent
+premium and the composer all operated on atoms whose identity carried the observer's
+position. Same class as the re-point: it changes the object -> prereg + ruling.
+SEAT 4 on the determinism red: byte-identity has been the strongest gate in four of this
+week's builds; a stream that differs between identically-seeded runs removes it as a
+falsifier. That, not principle alone, is why ms cannot ride a stream record.
+SEAT 4 on D-10: second time a code-vintage filter selected a population other than the one
+it named (cf. the pooled-population rule).
+
+STAMP FACTORING CLEARED (Seat 3 + 4): (1) Γ records world-edit only; (2) locus + BODY
+delta, under the general rule "the delta explains the subtraction, or the cells stay",
+fail-closed to byte-identical; (3) leave the vintage -- the library heals forward, re-
+derivation reconsidered only on a measurement. F6 = readability is the stamp's debt; the
+number is the composer's. Build serialized behind the gate's commit (settled-tree rule).
+GATE DETERMINISM CLOSED: ms was the only differing key across 18 lines (diffed before
+changing); cost now an in-process accumulator (a print would have moved the red: the suite
+asserts identical stdout too); byte-identity pinned by a two-run test.
+RECEIPT LAYER, on the proctor: the registry was refreshed by OFFSET from the builder's
+estimate; one estimate was wrong and my refresh script accepted a comment line as the
+target. Fourth-or-fifth estimate-for-measurement this week. Rule: a receipt is refreshed by
+grepping the SYMBOL it names, never by adding an offset; the builder re-measured every
+gate.py row and the loud note records the sequence so a re-measured row is tellable from
+an adjusted one.
+NEW SMALL GENUS (Seat 4): a registry row's SITE is gated and re-checked; its NOTE is prose
+nobody validates ("ms rides the SUMMARY" stood false until rewritten). Notes rot silently
+in the file whose purpose is not rotting. No mechanism today; the symbol apparatus will not
+catch it either -- known.

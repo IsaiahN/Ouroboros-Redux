@@ -196,3 +196,34 @@ coverage census this reclassifies most of sk48/ar25's actions as PROBES by mecha
   declared unreliable — not damage from the fix. Stated now so it cannot be argued later.
 - The suggester's residue closes mostly clean: it could have won on a path taken ~78% of
   the time and never appears as a winner in any box.
+
+## D-9 (2026-08-21): the per-generation SystemDiagnostic pass — produced, PRINTED, unread
+evolution_runner.py:1494-1506: `SystemDiagnostic.run()` (~23s, window 6-a) runs EVERY
+GENERATION in every worker and its result reaches three print() lines only — no table, no
+stream, no reader. Against 90s generations (window 5) that is ~25% of generation time
+producing a health score nobody consumes; ×25 workers. The genus at the telemetry grain.
+Fix shape: env-gated (OURO_DIAGNOSTIC, default off for swarm workers; the supervisor and
+keeper set nothing), print path kept for operators who opt in. Builder dispatched.
+
+## D-11 (2026-08-21): arc_agi.rendering imports matplotlib into every headless worker
+`-X importtime`: matplotlib 5.14s cumulative per worker boot (+fontTools via dviread), first
+imported by `arc_agi.rendering` — the toolkit's visualiser, which no worker calls. ×25
+workers ≈ 2 CPU-minutes per fleet restart and ~40MB × 25 ≈ 1GB of RSS baseline. Same
+family as D-9 (a boot term nobody named). Fix shape: import the toolkit's needed
+submodules (base/client) rather than the package, or lazy-load rendering; measured by
+-X importtime before/after. Serialized behind the D-9 builder (shared files).
+scipy: imported by engines/egocentric/perception.py (0.4s) — usage check alongside.
+scipy resolved: perception.py imports ndimage as an OPTIONAL dev-box convenience with a
+pure-numpy fallback (the venv has it, so it loads; 0.4s). Not a defect; not in D-11's fix.
+D-9 CORRECTED by its builder: the diagnostic fires at generation 0 and every 10th
+(`current_generation % 10 == 0`), not every generation — "~25% of every 90s generation"
+overstated it; a boot lands on gen 0, which is what window 6-a measured. Cost per fire
+(~23s) and the print-only consumer stand. Gated behind OURO_DIAGNOSTIC (off by default),
+construction-side, byte-identical when on. 22/22.
+D-9 DISPOSITION NOTE (Seat 4): produced-and-unread, ~tenth instance — and the first whose
+fix is GATE THE PRODUCER rather than wire a consumer, because nothing wants the product.
+F5 asserts no-reader by AST identity on attribute nodes, so prose cannot shift it.
+D-11 ADJACENT (proctor, memory instrument side-read): a werkzeug LocalProxy is resident in a
+game worker's heap (it raised RuntimeError under the root-walk's attribute probe). Flask or
+its proxy is imported on the worker path. Same genus as D-11 (matplotlib via rendering):
+import-time weight with no worker-side consumer. Not yet located; census on import graph due.

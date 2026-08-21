@@ -62,6 +62,21 @@ ALLOWLIST: Dict[str, str] = {
         "narrate-and-consume: ROUTE/MINT read their own immediately-prior "
         "narration state vs arm W write-but-never-read); this entry is "
         "deleted then"),
+    "gate": (
+        "PREREG_GATE_STAGE1_SHADOW.md (REASONING GATE STAGE 1: SHADOW MODE): one "
+        "JSONL record per utterance (PERCEIVE / BET / ACT + a per-step SUMMARY, "
+        "the MODE record, at most one DOWNGRADE) written by "
+        "engines/egocentric/gate.py:ReasoningGate._emit from the ONE hook beside "
+        "the spine's act() (cognitive_loop._gate_step). THE CONSUMER IS THE BEAT "
+        "READ: the three-number per-game coverage report "
+        "(gate.coverage_report -- derivations : negative derivations : probes, "
+        "stratified by action-book evidence stratum, with the would-refuse rate "
+        "per head) that stage 2's flip decision cites (the probe-share pin, the "
+        "three-number rule). No runtime code reads this stream by design: shadow "
+        "blocks nothing and no decision depends on a verdict. This entry is "
+        "deleted when stage 2's enforcement consumer lands -- and the deadline "
+        "mechanism (gate.deadline_violation) refuses that flip until the "
+        "opener-side PERCEIVE has relocated into the spine"),
     "refit_queue": (
         "PREREG_REFIT_DESTINATION.md (Seat 3 ruling, 2026-08-19): ROUTE has four "
         "bins and BROKEN-rebinding was the only one with no destination -- it "

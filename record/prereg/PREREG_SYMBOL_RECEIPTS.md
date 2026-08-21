@@ -157,3 +157,7 @@ context-min row (+36 masked by a docstring), and now two substring receipts (dec
 on "match" in `return out`; goal-abduction-plan on an import line with the call 36 lines
 below) — three instances, all position/substring proxies. Four of sixty rows assert
 nothing today. That, not tidiness, is the migration's argument.
+REMAINING COLLISION SURFACE (Seat 4, 2026-08-21): KNOBS.md — prose rows in one shared file;
+two builders wrote to it concurrently twice today (G27/G28 + O4) without damage. Receipts
+anchor to symbols; knob rows do not. Not covered by this apparatus; named so nobody assumes
+it is. Candidate: per-knob files or a parser-checked table with the registry's discipline.

@@ -129,3 +129,20 @@ decide 12.4% (was 19.7%). **Produced-once, parsed-many — the week's genus at t
 layer.** Fix shape (a prereg, no semantics): incremental tail reads with a parsed-stream
 cache keyed by file position; batched per-step DB writes. The 32-engine decomposition read
 is answered by elimination: the engines are not the next term; the fabric reads are.
+
+## WINDOW SIX-a (ar25, b10bc12): INCONCLUSIVE — 2 cycles in 108s; startup-dominated
+Not a steady-state read: imports 21.8%, `system_diagnostic._bottleneck_systems` 21.5% (a
+~23s diagnostics pass at EVERY worker boot — ×25 workers ≈ 10 CPU-minutes per fleet
+restart; a startup term nobody had named; is its output read? queued as a consumer check),
+sqlite 24.4%. W2b's _w2b_engage fired once in two cycles — unjudgeable. Rerun on g50t
+(window 6-b) for comparability with window five.
+
+## WINDOW SIX-b (g50t, b10bc12, full fleet, 130 cycles / 397s): TWO VERDICTS
+**W2b's leak-stop HOLDS under multi-cycle drive**: _w2b_engage 4 calls in 130 cycles (3%);
+stage 4's continuation did not reopen the leak. F1 re-confirmed on the run's own code.
+**The I/O layer, precisely**: record_result 36.9% ← fabric._read_stream 32.3% (572 calls)
+AND fabric.append 30.7% → **_next_seq 28.3%: every append re-reads and re-parses the whole
+stream to compute the next sequence number** — 1,220 appends → 1.5M json.loads. Plus
+sqlite commit 20.0% (1,328 commits, one per write). The write path's most basic operation
+re-parses the file it is about to extend. THIS IS THE FABRIC-I/O BUILD'S BEFORE-NUMBER:
+reads 32.3 + _next_seq 28.3 + commits 20.0.

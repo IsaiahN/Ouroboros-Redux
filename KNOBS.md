@@ -92,6 +92,14 @@ G18 handoff funding: allowance*(1+levels_replayed)-replay_cost           (player
 O1 supervisor: MEM_CAP=1200MB, RECYCLE=120min, VACUUM=200MB, DB_CAP=600MB, POLL=60s
 O2 janitor: 2MB stream threshold; settlements fold window 100
 O3 population shape: 25 pinned workers, pop 6, agents/gen 4, max-gen 50
+O4 diagnostic pass: OURO_DIAGNOSTIC env flag, default OFF (unset) -- A SWITCH, NOT GUESSED.
+   "1"/"true" (any case) constructs SystemDiagnostic at runner init and keeps the pre-D-9
+   run()+print path in evolve() byte-identical; unset/anything else -> never constructed,
+   never run. Rationale D-9 (2026-08-21, record/findings/PRIMITIVE_SORT_AND_CENSUS.md):
+   ~23s per run() whose result reaches three print() lines only -- no table, no stream,
+   no reader -- x25 workers. Supervisor and sprint keeper set nothing; an operator who
+   wants the printout opts in per process. Read ONCE at init (evolution_runner.py
+   diagnostic_enabled / _init_system_diagnostic), never per generation.
 
 ## SELF-TUNING (the later mechanism, principle fixed now)
 Agents may eventually tune REGISTER G ONLY, by the mechanism already live for the LP
@@ -554,3 +562,18 @@ NOT CHANGED.**
 WHETHER OR NOT THEY CARRY THE LABEL**, and the register has been calling constants GUESSED
 on a case-by-case basis while this bucket sat uncounted.
 G26 CONFLICT SCAN CAP: CONFLICT_SCAN_CAP=64 [GUESSED] -- re-point conflict clause bound (mint.py); chosen against a library with ~zero minimised atoms, and the build's purpose is that minimised atoms start existing. RE-DERIVE with G25 once post-lift throughput is observable.
+G29 REASONING GATE STAGE 1 (PREREG_GATE_STAGE1_SHADOW.md; engines/egocentric/gate.py).
+    NO NEW NUMERIC CONSTANT. Every threshold the gate bins on is bound BY IDENTITY:
+    RESIDUAL = bank.PredictorBank._grid_residual and SETTLE_EPS = router.ResidualRouter().eps
+    (the function and threshold ROUTE already bins on -- as stage 4 named g7). Named
+    non-numeric constants, provenance PINNED (by prereg/ruling, not guessed):
+    DEFAULT_MODE="observe" (par.4: an inert default would measure nothing; env
+    REASONING_GATE in off/observe/active, active NOT BUILT -> observe + one DOWNGRADE
+    record); ENFORCEMENT_ENABLED=False + PERCEIVE_HOME="gate" (THE STAGE-2 DEADLINE
+    MECHANISM, Seat 3's ruling 2026-08-21: gate.deadline_violation() names
+    perceive-not-relocated iff enforcement is on while the opener-side PERCEIVE still
+    lives on the gate topic; tests/gate/test_gate_stage1.py asserts the shipped pair is
+    clean, so flipping the flag first goes red). The evidence stratum floor(log2(n+1))
+    is the prereg's own unit (doubling = one stratum). WALL_AWARE_RUNG="wall_aware_navigation"
+    is a LABEL read from the rung system (the proposal's 19.2% negative-derivation class),
+    not a dial. Gate tests/gate/test_gate_stage1.py.

@@ -35,3 +35,10 @@ composite that advanced nothing — **g7 would increment for no work.**
 **DISPOSITION:** HOLD stays; the fleet does not resume on this code. Stage 4.5 (seam
 repairs) preregged and built BEFORE the run. The read was cheap; the run on unread seams
 would not have been.
+
+## D-12 (2026-08-21, post-run): the fifth silent success was the stamp's
+All four seam repairs held. The composer engaged on every cycle and could not anchor a
+single large effect because EFFECT atoms carry the avatar's own trail cell in their changed
+set; the coarse signature is therefore position-specific, minimisation never merges, and
+Γ fills with single-use near-twins. Full account in PORT_LOG (D-12). The composer's
+falsifier is unread until the stamp factors self-motion out of world-edits.

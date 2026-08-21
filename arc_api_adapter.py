@@ -31,9 +31,70 @@ import os
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 
 import logging
+import sys
 import time
+import types
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Set
+
+# D-11 (2026-08-21): the toolkit's base module -- the one that defines Arcade -- does
+# `from .rendering import render_frames, render_frames_terminal` at ITS import, and
+# arc_agi.rendering imports matplotlib (plus fontTools) at the top of the file. So every
+# route to Arcade (the package, or `from arc_agi.base import ...`) loads the visualiser:
+# measured ~5s import and ~40MB RSS per process, x25 headless workers that never call it
+# (base.py only reaches the two functions when render_mode is set; ours is always None).
+# The package cannot be configured out of it -- no env it honours, no lazy hook -- and
+# the installed package is never patched on disk. The guard instead PRE-SEEDS
+# sys.modules["arc_agi.rendering"] with a stub carrying the two names base.py binds,
+# so the import machinery finds it and never executes the real module. Opt-in ONLY:
+# OURO_HEADLESS "1"/"true" (case-insensitive, the OURO_DIAGNOSTIC convention), set by
+# the swarm supervisor and the sprint keeper via tools/fleet_env. Unset -> this function
+# returns without touching sys.modules and the import below is byte-identical to before.
+# The stub's functions RAISE if anything ever calls them: a headless worker that somehow
+# asks for a render fails loudly, never silently draws nothing.
+HEADLESS_ENV_FLAG = "OURO_HEADLESS"
+_HEADLESS_TRUTHY = frozenset({"1", "true"})
+RENDERING_MODULE = "arc_agi.rendering"
+RENDERING_STUB_NAMES = ("render_frames", "render_frames_terminal")  # what base.py binds
+HEADLESS_STUB_MARK = "__ouro_headless_stub__"
+
+
+def headless_enabled() -> bool:
+    """One read of OURO_HEADLESS. Truthy iff the value is "1" or "true" (any case)."""
+    return os.environ.get(HEADLESS_ENV_FLAG, "").strip().lower() in _HEADLESS_TRUTHY
+
+
+def install_headless_render_guard() -> bool:
+    """Pre-seed sys.modules[RENDERING_MODULE] with a stub when OURO_HEADLESS is on.
+
+    Returns True iff the stub was installed by THIS call. False when the flag is off,
+    or when the name is already in sys.modules (the real module loaded first, or the
+    stub is already there) -- the guard never replaces a loaded module. Idempotent.
+    Must run before the first `arc_agi` import in the process; after that it is a no-op.
+    """
+    if not headless_enabled() or RENDERING_MODULE in sys.modules:
+        return False
+
+    def _refuse(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError(
+            f"{RENDERING_MODULE} is stubbed because {HEADLESS_ENV_FLAG} is set; "
+            "this process is headless and must not render (unset the flag to restore "
+            "the toolkit's matplotlib renderer)"
+        )
+
+    stub = types.ModuleType(
+        RENDERING_MODULE,
+        f"{HEADLESS_ENV_FLAG} stub for {RENDERING_MODULE}: matplotlib never loads here.",
+    )
+    for name in RENDERING_STUB_NAMES:
+        setattr(stub, name, _refuse)
+    stub.HAS_MATPLOTLIB = False  # the real module's flag, for any reader that checks it
+    setattr(stub, HEADLESS_STUB_MARK, True)
+    sys.modules[RENDERING_MODULE] = stub
+    return True
+
+
+install_headless_render_guard()
 
 # Import from official arc_agi SDK (no stubs available)
 import arc_agi  # type: ignore

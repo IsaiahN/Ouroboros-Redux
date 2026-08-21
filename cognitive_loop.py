@@ -238,7 +238,7 @@ def _narr_range(loop):
         collective_n=int(getattr(loop, "_narr_import_n", 0) or 0), own_n=_own)
 
 
-def _narr_bet(loop, action_num, cf, pg0) -> None:
+def _narr_bet(loop, action_num, cf, pg0, frame=None) -> None:
     """W1 (PREREG_W1_NARRATION.md): the BET-SIDE narration -- emitted in
     cycle() BEFORE the action executes. Narration is the decision, not a log:
     the per-slot prediction, ROUTE bin + why-not-the-neighbour-bin, mint
@@ -308,6 +308,7 @@ def _narr_bet(loop, action_num, cf, pg0) -> None:
                  or "")
         _nsp.act(int(action_num), _rung, rng=_rng, col_class=_cc,
                  fallback=bool(getattr(cf, "fallback", False)))   # D-8
+        _gate_step(loop, action_num, cf, _nsp, frame)   # GATE STAGE 1: shadow, void
         # clear the outcome caches: record_result closes THIS step only
         loop._narr_settle = None
         loop._narr_mint = None
@@ -1734,7 +1735,7 @@ class CognitiveLoop:
         # final action but BEFORE the action executes (the caller executes it
         # after cycle returns). ACT references the BET record's id with an
         # earlier per-step sequence number — falsifier F1's precedence check. ═══
-        _narr_bet(self, action_num, cf, _npg0)
+        _narr_bet(self, action_num, cf, _npg0, frame)
 
         # Store frame and action info for next cycle
         frame_array = self._perceiver._to_numpy(frame)
@@ -5178,3 +5179,79 @@ def _d8_fallback(md) -> bool:
         return bool((md or {}).get("weighted_fallback", False))
     except Exception:
         return False
+
+
+def _gate_step(loop, action_num, cf, nsp, frame) -> None:
+    """REASONING GATE STAGE 1 -- SHADOW (PREREG_GATE_STAGE1_SHADOW.md): THE ONE
+    HOOK, a void call beside the spine's act() in _narr_bet. Assembles the
+    utterance-builder's AGENT STATE from what the loop already holds (the
+    opener it perceives, the previous frame it tracked, the plan/composite
+    atoms it drove, the frontier book, the bank's last settlement, its
+    reference snapshot, the action book as its own citable ledger) and the
+    gate's LEDGER (Gamma, the fatal set, the book's deltas) and hands both to
+    ReasoningGate.step, which evaluates PERCEIVE -> BET -> ACT and logs on the
+    personal `gate` topic. Returns None; nothing here reaches action_num (F5,
+    asserted by AST). Off -> nothing. The gate is constructed once per game
+    (mode resolved once from REASONING_GATE, narrated once). Module bottom by
+    the registry's placement law (moves no receipt); containment: never
+    raises."""
+    try:
+        from engines.egocentric import gate as _gt
+        _fab = getattr(loop, "_ego_fabric", None)
+        if _fab is None or nsp is None:
+            return
+        _g = getattr(loop, "_reasoning_gate", None)
+        if _g is None or _g.fabric is not _fab or _g.game != nsp.game:
+            _g = _gt.ReasoningGate(
+                _fab, game=nsp.game,
+                game_dir=os.path.dirname(os.path.abspath(str(_fab.root))))
+            loop._reasoning_gate = _g
+        if _g.mode == _gt.MODE_OFF:
+            return
+        _op = loop._perceiver._to_numpy(frame) if frame is not None else None
+        _gm = getattr(loop, "_gamma", None)
+        _gid, _lv = nsp.game, int(getattr(loop, "_ego_level", 0) or 0)
+        _rung = str(getattr(cf, "rung_name", "") or getattr(cf, "action_speed", "") or "")
+        _drv = getattr(loop, "_w2b_driven", None) or {}
+        _ch = getattr(loop, "_w3d_chain", None) or {}
+        _drive = _ch.get("drive") if isinstance(_ch, dict) else None
+        _cid = _drv.get("composite")
+        _cp = None
+        if _cid and _gm is not None:
+            from engines.egocentric.applicability import csig_of as _csig
+            _cp = (_csig(_gm.get(str(_cid))) or {}).get("price")
+        _fatal = set()
+        if _rung == _gt.WALL_AWARE_RUNG:              # the only class that reads it
+            from engines.egocentric.enables import fatal_cells as _fc
+            _fb = getattr(loop, "_ego_frontier_book", None)
+            _fatal = _fc(_fb, _gid, _lv) if _fb is not None else set()
+        _cen = getattr(loop, "_ego_last_known_cen", None)
+        _av = ((int(round(_cen[0])), int(round(_cen[1]))) if _cen is not None else None)
+        _ref = getattr(loop, "_reference_snapshot", None)
+        _want = None
+        if (_op is not None and _ref is not None
+                and getattr(_ref, "shape", None) == _op.shape):
+            _want = [(int(r), int(c), int(_ref[r, c])) for r, c in np.argwhere(_op != _ref)]
+        _sa = getattr(loop, "_w4c_step_atom", None) or (None, None)
+        from engines.egocentric import action_book as _ab
+        _state = {
+            "step": int(getattr(loop, "_actions_taken", 0) or 0), "action": int(action_num),
+            "rung": _rung, "anchor": None, "spine_bet": nsp.bet_id, "opener": _op,
+            "prev": getattr(loop, "_prev_frame", None),
+            "plan_steps": list(_drv.get("steps") or []), "composite": _cid,
+            "drive": _drive, "chain_cursor": (_ch.get("cursor") if _drive else 0),
+            "composite_price": _cp,
+            "atom_of": ((lambda aid: _gt.record_of(_gm, aid)) if _gm is not None else None),
+            "fatal": _fatal, "avatar": _av, "settled_atom": _sa, "want_cells": _want,
+            "game": _gid, "level": _lv, "book_loaded": _g.book_loaded,
+            "cost": (_ab.cost_of(_gid, int(action_num)) if _g.book_loaded else None)}
+        from engines.egocentric.enables import book_deltas as _bd
+        _ledger = {
+            "gamma": _gm, "game": _gid, "level": _lv, "fatal": _fatal, "avatar": _av,
+            "settled_atom": _sa, "book_loaded": _g.book_loaded, "composite_price": _cp,
+            "held_for_action": ((lambda a: _gt.held_for_action(_gm, _gid, a))
+                                if _gm is not None else (lambda a: [])),
+            "deltas": (_bd(_gid) if _g.book_loaded else {})}
+        _g.step(_state["step"], _state, _ledger)
+    except Exception:
+        _swal(loop, "OTHER")

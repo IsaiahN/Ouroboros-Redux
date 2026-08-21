@@ -39,7 +39,11 @@ try:
 except ImportError:
     pass
 
-# SDK imports
+# SDK imports. D-11: arc_api_adapter is the toolkit boundary and, AT ITS IMPORT, installs
+# the OURO_HEADLESS guard (sys.modules pre-seeded so arc_agi.rendering -> matplotlib never
+# loads in a headless worker). It must therefore precede the first `arc_agi` statement in
+# this process; the guard is a no-op once the toolkit is loaded. Flag unset: byte-identical.
+import arc_api_adapter  # noqa: F401  -- imported for the guard side effect, see its docstring
 from arc_agi import Arcade, OperationMode
 from arcengine import GameAction, GameState
 
@@ -202,6 +206,21 @@ try:
     SYSTEM_DIAGNOSTIC_AVAILABLE = True
 except ImportError:
     SYSTEM_DIAGNOSTIC_AVAILABLE = False
+
+# D-9 (2026-08-21, record/findings/PRIMITIVE_SORT_AND_CENSUS.md): the SystemDiagnostic
+# pass costs ~23s per run() and its result reaches three print() lines only -- no table,
+# no stream, no programmatic reader. It is therefore OPT-IN: OURO_DIAGNOSTIC (KNOBS.md,
+# Register O, row O4). Default OFF -- the swarm supervisor and sprint keeper set nothing,
+# so workers never construct it. Set "1" or "true" (case-insensitive) for the pre-D-9
+# path, byte-identical: construction at init plus the per-cadence run()+prints in evolve().
+# The flag is read ONCE, at runner init, via diagnostic_enabled() -- never per generation.
+DIAGNOSTIC_ENV_FLAG = "OURO_DIAGNOSTIC"
+_DIAGNOSTIC_TRUTHY = frozenset({"1", "true"})
+
+
+def diagnostic_enabled() -> bool:
+    """One read of OURO_DIAGNOSTIC. Truthy iff the value is "1" or "true" (any case)."""
+    return os.environ.get(DIAGNOSTIC_ENV_FLAG, "").strip().lower() in _DIAGNOSTIC_TRUTHY
 
 
 class EvolutionRunner:
@@ -468,14 +487,8 @@ class EvolutionRunner:
                 print(f"[WARN] Could not initialize health gauges: {e}")
 
         # Phase 6.3: System Diagnostic (comprehensive self-report)
-        self.system_diagnostic = None
-        if SYSTEM_DIAGNOSTIC_AVAILABLE:
-            try:
-                self.system_diagnostic = SystemDiagnostic(self.db, health_gauges=self.health_gauges)
-                if self.verbose:
-                    print("[INIT] System diagnostic initialized")
-            except Exception as e:
-                print(f"[WARN] Could not initialize system diagnostic: {e}")
+        # D-9: gated behind OURO_DIAGNOSTIC (default OFF); see _init_system_diagnostic.
+        self._init_system_diagnostic()
 
         # ---- Extracted sub-systems (Phase 4.1) ----
         self._game_player = GamePlayer(
@@ -530,6 +543,28 @@ class EvolutionRunner:
 
         # Signal handling (was stray in _record_goal_outcome, now correctly in __init__)
         signal.signal(signal.SIGINT, self._handle_shutdown)
+
+    # ------------------------------------------------------------------
+    # System Diagnostic gate (Phase 6.3 / D-9)
+    # ------------------------------------------------------------------
+
+    def _init_system_diagnostic(self) -> None:
+        """Construct SystemDiagnostic only when OURO_DIAGNOSTIC opts in (D-9).
+
+        THE GATE SITE. The flag is read exactly once, here, at runner init.
+        Off (default): self.system_diagnostic stays None and the sole reader
+        -- `if self.system_diagnostic:` in evolve() -- skips the ~23s run()
+        and its prints. On: the pre-D-9 construction, byte-identical.
+        """
+        self._diagnostic_enabled = diagnostic_enabled()
+        self.system_diagnostic = None
+        if SYSTEM_DIAGNOSTIC_AVAILABLE and self._diagnostic_enabled:
+            try:
+                self.system_diagnostic = SystemDiagnostic(self.db, health_gauges=self.health_gauges)
+                if self.verbose:
+                    print("[INIT] System diagnostic initialized")
+            except Exception as e:
+                print(f"[WARN] Could not initialize system diagnostic: {e}")
 
     # ------------------------------------------------------------------
     # Event Bus Wiring (Phase 0.3)

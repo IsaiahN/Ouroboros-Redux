@@ -44,15 +44,19 @@ def fleet_seed_dirs(root=ROOT, games=None, compound2=COMPOUND2_SEED):
 
 
 def fleet_env_for(game, root=ROOT, games=None, recycles=0, compound2=COMPOUND2_SEED):
-    """The two fleet-policy variables for `game`, in the order the supervisor has
+    """The three fleet-policy variables for `game`, in the order the supervisor has
     always set them:
       OURO_FABRIC_SEEDS  every seed dir EXCEPT this game's own box, ';'-joined
       LP_DRIVE_ARM       assign_arm(game, recycles) -- ARMS[(sha1(game) + recycles) mod 3],
                          so the arm rotates on every bounded-lifetime recycle and every
                          game visits every arm across 3 recycles; recycles=0 is the
                          static assignment (what the keeper uses: it never recycles).
+      OURO_HEADLESS      "1" (D-11, 2026-08-21): workers never render, so
+                         arc_api_adapter's guard keeps arc_agi.rendering/matplotlib
+                         unloaded (~10s+ of import per worker boot, 0 consumers).
     """
     own = os.path.join(root, game, "ego_fabric")
     seeds = [d for d in fleet_seed_dirs(root, games, compound2) if d != own]
     return {"OURO_FABRIC_SEEDS": SEED_SEP.join(seeds),
-            "LP_DRIVE_ARM": assign_arm(game, recycles)}
+            "LP_DRIVE_ARM": assign_arm(game, recycles),
+            "OURO_HEADLESS": "1"}

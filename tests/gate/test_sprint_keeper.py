@@ -246,7 +246,10 @@ def _supervisor_assembly(game, root, recycles=0, redux=REPO):
                 [os.path.join(root, g, "ego_fabric") for g in games]
     return {"OURO_FABRIC_SEEDS": ";".join(d for d in seed_dirs
                                           if d != os.path.join(box, "ego_fabric")),
-            "LP_DRIVE_ARM": assign_arm(game, recycles)}
+            "LP_DRIVE_ARM": assign_arm(game, recycles),
+            # D-11 (2026-08-21): the third variable, added to the oracle in lockstep
+            # with fleet_env_for -- the headless render guard (arc_api_adapter).
+            "OURO_HEADLESS": "1"}
 
 
 def _keeper_imports():
@@ -388,7 +391,8 @@ def test_fleet_env_parity_with_supervisor_assembly(tmp_path, monkeypatch):
         assert seeds[1:] == [os.path.join(root, g, "ego_fabric") for g in games if g != x]
         assert len(seeds) == len(games), "one other box per roster game, plus compound2"
         assert got["LP_DRIVE_ARM"] == assign_arm(x, 0) and got["LP_DRIVE_ARM"] in ("fixed", "random", "lp")
-        assert list(got) == ["OURO_FABRIC_SEEDS", "LP_DRIVE_ARM"], "insertion order changed"
+        assert list(got) == ["OURO_FABRIC_SEEDS", "LP_DRIVE_ARM", "OURO_HEADLESS"], "insertion order changed"
+        assert got["OURO_HEADLESS"] == "1", "D-11: every worker boots headless"
     for x in games:
         # 1) fleet_env_for == oracle, at every recycle count the supervisor will use
         for rc in range(4):
@@ -403,9 +407,10 @@ def test_fleet_env_parity_with_supervisor_assembly(tmp_path, monkeypatch):
             assert env["PYTHONPATH"] == REPO and env["PYTHONDONTWRITEBYTECODE"] == "1"
             assert env["ARC_API_KEY"] == "test-key-not-the-real-one"
             added = [k for k in env if k not in os.environ]
-            assert added in (["ARC_API_KEY", "PYTHONPATH", "OURO_FABRIC_SEEDS", "LP_DRIVE_ARM"],
+            assert added in (["ARC_API_KEY", "PYTHONPATH", "OURO_FABRIC_SEEDS", "LP_DRIVE_ARM",
+                              "OURO_HEADLESS"],
                              ["ARC_API_KEY", "PYTHONPATH", "PYTHONDONTWRITEBYTECODE",
-                              "OURO_FABRIC_SEEDS", "LP_DRIVE_ARM"]), (
+                              "OURO_FABRIC_SEEDS", "LP_DRIVE_ARM", "OURO_HEADLESS"]), (
                 "the env's key insertion order changed: %r" % added)
         # 3) the KEEPER'S env == oracle at recycles=0 (it keeps no recycle stats)
         kenv = sk._worker_env(x, root, fleet_env=True)
