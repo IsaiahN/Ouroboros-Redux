@@ -152,3 +152,24 @@ exists as evidence in the agent's own voice.
 
 Stage structure unchanged (action book → shadow → enforcement); the shadow gate now scores
 all three utterances and their two links.
+
+
+## THE PERCEIVE-COST PIN (2026-08-20, Seat 4's question answered before any build)
+
+**SEE scopes to `cited ∪ changed` — it scales with what happened, never with the board.**
+- The agent reports: every slot that CHANGED since the last frame, plus every slot its BET
+  will CITE, plus **one closing clause — "nothing else changed" — which the gate verifies
+  mechanically** with the same frame diff it already computes. Unchanged-and-uncited slots
+  are covered by that single verified clause, not enumerated.
+- **Reporting cost**: O(changed + cited) — median change is 26 cells at 3.9% density, so
+  typical perceives are tens of claims, not 4,096. **Checking cost**: `compute_d` once per
+  step — which the loop ALREADY computes for routing, so the gate's completeness check has
+  ~zero marginal cost — plus per-cited-slot lookups.
+- W1's ≤5% wall-clock narration cap GOVERNS this utterance like the others, measured
+  against live baseline at the shadow stage. If a game's change density blows the budget,
+  that is reported as a cost finding, not absorbed by trimming the completeness rule —
+  completeness is load-bearing (it closes selective perception) and is the one clause that
+  may never be economised.
+
+Both halves scale with events, not area — pinned before the third profile window has to
+discover it.
