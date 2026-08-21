@@ -71,3 +71,28 @@ individually; missing components degrade to catalogue aims) · no self-settlemen
 4. The settlement wire into the gate's BET/GROUND discipline.
 Stage-1 shadow gate proceeds in parallel — the composer's utterances are exactly the
 composition requests the gate was designed to check.
+
+
+## AMENDMENTS (Seat 4, pinned pre-build)
+1. **The WANT supply is checked BEFORE stage 1, not discovered by the design falsifier.**
+   Is there a live source of WANTs today (goal_hypotheses volume, reference diffs), or does
+   the compose loop consume from a producer that emits nothing? If thin, the loop is
+   exercised on CONSTRUCTED WANTs first — a consumer built against a dead producer is the
+   testimony law inverted.
+2. **The algebra proposes; the simulation still decides.** Sum-of-deltas is exact for free
+   movement and false wherever the world blocks, teleports, or wraps. The frontier mask
+   covers known-fatal only — not walls the agent has not died on. Every BODY chain is
+   simulation-checked at the seams like any other; the cheap shelf never gets confident
+   wrong chains for free.
+3. **F2's numbers are DERIVED and executable, not constructed-to-pass** — the price
+   arithmetic for the failing bundle and the passing twin stated in the gate the way the
+   EXTENT window was.
+4. **One line in both briefs (this and stage 1): the composer's utterances ARE the gate's
+   composition requests** — either design drifting from the other's assumptions is a seam
+   defect, and the seam has its own constructed case.
+
+## THE LADDER, SHARPENED BY THE CASE (Seat 3+4, recorded)
+Not *nothing may be handed* but **no CAPABILITY may be handed** — priors and mechanics are
+not capabilities. Handing the interpreter is legitimate (apply_effect is one); making the
+agent earn arithmetic would be the confusion. The prohibition's real edge is the
+answer-only class.
