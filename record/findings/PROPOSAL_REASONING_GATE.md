@@ -203,3 +203,38 @@ The beat reports **derivations : negative derivations : probes** as three number
 folded. Negative derivations (earned-prior exclusions — 19.2% today) are real
 because-clauses and the 2.1% headline undersells what is already statable; folding them
 either way hides the thing the gate is supposed to grow.
+
+
+## THE GRAMMAR SALVAGE READING (2026-08-20, per Seat 3: against the current design, not as a port)
+
+**What question was it built to answer?** `new-horse:grammar.py` (143 lines) was built to
+answer: *can a small universal basis COMPOSE any game's objective, so goals are re-derived
+rather than stored?* — an anti-overfit device for goal identification, written before the
+routing rules, the guard triple, the membrane, and the earn-through gate existed.
+Capability-at-write-time: it does not know utterances exist. **It is an OBJECTIVE grammar,
+definitively**: one terminal type `OBJ` (a quantified relation = a goal); no speech acts,
+no record references, no citation or price types, no completeness clause. **Its OBJ is
+exactly ONE clause of our utterance — the WANT — not the utterance.**
+
+**What salvages (the expensive parts, and they have not rotted):**
+1. **The 13 typed primes** — the alphabet with type signatures (`BE_AT:(OBJECT,REGION)→PRED`
+   etc.). This is the thing that was costly to get right and is content-free.
+2. **`compose()` — the type-check discipline**: ill-typed raises with its reason, never
+   silently. This IS the gate's parse-layer behaviour, already in the house style.
+3. **The typed-hole idea** (a bare `T.ATTR` as a leaf) — templates without content.
+4. **The doctrine** (from the older `objective_grammar.py`, mechanics-only): never store a
+   composition; re-derive per game; grow the basis only on composition failure, only with a
+   universal word; a failure to compose is a discovery signal. (The older file's SEED/
+   HELDOUT sections are answer-adjacent and stay proctor-only, per the firewall.)
+
+**What rots (and is not carried):** the MOLECULES (three goal templates — clean but
+trivial), the search-space counters, and the single-terminal structure itself.
+
+**What must be authored NEW — the speech-act layer, which is ours because it encodes the
+loop, and the loop did not exist when this was written:** new types `RECORD` (a citable id:
+perceive/bet/atom), `PRICE`, and per-utterance terminals (`PERCEIVE`/`BET`/`ACT`); new heads
+(`SEE`, `CHANGED`, `SETTLE`, `STAND`, `GROUND`, `DERIVE`, `PAY`, `NEED`) whose signatures
+consume `RECORD`/`PRED`/`PRICE` and whose **check-kind rides the head**: executable heads
+run, ledger heads look up, the completeness head diffs. The WANT head consumes the salvaged
+grammar's `OBJ`. One type system, two layers: the salvaged alphabet names the world; the
+new layer speaks to the gate about records of it.
