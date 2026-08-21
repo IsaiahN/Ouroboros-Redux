@@ -400,16 +400,22 @@ class NarrationSpine:
                           ref=self._bet_id, col_class=col_class)
 
     def act(self, action: int, rung: str, rng: str,
-            col_class: Optional[str] = None) -> Optional[str]:
+            col_class: Optional[str] = None,
+            fallback: bool = False) -> Optional[str]:
         """ACT: the chosen action + the rung that won the wheel. PRECEDENCE BY
         CONSTRUCTION (F1): refuses to emit when no bet was placed this step --
         an act without a bet has skipped step 1, and an explanation written
-        afterward would be a reconstruction, not a decision."""
+        afterward would be a reconstruction, not a decision.
+        ``fallback`` (D-8, PREREG_D8_FALLBACK_INSTRUMENT.md): True when the
+        cognitive router's rung yielded no usable action and the thresholdless
+        weighted fallback chose instead. ALWAYS on the record -- absence never
+        means unknown; the rung label is left exactly as the leak produces it."""
         if self._bet_id is None or self._bet_step != self._step:
             self.errors += 1
             return None
         return self._emit(ACT, SIDE_BET, rng,
-                          {"action": int(action), "rung": str(rung or "")},
+                          {"action": int(action), "rung": str(rung or ""),
+                           "fallback": bool(fallback)},
                           ref=self._bet_id, col_class=col_class)
 
     # -- outcome side (AFTER the action; closes against the bet) --------------

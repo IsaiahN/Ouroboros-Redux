@@ -890,13 +890,17 @@ class DecisionRungSystem:
                 rung.record_outcome(was_accepted=True)
                 self.last_decision_metadata = result.metadata or {}
                 self.last_decision_metadata['rung_name'] = rung.name
+                # D-8 INSTRUMENT: the ladder never reaches the cognitive router -- False,
+                # stamped wherever rung_name is (the known-negative).
+                self.last_decision_metadata['weighted_fallback'] = False
                 return result.action or get_random_available_action(context), f"[{rung.name}] {result.reason}"
 
         action, reason = self._weighted_random_choice(accumulated_weights, context), "Weighted fallback after ladder"
         self.last_decision_metadata['rung_name'] = 'weighted_fallback'
+        self.last_decision_metadata['weighted_fallback'] = False   # D-8: the ladder's LABEL is not the flag
         if action == 'ACTION6':
             coords = Action6CoordinateProvider.get_coordinates(context, self._engine_registry, game_state)
-            self.last_decision_metadata = {**coords, 'rung_name': 'weighted_fallback'}
+            self.last_decision_metadata = {**coords, 'rung_name': 'weighted_fallback', 'weighted_fallback': False}
             reason += f" [coords: ({coords['x']},{coords['y']})]"
         return action, reason
 
@@ -1283,6 +1287,11 @@ class DecisionRungSystem:
 
     def _decide_cognitive(self, game_state: Any, context: Dict[str, Any]) -> Tuple[str, str]:
         """Cognitive routing strategy - full pipeline."""
+        # D-8 INSTRUMENT: default False at entry. The metadata dict persists across decide()
+        # calls on this path, so the early returns below (emergency, replay fast-path) would
+        # otherwise carry the PREVIOUS cycle's True -- absence never means unknown, and
+        # neither may staleness.
+        self.last_decision_metadata['weighted_fallback'] = False
         router = self.cognitive_router
         if router is None:
             logger.warning("[RUNG-SYSTEM] CognitiveRouter unavailable, falling back to context_adaptive")
@@ -1433,10 +1442,19 @@ class DecisionRungSystem:
 
             self.last_decision_metadata['rung_name'] = rung_name
 
-            if not action or not is_action_available(action, context):
+            # D-8 INSTRUMENT (PREREG_D8_FALLBACK_INSTRUMENT.md): one write-only flag, no
+            # behaviour change. The condition is evaluated exactly as before (once, here).
+            _wf = not action or not is_action_available(action, context)
+            if _wf:
+                # The router's selected rung yielded no usable action -- the thresholdless
+                # weighted fallback fires. Set BEFORE the call: the call overwrites
+                # rung_name (the label leak at _decide_weighted_non_emergency stays as is).
+                self.last_decision_metadata['weighted_fallback'] = True
                 weighted_action, weighted_reason = self._decide_weighted_non_emergency(game_state, context)
                 action = weighted_action
                 reasoning = f"[COGNITIVE:{rung_name}] Weighted fallback (router rung had no action) -> {weighted_reason}"
+            else:
+                self.last_decision_metadata['weighted_fallback'] = False
 
             if action not in {f'ACTION{i}' for i in range(1, 8)}:
                 action = get_random_available_action(context)
@@ -1446,7 +1464,9 @@ class DecisionRungSystem:
                 coords = self._cognitive_last_rung_metadata
                 if 'x' not in coords or 'y' not in coords:
                     coords = Action6CoordinateProvider.get_coordinates(context, self._engine_registry, game_state)
-                self.last_decision_metadata = {**coords, 'rung_name': rung_name}
+                # D-8: this stamp REPLACES the dict (and the fallback's own ACTION6 stamp may
+                # already have) -- the flag is carried through so it is never absent.
+                self.last_decision_metadata = {**coords, 'rung_name': rung_name, 'weighted_fallback': _wf}
                 reasoning += f" [coords: ({coords.get('x', 32)},{coords.get('y', 32)})]"
 
             # Record trace

@@ -306,7 +306,8 @@ def _narr_bet(loop, action_num, cf, pg0) -> None:
             _nsp.plan(_pv["mode"], _pv["gate"], rng=_rng, col_class=_cc)
         _rung = (getattr(cf, "rung_name", "") or getattr(cf, "action_speed", "")
                  or "")
-        _nsp.act(int(action_num), _rung, rng=_rng, col_class=_cc)
+        _nsp.act(int(action_num), _rung, rng=_rng, col_class=_cc,
+                 fallback=bool(getattr(cf, "fallback", False)))   # D-8
         # clear the outcome caches: record_result closes THIS step only
         loop._narr_settle = None
         loop._narr_mint = None
@@ -4226,6 +4227,7 @@ class CognitiveLoop:
                     if hasattr(self._decision_system, 'last_decision_metadata'):
                         md = self._decision_system.last_decision_metadata or {}
                         cf.rung_name = md.get('rung_name', md.get('rung', ''))
+                        cf.fallback = _d8_fallback(md)     # D-8: rides beside rung_name
                         cf.action_confidence = md.get('confidence', 0.0)
 
                     if action_data:
@@ -5163,3 +5165,16 @@ def _w3d_settle(loop, post_array, level_changed):
               f"settled={_res['settled']} reason={_res['reason']}")
     except Exception:
         _swal(loop, "PLANNER")
+
+
+def _d8_fallback(md) -> bool:
+    """D-8 (PREREG_D8_FALLBACK_INSTRUMENT.md): the loop's ONE read of the rung
+    system's ``weighted_fallback`` flag -- it rides beside rung_name onto cf in
+    cycle()'s REASONED block and from there onto the ACT narration record in
+    _narr_bet. A strict bool: a strategy that never reaches the cognitive
+    router leaves the key absent and that reads False, never unknown. Module
+    bottom by the registry's placement law (moves no receipt)."""
+    try:
+        return bool((md or {}).get("weighted_fallback", False))
+    except Exception:
+        return False

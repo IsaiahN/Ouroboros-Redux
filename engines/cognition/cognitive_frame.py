@@ -73,6 +73,7 @@ class CognitiveFrame:
     action_y: Optional[int] = None
     action_reason: str = ""
     rung_name: str = ""                # Which rung decided (for REASONED speed)
+    fallback: bool = False             # D-8: the cognitive router yielded nothing; weighted fallback chose
     action_confidence: float = 0.0
 
     # ─── RESULT (filled after action executes) ────────────────────────
