@@ -113,3 +113,42 @@ Stage 0 is cheap and pays regardless of every later decision (the action book al
 W2c's retention and the persistence monitor). Stage 1 costs one builder and answers Seat
 3's coverage question with a continuous number instead of today's proxy. Stage 2 is the
 constitutional change and stays at Seat 3's word, taken only on shadow evidence.
+
+
+---
+
+# AMENDMENT (2026-08-20, Seat 3): THREE UTTERANCES, NOT ONE — PERCEIVE STANDS ALONE
+
+**The chain: PERCEIVE → BET → ACT, two precedence links** (W1's ACT-cites-earlier-BET rule
+extended one link, enforced identically). The BET's GROUND becomes pure citation — a
+perceive-record id + atom ids — and the request loses its heaviest clause. The spine's
+existing outcome-side PERCEIVE relocates: **one record settles bet N−1 and grounds bet N**
+— the opener of the next step rather than the closer of the last.
+
+**PERCEIVE in the grammar:**
+- `SEE` — per-slot state claims ("this one is at (x,y), colour c")
+- `CHANGED` — per-slot deltas since the last frame ("this one moved left" / "nothing here")
+- `SETTLE` — the previous bet BY ID: held or broke, and by how much ("I thought X; it is
+  not so, by d cells")
+- `STAND` — hypothesis standings: strengthened / weakened / died this frame
+
+**PERCEIVE is the most checkable utterance of the three** — every clause executable or
+ledger-bound: SEE verifies against the actual frame (exact, cheap); CHANGED must equal the
+mechanical diff (`compute_d`, one call); SETTLE must cite an existing bet AND state the
+verdict the mechanical comparison produces; STAND must be consistent with the settle (a
+hypothesis whose prediction just broke cannot strengthen). *Proving it looked is a real
+check: an agent that assumed states a stale feature and fails against the grid.*
+
+**The completeness rule (closes selective perception):** the gate diffs the frames itself;
+**any unreported change is a violation**. PERCEIVE must be complete-on-changes, not merely
+true. You cannot ground on what you did not report, and you cannot omit what changed.
+
+**Gate checks added:** BET cites a same-step earlier-sequence PERCEIVE; the BET's GROUND
+appears in that perceive's reported content; the previous bet is settled in this perceive
+(loop-closure checked, not assumed). **And the new capability: a PERCEIVE with no following
+BET is a first-class record — the agent looked and declined, and that produced a residual.**
+Today, no request means no record of having looked; under the split, step 1 of the loop
+exists as evidence in the agent's own voice.
+
+Stage structure unchanged (action book → shadow → enforcement); the shadow gate now scores
+all three utterances and their two links.
