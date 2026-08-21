@@ -1367,3 +1367,28 @@ atoms x levels = search space x search engagement. W2 re-scoped by its own pre-s
 first deliverable is the APPLICABILITY INDEX. W1 narration prereg pinned (permutation null,
 three pre-named statistics). Awaiting: builder for W1 narration; word to prereg the
 applicability index as W2's first build.
+
+
+## ENTRY 41 — 2026-08-20/21. THE DEPLOY-GATE INCIDENT, OWNED — and the day W2 completed.
+**GAMES WON: 0/25.** L1+ 9/25, L2+ 1/25. Split-half: lp85 readable, most games within
+hours; the read runs next beat on POST-INCIDENT data only (below).
+**THE INCIDENT:** 8 "code change" deploys since HOLD-lift, every one a DIRTY tree —
+intermediate builder states of cognitive_loop/consumer/registry deployed to the live fleet
+as builders saved. Proctor's procedural gap: HOLD removed at lift, builders dispatched into
+a watched production tree. Zero worker crashes (every state importable); every COMMITTED
+state suite-verified; but the fleet ran between-commit code for hours. **FIX, permanent:
+HOLD up whenever a builder is active in live-path files; lift only at verified commits.**
+**THE CAVEAT THAT TRAVELS WITH THE NUMBERS:** every post-lift reading — ctx_min 50→52,
+ctx_conflict 8→10, the verdict mix (462/249/40/9), the 299-session pace, the coverage
+proxy (2.1/19.2/33.7/45) — was taken on a system whose code changed EIGHT TIMES underneath
+it: a pooled population across semantics changes. Directionally indicative, not citable as
+baselines. Post-incident baselines start at the next stable deploy.
+**THE DAY OTHERWISE:** W2 completed end-to-end (index → vectorisation → scheduling →
+extent premium → re-point; shares 95.3→27.0; cn04 generation 420s-unfinishable → 56s).
+Import gate + narration arms + action book landed. The writer defect trio found (budget
+never passed though in scope; frames stored as lossy reprs; book inverse-counts tainted
+and loudly stamped). Γ shown CLICK-ONLY with action-agnostic wiring — the half-board
+clause suspected as a metal key measuring extent in an egocentric frame. The reasoning
+gate designed, approved through stage 1, most of it salvage-with-citations (no_posthoc's
+wall, primitive_ledger's observe ladder, the validator's check discipline). Two builders
+in flight under HOLD (writer fix, verdict reason).

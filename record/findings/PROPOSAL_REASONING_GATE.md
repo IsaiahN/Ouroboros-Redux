@@ -255,3 +255,81 @@ merely wrong.
 objective grain, already written), `no_posthoc.py`, `primitive_ledger.py`,
 `reason_first_agent.py` — each read capability-at-write-time: what question was it built to
 answer, and is that the question we have.
+
+
+## THE SEAMS CAUTION (Seat 4, pinned for the stage-1 brief)
+Salvage inherits the assumptions of the code it came from. The five modules were read
+capability-at-write-time individually; **the sixth check is the COMBINATION** —
+no_posthoc's wall, the ledger's observe ladder, and the validator's check discipline were
+never designed to sit in one system. The stage-1 brief treats each SEAM as new code with
+its own constructed case, even where both sides are salvage: (wall × utterance-builder),
+(ladder × gate verdicts), (Discrepancy × compute_d), (tropism × probe validity).
+
+## QUESTION_TROPISM, read (pulled forward per Seat 4)
+60-line core, clean: ranks generated win-questions by a mutual-information-style score —
+satisfied-tracks-win-frame, score 1.0 = satisfied exactly at win frames — with the
+off/observe/active env ladder (same pattern as primitive_ledger's). Its own docstring
+separates the PASSIVE ranking half (built, falsifiable: fewer observations-to-answer than
+passive induction) from the ACTIVE probing half (needs a forward model; dormant). **For
+the gate: the derived criterion the probe-share curve lacks** — a probe's VALUE is the
+information its answer carries, so probes rank by expected discrimination rather than
+recency or coverage alone. Salvage: the discrimination() scorer + the ladder. New at the
+seam: our probes are about ACTIONS in contexts, not win-predicates — the scorer transfers,
+the question generator does not.
+
+
+## STANDING (Seat 3): TWO QUESTIONS THE COMPOSER DESIGN MUST ANSWER
+Pinned before any composer prereg; the proctor's design read attached, not ruled.
+
+**1 · A composite's price, derived never authored.** The proposed derivation, every term
+computable from the parts:
+`price = start_extent + Σ unguaranteed_residue(step_i) + length`
+— *start_extent*: step 1's retained (minimised) context — the state the plan requires to
+START, which is the composite's true precondition; *unguaranteed residue*: for each later
+step, only the context cells NOT established by prior steps' effects — **the plan
+manufactures its own preconditions, and manufactured cells are free**; *length*: one unit
+per step (the per-atom "1+" collapsed). Note the incentive this creates: a well-chained
+composite prices BELOW its parts summed, because chaining discounts guaranteed cells —
+composition pays exactly when steps feed each other, which is what composition is FOR. All
+three terms come from the parts' own stored patches; nothing authored.
+
+**2 · A composite imports differently, and the missing-component case lands on the
+catalogue.** An atom is a self-contained generator; a composite references component ids
+the receiver may not hold. Proposed resolution:
+- Components pass the admission gate INDIVIDUALLY (each pays its own extent bargain — no
+  bulk-smuggling inside a composite), and the composite additionally pays its derived
+  price above.
+- **A composite with missing components is a CATALOGUE ENTRY by construction** — visible,
+  its `composed_from` names exactly what to earn, unusable until the components are held.
+  "What happens when a component is missing" = the composite degrades from a capability to
+  an AIM — which is the silo/catalogue design and the ladder's earn-through arriving from
+  a third direction, unforced.
+- **One membrane discriminator required:** a composite of context-keyed methods is a
+  method; a step-list keyed to absolute coordinates is a recording wearing composition's
+  clothes. The import gate must check that each component applies by context-match — the
+  same check `apply_effect` already is — before a composite crosses.
+
+**The disassembly consequence (Seat 4, pinned as expected behaviour):** components paying
+individually plus the composite's own price means **an imported composite costs more than
+its parts imported separately** — correct, since the chain is being bought as well as the
+pieces. Expected consequence, stated in advance rather than discovered: an agent that can
+afford the parts but not the whole will DISASSEMBLE — import the parts, drop the chain.
+**Possibly a feature: an agent that earns the parts and rediscovers the chain has actually
+earned the chain** — the composite's know-how re-derived under its own budget is
+earn-through at the composite grain. The beat watches for disassembly once composites
+circulate; it is a behaviour with a name now, not an anomaly.
+
+
+## THE CROSS-GRAIN COUNTER'S EPISTEMICS (Seat 4, pinned so the beat never inflates it)
+One bit per crossing: adjustment needed, y/n. What it establishes: the mechanism described
+something more general than its original case. What it does NOT: the grains are objects in
+one system designed by one frame — five crossings inside one architecture is corroboration
+at MODERATE independence, not high. **The interesting number is not five; it is the first
+"yes"** — a crossing needing adjustment locates where a rule was actually fitted, and that
+is the finding the counter exists to catch. #6 (standing_half_life → atoms) is the
+strongest test yet BECAUSE it is the least similar grain: decay was written for social
+standing in a population, and atoms are not social. Unchanged crossing there is worth more
+than the previous four. Also pinned: the one-rule generalisation of the citation
+discipline — **an unsettled ANYTHING is proposable and not standable** (atom, hypothesis,
+composite, imported method) — one rule where per-type cases were drafted, because per-type
+cases are how a rule acquires exceptions.

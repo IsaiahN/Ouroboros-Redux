@@ -78,6 +78,21 @@ ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): an accepted mint is the frame's OWN 
 reaching an atom, so the atoms-stream record is stamped origin="local" + mint_seq AT
 WRITE TIME (effects.Gamma.add). Only positively-marked records support the
 CORROBORATION-vs-SURPLUS split; absence of import fields never did.
+
+THE VERDICT REASON FIELD (W4) -- every verdict record carries "reason": the DECIDING
+clause, from the FIXED vocabulary of REASON_* constants below. Reject/quarantine
+records also carry "failed" -- EVERY clause that independently fails -- and "reason"
+is the FIRST of them in the code's own evaluation order, with ONE stated exception:
+"extent_premium" is recorded when the MDL inequality would PASS at EXTENT_RATE = 0
+and fails at the shipped rate (the same clause terms re-evaluated at the rate-0 cost
+via _mdl_failed; the formula is written once). "changed" rides flat on every record
+whose event was readable; MDL-decided records (mint / MDL reject) carry the audit
+numerics under "mdl" (cost, R, bbox_area, board_area, retained, w, extent_rate) --
+all already computed, nothing re-derived. The FLAT "w" field keeps its exact prior
+emission sites (mint + support-reject): lp_drive._w_bar means flat "w" over verdict
+rows carrying one, so stamping it flat on MDL rejects would have silently shifted
+that live signal -- the MDL reject's w (always SUPPORT_FULL there) lives inside
+"mdl" instead. All fields ADDITIVE: old books read unchanged everywhere.
 """
 from __future__ import annotations
 
@@ -141,6 +156,31 @@ SEEN_CAP = 4096
 # BEFORE any anchor scan -- the check stays bounded whatever Gamma grows to.
 CONFLICT_SCAN_CAP = 64
 
+# ── THE VERDICT REASON VOCABULARY (W4: the reason field) ─────────────────────
+# Every verdict record names its DECIDING clause with one of these strings.
+# FIXED vocabulary: consumers may switch on the values; adding one is a schema
+# event, never a quiet patch. One constant per terminal in consider().
+REASON_MINTED = "minted"                  # accept: the compression paid
+REASON_REDERIVATION = "rederivation"      # known key: confirmation, not a copy
+REASON_MALFORMED = "malformed_input"      # quarantine: inputs unreadable/mismatched
+REASON_NO_CHANGE = "no_change"            # reject: no changed cell, no residual
+REASON_NO_EFFECT = "no_effect"            # reject: learn_effect built no EFFECT atom
+REASON_SUPPORT = "support"                # reject: w below SUPPORT_FULL (repeat)
+REASON_MDL_COST = "mdl_cost"              # reject: cost + residual >= R
+REASON_MDL_MARGIN = "mdl_margin"          # reject: cost >= MDL_MARGIN * R
+REASON_BBOX = "bbox_half_board"           # reject: bbox_area >= half the board
+REASON_EXTENT_PREMIUM = "extent_premium"  # reject: passes at EXTENT_RATE=0 only
+# The MDL clauses in the accept inequality's own evaluation order -- the
+# attribution order for "reason" when several fail at once (_mdl_failed
+# appends in exactly this order).
+MDL_CLAUSE_ORDER = (REASON_MDL_COST, REASON_MDL_MARGIN, REASON_BBOX)
+# The complete vocabulary, closed: every emitted reason is in this set.
+REASONS = frozenset({
+    REASON_MINTED, REASON_REDERIVATION, REASON_MALFORMED, REASON_NO_CHANGE,
+    REASON_NO_EFFECT, REASON_SUPPORT, REASON_MDL_COST, REASON_MDL_MARGIN,
+    REASON_BBOX, REASON_EXTENT_PREMIUM,
+})
+
 
 class MDLMint:
     """The W3a mint over a typed Gamma store: SUPPORT x NOVELTY x MDL, verdicts ledgered.
@@ -203,7 +243,10 @@ class MDLMint:
     def _record(self, verdict: str, game: str, level: int,
                 key: Optional[str] = None, w: Optional[float] = None,
                 ep: Optional[int] = None,
-                sigma: Optional[Dict[str, Any]] = None) -> None:
+                sigma: Optional[Dict[str, Any]] = None,
+                reason: str = "", failed: Optional[list] = None,
+                changed: Optional[int] = None,
+                mdl: Optional[Dict[str, Any]] = None) -> None:
         rec: Dict[str, Any] = {"verdict": verdict, "game": str(game), "level": int(level)}
         if key is not None:
             rec["key"] = key
@@ -213,7 +256,33 @@ class MDLMint:
             rec["ep"] = int(ep)                  # A3-4: the episode ordinal
         if isinstance(sigma, dict):
             rec["sigma"] = dict(sigma)           # A3-4: the event's sigma (own copy)
+        # W4 VERDICT REASON: every terminal states its deciding clause; rejects
+        # and quarantines also list every independently failing clause.
+        rec["reason"] = str(reason)
+        if failed is not None:
+            rec["failed"] = list(failed)
+        if changed is not None:
+            rec["changed"] = int(changed)
+        if mdl is not None:
+            rec["mdl"] = dict(mdl)               # the audit numerics (own copy)
         self.gamma.fabric.append("collective", VERDICT_TOPIC, rec)
+
+    @staticmethod
+    def _mdl_failed(cost: float, residual: float, R: float,
+                    bbox_area: int, board_area: int) -> list:
+        """Every clause of the accept inequality that fails at the given cost,
+        in MDL_CLAUSE_ORDER (the code's own evaluation order). THE ONE
+        STATEMENT of the clauses: consider() accepts iff this returns [] at
+        the shipped cost, and the extent-premium attribution calls it again
+        at the rate-0 cost -- the formula is never written twice."""
+        failed = []
+        if not (cost + residual < R):
+            failed.append(REASON_MDL_COST)
+        if not (cost < MDL_MARGIN * R):
+            failed.append(REASON_MDL_MARGIN)
+        if not (bbox_area < MAX_BBOX_BOARD_FRACTION * board_area):
+            failed.append(REASON_BBOX)
+        return failed
 
     @staticmethod
     def _signature(b: np.ndarray, a: np.ndarray, action) -> str:
@@ -269,26 +338,32 @@ class MDLMint:
             if b.shape != a.shape or b.ndim != 2 or b.size == 0:
                 self.errors += 1
                 self._record("quarantine", game, level, ep=ep_now,
-                             sigma=_consumer.sigma_of(before, after))
+                             sigma=_consumer.sigma_of(before, after),
+                             reason=REASON_MALFORMED, failed=[REASON_MALFORMED])
                 return {"verdict": "quarantine", "id": None}
             changed = int((b != a).sum())
         except Exception:
             self.errors += 1
             self._record("quarantine", game, level, ep=ep_now,
-                         sigma=_consumer.sigma_of(None, None))
+                         sigma=_consumer.sigma_of(None, None),
+                         reason=REASON_MALFORMED, failed=[REASON_MALFORMED])
             return {"verdict": "quarantine", "id": None}
         # The event's sigma (B13 vocabulary), computed ONCE: it already had to be
         # computed for any minted atom; now every verdict record carries it.
         sigma = _consumer.sigma_of(b, a)
         if changed == 0:
-            self._record("reject", game, level, ep=ep_now, sigma=sigma)
+            self._record("reject", game, level, ep=ep_now, sigma=sigma,
+                         reason=REASON_NO_CHANGE, failed=[REASON_NO_CHANGE],
+                         changed=changed)
             return {"verdict": "reject", "id": None}
 
         # Candidate atom from the event.
         phi = _effects.learn_effect(b, action, a)
         if phi is None or phi.get("kind") != "EFFECT":
             self.errors += 1
-            self._record("reject", game, level, ep=ep_now, sigma=sigma)
+            self._record("reject", game, level, ep=ep_now, sigma=sigma,
+                         reason=REASON_NO_EFFECT, failed=[REASON_NO_EFFECT],
+                         changed=changed)
             return {"verdict": "reject", "id": None}
 
         key = phi.get("key")
@@ -312,7 +387,8 @@ class MDLMint:
         # NOVELTY: a known key is a re-derivation, never a second atom. (Unchanged --
         # a transition already reproduced by an existing atom contributes rederivation.)
         if key in self._known_keys():
-            self._record("rederivation", game, level, key=key, ep=ep_now, sigma=sigma)
+            self._record("rederivation", game, level, key=key, ep=ep_now,
+                         sigma=sigma, reason=REASON_REDERIVATION, changed=changed)
             return {"verdict": "rederivation", "id": None}
 
         # SUPPORT, surprise-weighted: only full support (a first-seen transition
@@ -320,26 +396,42 @@ class MDLMint:
         # 1/(1+seen) -- the harmonic accumulation asymptotes below what the same
         # count of distinct transitions clears. The bar itself is unchanged.
         if w < SUPPORT_FULL:
-            self._record("reject", game, level, key=key, w=w, ep=ep_now, sigma=sigma)
+            self._record("reject", game, level, key=key, w=w, ep=ep_now,
+                         sigma=sigma, reason=REASON_SUPPORT,
+                         failed=[REASON_SUPPORT], changed=changed)
             return {"verdict": "reject", "id": None, "w": w}
 
         # MDL: accept iff |phi| + |R given phi| < |R|, with margin and a pocket test.
         # W2-S2: the EXTENT PREMIUM -- every retained-but-unchanged context cell
         # is priced at EXTENT_RATE (arithmetic at the constant's definition).
-        cost = (_effects.encoding_cost_atom(phi)               # 1.0 + changed
-                + EXTENT_RATE * _effects.context_retained_cells(phi))
+        base_cost = _effects.encoding_cost_atom(phi)           # 1.0 + changed
+        retained = _effects.context_retained_cells(phi)
+        cost = base_cost + EXTENT_RATE * retained
         residual_given_phi = 0.0                               # phi explains the event fully
         R = RESIDUAL_CELL_COST * float(changed) + UNEXPLAINED_PREMIUM
         ctx = phi.get("context") or [[]]
         bbox_area = len(ctx) * (len(ctx[0]) if ctx else 0)
         board_area = int(b.size)
-        compresses = (
-            cost + residual_given_phi < R
-            and cost < MDL_MARGIN * R
-            and bbox_area < MAX_BBOX_BOARD_FRACTION * board_area
-        )
-        if not compresses:
-            self._record("reject", game, level, key=key, ep=ep_now, sigma=sigma)
+        # W4 VERDICT REASON: the clauses evaluated ONCE via _mdl_failed --
+        # [] is exactly the old `compresses` boolean; the audit numerics are
+        # the terms just computed, nothing re-derived.
+        failed = self._mdl_failed(cost, residual_given_phi, R,
+                                  bbox_area, board_area)
+        mdl = {"cost": float(cost), "R": float(R),
+               "bbox_area": int(bbox_area), "board_area": int(board_area),
+               "retained": int(retained), "w": float(w),
+               "extent_rate": float(EXTENT_RATE)}
+        if failed:
+            # EXTENT-PREMIUM ATTRIBUTION: the same clauses at EXTENT_RATE = 0.
+            # base_cost IS the rate-0 cost (the premium term factors out), so
+            # no formula is duplicated. A candidate that would pass clean at
+            # rate 0 was killed by the premium and says so precisely; anything
+            # else names the FIRST failing clause in evaluation order.
+            at_rate0 = self._mdl_failed(base_cost, residual_given_phi, R,
+                                        bbox_area, board_area)
+            reason = REASON_EXTENT_PREMIUM if not at_rate0 else failed[0]
+            self._record("reject", game, level, key=key, ep=ep_now, sigma=sigma,
+                         reason=reason, failed=failed, changed=changed, mdl=mdl)
             return {"verdict": "reject", "id": None}
 
         # B13: SIGMA AT MINT TIME -- the atom's prediction-signature (the consumer's
@@ -365,7 +457,8 @@ class MDLMint:
                              origin=_effects.ORIGIN_LOCAL)
         typ = "structural" if phi.get("transform") is not None else "lexical"
         self._split[typ] = self._split.get(typ, 0) + 1
-        self._record("mint", game, level, key=key, w=w, ep=ep_now, sigma=sigma)
+        self._record("mint", game, level, key=key, w=w, ep=ep_now, sigma=sigma,
+                     reason=REASON_MINTED, changed=changed, mdl=mdl)
         return {"verdict": "mint", "id": aid, "w": w}
 
     # -- W2 STAGE 2 + RE-POINT: the coarse-signature evidence merge -----------------
