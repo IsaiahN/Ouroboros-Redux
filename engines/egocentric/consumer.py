@@ -82,6 +82,25 @@ beside the rung-1 aggregate. The stream's named consumer is the diagnostic beat
 protocol (THE_LADDER rung 4: "traffic collapsed + r0 nonzero, or climbing +
 r0 flat?"); gate: tests/gate/test_rho_ladder_live.py.
 
+THE IMPORT ADMISSION GATE (the extent premium at the DOOR; Seat 3, 2026-08-20):
+the mint prices every LOCALLY minted atom's context extent (mint.EXTENT_RATE --
+PREREG_W2_STAGE2_CONTEXT_MIN.md, PI_REPLAY_RESULT.md's 976-cell medians), but an
+atom arriving over the network entered local Gamma WITHOUT meeting the bargain --
+a door with a wall beside it. seed_imports now prices ADMISSION with the mint's
+own inequality, constants IMPORTED from mint (never duplicated):
+    cost = effects.encoding_cost_atom + mint.EXTENT_RATE * retained_unchanged
+    admit iff cost < R and cost < mint.MDL_MARGIN * R,
+    R = mint.RESIDUAL_CELL_COST * changed + mint.UNEXPLAINED_PREMIUM.
+An atom failing the bargain is NOT admitted; the refusal is an "import_reject"
+record on the import_queue stream (the stream that already logs import outcomes),
+price and bar recorded -- no silent drop, count(refusals) == count(records). A
+ctx_min-minimised atom is priced on its RETAINED cells only (context_full NEVER
+counts against it): arriving tight is how an old atom re-qualifies. At
+EXTENT_RATE = 0 admission is byte-identical to the pre-gate code (the F3 dial).
+Scope: ONE inequality, ONE refusal path, ONE record -- the independence debit,
+provenance tags and all other import semantics are untouched.
+Gate: tests/gate/test_import_gate.py.
+
 Deterministic, stdlib + numpy only; failures degrade, never raise (house containment).
 """
 from __future__ import annotations
@@ -98,7 +117,8 @@ __all__ = ["sigma_of", "describe", "characterize", "match", "consume",
            "seed_imports", "pending", "open_not_found", "candidates",
            "INVARIANTS", "PATCH_BOARD_FRACTION",
            "KIND_DECLINED", "DECLINED_IMPOVERISHED", "DECLINE_REASONS",
-           "DRAIN_RANKED", "DRAIN_WINDOW"]
+           "DRAIN_RANKED", "DRAIN_WINDOW",
+           "admission_price", "KIND_IMPORT_REJECT"]
 
 QUEUE_TOPIC = "import_queue"
 CAND_TOPIC = "import_candidates"
@@ -127,6 +147,11 @@ INVARIANTS = ("arity", "bbox", "changed", "colour_delta", "conserved")
 KIND_DECLINED = "declined"
 DECLINED_IMPOVERISHED = "impoverished"  # match()'s base-rate guard: an INVARIANT missing on either side
 DECLINE_REASONS = (DECLINED_IMPOVERISHED,)
+
+# THE IMPORT ADMISSION GATE's refusal record kind (see admission_price /
+# seed_imports below): NOT a member of DECLINE_REASONS -- a refused admission
+# is a priced verdict on the import_queue outcome stream, never a swallow code.
+KIND_IMPORT_REJECT = "import_reject"
 
 # THE RANKED DRAIN (KNOBS G21, Register G, provenance GUESSED). DRAIN_RANKED is
 # the MODULE FLAG; the environment variable of the same name OUTRANKS it when
@@ -429,7 +454,8 @@ def candidates(fabric, game, level) -> List[Dict[str, Any]]:
 
 def _persist(fabric, entry: Dict[str, Any]) -> Dict[str, Any]:
     """THE single write site for queue processing entries (sigma / consumed /
-    not_found / declined); the returned record's seq is the proof timestamp."""
+    not_found / declined / import_reject); the returned record's seq is the
+    proof timestamp."""
     return fabric.append("collective", QUEUE_TOPIC, entry)
 
 
@@ -793,6 +819,54 @@ def consume(fabric, game, level, budget_n) -> Dict[str, int]:
     return report
 
 
+# ── THE IMPORT ADMISSION GATE: the extent premium at the door ─────────────────
+
+def admission_price(atom: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Price one arriving atom's ADMISSION with the mint's own bargain
+    (module docstring, THE IMPORT ADMISSION GATE). The constants and both
+    pricing helpers are the MINT'S -- imported, never duplicated -- so the
+    door and the mint can never quote different prices for the same extent:
+
+        cost = effects.encoding_cost_atom(atom)            # 1.0 + changed
+               + mint.EXTENT_RATE * effects.context_retained_cells(atom)
+        R    = mint.RESIDUAL_CELL_COST * changed + mint.UNEXPLAINED_PREMIUM
+        admit iff cost < R and cost < mint.MDL_MARGIN * R
+
+    `changed` is derived from the atom's OWN patches (context vs transform
+    .after) -- on a ctx_min-minimised atom DONT_CARE lands in both together,
+    so the changed count is exactly the minted one, and retained counts ONLY
+    the cells the context still insists on (context_full never enters the
+    price: arriving tight is how an old atom re-qualifies). Returns
+    {admit, cost, bar, changed, retained, rate}, or None when the atom
+    carries NO priceable extent (no 2-D context/after pair, or no changed
+    cell) -- such an atom passes the door exactly as it always did: this
+    gate prices extent, and where none is measurable there is nothing to
+    price. Lazy mint import (mint imports this module); at EXTENT_RATE = 0
+    every priceable atom admits, byte-identical to the pre-gate door.
+    Pure, deterministic, degrades to None, never raises."""
+    try:
+        from engines.egocentric import mint as mint_mod  # lazy: no import cycle
+        ctx = np.asarray((atom or {}).get("context"))
+        out = np.asarray(((atom or {}).get("transform") or {}).get("after"))
+        if ctx.ndim != 2 or ctx.size == 0 or ctx.shape != out.shape:
+            return None                     # no priceable extent: not this gate's atom
+        changed = int((ctx != out).sum())
+        if changed == 0:
+            return None                     # no residual priced: the mint never emits these
+        retained = effects_mod.context_retained_cells(atom)
+        cost = (effects_mod.encoding_cost_atom(atom)
+                + mint_mod.EXTENT_RATE * float(retained))
+        r_cost = (mint_mod.RESIDUAL_CELL_COST * float(changed)
+                  + mint_mod.UNEXPLAINED_PREMIUM)
+        bar = mint_mod.MDL_MARGIN * r_cost
+        return {"admit": bool(cost < r_cost and cost < bar),
+                "cost": float(cost), "bar": float(bar),
+                "changed": int(changed), "retained": int(retained),
+                "rate": float(mint_mod.EXTENT_RATE)}
+    except Exception:
+        return None                         # a malformed copy degrades, never raises
+
+
 # ── the W1 interface (EXACT SIGNATURE -- the loop wave wires this call) ───────
 
 def seed_imports(gamma, fabric, game, level) -> int:
@@ -812,7 +886,17 @@ def seed_imports(gamma, fabric, game, level) -> int:
     positively, never by the absence of fields. The already-have scan reads that
     marker through effects.origin_of BESIDE the legacy atom["imported"] flag, so
     old books keep deduping and an UNKNOWN-origin record is never mistaken for
-    a local one (absence is not a claim)."""
+    a local one (absence is not a claim).
+
+    THE IMPORT ADMISSION GATE (module docstring): before the Gamma write --
+    THE admission point -- every candidate atom is priced by admission_price
+    with the mint's own inequality. A failing atom is NOT admitted; its
+    refusal is a kind="import_reject" record via _persist on the import_queue
+    stream (the stream that already logs this queue item's outcomes), carrying
+    the price and the bar -- never a silent drop. Refusals are idempotent per
+    CANDIDATE RECORD (cand_seq), never per atom key: a minimised re-arrival
+    is a NEW candidate record and is re-priced -- arriving tight is how an
+    old atom re-qualifies. Everything else here is unchanged."""
     have = set()
     for rec in _local(gamma.fabric).query("collective", ATOMS_TOPIC):
         atom = rec.get("atom") or {}
@@ -822,11 +906,33 @@ def seed_imports(gamma, fabric, game, level) -> int:
         if (atom.get("imported")                        # legacy shape (old books)
                 or effects_mod.origin_of(rec) == effects_mod.ORIGIN_IMPORTED):
             have.add(key)
+    # Already-refused scan (the gate's `have` twin): one import_reject per
+    # candidate record, ever -- re-runs neither re-price nor re-append.
+    refused = {int(r.get("cand_seq", -1))
+               for r in _local(fabric).query("collective", QUEUE_TOPIC)
+               if r.get("kind") == KIND_IMPORT_REJECT}
     count = 0
     for cand in candidates(fabric, game, level):
         atom = dict(cand.get("atom") or {})
         key = atom.get("key")
         if not atom or (key and key in have):
+            continue
+        cand_seq = int(cand.get("seq", -1))
+        if cand_seq in refused:
+            continue                    # refusal already on record, not silence
+        price = admission_price(atom)
+        if price is not None and not price["admit"]:
+            # THE REFUSAL PATH: the bargain was not met -- record it, loudly.
+            _persist(fabric, {
+                "kind": KIND_IMPORT_REJECT,
+                "src_seq": int(cand.get("src_seq", -1)),
+                "cand_seq": cand_seq, "key": key,
+                "source_game": cand.get("source_game"),
+                "cost": price["cost"], "bar": price["bar"],
+                "changed": price["changed"], "retained": price["retained"],
+                "rate": price["rate"],
+                "game": str(game), "level": int(level)})
+            refused.add(cand_seq)
             continue
         atom["imported"] = True
         src_game = cand.get("source_game")

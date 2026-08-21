@@ -20,10 +20,13 @@ from __future__ import annotations
 
 import os
 import sys
-import time
+import time  # noqa: F401  (kept: other tests in this file time politely)
+from unittest import mock
 
 import numpy as np
 import pytest
+
+from engines.egocentric import effects as _effects
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
@@ -79,14 +82,24 @@ class TestTheNodeBudget:
                        [4, 1, 2],
                        [3, 4, 1]])
         ref = np.full((3, 3), 9)                          # colour 9: unreachable
-        t0 = time.monotonic()
-        out = P.plan_to_identity(ws, ref, g, game="boom", level=1,
-                                 budget=1000, cost_per_action=1)
-        elapsed = time.monotonic() - t0
+        # No wall-clock bound: seconds change meaning with box load (the canon's
+        # no-threshold-in-wall-clock rule, caught flaking at 100% CPU under the
+        # live swarm, 2026-08-20). The budget's own unit is the bound: count the
+        # applications the search actually performs and assert the cap held.
+        calls = {"n": 0}
+        real_apply = _effects.apply_effect
+        def counting_apply(atom, before):
+            calls["n"] += 1
+            return real_apply(atom, before)
+        with mock.patch.object(_effects, "apply_effect", counting_apply), \
+             mock.patch.object(P, "apply_effect", counting_apply, create=True):
+            out = P.plan_to_identity(ws, ref, g, game="boom", level=1,
+                                     budget=1000, cost_per_action=1)
         assert out is None, "an exhausted budget is an empty slot, never a guess"
-        assert elapsed < 8.0, (
-            "the node budget did not bound the search: %.1fs for an engineered "
-            "branching explosion" % elapsed)
+        assert calls["n"] <= 25_000, (
+            "the node budget did not bound the search: %d applications for an "
+            "engineered branching explosion (uncapped runs past 60s; the capped "
+            "search performs a bounded count regardless of box load)" % calls["n"])
 
     def test_small_solvable_case_still_solves_identically(self, tmp_path):
         """The exact pre-budget plan: 3 -> 4 -> 5 via two typed increments, the

@@ -270,6 +270,11 @@ def _narr_bet(loop, action_num, cf, pg0) -> None:
             _nsp = _na.NarrationSpine(_fab, game=_gid or "game")
             loop._narration = _nsp
         _nsp.start_step(int(getattr(loop, "_actions_taken", 0) or 0))
+        # W1 FALSIFIER ARMS: the switch narrated once at game start (the ARM
+        # record -- idempotent per spine; absent on loops with no arm state)
+        _narm = getattr(loop, "_narr_arm", None)
+        if _narm is not None:
+            _nsp.narrate_arm(_narm)
         _rng, _cc = _narr_range(loop)
         # per-slot predictions: the bank's committed slots (consumed here)
         _slots = getattr(loop, "_narr_slots", None) or []
@@ -302,6 +307,8 @@ def _narr_bet(loop, action_num, cf, pg0) -> None:
         # clear the outcome caches: record_result closes THIS step only
         loop._narr_settle = None
         loop._narr_mint = None
+        loop._narr_route_consumed = None    # WIRE 1 stash: this step only
+        loop._narr_mint_sig = None          # WIRE 2 stash: this step only
     except Exception:
         _swal(loop, "OTHER")
 
@@ -328,14 +335,20 @@ def _narr_close(loop, post_array, frame_changed) -> None:
                   for _s, _v in _ns.items()}
         _nsp.perceive(_slots, rng=_rng, col_class=_cc)
         # ROUTE: the primary slot's bin + the discriminating fact vs neighbour
+        # (arm C: a consumed in-band tie-break cites the consumed BET id)
         _prim = ("WORKSPACE" if "WORKSPACE" in _ns
                  else (sorted(_ns)[0] if _ns else None))
         _pbin = (_ns.get(_prim) or {}).get("bin") if _prim else None
+        _rcons = getattr(loop, "_narr_route_consumed", None)
+        loop._narr_route_consumed = None
         _nsp.route(_pbin, _na.route_why_not(_pbin),
                    {_s: _v.get("bin") for _s, _v in _ns.items()},
-                   rng=_rng, col_class=_cc)
+                   rng=_rng, col_class=_cc,
+                   extra=({"consumed": _rcons} if _rcons else None))
         # MINT: the verdict this step (if any offer reached the mint), the
         # guard that zeroed otherwise, and both sides of the MDL bargain
+        # (arm C: the offer's signature/support/route ride the record and are
+        # retained in-memory; a WIRE 2 skip carries reason + consumed id)
         _mv = getattr(loop, "_narr_mint", None)
         loop._narr_mint = None
         _chg = None
@@ -344,8 +357,15 @@ def _narr_close(loop, post_array, frame_changed) -> None:
                 and getattr(_pre, "shape", None) == post_array.shape):
             _chg = int((_pre != post_array).sum())
         _mc = _na.mint_close(_mv, _chg)
+        _mx = {_k: _mc[_k] for _k in ("reason", "consumed")
+               if _mc.get(_k) is not None}
+        _msig = getattr(loop, "_narr_mint_sig", None)
+        loop._narr_mint_sig = None
+        if _msig:
+            _mx.update(_msig)
         _nsp.mint_point(_mc["candidate"], _mc["verdict"], _mc["guard_zero"],
-                        _mc["bargain"], rng=_rng, col_class=_cc)
+                        _mc["bargain"], rng=_rng, col_class=_cc,
+                        extra=(_mx or None))
         # ECHO: what settled, or *candidate* stated as such
         _settled = any(bool(_v.get("bet")) for _v in _ns.values())
         _status = ("candidate" if _mc["candidate"]
@@ -795,6 +815,18 @@ class CognitiveLoop:
         self._narr_settle = None    # the step's per-slot outcome (per step)
         self._narr_mint = None      # the step's mint verdict (per step)
         self._narr_import_n = 0     # cross-role candidates seeded (per game)
+        # W1 FALSIFIER ARMS ("ARM C's CONSUMPTION MUST BE REAL"): the switch,
+        # read ONCE here at game init -- explicit "C" consumes narration at
+        # ROUTE/MINT; anything else is "W" (narrate-only, today's behaviour,
+        # the default). Narrated once at game start via narrate_arm at the
+        # first bet/replay seam -- the ARM record on the personal narration
+        # stream is the telemetry episode->arm labeling is read from.
+        from engines.egocentric.narration import resolve_arm as _resolve_arm
+        self._narr_arm = _resolve_arm()
+        self._narr_route_consumed = None    # WIRE 1 provenance (per step)
+        self._narr_mint_sig = None          # WIRE 2 retention stash (per step)
+        print(f"[NARR] arm={self._narr_arm} "
+              f"consume={'on' if self._narr_arm == 'C' else 'off'}")
 
         # ═══ RESET COUNTER (instrumentation pair) + MOVEMENT STACK state ═══
         self._reset_anchor = None        # (shape, bytes) of the anchor board
@@ -1752,6 +1784,12 @@ class CognitiveLoop:
                     from engines.egocentric.narration import NarrationSpine
                     _nsp = NarrationSpine(_fab, game=_gid or "game")
                     self._narration = _nsp
+                # W1 FALSIFIER ARMS: a replay-first game still labels itself
+                _narm = getattr(self, "_narr_arm", None)
+                if _narm is not None:
+                    _nsp.narrate_arm(
+                        _narm,
+                        step=int(getattr(self, "_actions_taken", 0) or 0))
                 _nsp.replay(int(action),
                             step=int(getattr(self, "_actions_taken", 0) or 0))
         except Exception:
@@ -2112,7 +2150,18 @@ class CognitiveLoop:
                     # F4 n=1 linkage: this step's known-atom bet (id, bin)
                     self._w4c_step_atom = (None, None)
                     for _slot, _stl in out.items():
-                        _bin = self._residual_router.route(_slot, _stl)
+                        _bin = self._residual_router.route(
+                            _slot, _stl,
+                            expected_bin=_narr_expected_bin(self, _slot))
+                        # W1 FALSIFIER WIRE 1 (arm C only; _narr_expected_bin
+                        # returns None on arm W and the router's consumption
+                        # branch is never entered): an in-band tie resolved by
+                        # the prior BET's stated expectation cites that BET
+                        # record's id on this step's ROUTE narration.
+                        if getattr(_rt, "last_consumed", False):
+                            self._narr_route_consumed = (getattr(
+                                getattr(self, "_narration", None),
+                                "last_bet", None) or {}).get("id")
                         # W1 narration: per-slot outcome (bet/residual/bin) for
                         # the close; lazy init AFTER the .route anchor (the
                         # window law), cleared per step by bet/close.
@@ -2182,7 +2231,10 @@ class CognitiveLoop:
                         if (_wit.get("slot") == "WORKSPACE"
                                 and float(_wit.get("residual", 0.0)) >= _bar
                                 and _wpre is not None
-                                and post_array is not None):
+                                and post_array is not None
+                                and not _narr_mint_skip(
+                                    self, _wpre, post_array, _wexec,
+                                    "bootstrap")):
                             _wv = self._mdl_mint.consider(
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
@@ -2192,13 +2244,18 @@ class CognitiveLoop:
                                 _wct["mint_passed"] += (
                                     1 if _wv.get("verdict") == "mint" else 0)
                             self._narr_mint = dict(_wv)  # W1 narration
+                            _narr_mint_mark(self, _wpre, post_array, _wexec,
+                                            "bootstrap")
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')} (NOVEL bootstrap)")
                     while _rt.mint_queue:
                         _wit = _rt.mint_queue.pop(0)
                         if (float(_wit.get("residual", 0.0)) >= _bar
                                 and _wpre is not None
-                                and post_array is not None):
+                                and post_array is not None
+                                and not _narr_mint_skip(
+                                    self, _wpre, post_array, _wexec,
+                                    "queue")):
                             _wv = self._mdl_mint.consider(
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
@@ -2208,6 +2265,8 @@ class CognitiveLoop:
                                 _wct["mint_passed"] += (
                                     1 if _wv.get("verdict") == "mint" else 0)
                             self._narr_mint = dict(_wv)  # W1 narration
+                            _narr_mint_mark(self, _wpre, post_array, _wexec,
+                                            "queue")
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')}")
                         # below the bar: dropped — desperation makes the
@@ -2225,7 +2284,8 @@ class CognitiveLoop:
                         _wres = (float((_wpa != post_array).sum())
                                  if _wpa.shape == post_array.shape
                                  else float(post_array.size))
-                        if _wres >= _bar:
+                        if _wres >= _bar and not _narr_mint_skip(
+                                self, _wpre, post_array, _wexec, "primal"):
                             _wv = self._mdl_mint.consider(
                                 before=_wpre, action=_wexec, after=post_array,
                                 game=str(getattr(self, "_game_id", "") or "game"),
@@ -2235,6 +2295,8 @@ class CognitiveLoop:
                                 _wct["mint_passed"] += (
                                     1 if _wv.get("verdict") == "mint" else 0)
                             self._narr_mint = dict(_wv)  # W1 narration
+                            _narr_mint_mark(self, _wpre, post_array, _wexec,
+                                            "primal")
                             print(f"[MINT] verdict={_wv.get('verdict')} "
                                   f"id={_wv.get('id')} (primal)")
             except Exception:
@@ -4481,3 +4543,128 @@ class CognitiveLoop:
     def causal_map(self) -> Optional[CausalMap]:
         """Access the causal map for external inspection."""
         return self._causal_map
+
+
+# =============================================================================
+# W1 FALSIFIER ARMS -- THE CONSUMPTION HELPERS (PREREG_W1_NARRATION.md,
+# "ARM C's CONSUMPTION MUST BE REAL"). Defined at MODULE BOTTOM deliberately:
+# runtime name lookup does not need definition-before-use, and appending here
+# moves NO existing receipt line in WIRING_REGISTRY.md and NO window-law
+# anchor offset (the record_result .credit/.route windows have <60 chars of
+# headroom). Every helper is arm-gated: on arm W (or a loop with no arm
+# state) it returns its inert value BEFORE touching any state, so arm W is
+# byte-identical to today -- the consumption code paths are never reached.
+# =============================================================================
+
+
+def _narr_expected_bin(loop, slot):
+    """WIRE 1 source (ARM C ONLY): the immediately-prior BET narration
+    record's stated expected bin for this slot, read from the NarrationSpine's
+    IN-MEMORY last-bet state (never the JSONL on the hot path). The bet's
+    slots name what it staked; its bin field is the stated expectation for
+    every staked slot (predict_bin). The router consults the value ONLY
+    inside AMBIGUOUS_BAND of its eps threshold (engines/egocentric/router.py
+    -- the WIRE 1 decision point). Arm W: None, always -- the router's
+    consumption branch is structurally unreachable."""
+    try:
+        from engines.egocentric import narration as _na
+        if getattr(loop, "_narr_arm", None) != _na.ARM_C:
+            return None
+        _lb = getattr(getattr(loop, "_narration", None), "last_bet", None)
+        if not _lb or str(slot) not in (_lb.get("slots") or ()):
+            return None
+        return _lb.get("bin")
+    except Exception:
+        return None
+
+
+def _narr_sig(pre, post, action):
+    """WIRE 2's key: the mint's own coarse transition signature (the
+    support-count key), computed READ-ONLY at the offer seam via the same
+    static hash the mint uses -- same bytes, no mint state touched. None when
+    no cell changed or anything is malformed (no signature exists there)."""
+    try:
+        from engines.egocentric.mint import MDLMint
+        _b = np.asarray(pre)
+        _a = np.asarray(post)
+        if (_b.shape != _a.shape or _b.ndim != 2 or _b.size == 0
+                or not bool((_b != _a).any())):
+            return None
+        return MDLMint._signature(_b, _a, int(action))
+    except Exception:
+        return None
+
+
+def _narr_seen(loop, sig, action):
+    """The current support count for a transition signature -- the mint's
+    (game, level, action, signature) seen-counter, read without bumping it.
+    This IS the guard input WIRE 2 compares: 'support count same' means this
+    number equals the one retained on the last MINT narration record."""
+    _mint = getattr(loop, "_mdl_mint", None)
+    if _mint is None:
+        return 0
+    _g = str(getattr(loop, "_game_id", "") or "game")
+    _lv = int(getattr(loop, "_ego_level", 0) or 0) + 1
+    return int(getattr(_mint, "_seen", {}).get((_g, _lv, int(action), sig), 0))
+
+
+def _narr_mint_skip(loop, pre, post, action, route) -> bool:
+    """WIRE 2 decision point (ARM C ONLY): MINT consumes its own guard-zero
+    history. True (= withhold the offer this cycle) iff the LAST narration
+    MINT record for this transition signature (NarrationSpine.last_mint --
+    in-memory, never a JSONL re-read) named a guard as the zero AND that
+    guard's input has not changed: support count same, offer route same. The
+    skip is itself narrated at the MINT point with reason "guard-zero
+    unchanged" and the consumed record's id (the stash below; _narr_close
+    emits it). Arm W: False before touching anything -- every cycle
+    re-offers, byte-identical to today. Containment: never raises; any
+    failure re-offers (fails open toward today's behaviour)."""
+    try:
+        from engines.egocentric import narration as _na
+        if getattr(loop, "_narr_arm", None) != _na.ARM_C:
+            return False
+        _nsp = getattr(loop, "_narration", None)
+        if _nsp is None:
+            return False
+        sig = _narr_sig(pre, post, action)
+        if sig is None:
+            return False
+        rec = (getattr(_nsp, "last_mint", None) or {}).get(sig)
+        if not rec or not rec.get("guard_zero"):
+            return False
+        support = _narr_seen(loop, sig, action)
+        if (support != int(rec.get("support") or 0)
+                or route != rec.get("route")):
+            return False        # the narrated zero's input changed: re-offer
+        loop._narr_mint = {"verdict": "skip",
+                           "reason": "guard-zero unchanged",
+                           "consumed": rec.get("id"),
+                           "guard_zero": rec.get("guard_zero")}
+        loop._narr_mint_sig = {"sig": sig, "support": support, "route": route}
+        print(f"[MINT] skip reason=guard-zero-unchanged route={route} "
+              f"consumed={rec.get('id')}")
+        return True
+    except Exception:
+        _swal(loop, "MINT_DRAIN")
+        return False
+
+
+def _narr_mint_mark(loop, pre, post, action, route) -> None:
+    """WIRE 2's retention half (ARM C ONLY): after a REAL offer, stash the
+    offer's signature + post-offer support count + route so this step's MINT
+    narration record carries them and the spine retains the (guard-zero,
+    guard-input) pair for the next cycle's skip decision. Arm W: no-op -- no
+    extra fields on any record, no retained state, streams byte-identical to
+    today. Containment: never raises."""
+    try:
+        from engines.egocentric import narration as _na
+        if getattr(loop, "_narr_arm", None) != _na.ARM_C:
+            return
+        sig = _narr_sig(pre, post, action)
+        if sig is None:
+            return
+        loop._narr_mint_sig = {"sig": sig,
+                               "support": _narr_seen(loop, sig, action),
+                               "route": route}
+    except Exception:
+        _swal(loop, "MINT_DRAIN")

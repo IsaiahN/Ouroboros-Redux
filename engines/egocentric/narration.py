@@ -36,21 +36,30 @@ OVERHEAD LAW (F2's build-side half): every emit is O(1) -- one dict build plus
 one fabric append; no scans, no queries, at emit time or anywhere in here.
 
 CONSUMER (R3 gate): allowlisted in tests/gate/test_consumers.py citing
-PREREG_W1_NARRATION.md -- the consumer lands with the falsifier experiment
-(arm C, narrate-and-consume), and the entry is deleted then.
+PREREG_W1_NARRATION.md. THE CONSUME ARMS LANDED (2026-08-20, "ARM C's
+CONSUMPTION MUST BE REAL"): arm C (NARRATION_ARM=C, resolve_arm below) reads
+its own immediately-prior narration IN MEMORY -- ROUTE consumes last_bet's
+stated expectation inside the router's ambiguous band; MINT consumes
+last_mint's guard-zero history and skips an unchanged repeat -- never a
+re-read of the JSONL on the hot path, so the STREAM's reader is still the
+experiment's off-line analysis and the allowlist entry stands until that
+lands. Arm W (default) writes and never reads: byte-identical to before.
 
 Containment (house law): the spine never raises into the host loop; failures
 bump `errors` and drop the record.
 """
 from __future__ import annotations
 
+import os as _os
+from collections import OrderedDict
 from typing import Any, Dict, Optional, Tuple
 
 TOPIC = "narration"
 
 # -- the record grammar: fixed tokens only ------------------------------------
 
-# the six loop points + the pre-action bet that binds them
+# the six loop points + the pre-action bet that binds them + the ARM record
+# (the falsifier-experiment switch, narrated ONCE at game start)
 BET = "BET"
 PERCEIVE = "PERCEIVE"
 ROUTE = "ROUTE"
@@ -58,13 +67,30 @@ MINT = "MINT"
 ECHO = "ECHO"
 PLAN = "PLAN"
 ACT = "ACT"
-POINTS = (BET, PERCEIVE, ROUTE, MINT, ECHO, PLAN, ACT)
+ARM = "ARM"
+POINTS = (BET, PERCEIVE, ROUTE, MINT, ECHO, PLAN, ACT, ARM)
 
 # record sides: bet-side lines land BEFORE the action, outcome-side after;
-# replay is playback narrated as playback (F3), never either of the others.
+# replay is playback narrated as playback (F3), never either of the others;
+# meta is session configuration (the ARM record), never a decision.
 SIDE_BET = "bet"
 SIDE_OUTCOME = "outcome"
 SIDE_REPLAY = "replay"
+SIDE_META = "meta"
+
+# -- the falsifier arms (PREREG_W1_NARRATION.md, "ARM C's CONSUMPTION MUST BE
+# REAL"): C = narrate-and-consume (ROUTE/MINT read their own immediately-prior
+# narration state); W = narrate-only (write-but-never-read -- today's
+# behaviour, THE DEFAULT: anything but an explicit C resolves W).
+ARM_C = "C"
+ARM_W = "W"
+ARMS = (ARM_C, ARM_W)
+ARM_ENV = "NARRATION_ARM"
+
+# WIRE 2's in-memory retention bound: last guard-zero MINT narration records
+# kept per transition signature (the _seen/SEEN_CAP pattern, smaller: the
+# consumable history is the RECENT zero, not an archive). GUESSED -- KNOBS G28.
+LAST_MINT_CAP = 128
 
 # memory ranges
 EP = "EP"
@@ -102,6 +128,7 @@ GUARD_MDL = "MDL"
 
 # NSM primes as CONNECTIVE tokens only -- one fixed gloss per (point, side).
 GLOSS = {
+    (ARM, SIDE_META): "I SAY NOW HOW I WILL THINK IN THIS GAME",
     (BET, SIDE_BET): "I THINK THIS HAPPENS AFTER I DO THIS",
     (PLAN, SIDE_BET): "I WANT THIS; MAYBE I CAN DO SOMETHING",
     (ACT, SIDE_BET): "I DO THIS NOW BECAUSE I THINK THIS",
@@ -114,6 +141,18 @@ GLOSS = {
 
 
 # -- pure resolution functions (deterministic; the gate tests drive these) -----
+
+def resolve_arm(value: Optional[str] = None) -> str:
+    """The falsifier-experiment arm switch, resolved ONCE at loop init from
+    the NARRATION_ARM environment variable (or an explicit ``value``). Only
+    an explicit "C" (case-insensitive) selects narrate-and-consume; absence,
+    "W", or anything unrecognised is arm W -- narrate-only, today's exact
+    behaviour, the default. The resolved arm is narrated at game start
+    (NarrationSpine.narrate_arm) so episode->arm labeling is read from data,
+    never inferred."""
+    v = value if value is not None else _os.environ.get(ARM_ENV, "")
+    return ARM_C if str(v).strip().upper() == ARM_C else ARM_W
+
 
 def memory_range(replay: bool = False, inherited_n: int = 0, kin_n: int = 0,
                  collective_n: int = 0, own_n: int = 0
@@ -201,6 +240,16 @@ def mint_close(verdict: Optional[Dict[str, Any]],
     v = (verdict or {}).get("verdict")
     out: Dict[str, Any] = {"candidate": (verdict or {}).get("id"),
                            "verdict": v, "guard_zero": None, "bargain": None}
+    if v == "skip":
+        # WIRE 2 (arm C only -- the caller stashes this verdict shape): the
+        # offer was WITHHELD because the last MINT narration for this
+        # signature named a guard-zero whose input has not changed. No
+        # bargain was struck; the record carries the consumed guard, the
+        # reason and the consumed record's id (provenance of the consumption).
+        out["guard_zero"] = (verdict or {}).get("guard_zero")
+        out["reason"] = (verdict or {}).get("reason")
+        out["consumed"] = (verdict or {}).get("consumed")
+        return out
     if changed is not None and int(changed) >= 0:
         c = float(int(changed))
         out["bargain"] = {"atom_cost": 1.0 + c, "residual_cost": 2.0 * c + 1.0,
@@ -245,6 +294,15 @@ class NarrationSpine:
         self.emitted = 0
         self.dup_bets = 0     # a second bet on one step: refused, counted
         self.errors = 0
+        # -- the falsifier arms (PREREG_W1_NARRATION.md "ARM C's CONSUMPTION
+        # MUST BE REAL"): the arm this spine narrates under, told once per
+        # game; plus the IN-MEMORY consumption state arm C reads on the hot
+        # path (never a JSONL re-read). Retention is O(1) per emit; arm W
+        # retains last_bet (state, no stream bytes) and never reads either.
+        self.arm: str = ARM_W
+        self.arm_told: bool = False
+        self.last_bet: Optional[Dict[str, Any]] = None       # WIRE 1 source
+        self.last_mint: OrderedDict[str, Dict[str, Any]] = OrderedDict()
 
     @property
     def bet_id(self) -> Optional[str]:
@@ -278,6 +336,27 @@ class NarrationSpine:
             self.errors += 1
             return None
 
+    # -- the arm record (ONCE, at game start) ---------------------------------
+
+    def narrate_arm(self, arm: str, step: Optional[int] = None
+                    ) -> Optional[str]:
+        """The falsifier-arm switch narrated ONCE at game start (point=ARM,
+        side=meta): which arm this session runs -- C consumes its own
+        immediately-prior narration at ROUTE/MINT, W writes and never reads.
+        The record IS the session telemetry the experiment labels episodes
+        by: episode->arm is read from data, never inferred. Idempotent per
+        spine (one spine per game): later calls emit nothing."""
+        if self.arm_told:
+            return None
+        if step is not None:
+            self._step = int(step)
+        rid = self._emit(ARM, SIDE_META, EP,
+                         {"arm": str(arm), "consume": str(arm) == ARM_C})
+        if rid is not None:
+            self.arm_told = True
+            self.arm = str(arm)
+        return rid
+
     # -- bet side (BEFORE the action executes) --------------------------------
 
     def bet(self, slots: Optional[Dict[str, Any]], route_bin: str,
@@ -300,6 +379,11 @@ class NarrationSpine:
         if rid is not None:
             self._bet_id = rid
             self._bet_step = self._step
+            # WIRE 1's in-memory source: the immediately-prior BET record's
+            # stated expectation, per slot -- what arm C's ROUTE reads on the
+            # hot path (never the JSONL). O(1); overwritten every step.
+            self.last_bet = {"id": rid, "step": self._step, "bin": route_bin,
+                             "slots": tuple(sorted(dict(slots or {})))}
         return rid
 
     def plan(self, mode: str, gate: Optional[str], rng: str,
@@ -334,26 +418,55 @@ class NarrationSpine:
     def route(self, settled_bin: Optional[str],
               why_not: Optional[Dict[str, Any]],
               bins: Optional[Dict[str, Any]], rng: str,
-              col_class: Optional[str] = None) -> Optional[str]:
+              col_class: Optional[str] = None,
+              extra: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """ROUTE: the settled bin + the discriminating fact vs the neighbour
-        (per-slot bins ride along; a no-bet step carries bin=None -- R4)."""
-        return self._emit(ROUTE, SIDE_OUTCOME, rng,
-                          {"bin": settled_bin, "why_not": dict(why_not or {}),
-                           "bins": dict(bins or {})},
+        (per-slot bins ride along; a no-bet step carries bin=None -- R4).
+        ``extra`` (arm C only) carries the consumption provenance: a
+        tie-break consumed from the prior bet cites the consumed BET id."""
+        payload: Dict[str, Any] = {"bin": settled_bin,
+                                   "why_not": dict(why_not or {}),
+                                   "bins": dict(bins or {})}
+        for k, v in dict(extra or {}).items():
+            payload.setdefault(k, v)
+        return self._emit(ROUTE, SIDE_OUTCOME, rng, payload,
                           ref=self._bet_id, col_class=col_class)
 
     def mint_point(self, candidate: Optional[str], verdict: Optional[str],
                    guard_zero: Optional[str], bargain: Optional[Dict[str, Any]],
-                   rng: str, col_class: Optional[str] = None) -> Optional[str]:
+                   rng: str, col_class: Optional[str] = None,
+                   extra: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """MINT: the candidate offered, or which guard was the zero; both
         sides of the MDL bargain. (Named mint_point, not mint: the source laws
         in tests/gate key on the FIRST `.mint(` in cognitive_loop.py being the
         fabric's idea mint on the credit path -- narrating the MINT point must
-        not shadow the mint itself.)"""
-        return self._emit(MINT, SIDE_OUTCOME, rng,
-                          {"candidate": candidate, "verdict": verdict,
-                           "guard_zero": guard_zero, "bargain": bargain},
-                          ref=self._bet_id, col_class=col_class)
+        not shadow the mint itself.)
+
+        ``extra`` (arm C only) carries WIRE 2's consumption fields: the
+        offer's transition signature + its guard input (support count, offer
+        route), and -- on a skip -- the reason and the consumed record id.
+        A signature-carrying record with a guard-zero is RETAINED in memory
+        (last_mint, LAST_MINT_CAP-bounded) as the next cycle's consumable;
+        a signature whose offer minted clears its retained zero."""
+        payload: Dict[str, Any] = {"candidate": candidate, "verdict": verdict,
+                                   "guard_zero": guard_zero,
+                                   "bargain": bargain}
+        for k, v in dict(extra or {}).items():
+            payload.setdefault(k, v)
+        rid = self._emit(MINT, SIDE_OUTCOME, rng, payload,
+                         ref=self._bet_id, col_class=col_class)
+        sig = (extra or {}).get("sig")
+        if rid is not None and sig:
+            if guard_zero:
+                self.last_mint.pop(sig, None)
+                self.last_mint[sig] = {"id": rid, "guard_zero": guard_zero,
+                                       "support": (extra or {}).get("support"),
+                                       "route": (extra or {}).get("route")}
+                while len(self.last_mint) > LAST_MINT_CAP:
+                    self.last_mint.popitem(last=False)
+            else:
+                self.last_mint.pop(sig, None)
+        return rid
 
     def echo(self, status: str, detail: Optional[Dict[str, Any]], rng: str,
              col_class: Optional[str] = None) -> Optional[str]:

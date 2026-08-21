@@ -48,6 +48,26 @@ G25 PLANNER LAST-RESORT BAR: CHEAP_ROUTE_CONF_BAR=0.5 [GUESSED] — W2b GATE A
     (a cycle where every cheap route fails always reaches the planner). NOT the
     verification bar (F2) and NOT GATE B — those are evidence semantics, not
     dials.                                       (engines/egocentric/scheduler.py)
+G27 ROUTE AMBIGUOUS BAND: AMBIGUOUS_BAND=0.5 [GUESSED] -- W1 falsifier arm C,
+    WIRE 1 (PREREG_W1_NARRATION.md "ARM C's CONSUMPTION MUST BE REAL"): the tie
+    region around the residual router's eps threshold (1e-9, the residual<=eps
+    discriminating fact) inside which -- and ONLY inside which -- arm C resolves
+    TRANSFERRED-vs-neighbour with the prior BET narration record's stated
+    expectation. RATIONALE for 0.5: every bank residual is a whole count
+    (changed cells for grid slots; Manhattan centroid steps for BODY --
+    bank.py), so the smallest residual the substrate can testify to is 1.0 and
+    the band is HALF of it: a sub-unit residual names no discrete difference
+    and residual<=eps decides it on float noise / fractional scalar drift.
+    Consulted only when the caller passes expected_bin (arm C); at ANY value
+    arm W behaviour is byte-identical (the branch is never entered).
+    Gate tests/gate/test_narration_arms.py.  (engines/egocentric/router.py)
+G28 NARRATION LAST-MINT RETENTION: LAST_MINT_CAP=128 [GUESSED] -- WIRE 2's
+    in-memory bound: guard-zero MINT narration records retained per transition
+    signature (NarrationSpine.last_mint) for the next cycle's skip decision --
+    the mint's _seen/SEEN_CAP pattern, smaller, because the consumable is the
+    RECENT zero, not an archive. Memory bound only: LRU eviction can only cause
+    a re-offer (today's behaviour), never a wrong skip.
+    (engines/egocentric/narration.py)
 G22 CORPSE GUARD: CORPSE_GUARD=True [GUESSED] — the salient-prefix death guard
     (never bank a terminal step; refuse selecting a prefix whose LAST RECORDED
     OUTCOME was `died`). Env CORPSE_GUARD outranks the class flag

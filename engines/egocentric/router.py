@@ -21,6 +21,21 @@ BROKEN_MECHANISM = "BROKEN_MECHANISM"
 
 _BINS = (TRANSFERRED, NOVEL, BROKEN_REBINDING, BROKEN_MECHANISM)
 
+# W1 FALSIFIER, ARM C (PREREG_W1_NARRATION.md "ARM C's CONSUMPTION MUST BE
+# REAL" wire 1): THE AMBIGUOUS BAND around the router's own threshold. The
+# discriminating fact between TRANSFERRED and every neighbour bin is
+# ``residual <= eps`` (the precedence rule below; eps defaults to 1e-9, a
+# float-noise zero). A residual within AMBIGUOUS_BAND of eps sits BELOW the
+# board's own resolution: every grid/centroid residual the bank can produce
+# is a whole count (changed cells; Manhattan centroid steps -- bank.py), so
+# the smallest residual the substrate can testify to is 1.0, and anything in
+# (eps, 0.5] is float noise or sub-unit scalar drift the bare rule can only
+# coin-toss on. Inside that band -- and ONLY there, and ONLY when the caller
+# passes the prior bet's stated expectation (arm C) -- the bet resolves the
+# tie. GUESSED (half the substrate's smallest testifiable residual);
+# KNOBS.md G27, Register G.
+AMBIGUOUS_BAND = 0.5
+
 
 class ResidualRouter:
     """Route a settled bet's residual into exactly one of four bins.
@@ -42,9 +57,24 @@ class ResidualRouter:
         self.conditional_atoms: list[dict] = []   # B9: constructed EFFECT_IF atoms
         self.routed: dict[str, int] = dict.fromkeys(_BINS, 0)
         self.errors: int = 0
+        # W1 falsifier arm C: consumption ledger -- times the prior bet's
+        # expectation resolved an in-band tie (total + last-call flag). Arm W
+        # (expected_bin never passed) leaves both at their zero forever; the
+        # gate asserts exactly that.
+        self.consumed: int = 0
+        self.last_consumed: bool = False
 
-    def route(self, slot: str, settlement: dict) -> str | None:
-        """Route one settlement; return its bin, or None when no bet was staked."""
+    def route(self, slot: str, settlement: dict,
+              expected_bin: str | None = None) -> str | None:
+        """Route one settlement; return its bin, or None when no bet was staked.
+
+        ``expected_bin`` (W1 falsifier, ARM C ONLY -- the arm-W caller passes
+        nothing and the consumption branch is never entered): the immediately
+        prior BET narration record's stated expected bin for this slot. It is
+        consulted ONLY when the residual falls inside AMBIGUOUS_BAND of the
+        eps threshold -- the discriminating fact's own tie region -- where it
+        resolves the TRANSFERRED-vs-neighbour tie the bare rule would decide
+        on float noise. Outside the band the bare rule holds regardless."""
         try:
             bet = bool(settlement.get("bet", False))
             if not bet:
@@ -58,7 +88,16 @@ class ResidualRouter:
 
         self._mine(settlement)               # B9: every frame-carrying bet is divergence food
 
-        if residual <= self.eps:
+        self.last_consumed = False
+        if (expected_bin is not None
+                and abs(residual - self.eps) <= AMBIGUOUS_BAND):
+            # ARM C's WIRE 1 decision point: in-band, the consumed bet decides.
+            held = expected_bin == TRANSFERRED
+            self.consumed += 1
+            self.last_consumed = True
+        else:
+            held = residual <= self.eps      # the bare rule (arm W always)
+        if held:
             self.routed[TRANSFERRED] += 1
             return TRANSFERRED
 
