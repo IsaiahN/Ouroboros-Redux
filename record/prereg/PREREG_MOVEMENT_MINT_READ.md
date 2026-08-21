@@ -48,3 +48,39 @@ Branch 2's two shapes are different results sharing a trigger, and are reported 
   guard, and the composer's sizing question stays open rather than resolving.
 The report names 1, 2a, or 2b; folding 2a and 2b together is the rescue the split exists
 to prevent.
+
+
+---
+
+# RESULT (2026-08-21): BRANCH 1 KILLED AT FULL N — AND BRANCH 2's KILLER IS THE OFFER PATH,
+# WHICH REFRAMES THE "GAP" AS A SHELF
+
+**The frame read, clean rows, N satisfied (150 ≥ 90):** bp35 n=57 median bbox/board 0.02
+(2% ≥ clause) · tu93 n=60, 0.00 (2%) · wa30 n=33, 0.01 (0%). **Movement transitions are
+TINY — the avatar's patch, not a scrolled view. The frames are not egocentric-scrolling and
+the half-board clause passes movement essentially always. The metal-key hypothesis is
+FALSE.** Ego-shift compensation is not the fix for anything (flagged-not-built pays off).
+
+**Sensitivity on the reason field: 722 records flowing (528 rederivation, 194 reject) —
+the instrument is live.** Movement-box rejects: n=6 only (support 3, extent 2, mdl_cost 1;
+zero bbox) — under the pinned 100, BUT the near-silence is itself the datum: click boxes
+produced ~30× the verdicts. Movement transitions rarely REACH consider().
+
+**The killer, named from the prereg's own branch-2 list ("the offer path's residual
+bar?"):** the bank's BODY slot holds per-action exact (dr, dc) delta evidence (bank.py's
+own design). **Movement is PREDICTED by proprioception → settles with ~zero residual →
+never routes NOVEL → never offered to the mint.** Click effects change the world
+unpredictably; movement changes the self's position predictably. **Click-only Γ is not a
+defect — it is the system correctly declining to re-learn what it already predicts.**
+
+**THE REFRAME FOR THE COMPOSER:** the movement vocabulary is not missing — **it lives on a
+different shelf.** Γ holds world-change rules (clicks); the bank's BODY book holds
+self-motion semantics (per-action deltas with evidence counts); the action book already
+derives from BOTH (atoms AND traces). The composer composes across two shelves — BODY
+deltas for locomotion steps, Γ atoms for world edits — and its material was never half
+missing, only half catalogued. **The composer proceeds now; it waits for nothing.**
+
+**Residual confirmation queued (not blocking):** one read of route-bin records on movement
+boxes showing BODY-slot TRANSFERRED settlements dominating — the bank predicting movement
+in the stream, closing the causal chain. And the reason count keeps accumulating toward
+100 as a check that no late bbox cluster appears.
