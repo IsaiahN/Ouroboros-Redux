@@ -238,3 +238,20 @@ consume `RECORD`/`PRED`/`PRICE` and whose **check-kind rides the head**: executa
 run, ledger heads look up, the completeness head diffs. The WANT head consumes the salvaged
 grammar's `OBJ`. One type system, two layers: the salvaged alphabet names the world; the
 new layer speaks to the gate about records of it.
+
+
+## THE SPEECH-ACT LAYER GROWS BY THE BASIS RULE (Seat 4, adopted)
+The eight heads are the part with no prior — the primes carry decades of NSM work; the
+speech-act layer is being designed now. So it inherits the doctrine it sits on: **grow only
+on composition failure, only with a universal word.** If eight heads are really seven or
+nine, that is DISCOVERED by a clause failing to compose — which shadow mode surfaces as a
+refusal with a named failing head — never decided in advance. **Stage 1 therefore tests the
+new layer itself, not just coverage.** And RECORD as a type makes the precedence links
+type-checkable rather than conventional: a GROUND citing a non-RECORD is ill-typed, not
+merely wrong.
+
+**Composer-lineage read (queued before any composer brief):** `objective_abductor.py`,
+`objective_validator.py` (confirm-composition-by-interaction — the executable check at the
+objective grain, already written), `no_posthoc.py`, `primitive_ledger.py`,
+`reason_first_agent.py` — each read capability-at-write-time: what question was it built to
+answer, and is that the question we have.
