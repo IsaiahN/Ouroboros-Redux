@@ -1406,3 +1406,10 @@ caught by the 6-field unpack, split, both gates green. The family counter now ca
 sub-split: parameter-not-passed (one site, one capture) vs field-not-read (siteless,
 found only by asking who-reads-this). Next: stage 3 (compose loop), stage 4 (settlement
 wire), then g7.
+
+## ENTRY 43 — 2026-08-21 (heartbeat). Book rebuild DID NOT un-taint: the tool has no clean-window filter.
+Inverse n-counts identical to the tainted run (full-stream rebuild); stamps were overwritten
+by the from-scratch write and are RE-APPLIED. The --since filter is a queued tool task, not
+a claim already made. New and clean: COST EVIDENCE now PRESENT on boxes with post-fix rows
+(dc22, lp85, s5i5, tr87, vc33 first) -- the budget writer fix paying into the book. Stage-4
+prereg pushed (e1cce38); builder held for the user's restart. Split-half baseline 0-0-5.
