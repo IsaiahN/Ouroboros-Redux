@@ -87,3 +87,40 @@ permanent by an unwired feedback loop — and the registry has never actually ru
   the rung's fate is Seat 3's — repair (wire the feedback, fix the six names, rederive the
   ceiling) or retire (the catalogue + gate replace its role). The census gives the repair
   bill precisely.
+
+
+---
+
+# SEAT 3 RULINGS (2026-08-21) — the sort is settled
+
+1. **count_objects → MECHANIC** (the split taken): the docstring claims subitizing, the
+   code is len(); **the implementation decides, not the name.** Approximate numerosity
+   stays PRIOR.
+2. **detect_motion → PRIOR stands, with a REPAIR NOTE**: the colour-matching
+   identity-persistence smuggle is fixed, not inherited.
+3. **The permanence pair split → confirmed as THE MODEL for the whole sort**: *a violable
+   expectation returning a surprise signal is a prior; the same knowledge as a maintained
+   service is a capability. If both were one primitive it would be CAPABILITY.*
+4. **euler_characteristic + genus → CAPABILITY**: hole-hood is a world-conclusion; a clean
+   invariant does not make it less of one. The rule over the implementation's tidiness.
+5. **teaching_detection → CAPABILITY**: "this hint is intentional" concludes about another
+   mind; the other three social primitives direct trials and stay PRIOR.
+6. All other placements stand.
+
+**FINAL TALLY: PRIOR 83 · MECHANIC 77 · CAPABILITY 155 = 315.**
+
+## THE SUGGESTER: RETIRED into catalogue + gate (Seat 3)
+Repair would mean fixing four independent defects to restore an organ whose replacement is
+already designed. **Seat 3's condition — did the fallbacks ever produce anything useful? —
+is answerable from the census itself**: the fallbacks were the only path that ever ran, AND
+the rung has zero labeled wheel wins — so nothing the suggester ever emitted, registry or
+fallback, drove a single action (caveat: the 45% unlabeled cohort could in principle hide
+occurrences; no labeled evidence exists). The only thing that ever ran also never won.
+Retirement loses nothing that was ever used.
+
+## Destinations now execute per the settled sort
+- 83 PRIORS → perceptual substrate + PERCEIVE/grammar leaf suppliers (W3 build, with the
+  detect_motion repair in its brief).
+- 77 MECHANICS → interpreter layer (legitimate to hand; no earn-through).
+- 155 CAPABILITIES → the catalogue as curriculum, value honestly unknown until the first
+  earns settle.
