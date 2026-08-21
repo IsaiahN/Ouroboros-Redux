@@ -37,3 +37,14 @@ averaging the two populations.
 ## Sequencing
 Deploy (verified commit, HOLD lift) → minutes of live play → reason count → frame read →
 branch named → **only then does the composer prereg get sized.**
+
+## BRANCH 2 SPLIT (Seat 4, pinned before the first read returned)
+Branch 2's two shapes are different results sharing a trigger, and are reported apart:
+- **2a — a single different dominant reason**: a killer named directly (e.g. `support`
+  dominating = movement transitions never re-observed enough to mint). Strong finding,
+  one guard, its own read follows.
+- **2b — a SPREAD across reasons** (support + mdl_cost + extent_premium + ...): movement
+  fails for varied reasons — a WEAKER finding pointing at coverage rather than any one
+  guard, and the composer's sizing question stays open rather than resolving.
+The report names 1, 2a, or 2b; folding 2a and 2b together is the rescue the split exists
+to prevent.
