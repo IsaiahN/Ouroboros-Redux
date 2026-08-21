@@ -862,6 +862,7 @@ def minimise_atom(atom: Dict[str, Any],
     minimised["context"] = ctx_lists
     minimised["transform"] = new_transform
     minimised.pop("asig", None)             # stale cache (applicability.ASIG_FIELD)
+    minimised.pop("psig", None)             # stale cache (applicability.PSIG_FIELD)
     return minimised
 
 
@@ -1039,6 +1040,22 @@ class Gamma:
         ordinal = self._next_ordinal()
         cid = "%s:%d" % (key, ordinal)
         composite = {"kind": "COMPOSITE", "key": key, "parts": parts}
+        # COMPOSER STAGE 1 (PROPOSAL_COMPOSER_DESIGN.md §6.1; COMPOSITION_VIA_
+        # SIGNATURES.md Q5): the composite's derived precondition signature +
+        # price, computed ONCE here from the parts' stored patches and stored
+        # on the atom -- one derivation, three consumers (the applicability
+        # index's COMPOSITE branch, consumer.admission_price, the gate's PAY).
+        # Underivable -> field ABSENT: the composite composes exactly as
+        # before this build (NO-REQUIREMENT, unpriced) -- conservative, and
+        # which compositions are legal is unchanged. Lazy import: the
+        # applicability module imports this one at top level.
+        try:
+            from engines.egocentric import applicability as _app
+            csig = _app.composite_signature(parts, self.get)
+        except Exception:
+            csig = None
+        if csig is not None:
+            composite[_app.CSIG_FIELD] = csig
         # A composite is an atom record on the same stream: it carries the same
         # ORIGIN MARKER, or the stream has a silent hole. Composition happens in
         # THIS frame, so it is local by construction.

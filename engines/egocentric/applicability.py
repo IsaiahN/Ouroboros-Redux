@@ -54,12 +54,28 @@ from engines.egocentric import effects as _effects
 
 __all__ = ["ASIG_FIELD", "ASIG_VERSION", "anchor_signature", "signature_of",
            "inverse_signature", "colour_universe", "frame_signature",
-           "prune_candidates"]
+           "prune_candidates",
+           "PSIG_FIELD", "PSIG_VERSION", "postcondition_signature", "psig_of",
+           "CSIG_FIELD", "CSIG_VERSION", "composite_signature", "csig_of"]
 
 # The field the mint stamps on the atom dict at write time. Anything already in
 # the stream without it is derived on read -- the stored copy is a CACHE.
 ASIG_FIELD = "asig"
 ASIG_VERSION = 1
+
+# COMPOSER STAGE 1 (record/findings/PROPOSAL_COMPOSER_DESIGN.md §6.1;
+# COMPOSITION_VIA_SIGNATURES.md Q2/Q5): the POSTCONDITION SIGNATURE field the
+# mint stamps BESIDE the anchor signature, and the COMPOSITE signature/price
+# field compose() stores at compose time. Both are CACHES of derived state --
+# backfill-on-read for psig (psig_of), field-absent degrade for csig (an old
+# or underivable composite reads NO-REQUIREMENT and is never pruned).
+# NOTE on the module's numpy discipline: the F4 claim (per-atom filter path is
+# pure python) is untouched -- the psig/csig derivations below are WRITE-TIME
+# paths (mint stamp, compose), and they too are pure python by construction.
+PSIG_FIELD = "psig"
+PSIG_VERSION = 1
+CSIG_FIELD = "csig"
+CSIG_VERSION = 1
 
 # The typed mechanisms whose application requirements this module knows how to
 # bound. An atom carrying any OTHER ttype reads as NO-REQUIREMENT (never
@@ -195,8 +211,18 @@ def _derive(atom: Optional[Dict[str, Any]]) -> Dict[str, Any]:
                           separators=(",", ":"))
         ck = hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
         return {"v": ASIG_VERSION, "h": h, "w": w, "pal": [], "ck": ck}
-    # COMPOSITE / INERT / lexical / unknown kinds: no bound this module can
-    # assert -- NO-REQUIREMENT, never pruned.
+    if kind == "COMPOSITE":
+        # COMPOSER STAGE 1: a composite carrying a compose-time derived
+        # signature (csig_of below) is INDEX-VISIBLE -- its stored derived
+        # precondition is returned and prune_candidates treats it exactly
+        # like an atom's. Anything else (old composites, underivable parts)
+        # degrades to NO-REQUIREMENT: kept, never pruned.
+        stored = csig_of(atom)
+        if stored is not None:
+            return dict(stored["pre"])
+        return dict(_NO_REQ)
+    # INERT / lexical / unknown kinds: no bound this module can assert --
+    # NO-REQUIREMENT, never pruned.
     return dict(_NO_REQ)
 
 
@@ -219,6 +245,112 @@ def signature_of(atom: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         if _valid(stored):
             return stored
     return anchor_signature(atom)
+
+
+# ── COMPOSER STAGE 1: the POSTCONDITION SIGNATURE ─────────────────────────────
+#
+# Q2 of COMPOSITION_VIA_SIGNATURES.md: the postcondition derives at mint time
+# from what the atom ALREADY stores -- the same factoring as anchor_signature,
+# on the other side of the arrow. {"v", "h", "w" (the after-patch footprint --
+# frame dims are invariant under apply_effect, the patch is what the atom
+# claims about the region it rewrites), "written" (colours the effect WRITES:
+# the after-patch values at changed cells, or sigma.colour_delta's targets
+# where the patches are unreadable), "changed" (count), "ck" (the changed-MASK
+# content key -- the mint's _signature hashing shape: action, bbox dims, mask
+# bits, before/after values at changed cells), "pal_after" (the after-patch
+# palette = before − consumed ∪ written at the patch grain)}. DONT_CARE never
+# appears in any field: a minimised cell is unchanged-by-construction, so it
+# is never in the mask, never a written colour, never in pal_after.
+
+# NO-CLAIM: the postcondition twin of NO-REQUIREMENT -- an atom this module
+# cannot read claims to write NOTHING; no composition edge is built on it.
+_NO_CLAIM = {"v": PSIG_VERSION, "h": 0, "w": 0, "written": [], "changed": 0,
+             "ck": "", "pal_after": []}
+
+
+def postcondition_signature(atom: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The atom's POSTCONDITION SIGNATURE, derived from content alone
+    (JSON-safe). Total: never raises; anything unreadable degrades to
+    NO-CLAIM (writes nothing -- no edge, no discount, never a false claim).
+    Same discipline as anchor_signature, stamped at the same write sites
+    (mint.py, PSIG_FIELD) with psig_of as the backfill-on-read."""
+    try:
+        return _derive_post(atom)
+    except Exception:
+        return dict(_NO_CLAIM)
+
+
+def _derive_post(atom: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not isinstance(atom, dict) or atom.get("kind") != "EFFECT":
+        return dict(_NO_CLAIM)
+    ctx = atom.get("context")
+    out = (atom.get("transform") or {}).get("after")
+    odims = _patch_dims(out)
+    if odims is None:
+        return dict(_NO_CLAIM)
+    h, w = odims
+    if _patch_dims(ctx) != odims:
+        # Dims readable, change mask not (stored patches always share the
+        # changed-cell bbox; this is the degrade for hand-shaped atoms):
+        # sigma.colour_delta -- stored on minted atoms since B13 -- still
+        # names the written colours; the mask key is honestly absent.
+        delta = (atom.get("sigma") or {}).get("colour_delta") or []
+        written = {int(d) for _s, d in delta}
+        return {"v": PSIG_VERSION, "h": int(h), "w": int(w),
+                "written": sorted(written),
+                "changed": max(0, int(atom.get("changed") or 0)),
+                "ck": "", "pal_after": sorted(_patch_palette(out))}
+    # The changed mask from the stored patches. Under minimisation DONT_CARE
+    # lands in context and after TOGETHER (effects.minimise_atom), so a
+    # sentinel cell is never a changed cell and never leaks into any field.
+    bits: List[str] = []
+    bvals: List[int] = []
+    avals: List[int] = []
+    written = set()
+    changed = 0
+    for r in range(h):
+        for c in range(w):
+            b_, a_ = int(ctx[r][c]), int(out[r][c])
+            if b_ != a_:
+                changed += 1
+                bits.append("1")
+                bvals.append(b_)
+                avals.append(a_)
+                if a_ != _effects.DONT_CARE:
+                    written.add(a_)
+            else:
+                bits.append("0")
+    blob = "%d|%d,%d|%s|%s|%s" % (
+        int(atom.get("action", 0)), h, w, "".join(bits),
+        ",".join(str(v) for v in bvals), ",".join(str(v) for v in avals))
+    ck = hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
+    return {"v": PSIG_VERSION, "h": int(h), "w": int(w),
+            "written": sorted(written), "changed": int(changed),
+            "ck": ck, "pal_after": sorted(_patch_palette(out))}
+
+
+def _valid_psig(sig: Any) -> bool:
+    return (isinstance(sig, dict) and sig.get("v") == PSIG_VERSION
+            and isinstance(sig.get("h"), int) and sig["h"] >= 0
+            and isinstance(sig.get("w"), int) and sig["w"] >= 0
+            and isinstance(sig.get("written"), list)
+            and all(isinstance(v, int) for v in sig["written"])
+            and isinstance(sig.get("changed"), int) and sig["changed"] >= 0
+            and isinstance(sig.get("ck"), str)
+            and isinstance(sig.get("pal_after"), list)
+            and all(isinstance(v, int) for v in sig["pal_after"]))
+
+
+def psig_of(atom: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """THE READ SIDE of the postcondition signature: the stored mint-time
+    stamp when present and well-formed, else derived on the spot --
+    backfill-on-read for every atom that predates the field. Never a
+    migration; the stored copy is a cache, never the sole holder."""
+    if isinstance(atom, dict):
+        stored = atom.get(PSIG_FIELD)
+        if _valid_psig(stored):
+            return stored
+    return postcondition_signature(atom)
 
 
 def inverse_signature(atom: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -295,6 +427,187 @@ def colour_universe(atom: Optional[Dict[str, Any]], resolver=None,
         return set()                                      # INERT / lexical: writes nothing
     except Exception:
         return None                                       # unreadable: UNKNOWN, never a prune
+
+
+# ── COMPOSER STAGE 1: the COMPOSITE signature + price (one derivation) ────────
+#
+# Q5 of COMPOSITION_VIA_SIGNATURES.md: the composite's precondition derivation
+# IS its price derivation -- one computation, consumed by the index (the
+# COMPOSITE branch of _derive above), by admission (consumer.admission_price),
+# and later by the gate's PAY. Derived ONCE at compose() time from the parts'
+# STORED patches, stored on the composite atom under CSIG_FIELD:
+#
+#   precondition = step 1's (minimised) context requirement PLUS each later
+#                  step's UNGUARANTEED RESIDUE -- required context cells no
+#                  prior step's effect establishes;
+#   price        = start_extent + Σ unguaranteed_residue + length
+#                  (one unit per leaf step).
+#
+# Establishment is computed position-free, the only way stored patches allow:
+# a later step's context cell is GUARANTEED iff some single prior step's
+# after-patch contains the context patch (full containment, best alignment)
+# with agreeing values at that cell -- a DONT_CARE on the requiring side is
+# not required, a DONT_CARE on the establishing side establishes nothing
+# (the frame's own value survives the masked stamp). Multi-prior unions and
+# partial containment are NOT credited: doubt overprices, never underprices,
+# and the pruning side degrades to NO-REQUIREMENT rather than guess.
+# Nesting derives through the recursion: a COMPOSITE part is FLATTENED into
+# its leaf steps (bounded depth), exactly the order Gamma.apply executes.
+
+_FLATTEN_DEPTH_CAP = 16
+
+
+def _flatten_parts(ids: List[str], resolver, depth: int = 0) -> Optional[List[Dict[str, Any]]]:
+    """Depth-first leaf EFFECT atoms of a composite's part list, in execution
+    order (Gamma.apply's recursion, flattened). None when ANY part is missing,
+    unreadable, or of a kind whose unconditional effect this module cannot
+    state (EFFECT_IF's branch is world-selected; INERT/lexical establish
+    nothing and price nothing) -- the whole derivation then degrades."""
+    if depth > _FLATTEN_DEPTH_CAP or resolver is None:
+        return None
+    out: List[Dict[str, Any]] = []
+    for pid in ids:
+        atom = resolver(pid)
+        if not isinstance(atom, dict):
+            return None
+        kind = atom.get("kind")
+        if kind == "COMPOSITE":
+            sub = _flatten_parts([str(i) for i in (atom.get("parts") or [])],
+                                 resolver, depth + 1)
+            if sub is None:
+                return None
+            out.extend(sub)
+        elif kind == "EFFECT":
+            out.append(atom)
+        else:
+            return None
+    return out or None
+
+
+def _leaf_patches(atom: Dict[str, Any]) -> Optional[Tuple[List[List[Any]],
+                                                          List[List[Any]],
+                                                          Tuple[int, int]]]:
+    """(context, after, dims) of one EFFECT leaf's stored patches, or None
+    when unreadable or of mismatched shape (stored atoms share the changed-
+    cell bbox by construction; anything else degrades)."""
+    ctx = atom.get("context")
+    out = (atom.get("transform") or {}).get("after")
+    dims = _patch_dims(ctx)
+    if dims is None or _patch_dims(out) != dims:
+        return None
+    return ctx, out, dims
+
+
+def _required_cells(ctx: List[List[Any]]) -> List[Tuple[int, int]]:
+    """The cells a context patch actually requires: everything not DONT_CARE."""
+    return [(r, c) for r, row in enumerate(ctx) for c, v in enumerate(row)
+            if int(v) != _effects.DONT_CARE]
+
+
+def _established(ctx: List[List[Any]], dims: Tuple[int, int],
+                 req: List[Tuple[int, int]],
+                 priors: List[Tuple[List[List[Any]], Tuple[int, int]]]) -> int:
+    """Max count of `req` cells one single prior after-patch guarantees under
+    full containment of the context patch, over all alignments and priors."""
+    ch, cw = dims
+    best = 0
+    for after, (ah, aw) in priors:
+        if ah < ch or aw < cw:
+            continue
+        for r0 in range(ah - ch + 1):
+            for c0 in range(aw - cw + 1):
+                n = 0
+                for r, c in req:
+                    v = int(after[r0 + r][c0 + c])
+                    if v != _effects.DONT_CARE and v == int(ctx[r][c]):
+                        n += 1
+                if n > best:
+                    best = n
+                    if best == len(req):
+                        return best
+    return best
+
+
+def composite_signature(part_ids: List[str], resolver) -> Optional[Dict[str, Any]]:
+    """THE ONE DERIVATION: the composite's precondition signature AND price,
+    from the parts' stored patches, at compose time. None on ANY doubt --
+    the composite then composes exactly as before this build: signature
+    NO-REQUIREMENT (never pruned), admission unpriced. Total: never raises."""
+    try:
+        return _derive_composite(part_ids, resolver)
+    except Exception:
+        return None
+
+
+def _derive_composite(part_ids: List[str], resolver) -> Optional[Dict[str, Any]]:
+    leaves = _flatten_parts([str(i) for i in (part_ids or [])], resolver)
+    if leaves is None:
+        return None
+    steps = []
+    for atom in leaves:
+        patches = _leaf_patches(atom)
+        if patches is None:
+            return None
+        steps.append((atom,) + patches)
+    # Dims: apply_effect never resizes the frame, so EVERY leaf's own weakest
+    # requirement must fit -- the composite requires the max over leaves.
+    h = w = 0
+    changed_total = 0
+    for atom, ctx, out, dims in steps:
+        sig = signature_of(atom)
+        h, w = max(h, int(sig["h"])), max(w, int(sig["w"]))
+        changed_total += sum(1 for r in range(dims[0]) for c in range(dims[1])
+                             if int(ctx[r][c]) != int(out[r][c]))
+    ctx0, out0, dims0 = steps[0][1], steps[0][2], steps[0][3]
+    first_sig = signature_of(steps[0][0])
+    pal: Set[int] = set(first_sig["pal"])
+    # start_extent: the retained-but-unchanged cells step 1 insists on -- the
+    # SAME quantity effects.context_retained_cells prices at the mint and the
+    # door, computed here in pure python (this module's numpy discipline).
+    start_extent = sum(1 for r in range(dims0[0]) for c in range(dims0[1])
+                       if int(ctx0[r][c]) != _effects.DONT_CARE
+                       and int(ctx0[r][c]) == int(out0[r][c]))
+    writable: Set[int] = set()
+    residue_total = 0
+    priors: List[Tuple[List[List[Any]], Tuple[int, int]]] = []
+    for i, (atom, ctx, out, dims) in enumerate(steps):
+        if i > 0:
+            req = _required_cells(ctx)
+            residue_total += len(req) - _established(ctx, dims, req, priors)
+            # The residue's COLOURS join the composite's requirement -- minus
+            # anything a prior step could write (colour_universe is a
+            # SUPERSET of writable, so subtracting it only weakens the
+            # requirement: kept-too-much, never over-pruned).
+            pal |= ({int(ctx[r][c]) for r, c in req} - writable)
+        u = colour_universe(atom, resolver)
+        if u:
+            writable |= u
+        priors.append((out, dims))
+    price = int(start_extent + residue_total + len(steps))
+    pre = {"v": ASIG_VERSION, "h": int(h), "w": int(w),
+           "pal": sorted(int(v) for v in pal), "ck": str(first_sig["ck"])}
+    return {"v": CSIG_VERSION, "pre": pre, "price": price,
+            "start_extent": int(start_extent), "residue": int(residue_total),
+            "length": int(len(steps)), "changed": int(changed_total)}
+
+
+def csig_of(atom: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """THE READ SIDE of the composite signature: the compose-time stored
+    derivation, validated, or None. No resolver reaches the read side, so
+    there is NO backfill here -- an old or underivable composite reads None
+    and every consumer degrades (NO-REQUIREMENT for the index, unpriced for
+    admission: exactly the pre-build behaviour, stated not silent)."""
+    if not isinstance(atom, dict) or atom.get("kind") != "COMPOSITE":
+        return None
+    stored = atom.get(CSIG_FIELD)
+    if (isinstance(stored, dict) and stored.get("v") == CSIG_VERSION
+            and _valid(stored.get("pre"))
+            and all(isinstance(stored.get(k), int) and stored[k] >= 0
+                    for k in ("price", "start_extent", "residue",
+                              "length", "changed"))
+            and stored["length"] >= 1):
+        return stored
+    return None
 
 
 # ── the per-call frame read (the ONLY numpy in this module) ───────────────────

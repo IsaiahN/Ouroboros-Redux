@@ -110,6 +110,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+from engines.egocentric import applicability as applicability_mod
 from engines.egocentric import effects as effects_mod
 from engines.egocentric import rho as rho_mod
 
@@ -843,9 +844,46 @@ def admission_price(atom: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     gate prices extent, and where none is measurable there is nothing to
     price. Lazy mint import (mint imports this module); at EXTENT_RATE = 0
     every priceable atom admits, byte-identical to the pre-gate door.
+    COMPOSER STAGE 1 (PROPOSAL_COMPOSER_DESIGN.md §6.1) -- THE UNPRICED-
+    COMPOSITE HOLE CLOSES: a COMPOSITE atom carries no context/after pair, so
+    it always passed this door unpriced (the hole its builder stated). A
+    composite carrying the compose-time DERIVED price (applicability.csig_of:
+    price = start_extent + Σ unguaranteed_residue + length, ONE derivation
+    with the index's precondition) is now priced with the SAME mint
+    inequality -- the derived price standing where the atom's retained
+    extent stands, the summed leaf `changed` standing where the atom's
+    stands:
+
+        cost = effects.encoding_cost_atom(changed=Σ leaf changed)
+               + mint.EXTENT_RATE * derived_price
+        admit iff cost < R and cost < mint.MDL_MARGIN * R.
+
+    The returned dict's "retained" carries the derived price, so the
+    seed_imports refusal record states it verbatim. An OLD or UNDERIVABLE
+    composite (csig_of None) still returns None -- the hole persists exactly
+    where nothing derivable exists to price, stated not silent. At
+    EXTENT_RATE = 0 every derivable composite admits: byte-identical
+    outcomes to the pre-build door (the dial).
+
     Pure, deterministic, degrades to None, never raises."""
     try:
         from engines.egocentric import mint as mint_mod  # lazy: no import cycle
+        if (atom or {}).get("kind") == "COMPOSITE":
+            csig = applicability_mod.csig_of(atom)
+            if csig is None or int(csig["changed"]) <= 0:
+                return None             # underivable: passes the door as it always did
+            changed = int(csig["changed"])
+            price = int(csig["price"])
+            cost = (effects_mod.encoding_cost_atom({"kind": "COMPOSITE",
+                                                    "changed": changed})
+                    + mint_mod.EXTENT_RATE * float(price))
+            r_cost = (mint_mod.RESIDUAL_CELL_COST * float(changed)
+                      + mint_mod.UNEXPLAINED_PREMIUM)
+            bar = mint_mod.MDL_MARGIN * r_cost
+            return {"admit": bool(cost < r_cost and cost < bar),
+                    "cost": float(cost), "bar": float(bar),
+                    "changed": int(changed), "retained": int(price),
+                    "rate": float(mint_mod.EXTENT_RATE)}
         ctx = np.asarray((atom or {}).get("context"))
         out = np.asarray(((atom or {}).get("transform") or {}).get("after"))
         if ctx.ndim != 2 or ctx.size == 0 or ctx.shape != out.shape:

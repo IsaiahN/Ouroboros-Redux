@@ -447,6 +447,16 @@ class MDLMint:
         # migration); the stored copy is a cache, never the sole holder.
         phi[_applicability.ASIG_FIELD] = _applicability.anchor_signature(phi)
 
+        # COMPOSER STAGE 1 (PROPOSAL_COMPOSER_DESIGN.md §6.1): the
+        # POSTCONDITION SIGNATURE, stamped BESIDE the anchor signature at the
+        # same write site -- what the atom WRITES (after-patch dims, written
+        # colours, changed count + changed-mask key, palette-after), factored
+        # from the same stored patches (Q2: most of it already existed in
+        # sigma). DERIVED STATE like asig: applicability.psig_of backfills on
+        # read for every atom that predates the field -- never a migration.
+        phi[_applicability.PSIG_FIELD] = (
+            _applicability.postcondition_signature(phi))
+
         # Mint: pay the cost, cash the pocket. Full-surprise support is ledgered as w.
         # THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): this is THE LOCAL MINT
         # PATH -- the frame's own ground reached this atom, so the record is
@@ -555,11 +565,13 @@ class MDLMint:
                                            phi.get("context"))
         if minimised is None:
             return                                   # nothing shrank
-        # Restamp the anchor signature: the cache must never outlive the
-        # context it was derived from (same write-site family as the
-        # mint-time stamp in consider()).
+        # Restamp the anchor AND postcondition signatures: neither cache may
+        # outlive the patches it was derived from (same write-site family as
+        # the mint-time stamps in consider(); minimise_atom dropped both).
         minimised[_applicability.ASIG_FIELD] = (
             _applicability.anchor_signature(minimised))
+        minimised[_applicability.PSIG_FIELD] = (
+            _applicability.postcondition_signature(minimised))
         sup = dict(rec)
         sup["atom"] = minimised
         sup["ctx_min"] = True                        # the superseding append, marked
@@ -645,6 +657,8 @@ class MDLMint:
         restored["ctx_conflict_cells"] = sorted([r, c] for r, c in pins)
         restored[_applicability.ASIG_FIELD] = (
             _applicability.anchor_signature(restored))
+        restored[_applicability.PSIG_FIELD] = (   # same cache-never-stale rule
+            _applicability.postcondition_signature(restored))
         sup = dict(rec)
         sup["atom"] = restored
         sup["ctx_conflict"] = True                   # the event, recorded
