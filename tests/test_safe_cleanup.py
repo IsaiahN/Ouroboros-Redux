@@ -152,17 +152,25 @@ class TestSafeDatabaseCleaner(unittest.TestCase):
         return count
 
     # =========================================================================
-    # Test: Zero-score game cleanup
+    # Test: Zero-score game retention (ruled behaviour)
     # =========================================================================
 
-    def test_zero_score_games_deleted(self):
-        """Zero-score games should be deleted."""
+    def test_zero_score_games_not_deleted_by_score(self):
+        """Zero-score games are NOT deleted: score is never the retention key.
+
+        disk rulings 2026-08: score-keyed deletion removed; ground evidence
+        protected. A zero-score row is a denominator (what agents tried and
+        failed), not noise. The cleaner keeps evidence rows forever and trims
+        only OLD zero-EVIDENCE rows by generation window; this legacy schema
+        has no generation column, so the cleaner conservatively keeps ALL
+        rows. A regression that reintroduces DELETE-by-score turns this red.
+        """
         self._insert_game_results(zero_count=50, positive_count=10)
 
         results = self.cleaner.cleanup(dry_run=False, verbose=False)
 
-        self.assertEqual(results['tables_cleaned']['game_results']['deleted'], 50)
-        self.assertEqual(self._get_count('game_results'), 10)
+        self.assertEqual(results['tables_cleaned']['game_results']['deleted'], 0)
+        self.assertEqual(self._get_count('game_results'), 60)  # all preserved
 
     def test_positive_score_games_preserved(self):
         """Positive-score games should NOT be deleted."""
@@ -233,12 +241,20 @@ class TestSafeDatabaseCleaner(unittest.TestCase):
         self.assertEqual(self._get_count('game_results'), 150)  # All preserved
 
     def test_dry_run_reports_counts(self):
-        """Dry run should report what would be deleted."""
+        """Dry run reports ZERO found for the score-keyed category.
+
+        disk rulings 2026-08: score-keyed deletion removed; ground evidence
+        protected. 'found' for game_results counts old zero-EVIDENCE rows in
+        the generation window -- never rows selected by score. This legacy
+        schema has no generation column, so the cleaner keeps all and must
+        report 0. If a score-keyed count reappears, found becomes 100 -> red.
+        """
         self._insert_game_results(zero_count=100, positive_count=50)
 
         results = self.cleaner.cleanup(dry_run=True, verbose=False)
 
-        self.assertEqual(results['tables_cleaned']['game_results']['found'], 100)
+        self.assertEqual(results['tables_cleaned']['game_results']['found'], 0)
+        self.assertEqual(self._get_count('game_results'), 150)  # untouched
 
     # =========================================================================
     # Test: Critical data preservation
@@ -308,7 +324,14 @@ class TestSafeDatabaseCleaner(unittest.TestCase):
     # =========================================================================
 
     def test_total_deleted_aggregated(self):
-        """Total deleted should be sum of all table deletions."""
+        """Total deleted should be sum of all table deletions.
+
+        disk rulings 2026-08: score-keyed deletion removed; ground evidence
+        protected. game_results contributes 0 to the total: the 50 zero-score
+        rows are evidence and stay (no generation column here, so the
+        generation-window trim keeps all). If DELETE-by-score comes back the
+        total jumps to 5150 -> red.
+        """
         self._insert_game_results(zero_count=50, positive_count=10)
         self._insert_timestamped_data('score_history', 'id', 'timestamp', 100, days_old=10)
         # System logs retention is 50000, so insert 55000 to get 5000 deleted
@@ -316,8 +339,9 @@ class TestSafeDatabaseCleaner(unittest.TestCase):
 
         results = self.cleaner.cleanup(dry_run=False, verbose=False)
 
-        expected_total = 50 + 100 + 5000  # games + history + logs
+        expected_total = 0 + 100 + 5000  # games (ruled: 0) + history + logs
         self.assertEqual(results['total_deleted'], expected_total)
+        self.assertEqual(self._get_count('game_results'), 60)  # all preserved
 
     # =========================================================================
     # Test: All retention limits
@@ -353,14 +377,22 @@ class TestSafeDatabaseCleaner(unittest.TestCase):
         self.assertEqual(self._get_count('sensation_learning_events'), 200000)
 
     def test_operating_modes_retention(self):
-        """Operating modes should keep 100,000 entries."""
+        """Operating modes keep 120,000 entries after adaptive widening.
+
+        Ruled behaviour (aligned 2026-08, alongside the disk rulings that
+        removed score-keyed deletion): the Phase 5.4 adaptive thresholds run
+        first, and agent_operating_modes counts EVERY row as useful ("1=1" in
+        _DENSITY_TABLES), so density 1.0 > 0.5 widens the base retention of
+        100,000 by +20% to 120,000 before the count-based trim. 130,000 rows
+        -> 10,000 trimmed by RECENCY (count/order), never by score.
+        """
         self._insert_timestamped_data('agent_operating_modes', 'mode_id',
-                                      'assigned_timestamp', 110000, days_old=0)
+                                      'assigned_timestamp', 130000, days_old=0)
 
         results = self.cleaner.cleanup(dry_run=False, verbose=False)
 
         self.assertEqual(results['tables_cleaned']['agent_operating_modes']['deleted'], 10000)
-        self.assertEqual(self._get_count('agent_operating_modes'), 100000)
+        self.assertEqual(self._get_count('agent_operating_modes'), 120000)
 
 
 if __name__ == '__main__':

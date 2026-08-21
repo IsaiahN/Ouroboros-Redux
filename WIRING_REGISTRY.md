@@ -149,3 +149,21 @@ close the __init__ re-export blind spot ("the re-export hid it from vulture", fe
 This organ sits behind that exact blind spot and was not caught, because the registry
 covers engines/egocentric/ and sequence_miner.py lives in engines/planning/.
 THE SCOPE RATIO IS NOT AN ABSTRACTION — IT IS WHY THIS ONE WAS MISSED.
+
+## U-2 — FRONTIER-CHECKPOINT RETENTION RE-ROUTED (2026-08-21, Seat 3 build)
+disk rulings 2026-08: score-keyed deletion removed; ground evidence protected.
+`safe_cleanup.py::_clean_frontier_checkpoints` (was safe_cleanup.py:2060-2149; D-1 in
+record/findings/RETENTION_POLICY.md, read in record/findings/F8A_READ.md as LATENT NOT
+INERT) no longer keeps top-20 per (game_type, level_number) by `survival_score DESC`
+with a hard DELETE. It now ARCHIVE-THEN-TRUNCATEs: every row is copied verbatim into
+`frontier_checkpoints_archive` (same columns + archived_at; append-only, never itself a
+cleanup target), the copy is VERIFIED BY COUNT BEFORE THE WIPE, then the live table is
+truncated with NO predicate — no row is ever SELECTED for removal, so no proxy can be
+the key. Gate: tests/gate/test_u2_checkpoint_retention.py (behavioural full-archive +
+structural no-score-comparison AST/source scan + append-only across sweeps).
+RECEIPT-ROT CHECK, STATED LOUDLY: NO registry row cites safe_cleanup.py — the
+frontier-named rows (plan-veto, harvest, movement-bias) all point at
+engines/egocentric/frontier.py, which this build did not touch — so no receipt moved
+and none needed refreshing. The four stale tests in tests/test_safe_cleanup.py that
+asserted the PRE-RULING spec (delete zero-score game_results) were ALIGNED the same
+day to guard the ruled behaviour instead; they go red if score-keyed deletion returns.

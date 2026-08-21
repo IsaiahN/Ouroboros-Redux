@@ -636,14 +636,19 @@ class SafeDatabaseCleaner:
         )
 
         # =====================================================================
-        # FRONTIER CHECKPOINT CLEANUP (Constructive Pathfinding)
+        # FRONTIER CHECKPOINT RETENTION (Constructive Pathfinding) -- U-2
         # =====================================================================
-        # Keep only top 20 checkpoints per (game_type, level_number).
-        # Prioritize by survival_score DESC, times_extended DESC.
-        # See: architecture/frontier_checkpoint_system.md
+        # disk rulings 2026-08: score-keyed deletion removed; ground evidence
+        # protected. The pre-ruling version kept the top 20 per (game_type,
+        # level_number) ranked by survival_score and hard-DELETED the rest --
+        # the condemned key (D-1, record/findings/RETENTION_POLICY.md U-2;
+        # record/findings/F8A_READ.md: latent, not inert). Now ARCHIVE-THEN-
+        # TRUNCATE: rows are copied verbatim to frontier_checkpoints_archive,
+        # the copy is verified by count, then the live table is truncated with
+        # NO predicate. See: architecture/frontier_checkpoint_system.md
         # =====================================================================
         if verbose:
-            print('\n26. Excess frontier checkpoints')
+            print('\n26. Frontier checkpoints (archive-then-truncate, U-2)')
         results['tables_cleaned']['frontier_checkpoints'] = self._clean_frontier_checkpoints(
             c, conn, dry_run, verbose
         )
@@ -2058,15 +2063,30 @@ class SafeDatabaseCleaner:
         return {'found': orphaned + excess if 'orphaned' in dir() and 'excess' in dir() else 0, 'deleted': deleted}
 
     def _clean_frontier_checkpoints(self, c, conn, dry_run, verbose):
-        """
-        Keep only top 20 checkpoints per (game_type, level_number).
+        """ARCHIVE-THEN-TRUNCATE for frontier checkpoints (U-2). No ranking key.
 
-        Prioritize by survival_score DESC, times_extended DESC.
-        This prevents checkpoint bloat while preserving the best paths.
+        disk rulings 2026-08: score-keyed deletion removed; ground evidence
+        protected. The pre-ruling version kept the top 20 rows per
+        (game_type, level_number) ranked by a reward proxy and hard-DELETED
+        the rest -- D-1, the condemned key still in production, latent only
+        because the table's writer was never wired (F8A_READ.md). Ranking by
+        reward is the exact criterion that ate the metrics corpus twice
+        (1,722 -> 462; re86 112 -> 8); it may never be the key.
+
+        Ruled shape (RETENTION_POLICY.md PART 3):
+          1. COPY every row verbatim into frontier_checkpoints_archive
+             (same columns plus an archived_at stamp). The archive table is
+             append-only and is never itself a cleanup target (archive law).
+          2. VERIFY THE COPY BEFORE THE WIPE: the archived row count must
+             equal the live row count, in the same transaction.
+          3. TRUNCATE the live table with NO predicate -- no row is ever
+             SELECTED for removal, so nothing can be selected by a proxy.
+        A failed or short copy aborts LOUDLY and leaves the live table
+        untouched. Rows removed from the live table are reported as
+        'archived', not 'deleted': the archive is the record.
         """
-        deleted = 0
-        excess = 0
-        keep_per_level = 20
+        found = 0
+        archived = 0
 
         try:
             # Check if table exists
@@ -2077,76 +2097,75 @@ class SafeDatabaseCleaner:
             if not c.fetchone():
                 if verbose:
                     print('   Table does not exist yet (first run)')
-                return {'found': 0, 'deleted': 0}
+                return {'found': 0, 'archived': 0, 'deleted': 0}
 
-            # Count total checkpoints
             c.execute('SELECT COUNT(*) FROM frontier_checkpoints')
-            total = c.fetchone()[0]
+            found = c.fetchone()[0]
 
             if verbose:
-                print(f'   Total checkpoints: {total:,}')
+                print(f'   Total checkpoints: {found:,}')
 
-            # Get count of distinct (game_type, level_number) pairs
-            c.execute('''
-                SELECT COUNT(*) FROM (
-                    SELECT DISTINCT game_type, level_number FROM frontier_checkpoints
-                )
-            ''')
-            distinct_levels = c.fetchone()[0]
+            if found == 0:
+                return {'found': 0, 'archived': 0, 'deleted': 0}
 
-            if verbose:
-                print(f'   Distinct game/level pairs: {distinct_levels}')
+            if dry_run:
+                if verbose:
+                    print(f'   Would archive-then-truncate: {found:,} '
+                          f'checkpoints (U-2: nothing deleted, ever)')
+                return {'found': found, 'archived': 0, 'deleted': 0}
 
-            # Compute excess using ROW_NUMBER
-            # Keep top 20 per (game_type, level_number) sorted by survival_score DESC
+            cols = [row[1] for row in
+                    c.execute('PRAGMA table_info(frontier_checkpoints)')]
+            col_list = ', '.join(cols)
+
+            # Archive table mirrors the live schema plus the archive stamp.
             c.execute(f'''
-                SELECT COUNT(*) FROM (
-                    SELECT
-                        game_type, level_number, terminal_frame_hash,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY game_type, level_number
-                            ORDER BY survival_score DESC, times_extended DESC
-                        ) as rn
-                    FROM frontier_checkpoints
-                ) ranked
-                WHERE rn > {keep_per_level}
+                CREATE TABLE IF NOT EXISTS frontier_checkpoints_archive AS
+                SELECT {col_list}, '' AS archived_at
+                FROM frontier_checkpoints WHERE 0
             ''')
-            excess = c.fetchone()[0]
+
+            stamp = datetime.now().isoformat()
+            c.execute('SELECT COUNT(*) FROM frontier_checkpoints_archive')
+            before = c.fetchone()[0]
+            c.execute(f'''
+                INSERT INTO frontier_checkpoints_archive
+                    ({col_list}, archived_at)
+                SELECT {col_list}, ? FROM frontier_checkpoints
+            ''', (stamp,))
+            c.execute('SELECT COUNT(*) FROM frontier_checkpoints_archive')
+            archived = c.fetchone()[0] - before
+
+            # VERIFY THE COPY BEFORE THE WIPE (RETENTION_POLICY.md PART 3).
+            if archived != found:
+                conn.rollback()
+                print(f'   ARCHIVE VERIFY FAILED for frontier_checkpoints: '
+                      f'copied {archived:,} of {found:,} rows -- NOT '
+                      f'truncating; live table untouched')
+                return {'found': found, 'archived': 0, 'deleted': 0}
+
+            # Truncate: whole-table, NO predicate. Nothing is selected.
+            c.execute('DELETE FROM frontier_checkpoints')
+            c.execute('SELECT COUNT(*) FROM frontier_checkpoints')
+            remaining = c.fetchone()[0]
+            if remaining != 0:
+                conn.rollback()
+                print(f'   TRUNCATE VERIFY FAILED for frontier_checkpoints: '
+                      f'{remaining:,} rows remain -- rolled back')
+                return {'found': found, 'archived': 0, 'deleted': 0}
+            conn.commit()
 
             if verbose:
-                print(f'   Excess (beyond top {keep_per_level} per level): {excess:,}')
-
-            if not dry_run and excess > 0:
-                # Delete rows that rank beyond top 20 for their game/level
-                c.execute(f'''
-                    DELETE FROM frontier_checkpoints
-                    WHERE (game_type, level_number, terminal_frame_hash) IN (
-                        SELECT game_type, level_number, terminal_frame_hash FROM (
-                            SELECT
-                                game_type, level_number, terminal_frame_hash,
-                                ROW_NUMBER() OVER (
-                                    PARTITION BY game_type, level_number
-                                    ORDER BY survival_score DESC, times_extended DESC
-                                ) as rn
-                            FROM frontier_checkpoints
-                        ) ranked
-                        WHERE rn > {keep_per_level}
-                    )
-                ''')
-                deleted = c.rowcount
-                conn.commit()
+                print(f'   Archived-then-truncated: {archived:,} checkpoints '
+                      f'-> frontier_checkpoints_archive (0 deleted)')
 
         except Exception as e:
-            if verbose:
-                print(f'   Could not clean frontier checkpoints: {e}')
+            # LOUD by ruling: an un-fired cleanup and an absent one are
+            # indistinguishable from inside.
+            print(f'   Could not archive frontier checkpoints: {e}')
+            return {'found': found, 'archived': 0, 'deleted': 0}
 
-        if verbose:
-            if dry_run and excess > 0:
-                print(f'   Would delete: {excess:,} excess checkpoints')
-            elif deleted > 0:
-                print(f'   Deleted: {deleted:,} excess checkpoints')
-
-        return {'found': excess, 'deleted': deleted}
+        return {'found': found, 'archived': archived, 'deleted': 0}
 
     def _clean_orphaned_sessions(self, c, conn, dry_run, verbose):
         """
