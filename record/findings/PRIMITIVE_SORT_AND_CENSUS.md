@@ -124,3 +124,18 @@ Retirement loses nothing that was ever used.
 - 77 MECHANICS → interpreter layer (legitimate to hand; no earn-through).
 - 155 CAPABILITIES → the catalogue as curriculum, value honestly unknown until the first
   earns settle.
+
+
+## THE FALLBACK-USEFULNESS QUESTION (Seat 3's retirement condition) — the honest bound
+Both selection modes exist in decision_rung_system (ladder: has_suggestion vs threshold at
+:881/:1163/:1263; weighted: vote = confidence x (100-priority)/100 at :944). The answer by
+mode:
+- **Ladder orderings: the fallbacks produced NOTHING downstream, provably** — 0.24 < 0.35
+  means no suggestion ever passed the rung's own gate, so no output reached the wheel.
+- **Weighted mode: influence possible in principle, never credited, bounded ≤ ~0.16** —
+  the vote joined the blend but a win credits the highest contributor, and the suggester
+  was never it. Whether its marginal vote ever FLIPPED a blended choice is unmeasured.
+**QUEUED (heartbeat): the bounding read** — which mode each role/strategy actually runs
+live, and the suggester's vote share vs typical winner scores in any weighted path. If
+weighted never runs live, the answer hardens to "the fallbacks never influenced a single
+action, in any mode" and the retirement loses provably nothing.
