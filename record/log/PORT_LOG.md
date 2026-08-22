@@ -2513,3 +2513,208 @@ clean apart from the symbol-receipts builder's uncommitted test/tool work.
    WHAT WOULD CHANGE THIS ANSWER: a production writer for discovery_prestige (or any
    selection signal actually written), and genome fields that vary and are read by the
    player. Both are checkable in one query each; neither is true today.
+
+=== SYMBOL RECEIPTS COMMITTED f891ba9 -- AND ITS REAL FINDING IS NOT THE DRIFT ===
+2726 passed / 0 failed, ruff clean tree-wide. Oracle: 327 row x test verdicts identical
+between old-gate-on-old-registry and new-gate-on-migrated; a 200-line shift reds 37 rows on
+the old gate and ZERO on the new; a broken wire still reds both.
+THE FINDING, PULLED OUT OF THE METHOD SECTION WHERE IT WAS BURIED (Seat 4): **28 of 109
+claimed lines sat on NO node of their own symbol EVEN AT THE COMMIT THAT WROTE THEM.** A
+quarter of the registry was never exact. The +/-30 substring region meant no claim was ever
+REQUIRED to point at anything. So the week's ~140 receipt refreshes were not drift away from
+precision -- THERE WAS NO PRECISION TO DRIFT FROM. decline-branch passing on the substring
+"match" inside the line `return out` is the visible case and it is one of twenty-eight.
+And FIVE OF TWENTY SEVERED break lines pointed at the wrong place (role-multiplier :245 vs
+the real :1441; agent-motion :209 vs :37): the check that was supposed to validate them only
+checked that they were PLAUSIBLE.
+TWO DISCIPLINES WORTH KEEPING: (1) the migration cross-checked itself by re-running with the
+git-blame step DISABLED and producing byte-identical cells for all 107 rows -- verification
+against a version of itself with a step removed, the strongest available check on a mapping
+nobody can eyeball; (2) SHIFT_REDS_OLD pinned at 37, NOT the prereg's 24, with the reason:
+24 was measured when the registry held 60 rows and it now holds 109. A pinned number
+corrected against its own population instead of carried forward.
+F4 RESIDUE, correctly refused: a call inserted BEFORE an anchored one is invisible; using
+@LINE as a floor would catch it AND make every deletion above a site red -- the same rot
+mirrored. A fix that reintroduces the defect in the opposite direction is not a fix. Named
+as a residue with its own test so it reds the day receiver-qualification lands.
+
+=== THE ARC TOOLKIT SHIPS A SERVER SHAPE (read from arc_agi/base.py) ===
+The GM's "the ARC API creates the swarm itself" is SUPPORTED, and it is `listen_and_serve`
+(base.py:1086): a threaded Flask server built by arc_agi.server.create_app that HOSTS
+environments over HTTP for clients to play, with scorecard lifecycle and recording built in.
+The public surface is get_environments / make / open_close_get_scorecard / listen_and_serve
+-- there is no batch or parallel play API, but the SERVER is the parallel shape: ONE process
+holding the environments, N thin clients connecting.
+That also explains a loose end from the memory reads: WERKZEUG WAS RESIDENT IN A WORKER'S
+HEAP (it raised RuntimeError under my root-walk). Flask/werkzeug is in the dependency chain
+because of arc_agi.server -- imported into every one of our 25 worker processes, none of
+which serves anything.
+CURRENT SHAPE vs THE TOOLKIT'S: 25 heavyweight processes, each with a full cognitive stack,
+its own 284-table SQLite DB, its own Arcade, its own Flask dependency chain -- against one
+server holding the environments and N thin clients. Recorded, not proposed; the decomposition
+prereg explicitly does not prejudge it.
+
+=== WHY 28,892 AGENTS EXIST AND NONE ARE DELETED: A SWALLOWED FOREIGN KEY ERROR ===
+The GM proposed two branches (the boundary mints without removing; or the cull grades
+everyone against a permanently-zero prestige so nobody crosses a tier). Measured: NEITHER.
+1. RETIREMENT WORKS. 26,397 of 28,892 agents fleet-wide are is_active=0 -- 91.4%. Agents
+   are deactivated normally. sb26: 2,586 total, 114 active.
+2. THE PRESTIGE TIERS POINT THE OPPOSITE WAY to the hypothesis. The tiers are DELETION
+   criteria: `COALESCE(discovery_prestige,0) < 10` etc. With prestige permanently 0, EVERY
+   inactive agent is INSIDE the most aggressive tier -- everyone is eligible for deletion,
+   not exempt from it. Tier 1 (zero-score, never-won, prestige<10) matches essentially all
+   26,397. Tiers 2 and 3 require best_single_game_score > 0 and >= 1.0 -- and that field is
+   ALSO 0 for all 28,892 agents, so those two tiers match nobody, ever.
+3. THE ACTUAL DEFECT: `cleanup_ancient_inactive_agents` DOES run (evolution_runner.py:1554,
+   every 50th generation; boxes have reached generations 190-446, so it has had many
+   chances) and it FAILS EVERY TIME:
+       [LIFECYCLE-ERR] Agent cleanup failed: FOREIGN KEY constraint failed
+   31 occurrences across 16 boxes. Some child table references agents.agent_id and blocks
+   `DELETE FROM agents`. The exception is caught and printed ONLY under --verbose -- the
+   fleet does run verbose, so it printed, into logs nobody read. A swallowed error, visible
+   for weeks, in the path that was supposed to bound the population.
+CONSEQUENCES: agents accumulate without limit (generation-0 rows still present on every
+box); the per-box DBs reach 980MB (g50t) and 761MB (sk48); and every read that joins or
+scans `agents` pays for 28,892 rows where a few hundred were intended.
+NEXT: name the child table holding the reference (one PRAGMA foreign_key_list per table),
+then decide whether the archive step should cascade or the delete should be a soft-delete.
+That is a builder task with a clear falsifier: cleanup deletes >0 rows and the count of
+generation-0 agents goes to zero.
+THE GENUS, AGAIN: not produced-and-unread this time but RAISED-AND-UNREAD -- an exception
+whose only consumer is a print behind a flag. The lifecycle bound was never enforced and
+nothing said so above a debug line.
+
+=== DO THE SICK SIX CORRELATE WITH THE LARGEST agents TABLES? YES ON COUNT, NO ON SIZE ===
+(GM's check, run before the instrument reports.)
+  SICK (>=5 mem-kills, n=7): median 1,970 agents, median DB 151 MB
+  WELL (0 mem-kills,  n=10): median   944 agents, median DB 352 MB
+The five sickest boxes ARE the five largest agents tables (sb26 2,586 / vc33 1,998 /
+s5i5 1,991 / su15 1,970 / tn36 1,875 -- 15/11/12/9/11 kills). Agent COUNT tracks the
+pathology.
+BUT THE PROPOSED MECHANISM IS REFUTED: DB size ANTI-correlates. g50t carries the largest
+database on the fleet (935 MB) with ZERO mem-kills; sk48 726 MB with 3; the sick boxes'
+DBs are the SMALLEST (145-231 MB). "Bigger DB -> more page cache per worker -> memory"
+cannot be the link, because the boxes with the biggest DBs are the healthy ones.
+So the retirement failure and the memory ramp are NOT obviously one finding. What they
+share is a common CAUSE-SHAPED variable -- these are the high-episode, short-session boxes
+(sb26 21 episodes/hour), and both a large agents table and the memory sawtooth would follow
+from many short episodes: more generations completed, more offspring rows written, more
+per-episode construction and teardown. Agent count is a PROXY for episode rate, not
+necessarily the holder.
+STATUS OF THE THREE READS: (1) the FK cleanup failure is established and costed; (2) the
+memory holder is still unnamed and the instrumented run on an idle box is in flight; (3)
+the episode-rate hypothesis is now the leading candidate and is testable directly -- kills
+per box against episodes/hour from the beat tool's D2 section, which already computes it.
+
+=== THE EPISODE-RATE HYPOTHESIS IS REFUTED BY ITS OWN TEST (the GM's check, run) ===
+Pearson r against mem-kills, n=25 boxes:
+  episodes/hour        r = 0.219   REFUTED
+  ACTIVE agent count   r = 0.134   REFUTED
+  TOTAL agent count    r = 0.828   strong
+The killing case for episode rate: bp35 runs the FLEET'S HIGHEST rate (15.0 episodes/hour,
+24 actions/episode -- the most extreme box on both variables) and has ZERO mem-kills. tu93
+13.3/hr, zero. So "many short episodes" does not predict the pathology. I called it the
+leading hypothesis one message earlier; its own cheap test killed it. FOURTH hypothesis
+killed by a cheap check tonight (roster instantiation, DB page cache, episode rate, active
+population) -- none cost a build.
+WHAT SURVIVES: total agents -- the table the FK failure lets grow -- correlates 0.828 with
+mem-kills, while ACTIVE agents does not (0.134) and DB SIZE anti-correlates. So the
+predictor is specifically the DEAD, UNCULLABLE ROWS.
+I HAVE NO MECHANISM FOR IT, and I am not building on a correlation without one. The obvious
+candidate (something reads the whole agents table into memory) is NOT supported by the
+lottery, which filters properly: `WHERE agent_id IN (...) AND is_active = TRUE`
+(evolution_runner.py:760-763). A tree-wide grep for unfiltered `FROM agents` reads returns
+only deployed arm snapshots under .runs, not live code. So the mechanism is unnamed and the
+correlation stands unexplained.
+ANOMALY FOUND ALONG THE WAY, recorded not chased: `is_active` is not consistent across
+boxes. Population size is 6, and bp35/tu93 report exactly 6 active -- but r11l reports 304
+active, sb26 114, lp85 704. On some boxes agents are never deactivated. That is a second
+lifecycle defect beside the FK deletion failure, and it may be the confound in the 0.828.
+DISPOSITION: STOP CORRELATING. The instrumented run on the idle box answers "what holds the
+memory" directly, which is the question; correlations over 25 boxes with several confounds
+cannot. It is booting now (this box takes ~90s of imports before the first cycle).
+
+=== THE INSTRUMENT NAMED THE HOLDER, AND IT IS THE CACHE I COMMITTED TODAY ===
+Run: one worker on the worst box (sb26), ALONE on an idle machine, 9m20s, tracemalloc.
+  reason=timer  RSS 803MB (private) / 614MB (working set)  traced=191MB  peak=209MB
+LARGEST PYTHON HOLDER, unambiguous:
+  132.7MB in 2,158,821 blocks at json/decoder.py:361
+and the traceback names the chain five times over (40.2 + 39.2 + 37.6 + 10.1 + 3.5 + 1.2 =
+131.8MB of the 132.7):
+  fabric.py:284  (query, the cached branch)
+   <- fabric.py:655 (_cached_stream: records = _parse_lines(blob[:cut]); stored in _READ_CACHE)
+   <- fabric.py:569 (_parse_lines: rec = json.loads(line))
+THE PARSED-STREAM READ CACHE IS THE BIGGEST PYTHON HOLDER IN THE WORKER. Its cap is 32 MiB
+of STREAM BYTES; held as parsed dicts that is ~132MB -- a 4.1x expansion, inside the
+builder's own stated 3.5-6.5x estimate. The cap is doing what it says; the estimate was
+right; the object is simply large, and it is 2.16 MILLION small dict/str blocks.
+TWO THINGS THE SAME RUN SETTLES:
+1. THE RAMP DOES NOT REPRODUCE IN ISOLATION. The RSS curve is FLAT: 803MB at 441s through
+   804MB at 562s, with the worker actively minting and planning throughout. The box that was
+   mem-killed FIFTEEN times at 2.5GB under the 25-worker fleet plateaus at 0.8GB when it runs
+   alone. So the pathology REQUIRES THE FLEET -- it is a contention/pressure phenomenon, not
+   a per-worker leak. That is a different problem from the one I have been chasing all night.
+2. MOST OF THE MEMORY IS STILL NOT PYTHON. traced 191MB against 803MB RSS leaves ~610MB
+   native and invisible to tracemalloc -- numpy buffers, SQLite page cache, arcengine's
+   sprite surfaces, the game environment. The read cache is the largest thing I CAN see; it
+   is not the majority of the process.
+WHAT THIS DOES AND DOES NOT LICENSE: it licenses reviewing READ_CACHE_CAP_BYTES against a
+25-worker box (32 MiB x 4.1 = 132MB per worker x 25 = 3.3GB of the machine spent on parsed
+JSON that each worker re-derives privately). It does NOT license calling the cache the cause
+of the mem-kills, because the mem-kills do not happen when the cache is doing exactly this.
+THE HONEST STATE: the holder is named, the ramp is not explained, and the two are different
+questions. The next instrument is the fleet itself -- N workers, RSS per worker against N --
+which is a measurement I can only take with the fleet up, and it is the GM's call whether
+that is worth the run.
+
+=== MANDATE ITEM 2, CORRECTED: THE BOOT TAX IS NOT IMPORTS, IT IS REPLAY ===
+From the same clean run (one worker, idle box, zero contention), seconds from the first log
+line:
+  EVOLUTION RUNNER banner .......   4s
+  first [AGENT] .................   4s
+  FIRST COGNITIVE CYCLE ([EGO]) . 352s     <-- 63% of a 560s run, before one cycle of thought
+  first [MINT] .................. 389s
+I have been quoting "~95s import + 72s to first cycle". THE IMPORT TERM IS 4s TO THE BANNER
+on an idle box, and the dominant term is the 352 SECONDS BETWEEN THE AGENT STARTING AND ITS
+FIRST COGNITIVE CYCLE. That is the REPLAY TAIL -- the worker replays its banked action
+sequences before handing off to cognition. The supervisor's own comment already recorded the
+shape ("cn04 730s, lp85 310s, ft09 274s -- all of them games WITH banked sequences") and I
+did not connect it to the generation arithmetic.
+WHY THIS MATTERS MORE THAN THE IMPORT NUMBER: every respawn pays it. The six sick boxes were
+respawning every ~14 minutes; at ~350s of replay per respawn, a large fraction of their
+wall-clock was replay, not play -- BY CONSTRUCTION, independent of the memory pathology.
+And it compounds: the more a box has banked, the longer its replay, the less it plays.
+This is a fixed tax on every restart the fleet has ever performed, and it is the first term
+to attack for the "several generations in ten minutes" target -- ahead of the per-action
+cost, because 352s is already 3.5x the entire 100s budget that target implies.
+NOT YET MEASURED: process start -> first log line (imports before logging is configured).
+The [RAMP] marker precedes repo imports but carries no timestamp. A separate cheap read.
+
+=== BEAT 51 (2026-08-22 ~02:20, fleet HALTED by GM instruction since 01:42) ===
+ASK: two rulings, neither urgent (below). Everything else is proctor work.
+THE GROUND: 0 games won, 0 levels completed this hour -- THE FLEET HAS NOT RUN THIS HOUR.
+That is deliberate, not a failure.
+RATES THIS HOUR: minted 0 / used 0 / composed 0 / retired 0 -- all by construction, no
+worker ran. And note the standing defect underneath: even with the fleet up these rates are
+NOT WINDOWABLE, because no ego_fabric record carries a timestamp (PREREG_SEQ_WATERMARK).
+So "learning per hour" remains unmeasurable until that lands, and I will not report a
+number I cannot window.
+THE ECONOMY, with denominators (state, not rate -- the fleet is down):
+  agents 28,892 total / 2,495 active (8.6%) / 26,397 inactive and UNCULLABLE
+  agents with prestige > 0: 0 / 28,892      agents with best_single_game_score > 0: 0 / 28,892
+  retirements with a recorded reason: 0 / 26,397
+  library: 152 composites / 0 settled ; 2,018 mints / 222,119 rederivations (0.9%)
+  boxes that have never minted: 7 / 25 -- including the two with the most level completions
+STALLED SINCE BEAT 50 (named, with why):
+  - levels: mute, 4 beats running. Nothing has moved the ground since the baseline was sealed.
+  - g7: still 0 and still UNMEASURED, not failed -- rung 0b now HAS an instrument
+    (tools/beat_rates.py D2) but has not been run against a live fleet.
+  - split-half: unchanged at 0-improved/0-regressed/5-unchanged; cannot advance while halted.
+  - the memory ramp: OPEN. Holder named (fabric read cache, 132.7MB/2.16M blocks) but the
+    ramp does NOT reproduce in isolation, so the cause is fleet-level and unexplained.
+WHAT MOVED THIS HOUR (diagnosis, not agent progress):
+  - the memory holder named, and the ramp shown to require the fleet (flat at 803MB alone)
+  - the boot tax re-attributed: 4s imports, 352s REPLAY before the first cognitive cycle
+  - the lifecycle failure found: cleanup throws FOREIGN KEY constraint failed, 31 times
+    across 16 boxes, caught and printed behind a verbose flag -- raised-and-unread
+  - four hypotheses killed by cheap checks, none costing a build
