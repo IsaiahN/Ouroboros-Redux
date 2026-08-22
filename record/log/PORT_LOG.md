@@ -3813,3 +3813,58 @@ resolution was not. Cost so far: one builder's in-flight work, one 7.7MB tracked
 CARRIED, GM: THE FLEET RUN IS THE TEST, NOT THE SUITE. String-loaded modules and lazy
 imports failed as WARNINGS twice in this examination; a green 2038 sees neither. Every
 slice gets a run, not a pytest exit code.
+
+---
+
+## BEAT 58 — THE MOVE IS DEAD. THE FALSIFIER I PRE-REGISTERED KILLED MY OWN RULING.
+
+THE PREDICTION (registered a681210, BEFORE the slice, losing condition stated): with the
+ladder absent the loop's action sequence on a constructed board is IDENTICAL.
+THE RESULT: 13 of 14 cycles diverge, first divergence at CYCLE 1.
+  WITH   : [6, 4, 4, 3, 6, 3, 3, 6, 1, 4, 6, 6, 4, 6]
+  WITHOUT: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]   <- one click, one coordinate, forever
+NOTHING MOVED. No production file was edited. The ruling is WITHDRAWN.
+
+WHY I WAS WRONG, AND THE SENTENCE I RULED ON IS TRUE: cognitive_loop.py imports neither
+decision_rung_system nor rungs. Zero references. Verified twice. **The ladder is not
+imported by the loop -- it is INJECTED into it.**
+  evolution_runner.py:321  DecisionRungSystem(...)
+  cognitive_game_player.py:116  decision_system=self._gp.decision_system
+  cognitive_loop.py:824    self._decision_system = decision_system
+  cognitive_loop.py:4338   result = self._decision_system.decide(obs, context)   <- SPEED 2
+AN IMPORT-CLOSURE TRACE CANNOT SEE DEPENDENCY INJECTION. Rung 0c inverted: that was a symbol
+referenced and never reached; this is a module never referenced and ALWAYS reached.
+
+I DID NOT TAKE THE COUNT ON REPORT. Independent recount, my own predicate, all 25 boxes,
+3,788 narration.jsonl, 2,336,716 records -- reproduced the builder's figures EXACTLY:
+  ACT 537,424 · with a rung label 298,601 · minus the loop's own "explore" 32,031
+  => 266,570 ACTIONS DECIDED BY A NAMED RUNG.
+  wall_aware_navigation 112,988 · weighted_random 76,145 · survey 38,767 ·
+  grid_exploration 23,610 · controlled_movement_planning 7,476 · exploration_phase 6,959 ·
+  smart_action_selection 625.  7/7 resolve into the modules I proposed to delete.
+  "explore" confirmed NOT a rung name, so 266,570 is the CONSERVATIVE figure.
+§4c's ZERO WAS REAL AND MEASURED THE WRONG DOOR: the exception fallback never fired in
+952,951 traces -- the ladder's BACK door. The FRONT door is a constructor argument, open
+every cycle. §4b's "condition discharged" fails the same way: _consecutive_no_change IS read,
+at rungs/exploitation.py:128/627/660, inside rung evaluation, which runs on the live path.
+
+THE CONTAGION -- THE ACTUAL FINDING, BIGGER THAN THE LADDER: THE 46 AND THE 97 WERE PRODUCED
+BY THE SAME BLIND INSTRUMENT. Every constructor-injected dependency in this tree is invisible
+to it. The 46 is a LOWER BOUND; the 97 "live but not cognitive" is UNSAFE TO ACT ON. This
+slice was the first withdrawal against that number and it would have deleted the agent's
+action variety. THE MOVE IS HALTED AT SLICE 1 -- not by the abort threshold (13:3 passed
+it), but by the falsifier, which is the stop rule that mattered.
+
+THIS IS NOT A DEFENCE OF THE LADDER. Load-bearing is weaker and different from good. Four
+rungs that cannot fire and one falling back to a literal are still true -- and now true on
+the LIVE path, which is worse than my ruling supposed.
+
+FIGURE 1: nothing here is progress. No capability gained, no defect removed, no level moved.
+FIGURE 10 IS THE WHOLE BEAT: the ruling was violable, so it was violated, at a cost of one
+builder-hour instead of the agent's action variety.
+
+CARRIED UP, NOT TAKEN (builder routed correctly): evolution_runner.py:905 still gates the
+only report of a swallowed loop exception behind `if self.verbose:`. The 0-in-952,951 is
+trustworthy ONLY because --verbose happened to be on. Recommend unconditional.
+SUITE: 2045 passed, 2 xfailed, 0 failed (2038 baseline + exactly the 7 new). ruff clean.
+F6 oracle unaffected -- no production line moved, because nothing moved.
