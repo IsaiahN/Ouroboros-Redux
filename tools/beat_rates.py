@@ -167,7 +167,7 @@ RUNS = os.path.join(ROOT, ".runs", "swarm")
 if ROOT not in sys.path:                      # importable as `tools.beat_rates`
     sys.path.insert(0, ROOT)
 
-# ── the constants, each with its derivation (KNOBS.md REGISTER O, row O5) ─────
+# ── the constants, each with its derivation (record/canon/KNOBS.md REGISTER O, row O5) ─────
 
 # THE AGGREGATION EPSILON, DERIVED -- NOT GUESSED. Figure 1's legal state is "a
 # global residual near zero with one live slot". Every residual the bank writes

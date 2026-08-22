@@ -50,7 +50,7 @@ five timeouts serialise into exactly two 600 s rounds = 1200 s, twelve times, wi
 variance at all* — that is a saturation artefact, not a growth curve. A mild upward drift
 does exist (first-5 mean 786 s → last-5 mean 893 s) but **it is not separable from timeout
 incidence in this design**, so I claim nothing from it. **The box-size cost claim in
-`PERF_AUDIT.md` is not supported at this scale and should carry this result beside it.**
+`record/prereg/PERF_AUDIT.md` is not supported at this scale and should carry this result beside it.**
 
 ### R-A · DEPTH — THE ELIMINATION HOLDS, AND ONE GAME MOVED
 **1,194 sessions produced no new depth.** `maxL` stayed 2; only `ar25` is at L2+, exactly as

@@ -33,7 +33,7 @@ _BINS = (TRANSFERRED, NOVEL, BROKEN_REBINDING, BROKEN_MECHANISM)
 # coin-toss on. Inside that band -- and ONLY there, and ONLY when the caller
 # passes the prior bet's stated expectation (arm C) -- the bet resolves the
 # tie. GUESSED (half the substrate's smallest testifiable residual);
-# KNOBS.md G27, Register G.
+# record/canon/KNOBS.md G27, Register G.
 AMBIGUOUS_BAND = 0.5
 
 

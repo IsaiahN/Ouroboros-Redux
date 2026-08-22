@@ -29,7 +29,7 @@ to how to build reliably at LLM speed, and no counter grades that.
    Not a symbol reference. Not an import. Not "the test calls it." A `file:line` on a path
    REACHABLE FROM THE LOOP ENTRY, demonstrated by the coverage diff in operator mode.
    THE CURRENT GATE ASSERTS REFERENCE, NOT REACHABILITY — that is the open gap, and until
-   the operator-mode coverage read lands, every LIVE row in WIRING_REGISTRY.md is a claim
+   the operator-mode coverage read lands, every LIVE row in record/canon/WIRING_REGISTRY.md is a claim
    about references rather than about execution.
 
 **2 · A NAMED CONSUMER WHOSE BEHAVIOUR CHANGES.**

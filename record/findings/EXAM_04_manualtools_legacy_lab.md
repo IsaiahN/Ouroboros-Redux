@@ -212,7 +212,7 @@ from.** `.github/workflows/ci.yml:57-64`:
 
 ```
 # ── ADVISORY. Vulture cannot see past __init__ re-exports -- that blind spot hid
-# sequence_miner.py for months (WIRING_REGISTRY.md). It stays non-blocking BECAUSE
+# sequence_miner.py for months (record/canon/WIRING_REGISTRY.md). It stays non-blocking BECAUSE
 # it is known-incomplete, and manual_tools/ is NO LONGER EXCLUDED: excluding the
 # directory that holds the orphan auditor is how the auditor itself went 195 days
 # unnoticed as an orphan.

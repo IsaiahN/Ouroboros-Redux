@@ -57,7 +57,7 @@ The classification column is ORPHANED?, not dest.
   string `"README.md"` in a keep-list and a docstring — a false positive, though it is live for other
   reasons). The lead's "36" appears to predate the move of the rest under `record/`. **The conclusion
   holds and is stronger than stated**: these are load-bearing documents, and two of them
-  (`WIRING_REGISTRY.md`, `KNOBS.md`) are not merely cited but **opened and parsed** at runtime.
+  (`record/canon/WIRING_REGISTRY.md`, `record/canon/KNOBS.md`) are not merely cited but **opened and parsed** at runtime.
 - **`figures/*.svg` are the eleven law diagrams and are canon.** Confirmed — eleven files, all
   git-tracked, referenced as a set from `tests/gate/test_standing.py` via `record/corpus/FIGURES_TEXT_DIGEST.md`.
 - **`models/`, `architecture/`, `checklists/` contain no .py.** Confirmed for all three. `config/`
@@ -143,7 +143,7 @@ subject cannot be located or is never touched.
 | `test_d11_render_import.py` | `arc_api_adapter.install_headless_render_guard()` | no | 11 tests in fresh subprocesses: with the guard on, no matplotlib/fontTools module is ever imported. |
 | `test_d8_instrument.py` | `cognitive_loop.py`, `decision_rung_system.py`, `rungs/base.py` fallback field | no | 26 tests: one field, no behaviour change — the router-fallback flag in both directions, byte-identity elsewhere. |
 | `test_d9_diagnostic_gate.py` | `evolution_runner.py` SystemDiagnostic opt-in | no | 11 tests: flag absent ⇒ never constructed; flag read exactly once at init, never per generation. |
-| `test_dead_dedup.py` | `engines/egocentric/frontier.py` dead-cell dedup + `WIRING_REGISTRY.md`/`KNOBS.md` rows | no | 21 tests: one episode clicking one cell five times banks one report; a cell needs two distinct records; off-arm. |
+| `test_dead_dedup.py` | `engines/egocentric/frontier.py` dead-cell dedup + `record/canon/WIRING_REGISTRY.md`/`record/canon/KNOBS.md` rows | no | 21 tests: one episode clicking one cell five times banks one report; a cell needs two distinct records; off-arm. |
 | `test_decline_branch.py` | `engines/egocentric/consumer` outcome enum + `effects.py` | no | 24 tests: DECLINED becomes expressible; not_found is strictly never matched-and-rejected. |
 | `test_deploy_on_change.py` | `tools/swarm_supervisor.py` code fingerprint + HOLD | **PARTIAL** | 5 of 6 tests exercise `_fingerprint`, a copy of the mechanism defined inside the test file; only `test_the_real_supervisor_exposes_the_pieces` reads the shipped supervisor. |
 | `test_discrepancy_planner.py` | `engines/egocentric/discrepancy.py`, `planner.py` | no | 9 tests: d is axis-wise and falsifiable; the planner spends against it or plans nothing. |
@@ -151,7 +151,7 @@ subject cannot be located or is never touched.
 | `test_e2e_pipeline.py` | one synthetic episode through the real `CognitiveLoop` | no | 21 tests: every producer's output verified in the fabric afterwards — atoms, settlements, boundary books, narration. |
 | `test_effect_atoms.py` | `engines/egocentric` EFFECT constructor + `fabric.py` | no | 11 tests: arity-two over time, canonical translation-invariant keying, the n=1 gate. |
 | `test_efference_copy.py` | `engines/egocentric/binder.py` | no | 15 tests: predicted-change-mask subtraction replaces click-proximity attribution; the wire is live. |
-| `test_efficiency_read.py` | `tools/efficiency_read.py`, `tools/wiring_receipts.py`, `WIRING_REGISTRY.md` | no | 31 tests: distance-to-that-player per game+level; unreached reference is not-measurable, never zero. |
+| `test_efficiency_read.py` | `tools/efficiency_read.py`, `tools/wiring_receipts.py`, `record/canon/WIRING_REGISTRY.md` | no | 31 tests: distance-to-that-player per game+level; unreached reference is not-measurable, never zero. |
 | `test_egocentric_substrate.py` | `engines/egocentric/observer.py` + segmentation/tracking | no | 14 tests: contingent motion beats autonomous drift; cold start names nobody; the wiring is read-only. |
 | `test_evidence_preserving_cleanup.py` | `safe_cleanup.py` | no | 4 tests: wins/level-completions/positive scores are kept forever; only old zero-evidence rows die. |
 | `test_fabric_janitor.py` | `engines/egocentric/janitor.py` | no | 13 tests: compaction changes no consumer answer byte-for-byte; loud manifest every run. |
@@ -211,7 +211,7 @@ subject cannot be located or is never touched.
 | `test_reset_discipline.py` | `cognitive_loop.py` `bump_episode` + reset counter | no | 11 tests: exactly one bump per boundary; the RESET-spam pattern is counted and narrated. |
 | `test_residual_router.py` | `engines/egocentric/router.py` | no | 8 tests: every settled residual lands in exactly one of four bins, ordered by residual mass. |
 | `test_rho.py` | `engines/egocentric` rho estimator | no | 16 tests: weighted Jaccard over atom signatures; n_eff formula and the collapse guard. |
-| `test_rho_ladder_live.py` | the rho ladder's production callers + `WIRING_REGISTRY.md` | no | 15 tests: a persisted multi-rung record per pass; the partition case R1=0 but R2>0; the registry row flipped. |
+| `test_rho_ladder_live.py` | the rho ladder's production callers + `record/canon/WIRING_REGISTRY.md` | no | 15 tests: a persisted multi-rung record per pass; the partition case R1=0 but R2>0; the registry row flipped. |
 | `test_rho_rungs.py` | `engines/egocentric` rho at three rungs | no | 18 tests: key-identity, frozen estimator, mag dropped at rung 2, rungs ordered. |
 | `test_role_binder.py` | `engines/egocentric/binder.py` | no | 9 tests: BODY/WORKSPACE/REFERENCE/RESOURCE by invariance, never appearance; re-binds on level change. |
 | `test_salient_prefix.py` | `cognitive_game_player.py` salient-prefix bank | no | 11 tests: playback channel only — no salient function touches a fabric stream (the membrane law). |
@@ -224,7 +224,7 @@ subject cannot be located or is never touched.
 | `test_starvation_codes.py` | `engines/egocentric/starvation.py`, `affect.py` | no | 16 tests: a fixed game-agnostic enum; at most one record per socket; residual not grade. |
 | `test_surprise_weighting.py` | `engines/egocentric/mint.py` repetition decay | no | 5 tests: n identical repetitions fall below n distinct; the seen map stays bounded. |
 | `test_swallow_counters.py` | `engines/egocentric/swallow.py` + `cognitive_loop` boundary | no | 14 tests: a fixed block enum, ≤1 enum-coded record per block, settled at end_game. |
-| `test_symbol_receipts.py` | `tools/wiring_receipts.py` + `WIRING_REGISTRY.md` + the AST laws | no | 29 tests: a receipt only a line shift can break is not a check — insertion invisible, removal not, order real. |
+| `test_symbol_receipts.py` | `tools/wiring_receipts.py` + `record/canon/WIRING_REGISTRY.md` + the AST laws | no | 29 tests: a receipt only a line shift can break is not a check — insertion invisible, removal not, order real. |
 | `test_system_determinism.py` | one full episode through the real `CognitiveLoop`, twice | no | 7 tests: byte-identical fabric writes, identical narration, no wall-clock-shaped fields. |
 | `test_tail_read.py` | `engines/egocentric/affect._recent_settlements` tail read | no | 36 tests: an O(tail) read byte-identical to the O(stream) one across every malformed-file case. |
 | `test_torn_writes.py` | every `engines/egocentric` reader against half-written JSONL | no | 17 tests: fabric, consumer, planner, book writers and janitor all skip a torn line and read the rest. |
@@ -236,7 +236,7 @@ subject cannot be located or is never touched.
 | `test_verdict_reason.py` | `engines/egocentric/mint.py` verdict reason field | no | 14 tests: every verdict names its deciding clause; the failed list is complete and reason-first. |
 | `test_verdict_stamps.py` | `engines/egocentric/mint.py` ep + sigma on verdicts, `tools/bracket_rt.py` | no | 16 tests: every verdict kind carries when and what-it-looked-like; old books still read. |
 | `test_verified_hydration.py` | `cognitive_loop.py` + planner DRIVE gate | no | 3 tests: a fresh loop hydrates TRANSFERRED counts from the books instead of an empty in-memory dict. |
-| `test_wiring_registry.py` | `tools/wiring_receipts.py` + `WIRING_REGISTRY.md` | no | 19 tests: the registry parses, statuses/dates valid, every claimed symbol still defined and referenced from production. |
+| `test_wiring_registry.py` | `tools/wiring_receipts.py` + `record/canon/WIRING_REGISTRY.md` | no | 19 tests: the registry parses, statuses/dates valid, every claimed symbol still defined and referenced from production. |
 
 ---
 
@@ -343,31 +343,31 @@ source of truth behind it. Confirmed canon, **live**.
 
 | path | dest | reached-by (with site) | one line |
 |---|---|---|---|
-| `WIRING_REGISTRY.md` | live | **OPENED** — `tools/wiring_receipts.py:92` (`DEFAULT_REGISTRY`), `tools/live_coverage_diff.py:55`; plus six gate tests that parse it (`test_wiring_registry.py:102`, `test_symbol_receipts.py:73`, `test_ranked_drain.py:294`, `test_origin_marker.py:305`, `test_regen_series.py:366`, `test_rho_ladder_live.py:279`, `test_efficiency_read.py:344`); CITED from `cognitive_loop.py:4742`, `engines/egocentric/composer.py:113` | Not a document — a machine-parsed data file. 12 .py sites. Moving it breaks two tools and seven tests. |
-| `KNOBS.md` | live | **OPENED** — `tests/gate/test_dead_dedup.py:336`, `test_ranked_drain.py:309`, `test_planner_retention.py:358`; CITED from `cognitive_loop.py:57`, `evolution_runner.py:212`, `engines/egocentric/persistence.py:86`, `router.py:36`, `tools/beat_rates.py:170` | The knob/amendment register; three gate tests read it as the authority for what a knob means. 11 .py sites. |
-| `THE_LADDER.md` | live | CITED — 8 .py sites: `tools/efficiency_read.py:11`, `tools/regen_series.py:3`, `tests/gate/test_consumers.py:48`, `test_decline_branch.py:3`, `test_efficiency_read.py:4`, `test_ranked_drain.py:3`, `test_regen_series.py:3`, `test_wiring_registry.py:1` | The rung ladder and the currency rule (levels_completed); the standard `test_wiring_registry.py` enforces. |
-| `CLAIM.md` | live | CITED — 7 .py sites: `cognitive_game_player.py:1491`, `engines/egocentric/consumer.py:58`, `effects.py:63`, `tests/gate/test_corpse_guard.py:26`, `test_dead_dedup.py:19`, `test_origin_marker.py:1`, `test_ranked_drain.py:17` | The binding ablation clause — every ranked/guarded build ships a passing off-arm because this file says so. |
-| `PREREG_FINAL_GAPS.md` | live | CITED — 7 .py sites: `engines/egocentric/consumer.py:62`, `goal_abduction.py:1`, `lp_drive.py:1`, `rho.py:1`, `tests/gate/test_goal_abduction.py:1`, `test_lp_drive.py:1`, `test_rho.py:1` | Prereg for G-A/G-B/G-C/G-D: the rho estimator, the R_T bracket, goal abduction, the LP drive. |
-| `PREREG_DRAIN_ORIGIN.md` | live | CITED — 6 .py sites: `engines/egocentric/consumer.py:47`, `effects.py:63`, `mint.py:77`, `tests/gate/test_origin_marker.py:1`, `test_ranked_drain.py:1`, `test_triangulation_consumer.py:198` | Prereg §A ranked drain + §B origin marker. |
-| `PREREG_READOUTS.md` | live | CITED — 6 .py sites: `cognitive_loop.py:1004`, `engines/egocentric/affect.py:148`, `starvation.py:1`, `tests/gate/test_consumers.py:1`, `test_starvation_codes.py:1`, `tools/socket_or_filler_lint.py:1` | Prereg R1 (starvation codes) + R3 (produced-but-never-consumed). |
-| `PREREG_PHASE2.md` | live | CITED — 4 .py sites: `cognitive_loop.py:1497`, `engines/egocentric/spine.py:4`, `tests/gate/test_goal_spine.py:8`, `tools/verify/hermetic.py:137` | Prereg for the goal spine and the wheel rule. |
-| `PERF_AUDIT.md` | live | CITED — 3 .py sites: `engines/egocentric/affect.py:88`, `fabric.py:130`, `tests/gate/test_tail_read.py:3` | The performance audit; Q4 is the tail-read defect, cited with line numbers (`PERF_AUDIT.md:21-41`). |
-| `PREREG_CK_WAVE1.md` | live | CITED — 3 .py sites: `cognitive_game_player.py:764`, `cognitive_loop.py:2728`, `tests/gate/test_affordance_harvest.py:1` | Prereg for CK-1a/CK-1b/CK-2: typed transforms, harvest un-gating, efference copy. |
-| `PREREG_FRONTIER_HARVEST.md` | live | CITED — 3 .py sites: `cognitive_game_player.py:763`, `engines/egocentric/frontier.py:133`, `tests/gate/test_frontier_harvest.py:9` | Prereg 3d-ii: bank the experience, not the death spot. |
-| `PREREG_REFIT_DESTINATION.md` | live | CITED — 3 .py sites: `cognitive_loop.py:2521`, `tests/gate/test_consumers.py:74`, `test_refit_destination.py:1` | Prereg: the BROKEN-rebinding bin needs a destination stream. |
-| `VICTORY_PROTOCOL.md` | live | CITED — 3 .py sites: `engines/egocentric/janitor.py:33`, `tests/gate/test_consumers.py:20`, `test_record_keeping.py:1` | The record-keeping protocol: what costs nothing now is unrecoverable later — archive before you fold. |
-| `EGOCENTRIC_PORT_PLAN.md` | live | CITED — 2 .py sites: `engines/egocentric/spine.py:4`, `tests/gate/test_goal_spine.py:4` | The porting plan for the egocentric substrate; §7 is the wheel rule. |
-| `PREREG_CORPSE_GUARD.md` | live | CITED — 2 .py sites: `cognitive_game_player.py:428`, `tests/gate/test_corpse_guard.py:1` | Prereg for the corpse guard (F-1 of the frontier audit). |
-| `PREREG_DEAD_DEDUP.md` | live | CITED — 2 .py sites: `engines/egocentric/frontier.py:21`, `tests/gate/test_dead_dedup.py:1` | Prereg for the dead-cell dedup and its off-arm (audit F-3). |
-| `PREREG_FRONTIER_PARIAH.md` | live | CITED — 2 .py sites: `engines/egocentric/frontier.py:1`, `tests/gate/test_frontier_pariah.py:9` | Prereg 3d-i: fatal openings are banked and permanently avoided. |
-| `PREREG_MARKETPLACE_MERGE.md` | live | CITED — 2 .py sites: `engines/egocentric/betting.py:1`, `tests/gate/test_bet_spine.py:8` | Prereg for merging the betting marketplace into the spine. |
-| `PREREG_MASTERY_LITE.md` | live | CITED — 2 .py sites: `cognitive_game_player.py:101`, `engines/egocentric/mastery.py:3` | Prereg: replay probability earned from replay reliability. |
-| `PREREG_PHASE1.md` | live | CITED — 2 .py sites: `engines/egocentric/observer.py:15`, `tests/gate/test_egocentric_substrate.py:8` | Prereg for the egocentric perception substrate. |
-| `PREREG_PHASE3A.md` | live | CITED — 2 .py sites: `engines/egocentric/fabric.py:1`, `tests/gate/test_knowledge_fabric.py:9` | Prereg for the knowledge fabric and the idea economy. |
-| `PREREG_SMART_CLEANUP.md` | live | CITED — 2 .py sites: `engines/egocentric/janitor.py:1`, `tests/gate/test_fabric_janitor.py:3` | Prereg B14: size-triggered, loud, compaction-not-deletion. |
-| `THE_GOALS.md` | live | CITED — 2 .py sites: `tools/efficiency_read.py:5`, `tests/gate/test_efficiency_read.py:3` | The seat-2 sequencing list; ITEM-2 is the efficiency read. |
-| `PREREG_BUDGET_RESTORATION.md` | live | CITED — 1 .py site: `cognitive_game_player.py:241` | Prereg: replayed levels fund like live levels; roles scale allowances. |
-| `PREREG_D3_VERIFIER.md` | live | CITED — 1 .py site: `safe_cleanup.py:2268` | Prereg for the D3 verifier inside the cleaner. |
+| `record/canon/WIRING_REGISTRY.md` | live | **OPENED** — `tools/wiring_receipts.py:92` (`DEFAULT_REGISTRY`), `tools/live_coverage_diff.py:55`; plus six gate tests that parse it (`test_wiring_registry.py:102`, `test_symbol_receipts.py:73`, `test_ranked_drain.py:294`, `test_origin_marker.py:305`, `test_regen_series.py:366`, `test_rho_ladder_live.py:279`, `test_efficiency_read.py:344`); CITED from `cognitive_loop.py:4742`, `engines/egocentric/composer.py:113` | Not a document — a machine-parsed data file. 12 .py sites. Moving it breaks two tools and seven tests. |
+| `record/canon/KNOBS.md` | live | **OPENED** — `tests/gate/test_dead_dedup.py:336`, `test_ranked_drain.py:309`, `test_planner_retention.py:358`; CITED from `cognitive_loop.py:57`, `evolution_runner.py:212`, `engines/egocentric/persistence.py:86`, `router.py:36`, `tools/beat_rates.py:170` | The knob/amendment register; three gate tests read it as the authority for what a knob means. 11 .py sites. |
+| `record/canon/THE_LADDER.md` | live | CITED — 8 .py sites: `tools/efficiency_read.py:11`, `tools/regen_series.py:3`, `tests/gate/test_consumers.py:48`, `test_decline_branch.py:3`, `test_efficiency_read.py:4`, `test_ranked_drain.py:3`, `test_regen_series.py:3`, `test_wiring_registry.py:1` | The rung ladder and the currency rule (levels_completed); the standard `test_wiring_registry.py` enforces. |
+| `record/canon/CLAIM.md` | live | CITED — 7 .py sites: `cognitive_game_player.py:1491`, `engines/egocentric/consumer.py:58`, `effects.py:63`, `tests/gate/test_corpse_guard.py:26`, `test_dead_dedup.py:19`, `test_origin_marker.py:1`, `test_ranked_drain.py:17` | The binding ablation clause — every ranked/guarded build ships a passing off-arm because this file says so. |
+| `record/prereg/PREREG_FINAL_GAPS.md` | live | CITED — 7 .py sites: `engines/egocentric/consumer.py:62`, `goal_abduction.py:1`, `lp_drive.py:1`, `rho.py:1`, `tests/gate/test_goal_abduction.py:1`, `test_lp_drive.py:1`, `test_rho.py:1` | Prereg for G-A/G-B/G-C/G-D: the rho estimator, the R_T bracket, goal abduction, the LP drive. |
+| `record/prereg/PREREG_DRAIN_ORIGIN.md` | live | CITED — 6 .py sites: `engines/egocentric/consumer.py:47`, `effects.py:63`, `mint.py:77`, `tests/gate/test_origin_marker.py:1`, `test_ranked_drain.py:1`, `test_triangulation_consumer.py:198` | Prereg §A ranked drain + §B origin marker. |
+| `record/prereg/PREREG_READOUTS.md` | live | CITED — 6 .py sites: `cognitive_loop.py:1004`, `engines/egocentric/affect.py:148`, `starvation.py:1`, `tests/gate/test_consumers.py:1`, `test_starvation_codes.py:1`, `tools/socket_or_filler_lint.py:1` | Prereg R1 (starvation codes) + R3 (produced-but-never-consumed). |
+| `record/prereg/PREREG_PHASE2.md` | live | CITED — 4 .py sites: `cognitive_loop.py:1497`, `engines/egocentric/spine.py:4`, `tests/gate/test_goal_spine.py:8`, `tools/verify/hermetic.py:137` | Prereg for the goal spine and the wheel rule. |
+| `record/prereg/PERF_AUDIT.md` | live | CITED — 3 .py sites: `engines/egocentric/affect.py:88`, `fabric.py:130`, `tests/gate/test_tail_read.py:3` | The performance audit; Q4 is the tail-read defect, cited with line numbers (`record/prereg/PERF_AUDIT.md:21-41`). |
+| `record/prereg/PREREG_CK_WAVE1.md` | live | CITED — 3 .py sites: `cognitive_game_player.py:764`, `cognitive_loop.py:2728`, `tests/gate/test_affordance_harvest.py:1` | Prereg for CK-1a/CK-1b/CK-2: typed transforms, harvest un-gating, efference copy. |
+| `record/prereg/PREREG_FRONTIER_HARVEST.md` | live | CITED — 3 .py sites: `cognitive_game_player.py:763`, `engines/egocentric/frontier.py:133`, `tests/gate/test_frontier_harvest.py:9` | Prereg 3d-ii: bank the experience, not the death spot. |
+| `record/prereg/PREREG_REFIT_DESTINATION.md` | live | CITED — 3 .py sites: `cognitive_loop.py:2521`, `tests/gate/test_consumers.py:74`, `test_refit_destination.py:1` | Prereg: the BROKEN-rebinding bin needs a destination stream. |
+| `record/prereg/VICTORY_PROTOCOL.md` | live | CITED — 3 .py sites: `engines/egocentric/janitor.py:33`, `tests/gate/test_consumers.py:20`, `test_record_keeping.py:1` | The record-keeping protocol: what costs nothing now is unrecoverable later — archive before you fold. |
+| `record/prereg/EGOCENTRIC_PORT_PLAN.md` | live | CITED — 2 .py sites: `engines/egocentric/spine.py:4`, `tests/gate/test_goal_spine.py:4` | The porting plan for the egocentric substrate; §7 is the wheel rule. |
+| `record/prereg/PREREG_CORPSE_GUARD.md` | live | CITED — 2 .py sites: `cognitive_game_player.py:428`, `tests/gate/test_corpse_guard.py:1` | Prereg for the corpse guard (F-1 of the frontier audit). |
+| `record/prereg/PREREG_DEAD_DEDUP.md` | live | CITED — 2 .py sites: `engines/egocentric/frontier.py:21`, `tests/gate/test_dead_dedup.py:1` | Prereg for the dead-cell dedup and its off-arm (audit F-3). |
+| `record/prereg/PREREG_FRONTIER_PARIAH.md` | live | CITED — 2 .py sites: `engines/egocentric/frontier.py:1`, `tests/gate/test_frontier_pariah.py:9` | Prereg 3d-i: fatal openings are banked and permanently avoided. |
+| `record/prereg/PREREG_MARKETPLACE_MERGE.md` | live | CITED — 2 .py sites: `engines/egocentric/betting.py:1`, `tests/gate/test_bet_spine.py:8` | Prereg for merging the betting marketplace into the spine. |
+| `record/prereg/PREREG_MASTERY_LITE.md` | live | CITED — 2 .py sites: `cognitive_game_player.py:101`, `engines/egocentric/mastery.py:3` | Prereg: replay probability earned from replay reliability. |
+| `record/prereg/PREREG_PHASE1.md` | live | CITED — 2 .py sites: `engines/egocentric/observer.py:15`, `tests/gate/test_egocentric_substrate.py:8` | Prereg for the egocentric perception substrate. |
+| `record/prereg/PREREG_PHASE3A.md` | live | CITED — 2 .py sites: `engines/egocentric/fabric.py:1`, `tests/gate/test_knowledge_fabric.py:9` | Prereg for the knowledge fabric and the idea economy. |
+| `record/prereg/PREREG_SMART_CLEANUP.md` | live | CITED — 2 .py sites: `engines/egocentric/janitor.py:1`, `tests/gate/test_fabric_janitor.py:3` | Prereg B14: size-triggered, loud, compaction-not-deletion. |
+| `record/canon/THE_GOALS.md` | live | CITED — 2 .py sites: `tools/efficiency_read.py:5`, `tests/gate/test_efficiency_read.py:3` | The seat-2 sequencing list; ITEM-2 is the efficiency read. |
+| `record/prereg/PREREG_BUDGET_RESTORATION.md` | live | CITED — 1 .py site: `cognitive_game_player.py:241` | Prereg: replayed levels fund like live levels; roles scale allowances. |
+| `record/prereg/PREREG_D3_VERIFIER.md` | live | CITED — 1 .py site: `safe_cleanup.py:2268` | Prereg for the D3 verifier inside the cleaner. |
 | `README.md` | live | STRING (weak) — the two .py hits (`manual_tools/utilities/cleanup_temp_files.py:129`, `run_context.py:9`) are bare-basename false positives; genuinely referenced from `requirements.txt` context and as the repo's front door | The project overview: four subsystems, the foundational-paper link, the ARC-AGI acknowledgment. Live as the entry document, not as a code dependency. |
 
 ### The 9 non-markdown loose files
@@ -523,7 +523,7 @@ anywhere outside `.venv`/`.git` (searched to depth 3 and by name across the tree
 |---|---|---|---|
 | Install dependencies | `pip install vulture pytest ruff` + `python-dotenv aiohttp numpy pandas` | — | n/a — **see (b), this list is the defect** |
 | RUNG 0d — consumption sweep | `python tools/consumption_sweep.py --strict` | **BLOCKING** | yes; `--strict` is a real flag (`tools/consumption_sweep.py:270`), and it fails on what is NEW against the baseline (`:364`) |
-| RUNG 0c — wiring registry | `pytest tests/gate/test_wiring_registry.py -q` | **BLOCKING** | yes; needs only `tools/wiring_receipts.py` + `WIRING_REGISTRY.md`, both present, no third-party deps beyond pytest |
+| RUNG 0c — wiring registry | `pytest tests/gate/test_wiring_registry.py -q` | **BLOCKING** | yes; needs only `tools/wiring_receipts.py` + `record/canon/WIRING_REGISTRY.md`, both present, no third-party deps beyond pytest |
 | OOD lint | `python tools/ood_lint.py` | **BLOCKING** | yes; `main()` at `:212` with an optional `--root` defaulting to the repo, so a bare call is correct |
 | ruff | `ruff check .` | **BLOCKING** | yes; the `.` is governed by `pyproject.toml [tool.ruff] include`, so it resolves to `engines/egocentric/**`, `tools/**`, `tests/gate/**`, `pyproject.toml` |
 | gate suite | `pytest tests/gate -q` | **BLOCKING** | directory exists — **but see (b): it cannot pass** |

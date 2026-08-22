@@ -1,11 +1,11 @@
-"""RUNG 0c GATE: THE WIRING REGISTRY -- deterministic layer (THE_LADDER.md).
+"""RUNG 0c GATE: THE WIRING REGISTRY -- deterministic layer (record/canon/THE_LADDER.md).
 
 THE STANDARD: a build is DONE when something in the live path calls it with
 real inputs -- and the receipt is checked by CI, not by the reviewer. The last
 eleven receipt-claims were all wrong (PIPELINE_AUDIT.md, the full sweep), so a
 registry alone is a convention nothing can check. This gate is the checker.
 
-WIRING_REGISTRY.md holds one machine-parseable row per organ:
+record/canon/WIRING_REGISTRY.md holds one machine-parseable row per organ:
 
     | name | symbol (module:qualname) | site | status | date | note |
 
@@ -99,7 +99,7 @@ from tools.wiring_receipts import (  # noqa: E402  -- the fingerprint grammar
 # OURO_WIRING_REGISTRY overrides the registry path (used by the failing-first
 # demonstrations and by operators dry-running a registry edit).
 REGISTRY_PATH = (os.environ.get("OURO_WIRING_REGISTRY")
-                 or os.path.join(REPO, "WIRING_REGISTRY.md"))
+                 or os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md"))
 
 DRIFT = 30          # +/- lines of receipt drift tolerated before going red
 VALID_STATUS = ("LIVE", "SEVERED", "DELETED-PENDING")
@@ -557,7 +557,7 @@ NO_ROW_ALLOWLIST: Dict[str, str] = {
                 "stacks are not this registry's jurisdiction (rung 0c covers "
                 "the egocentric substrate); their reachability is inventoried "
                 "in record/findings/CODEBASE_INVENTORY.md",
-    "rungs/": "the rung ladder is receipted by THE_LADDER.md, not here",
+    "rungs/": "the rung ladder is receipted by record/canon/THE_LADDER.md, not here",
     "tools/": "instruments, never the live path -- the gate's own PROD_GLOBS "
               "exclude them from the reference scan for the same reason",
     "config/": "configuration, no organs",

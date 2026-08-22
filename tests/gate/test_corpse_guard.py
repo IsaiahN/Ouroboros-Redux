@@ -23,7 +23,7 @@ THE BUILD (three parts, one causal story: STOP REPLAYING CORPSES):
   C. ARCHIVE LAW — banked corpses are NEVER deleted. They stay on disk,
      unselected.
 
-THE OFF-ARM (CLAIM.md's binding ablation clause, shipped as a PASSING test):
+THE OFF-ARM (record/canon/CLAIM.md's binding ablation clause, shipped as a PASSING test):
 CORPSE_GUARD=0 in the environment (or CognitiveGamePlayer.CORPSE_GUARD = False)
 reproduces the pre-guard behaviour BYTE-IDENTICALLY for BOTH banking (the death
 step is banked, same prefix_json bytes) and selection (the dead prefix is

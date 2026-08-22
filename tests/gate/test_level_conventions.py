@@ -1,4 +1,4 @@
-"""THE LEVEL-CONVENTIONS GATE (KNOBS.md AMENDMENT 3, A3-2 -- the grain audit's register).
+"""THE LEVEL-CONVENTIONS GATE (record/canon/KNOBS.md AMENDMENT 3, A3-2 -- the grain audit's register).
 
 ⭐ WHY. "Level" has TWO conventions, both intentional, never registered until
 A3-2: bare _ego_level (the COMPLETED level -- harvest/frontier context: banked

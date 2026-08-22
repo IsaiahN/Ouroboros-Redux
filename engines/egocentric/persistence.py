@@ -83,7 +83,7 @@ if FAILURE_BINS != (_na.BROKEN_REBINDING, _na.BROKEN_MECHANISM):
 
 # k's floor -- PINNED by PREREG_PERSISTENCE_MONITOR.md ("k_g >= 2 by
 # definition: one failure is an event (a bin); repetition is the trend").
-# Not a dial: KNOBS.md G30.
+# Not a dial: record/canon/KNOBS.md G30.
 K_FLOOR = 2
 
 # readout tokens (fixed)

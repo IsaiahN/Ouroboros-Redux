@@ -38,7 +38,7 @@ counter. A NULL RESULT IS NOT A NULL OUTCOME.
 - Two named builds held: import eviction losing-condition; Register L sweep round 2.
 
 ## ROOM RULINGS (maintainer, 2026-08-17):
-CLAIM ROOM = THE FINDING: CLAIM.md is not only a record — ABLATION-READINESS IS A
+CLAIM ROOM = THE FINDING: record/canon/CLAIM.md is not only a record — ABLATION-READINESS IS A
 DESIGN CONSTRAINT ON THE WAVE (priors individually toggleable, or single-removal
 irreducibility becomes impossible without refactor; the room can EXPIRE if the wave
 is built without it). FRAMEWORK VERDICT: outside — not the arrangement's to render;
@@ -51,7 +51,7 @@ READ, not vigilance. TARGET SELECTION: empty because NO READOUT — the counter 
 "did the current target work," a different question from "what to target instead."
 
 ## SEAT 2 SEQUENCING RULING (sent up, 2026-08-17):
-1st CLAIM.md + THE ABLATION CONSTRAINT — the only item that can EXPIRE: the F/RF wave
+1st record/canon/CLAIM.md + THE ABLATION CONSTRAINT — the only item that can EXPIRE: the F/RF wave
     briefs must carry "every prior/capability individually toggleable" BEFORE they are
     written; cost small, forecloses nothing, unblocks the deliverable no one curates.
 2nd EFFICIENCY-TO-REFERENCE — cheap (data on disk), upgrades ASSESSMENT immediately:

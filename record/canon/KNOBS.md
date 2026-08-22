@@ -322,7 +322,7 @@ A10-2 THE KEY ORDER is itself GUESSED, and it is the more dangerous half — it 
    WHICH EVIDENCE EXISTS, so a future arm must test the ORDER (characterized-first vs
    largest-residual-first), not only the window SIZE. Same distinction as A9-1's
    cap-vs-capability note.
-A10-3 THE OFF-ARM IS THE RECEIPT (CLAIM.md's ablation constraint): DRAIN_RANKED — the
+A10-3 THE OFF-ARM IS THE RECEIPT (record/canon/CLAIM.md's ablation constraint): DRAIN_RANKED — the
    environment variable outranks the module flag consumer.DRAIN_RANKED — set to
    0/false/no/off returns pending() VERBATIM, oldest-first, producing BYTE-IDENTICAL
    streams on disk. Shipped as a PASSING test at ship time, not a future intention.
@@ -345,7 +345,7 @@ A11-1 CORPSE_GUARD = True (cognitive_game_player.py). Provenance: GUESSED, Regis
    failure mode one organ over), no decay, no death-count threshold. ONE recorded death
    refuses; the value that could have been tuned (how many deaths before refusal) is
    fixed at 1 BY THE PREREG, and moving it would be a new arm, not a tuning.
-A11-2 THE OFF-ARM IS THE RECEIPT (CLAIM.md's ablation constraint): the environment
+A11-2 THE OFF-ARM IS THE RECEIPT (record/canon/CLAIM.md's ablation constraint): the environment
    variable CORPSE_GUARD outranks the class flag; 0/false/no/off/empty reproduces
    PRE-GUARD behaviour byte-identically on BOTH sides — banking (the death step banks;
    prefix_json bytes unchanged, because the `terminal` marker is stripped before
@@ -385,7 +385,7 @@ A12-3 BOTH ENDS, BY THE ARCHIVE LAW: the WRITE fix alone would only correct FUTU
    records — the correction is applied at load time and NOTHING on disk is deleted or
    rewritten. Consequence to state plainly: the two ends must be toggled TOGETHER (one
    flag, both sites), or a mixed arm would measure neither counting rule.
-A12-4 THE OFF-ARM IS THE RECEIPT (CLAIM.md's ablation constraint): env DEAD_DEDUP
+A12-4 THE OFF-ARM IS THE RECEIPT (record/canon/CLAIM.md's ablation constraint): env DEAD_DEDUP
    outranks the module flag; 0/false/no/off/empty reproduces per-entry counting
    BYTE-IDENTICALLY at BOTH ends — the banked record bytes equal a literal pre-fix
    append, and the returned dead set equals the literal pre-fix computation. Shipped as
@@ -696,7 +696,7 @@ G36 STANDING AT THE ATOM GRAIN (PREREG_STANDING_HALF_LIFE_ATOMS.md, Seat 3 RULED
       interval, so standing outlives its evidence by exactly one interval and never
       accumulates past it (R4). The TICK is the episode ordinal `ep` because that is the
       unit at which an atom can be re-earned (prestige's tick is the GENERATION for the
-      same reason -- see the cross-grain counter in WIRING_REGISTRY.md:standing-book).
+      same reason -- see the cross-grain counter in record/canon/WIRING_REGISTRY.md:standing-book).
     * BORROWED_DECAY = 0.97 [BORROWED, stated] -- prestige_engine.py's own 3%-per-
       generation rate, used ONLY below MIN_QUALIFYING atoms and reported as borrowed by
       decay() (a median over fewer is not a distribution). Prestige's 3% implies a

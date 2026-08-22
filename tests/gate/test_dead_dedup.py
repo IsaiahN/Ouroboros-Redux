@@ -16,7 +16,7 @@ THE BUILD -- count DISTINCT RECORDS, not list entries, at BOTH ends:
 The >=2 THRESHOLD ITSELF IS UNCHANGED (KNOBS F8: evidence semantics, not a dial), and
 the effects-set-outranks-dead rule is UNCHANGED.
 
-THE OFF-ARM IS THE POINT (CLAIM.md's ablation constraint: "a toggle is not a toggle
+THE OFF-ARM IS THE POINT (record/canon/CLAIM.md's ablation constraint: "a toggle is not a toggle
 until something has run with it off"). DEAD_DEDUP=0 reproduces the per-entry counting
 BYTE-IDENTICALLY at BOTH ends -- the same bytes on disk from the write side, the same
 returned sets from the read side -- asserted HERE, at ship.
@@ -325,15 +325,15 @@ class TestContainmentAndReceipt:
         assert b.errors >= 0
 
     def test_registry_row_carries_the_receipt(self):
-        reg = open(os.path.join(REPO, "WIRING_REGISTRY.md"),
+        reg = open(os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md"),
                    encoding="utf-8", errors="replace").read()
         row = [ln for ln in reg.splitlines() if ln.startswith("| harvest |")]
         assert row, "the harvest row vanished from the wiring registry"
         assert "DEAD_DEDUP" in row[0], (
-            "the harvest row must carry the dedup toggle receipt (CLAIM.md)")
+            "the harvest row must carry the dedup toggle receipt (record/canon/CLAIM.md)")
 
     def test_knobs_registers_the_toggle(self):
-        knobs = open(os.path.join(REPO, "KNOBS.md"),
+        knobs = open(os.path.join(REPO, "record", "canon", "KNOBS.md"),
                      encoding="utf-8", errors="replace").read()
         assert "DEAD_DEDUP" in knobs, "the toggle is unregistered (KNOBS Register G)"
         assert ">= 2 independent reports" in knobs, (

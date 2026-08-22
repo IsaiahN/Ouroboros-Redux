@@ -22,7 +22,7 @@ another name.
 NOTHING.** A path is CLAIM-SUPPORTING, and is kept **REGARDLESS OF AGE OR SIZE**, if ANY of:
   **(a) IT HAS A LIVE READER** — it is NOT on `tools/consumption_sweep.py`'s unpaired list.
       A stream something reads is load-bearing by definition.
-  **(b) IT IS CITED BY A LIVE CLAIM DOCUMENT** — named in `CLAIM.md`, `UNDERPOWERED.md`,
+  **(b) IT IS CITED BY A LIVE CLAIM DOCUMENT** — named in `record/canon/CLAIM.md`, `UNDERPOWERED.md`,
       `LINK3_AUDIT.md`, `BOARD_AUDIT.md`, or any `PREREG_*.md` whose experiment has not
       reported. **The under-powered register makes this concrete: every re-run pending
       needs its baseline population intact.**

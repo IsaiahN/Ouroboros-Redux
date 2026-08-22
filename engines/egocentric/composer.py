@@ -110,7 +110,7 @@ order, ties broken by discovery order.
 WIRING: consumed at cognitive_loop._w3c_compose (the ONE compose_attempt
 call site), invoked from the two already-gated plan seams in cycle() when
 the search returns None. This build flips enables_edges and
-cross_shelf_reach SEVERED -> LIVE (WIRING_REGISTRY.md).
+cross_shelf_reach SEVERED -> LIVE (record/canon/WIRING_REGISTRY.md).
 
 STAGE 4 (PREREG_COMPOSER_STAGE4_SETTLEMENT.md) appends the settlement wire
 at the bottom of this module: drive_record / divergence / settle_verdict /

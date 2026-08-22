@@ -1,6 +1,6 @@
 """RUNG-4 GATE: THE FOURTH BRANCH — DECLINED is expressible (instrument only).
 
-⭐ WHY (THE_LADDER.md, RUNG-4 READ PREP). The consumer's outcome enum was
+⭐ WHY (record/canon/THE_LADDER.md, RUNG-4 READ PREP). The consumer's outcome enum was
 {consumed, not_found, candidates}: MATCHED-AND-REJECTED DID NOT EXIST in the
 vocabulary. Every guard between match and candidate-emission that refused a
 comparison fell through to not_found, making "never-matched" the UNION of two

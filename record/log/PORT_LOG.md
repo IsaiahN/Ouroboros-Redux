@@ -3157,7 +3157,7 @@ list is ruled on.
     oldlogs 44M, plus ~15 small dirs (base, earned, cur, m7on/off, m2on, final, ...) at
     2026-08-06, and TWO EMPTY ONES (archive/, c34_base_gamma/).
   .runs/arms/  149M  <- A COMPLETE SECOND COPY OF THE REPO (5 entries; 112913b692a2 holds
-                        BUILD_PROGRAM.md, CLAIM.md, the lot). THIS IS THE MOVING-TREE HAZARD
+                        BUILD_PROGRAM.md, record/canon/CLAIM.md, the lot). THIS IS THE MOVING-TREE HAZARD
                         BY A THIRD MECHANISM: a second importable tree inside the repo, with
                         its own .py, its own .github, and until tonight its own bytecode. It
                         is also why several greps this week returned phantom hits.
@@ -3284,10 +3284,10 @@ Same kind of file, two locations, and nothing said which was canonical.
 MOVED to record/prereg/: 19 PREREG_*.md + VICTORY_PROTOCOL.md, PERF_AUDIT.md,
 EGOCENTRIC_PORT_PLAN.md (20 total).
 KEPT AT ROOT, and the reason is measured, not habitual:
-  WIRING_REGISTRY.md and KNOBS.md are OPENED AND PARSED by gate tests
+  record/canon/WIRING_REGISTRY.md and record/canon/KNOBS.md are OPENED AND PARSED by gate tests
   (test_dead_dedup.py:328/336, test_efficiency_read.py:344, test_origin_marker.py:305,
   test_planner_retention.py:358). Moving them BREAKS TESTS, not just pointers.
-  THE_LADDER.md, CLAIM.md, THE_GOALS.md, README.md -- canon, cited from ~100 sites.
+  record/canon/THE_LADDER.md, record/canon/CLAIM.md, record/canon/THE_GOALS.md, README.md -- canon, cited from ~100 sites.
 THE CITATIONS MOVED IN THE SAME OPERATION -- 49 files rewritten. A move that leaves stale
 references behind IS THE RECEIPT-ROT DEFECT IN PROSE, and this project has spent the week
 paying for exactly that at the line-number grain. Verified after: zero bare references
@@ -3313,3 +3313,27 @@ each is a judgement about intent rather than reachability:
   * PREREG_MINT_CONTEXT_RING -- withdrawn, then re-admitted and queued; live, not stale
 Four candidates, one of which is explicitly still queued. That is a ruling, not a sweep, so
 it waits for the GM rather than being executed on a guess.
+
+=== THE CANON MOVED TO record/canon/ -- AND THE MOVE BROKE 16 TESTS, WHICH IS THE TEST ===
+Moved: WIRING_REGISTRY.md, KNOBS.md, THE_LADDER.md, CLAIM.md, THE_GOALS.md -> record/canon/.
+README.md STAYS AT ROOT: it is the repository's front page by universal convention and by
+GitHub's own resolution. Stated as a judgement rather than skipped silently.
+55 files of references rewritten in the same operation, and BOTH kinds: the PROSE mentions,
+and the CODE PATHS that actually open these files -- os.path.join(REPO, "WIRING_REGISTRY.md")
+in four gate tests and two tools, plus the bare relative constants.
+IT BROKE 16 TESTS AND 4 ERRORED. Two causes, both instructive:
+ 1. THE SCRATCH HARNESS ASSUMED A FLAT ROOT. test_symbol_receipts._scratch copies the gate,
+    the laws and the registry into a temp tree with os.makedirs("tests/gate") hard-coded --
+    it made the ONE directory it knew about. The registry's new parent did not exist, so
+    every copy raised FileNotFoundError. Fixed by making the parent OF EACH FILE rather
+    than a named directory: the assumption the move exposed.
+ 2. A PATH IS ONLY VALID RELATIVE TO A REVISION. The oracle reads the pre-migration gate and
+    registry out of a historical commit, where the registry was still at the repo ROOT --
+    so `git show 0c77eca:record/canon/WIRING_REGISTRY.md` finds nothing. One constant was
+    serving both the working tree and a historical read. Split into REGISTRY_REL and
+    REGISTRY_REL_AT_PRE_MIGRATION, with the reason in the code: the same lesson as the
+    receipts themselves, one level up -- a location is a fact about a moment.
+AFTER: 496 passed across all eight suites that open these documents. Zero dangling refs.
+THIS IS THE GM'S METHOD WORKING AS SPECIFIED: move first, see what breaks, report. Reading
+the imports would not have found either defect -- neither is an import. The first is a
+hard-coded directory in a test harness, the second is a git path in a historical read.

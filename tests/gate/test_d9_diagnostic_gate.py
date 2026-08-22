@@ -6,7 +6,7 @@ evolve() ran it (~23s per run(), measured) with the result reaching three
 print() lines only -- no table, no stream, no programmatic reader -- x25
 workers.
 
-The build under test: OURO_DIAGNOSTIC (KNOBS.md Register O, row O4) gates the
+The build under test: OURO_DIAGNOSTIC (record/canon/KNOBS.md Register O, row O4) gates the
 CONSTRUCTION at evolution_runner.EvolutionRunner._init_system_diagnostic.
 Default OFF: self.system_diagnostic stays None and the sole downstream reader
 -- `if self.system_diagnostic:` in evolve() -- skips run() and its prints.

@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 # ── Movement-stack + reset-discipline knobs (Register G; provenance GUESSED,
 #    arm-testable — the A5 law: marked so they never read as settled;
-#    registered in KNOBS.md AMENDMENT 9) ─────────────────────────────────────
+#    registered in record/canon/KNOBS.md AMENDMENT 9) ─────────────────────────────────────
 NAV_BIAS_P = 0.5     # GUESSED: cap on the [NAV] steer's share of blind draws
 RESET_MIN_RUN = 3    # GUESSED: frame-changing steps that make a run "solid"
 #                      (the [RESET] counter is INSTRUMENTATION ONLY — no
@@ -172,7 +172,7 @@ def _goal_abd(loop, level_changed, post_array) -> None:
 
 
 def _hyd_ver(loop) -> Dict[str, int]:
-    """A3-1 (KNOBS.md AMENDMENT 3): "verified" is BOOK-DERIVED. Hydrate the
+    """A3-1 (record/canon/KNOBS.md AMENDMENT 3): "verified" is BOOK-DERIVED. Hydrate the
     planner's per-atom TRANSFERRED tally from the settlements books at the W4c
     lazy-init, so cross-episode verification persists (pre-fix the dict was
     born empty and every atom -- imported atoms especially -- had to re-earn
@@ -4739,7 +4739,7 @@ class CognitiveLoop:
 # W1 FALSIFIER ARMS -- THE CONSUMPTION HELPERS (PREREG_W1_NARRATION.md,
 # "ARM C's CONSUMPTION MUST BE REAL"). Defined at MODULE BOTTOM deliberately:
 # runtime name lookup does not need definition-before-use, and appending here
-# moves NO existing receipt line in WIRING_REGISTRY.md and NO window-law
+# moves NO existing receipt line in record/canon/WIRING_REGISTRY.md and NO window-law
 # anchor offset (the record_result .credit/.route windows have <60 chars of
 # headroom). Every helper is arm-gated: on arm W (or a loop with no arm
 # state) it returns its inert value BEFORE touching any state, so arm W is
@@ -5318,7 +5318,7 @@ def _d8_fallback(md) -> bool:
 # THE PERSISTENCE MONITOR (PREREG_PERSISTENCE_MONITOR.md): the loop-side seam.
 # Placed directly ABOVE _gate_step, which tests/gate/test_gate_stage1.py pins
 # as the module's LAST function; the only receipts this block moves are the
-# two gate-step rows below it, refreshed by grep in WIRING_REGISTRY.md.
+# two gate-step rows below it, refreshed by grep in record/canon/WIRING_REGISTRY.md.
 # ═════════════════════════════════════════════════════════════════════════════
 
 

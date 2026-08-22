@@ -11,7 +11,7 @@ a real reference, and a dead organ inside it. This tool closes that gap:
      RNG, a deterministic clickable world, an independent mover, a level-up;
      NO network, NO real game) under coverage.py branch coverage, scoped to
      engines/egocentric/* + cognitive_loop.py;
-  2. diff the executed lines against WIRING_REGISTRY.md: every LIVE entry
+  2. diff the executed lines against record/canon/WIRING_REGISTRY.md: every LIVE entry
      whose claimed call-site line never executed is reported
      SEVERED-EMPIRICAL;
   3. print the rung-0c line the proctor reads:  severed count=N
@@ -52,7 +52,7 @@ if REPO not in sys.path:
 
 from tools.wiring_receipts import parse_site  # noqa: E402  -- after the bootstrap
 
-REGISTRY_DEFAULT = os.path.join(REPO, "WIRING_REGISTRY.md")
+REGISTRY_DEFAULT = os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md")
 
 # The measured scope (the empirical gate's universe). Entries whose claimed
 # site lies outside it are reported UNMEASURED, never SEVERED-EMPIRICAL.

@@ -35,14 +35,52 @@ os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 
 import importlib
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set
 
 from engines.engine_logger import get_engine_logger, log_import_error
 
-# Note: TYPE_CHECKING imports removed - interfaces not yet implemented
-# TODO: Add back when engines/interfaces.py is fully typed:
-# if TYPE_CHECKING:
-#     from engines.interfaces import SelfModelInterface, VisualAnalyzerInterface, etc.
+# RESTORED 2026-08-22 (EXAM_02 DEFECT A). These imports were commented out with
+# "TODO: Add back when engines/interfaces.py is fully typed", and while they
+# were out, eleven Protocols drifted from the classes below them: fourteen
+# declared methods existed on no implementation and twenty-one `hasattr` guards
+# in the rungs took the False branch forever. Nothing caught it because nothing
+# was looking.
+#
+# NO CIRCULAR IMPORT. `engines/interfaces.py` imports only `os` and `typing`; it
+# imports nothing from `engines`, so this edge cannot close a cycle even at
+# runtime, and under TYPE_CHECKING it is not executed at all. (The tree's known
+# cycle is decision_rung_system <-> engines.cognition.edge_inference <->
+# shadow_testing; interfaces.py is on none of those three paths.)
+#
+# WHAT THIS DOES AND DOES NOT BUY. Annotating the properties below makes the
+# Protocol<->implementation binding a fact a reader and an IDE can see, and it
+# is what `tests/gate/test_protocol_conformance.py` reads by AST to bind each
+# Protocol to the class the registry constructs. It is NOT enforcement on its
+# own: no type checker runs in CI (`.github/workflows/ci.yml` runs ruff, which
+# does not type-check), so restoring the annotations restores the DECLARATION,
+# and the gate test is what makes it a check that can fail.
+if TYPE_CHECKING:
+    from engines.interfaces import (
+        AbstractionEngineInterface,
+        BudgetAllocatorInterface,
+        FrustrationDetectorInterface,
+        ImaginationBudgetInterface,
+        IThreadInterface,
+        MultiStagePipelineInterface,
+        NearMissAnalyzerInterface,
+        NetworkExplorationInterface,
+        PrimitiveSuggesterInterface,
+        RegulatorySignalInterface,
+        ReplayLearningInterface,
+        ResonanceDetectorInterface,
+        ScientificMethodInterface,
+        SelfModelInterface,
+        SensationEngineInterface,
+        SubgoalPlannerInterface,
+        TerminalPatternInterface,
+        ViralPackageInterface,
+        VisualAnalyzerInterface,
+    )
 
 logger = get_engine_logger("registry")
 
@@ -381,6 +419,12 @@ class EngineRegistry:
             module = importlib.import_module(config.module)
             cls = getattr(module, config.class_name)
 
+            # The one place the CLASS is in hand and the instance is not: the
+            # cheapest possible point to notice that the class has drifted from
+            # the Protocol that describes it. One set difference per engine, at
+            # most once per process. See _check_protocol_conformance below.
+            _check_protocol_conformance(name, cls)
+
             # Instantiate with appropriate arguments
             if config.requires_db:
                 db = self._get_db_interface()
@@ -438,7 +482,7 @@ class EngineRegistry:
     # =========================================================================
 
     @property
-    def self_model(self) -> Optional[Any]:
+    def self_model(self) -> Optional['SelfModelInterface']:
         return self.get('self_model')
 
     @property
@@ -466,19 +510,19 @@ class EngineRegistry:
         return self.get('action6_behavior')
 
     @property
-    def visual_analyzer(self) -> Optional[Any]:
+    def visual_analyzer(self) -> Optional['VisualAnalyzerInterface']:
         return self.get('visual_analyzer')
 
     @property
-    def terminal_pattern_detector(self) -> Optional[Any]:
+    def terminal_pattern_detector(self) -> Optional['TerminalPatternInterface']:
         return self.get('terminal_pattern_detector')
 
     @property
-    def scientific_method_engine(self) -> Optional[Any]:
+    def scientific_method_engine(self) -> Optional['ScientificMethodInterface']:
         return self.get('scientific_method_engine')
 
     @property
-    def primitive_suggester(self) -> Optional[Any]:
+    def primitive_suggester(self) -> Optional['PrimitiveSuggesterInterface']:
         """Direct primitive-to-action mapping (replaces deprecated CODS)."""
         return self.get('primitive_suggester')
 
@@ -490,39 +534,39 @@ class EngineRegistry:
         return self.get('primitive_suggester')  # Return primitive_suggester as fallback
 
     @property
-    def viral_package_engine(self) -> Optional[Any]:
+    def viral_package_engine(self) -> Optional['ViralPackageInterface']:
         return self.get('viral_package_engine')
 
     @property
-    def frustration_detector(self) -> Optional[Any]:
+    def frustration_detector(self) -> Optional['FrustrationDetectorInterface']:
         return self.get('frustration_detector')
 
     @property
-    def sensation_engine(self) -> Optional[Any]:
+    def sensation_engine(self) -> Optional['SensationEngineInterface']:
         return self.get('sensation_engine')
 
     @property
-    def i_thread(self) -> Optional[Any]:
+    def i_thread(self) -> Optional['IThreadInterface']:
         return self.get('i_thread')
 
     @property
-    def near_miss_analyzer(self) -> Optional[Any]:
+    def near_miss_analyzer(self) -> Optional['NearMissAnalyzerInterface']:
         return self.get('near_miss_analyzer')
 
     @property
-    def subgoal_planner(self) -> Optional[Any]:
+    def subgoal_planner(self) -> Optional['SubgoalPlannerInterface']:
         return self.get('subgoal_planner')
 
     @property
-    def breakthrough_allocator(self) -> Optional[Any]:
+    def breakthrough_allocator(self) -> Optional['BudgetAllocatorInterface']:
         return self.get('breakthrough_allocator')
 
     @property
-    def regulatory_engine(self) -> Optional[Any]:
+    def regulatory_engine(self) -> Optional['RegulatorySignalInterface']:
         return self.get('regulatory_engine')
 
     @property
-    def resonance_detector(self) -> Optional[Any]:
+    def resonance_detector(self) -> Optional['ResonanceDetectorInterface']:
         return self.get('resonance_detector')
 
     @property
@@ -530,23 +574,23 @@ class EngineRegistry:
         return self.get('action_handler')
 
     @property
-    def multi_stage_pipeline(self) -> Optional[Any]:
+    def multi_stage_pipeline(self) -> Optional['MultiStagePipelineInterface']:
         return self.get('multi_stage_pipeline')
 
     @property
-    def abstraction_engine(self) -> Optional[Any]:
+    def abstraction_engine(self) -> Optional['AbstractionEngineInterface']:
         return self.get('abstraction_engine')
 
     @property
-    def replay_learning_engine(self) -> Optional[Any]:
+    def replay_learning_engine(self) -> Optional['ReplayLearningInterface']:
         return self.get('replay_learning_engine')
 
     @property
-    def imagination_budget(self) -> Optional[Any]:
+    def imagination_budget(self) -> Optional['ImaginationBudgetInterface']:
         return self.get('imagination_budget')
 
     @property
-    def network_exploration_tracker(self) -> Optional[Any]:
+    def network_exploration_tracker(self) -> Optional['NetworkExplorationInterface']:
         return self.get('network_exploration_tracker')
 
     @property
@@ -658,3 +702,59 @@ def get_registry(db_path: str = "core_data.db") -> EngineRegistry:
 
 
 __all__ = ['EngineRegistry', 'get_registry', 'ENGINE_CONFIGS']
+
+
+# =============================================================================
+# MODULE-BOTTOM HELPERS
+# =============================================================================
+
+#: Engines already conformance-checked this process. The check is per CLASS, so
+#: it runs at most once per engine per process.
+_CONFORMANCE_CHECKED: Set[str] = set()
+
+
+def _check_protocol_conformance(name: str, cls: Any) -> None:  # noqa: ANN401
+    """Report at LOAD TIME when a loaded class has drifted from its Protocol.
+
+    Added 2026-08-22 after EXAM_02 DEFECT A: eleven Protocols in
+    ``engines/interfaces.py`` declared fourteen methods that no implementation
+    defined, and the drift was invisible because nothing ever compared the two.
+    ``_load_engine`` is the one place in the build that holds the CLASS before
+    it holds an instance, so it is the cheapest place to look.
+
+    LOGS, DOES NOT RAISE, and that is deliberate. The hard check is
+    ``tests/gate/test_protocol_conformance.py``, which reds in CI. Raising here
+    would take the live decision path down over a defect the ladder currently
+    tolerates by design (every rung already handles a missing engine), and a
+    guard that kills the run is not a better guard than one that names the
+    problem. This is the runtime witness; the gate is the check.
+
+    Costs one set difference per engine, at most once per process.
+    """
+    if name in _CONFORMANCE_CHECKED:
+        return
+    _CONFORMANCE_CHECKED.add(name)
+    try:
+        from engines.interfaces import PROTOCOL_BINDINGS, UNIMPLEMENTED_DECLARATIONS
+
+        protocol = next(
+            (p for p, (_mod, klass) in PROTOCOL_BINDINGS.items()
+             if klass == cls.__name__), None)
+        if protocol is None:
+            return
+
+        import engines.interfaces as _ifaces
+        declared = {
+            m for m in vars(getattr(_ifaces, protocol, object)) if not m.startswith("_")
+        }
+        excused = {m for p, m in UNIMPLEMENTED_DECLARATIONS if p == protocol}
+        missing = sorted(declared - excused - set(dir(cls)))
+        if missing:
+            logger.error(
+                f"PROTOCOL DRIFT: {cls.__name__} does not define {missing}, "
+                f"declared by {protocol}",
+                engine=name,
+                module=cls.__module__,
+            )
+    except Exception as e:  # never let the witness break the load path
+        logger.debug(f"conformance check skipped for {name}: {e}")

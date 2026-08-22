@@ -9,7 +9,7 @@ action after playback; [SALIENT] divergence fires ZERO times in the entire log. 
 detector is not broken — the replay is FAITHFUL, and what it faithfully reproduces is
 the death. Cause: _bank_salient_prefix banks "up to the LAST effectful action", and a
 DEATH CHANGES THE FRAME (changed=True), so the death step IS the terminal banked step;
-the divergence check then matches the corpse's own post-hash. CLAIM.md's fail-closed
+the divergence check then matches the corpse's own post-hash. record/canon/CLAIM.md's fail-closed
 clause anticipated a stale sequence degrading; the actual failure is a sequence that
 still applies perfectly and replays a corpse.
 ## F-2 BUDGET: 318 OF 450 ACTIONS (71%) ON PLAYBACK -> ONE COGNITIVE ACTION AT THE

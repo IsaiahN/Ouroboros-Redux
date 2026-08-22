@@ -55,7 +55,7 @@ away at budget_n=8. `_drain_order` ranks the NEWEST `DRAIN_WINDOW` pending recor
   (2) then LARGEST RESIDUAL (most unexplained first)
   (3) then RECENCY (newest first) as the tiebreak
 and never sorts the whole queue -- the window IS the bound (Register G, GUESSED).
-THE OFF-ARM (CLAIM.md's ablation constraint, shipped as a PASSING test): DRAIN_RANKED=0
+THE OFF-ARM (record/canon/CLAIM.md's ablation constraint, shipped as a PASSING test): DRAIN_RANKED=0
 in the environment, or DRAIN_RANKED=False on this module, returns `pending(fabric)`
 VERBATIM -- oldest-first, byte-identical on disk (tests/gate/test_ranked_drain.py).
 

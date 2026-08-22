@@ -2,13 +2,13 @@
 
 READ, NEVER TARGET.
 
-THE REGISTRATION (THE_GOALS.md, ITEM-2 QUALIFICATION, maintainer 2026-08-17):
+THE REGISTRATION (record/canon/THE_GOALS.md, ITEM-2 QUALIFICATION, maintainer 2026-08-17):
 this is a RUNG-0 RESOLUTION INSTRUMENT with an EXPLICIT PROHIBITION on being a
 knob target or an arm objective until levels move. RHAE is a ratio against a
 solution and is UNDEFINED AT ZERO LEVELS; optimizing it before solving is
 optimizing a quantity that does not exist yet. What the read buys is RESOLUTION
 ON A ZERO -- "closer without a level" becomes readable -- and nothing else. Its
-output feeds beat reports (THE_LADDER.md rung 0, levels_completed). No knob.
+output feeds beat reports (record/canon/THE_LADDER.md rung 0, levels_completed). No knob.
 
 THE LABEL (EXECUTION RIDER 2, reviewer 2026-08-17): the reference is ONE WIN
 REPLAY -- a single run, not the upper-median human distribution RHAE normalizes
@@ -23,7 +23,7 @@ WHAT IT READS (all read-only; the instrument never writes a byte of the books):
   * THE REFERENCE -- `baseline_actions` in each game's replay metadata.json
     (`<box>/environment_files/<game>/<hash>/metadata.json`): a per-level list of
     the reference run's action counts, level 1 first. Read off disk, never
-    hardcoded. THE_GOALS.md cites ls20's counts inline; `verify_cited_ls20`
+    hardcoded. record/canon/THE_GOALS.md cites ls20's counts inline; `verify_cited_ls20`
     checks that citation against the on-disk record and REPORTS the comparison
     (see CITED_LS20) -- the citation is a claim under audit, never a data source.
   * THE OBSERVATION -- the swarm boxes' `winning_sequences` (plus
@@ -65,7 +65,7 @@ LABEL = "one reference run, not a reference distribution"
 # ITEM-2 QUALIFICATION's exact words. Printed in the header.
 PROHIBITION = "READ, NEVER TARGET"
 
-# THE_GOALS.md line 47 cites these as "ls20 replay expert counts". They are a
+# record/canon/THE_GOALS.md line 47 cites these as "ls20 replay expert counts". They are a
 # CITATION UNDER AUDIT, not an input: `verify_cited_ls20` compares them against
 # the on-disk metadata and reports the result. Nothing else in this module reads
 # this tuple, and no reference value is ever taken from it.
@@ -121,7 +121,7 @@ def _references_with_sources(roots) -> Dict[str, Any]:
 
 def verify_cited_ls20(refs: Dict[str, List[int]],
                       sources: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Audit THE_GOALS.md's inline ls20 citation against the on-disk record.
+    """Audit record/canon/THE_GOALS.md's inline ls20 citation against the on-disk record.
 
     Returns {found, game, on_disk, cited, match, mismatch_levels, source}.
     A mismatch is a REPORTED FINDING, never a silent substitution: the read
@@ -446,8 +446,8 @@ def render(report: Dict[str, Any], as_json: bool = False) -> List[str]:
 
     a = report["as_of"]
     lines = [
-        _line("[EFF] %s -- rung-0 RESOLUTION instrument (THE_GOALS.md ITEM-2 "
-              "QUALIFICATION; THE_LADDER.md rung 0). No knob, no arm "
+        _line("[EFF] %s -- rung-0 RESOLUTION instrument (record/canon/THE_GOALS.md ITEM-2 "
+              "QUALIFICATION; record/canon/THE_LADDER.md rung 0). No knob, no arm "
               "objective, until levels move." % PROHIBITION),
         _line("[EFF] distance-to-that-player = swarm best observed actions "
               "MINUS the reference run's actions, per game+level."),

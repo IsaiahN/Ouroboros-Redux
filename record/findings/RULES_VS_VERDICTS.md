@@ -53,7 +53,7 @@ ISAIAH PROPOSED THE SHAPE; ADOPTED WITH ONE ADDITION.
   COVERS: affect.py:54-58 (full-file read -> tail read; the returned last-20 records are
   the same records), object_detector.py:37 (a relative db_path default that relocates a
   file, touching no decision).
-  VIOLATION DETECTOR: the ablation clause already in CLAIM.md — an OFF-ARM test, PASSING
+  VIOLATION DETECTOR: the ablation clause already in record/canon/CLAIM.md — an OFF-ARM test, PASSING
   AT SHIP, asserting the new path equals a LITERAL pre-fix computation on live-shaped
   data. This is the exact pattern G23 shipped under; it is proven and costs one test.
   NOTE: this rule covers the READ. It does NOT cover the janitor (see V2) — the coupling

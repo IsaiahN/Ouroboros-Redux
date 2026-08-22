@@ -209,7 +209,7 @@ except ImportError:
 
 # D-9 (2026-08-21, record/findings/PRIMITIVE_SORT_AND_CENSUS.md): the SystemDiagnostic
 # pass costs ~23s per run() and its result reaches three print() lines only -- no table,
-# no stream, no programmatic reader. It is therefore OPT-IN: OURO_DIAGNOSTIC (KNOBS.md,
+# no stream, no programmatic reader. It is therefore OPT-IN: OURO_DIAGNOSTIC (record/canon/KNOBS.md,
 # Register O, row O4). Default OFF -- the swarm supervisor and sprint keeper set nothing,
 # so workers never construct it. Set "1" or "true" (case-insensitive) for the pre-D-9
 # path, byte-identical: construction at init plus the per-cadence run()+prints in evolve().

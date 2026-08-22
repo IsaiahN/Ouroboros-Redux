@@ -3,11 +3,11 @@
 Reads first: record/prereg/PREREG_SYMBOL_RECEIPTS.md (ruled; the PROCTOR REVIEW decisions 1-7
 and Seat 4's riders are binding), record/findings/PROPOSAL_SYMBOL_RECEIPTS.md, KNOBS A4-2,
 tests/gate/test_wiring_registry.py (the gate and its parser — the 6-field unpack stays),
-WIRING_REGISTRY.md, the six law files (test_goal_abduction, test_level_conventions,
+record/canon/WIRING_REGISTRY.md, the six law files (test_goal_abduction, test_level_conventions,
 test_lp_drive, test_link3, test_plan_wire, test_goal_spine — the exemplar
 `test_reward_wires_to_credit` is already in AST form; test_plan_wire's `_plan_gate` law was
 converted to AST form on 2026-08-21 — keep it, migrate its siblings to the same helper),
-THE_LADDER.md.
+record/canon/THE_LADDER.md.
 
 Constraints: HOLD up — no commit, nothing under .runs/. Forbidden reads as standing. Never
 print .env. No production module is touched by this build (prereg §7) — tests/gate, tools/,

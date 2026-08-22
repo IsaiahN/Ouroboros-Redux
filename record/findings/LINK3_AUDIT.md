@@ -234,7 +234,7 @@ Independently re-run, not accepted on report:
   `tests/gate/test_link3_hook_and_vocabulary.py` -> **46 passed**. ruff clean. OOD clean.
   consumption sweep --strict exit 0, ratchet unmoved at 32.
 
-**WHY CANDIDATE AND NOT SHIPPED, stated per CLAIM.md's own status rule:** the hook's
+**WHY CANDIDATE AND NOT SHIPPED, stated per record/canon/CLAIM.md's own status rule:** the hook's
 falsifier is proven **IN SIMULATION ONLY**. **THE PROJECT-WIDE COUNT OF `levelup_frames`
 RECORDS AT A LEVEL ABOVE 1 IS STILL ZERO ON DISK** and stays zero until an episode runs.
 The gate passed; the ground has not settled it. FIRST CHECK AFTER THE ARM RELEASES: does a

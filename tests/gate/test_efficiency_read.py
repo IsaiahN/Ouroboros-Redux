@@ -1,7 +1,7 @@
 """ITEM-2 GATE: THE EFFICIENCY READ -- distance-to-that-player, per game+level.
 
-WHY (THE_GOALS.md, SEAT 2 SEQUENCING #2 + ITEM-2 QUALIFICATION): the replay
-reference counts sit on disk unused, so rung 0 (THE_LADDER.md: levels_completed,
+WHY (record/canon/THE_GOALS.md, SEAT 2 SEQUENCING #2 + ITEM-2 QUALIFICATION): the replay
+reference counts sit on disk unused, so rung 0 (record/canon/THE_LADDER.md: levels_completed,
 the only currency) reads a bare zero with NO RESOLUTION -- "closer without a
 level" is currently unreadable. This instrument buys that resolution and NOTHING
 else: it is REGISTERED READ, NEVER TARGET (no knob, no arm objective, until
@@ -341,7 +341,7 @@ class TestNeverATarget:
 # ── the registry row (rung 0c) ───────────────────────────────────────────────
 
 def _registry_row(name):
-    path = os.path.join(REPO, "WIRING_REGISTRY.md")
+    path = os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md")
     with open(path, encoding="utf-8") as fh:
         for line in fh:
             if line.strip().startswith("| %s |" % name):

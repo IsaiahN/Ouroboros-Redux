@@ -497,7 +497,7 @@ THE CLAUSE EXISTS -- not to acknowledge it. A brief returned with the rationale 
 quoted back is evidence the rule was transmitted and not held. Cheap, and it is the only
 check that distinguishes the two.
 
-### STATUS VOCABULARY (from the figure captions; adopted for CLAIM.md)
+### STATUS VOCABULARY (from the figure captions; adopted for record/canon/CLAIM.md)
 Every claim carries one: PROVED (rules 1-3 of Figure 8: closure idempotence, Goedel II /
 Tarski, Chaitin) | DESIGN LAW (Figure 10"s three offices and three prohibitions) |
 BELIEVED, RETRODICTED ON N CASES, NO PROSPECTIVE TEST (Figure 8"s triangulation claim, on

@@ -1,6 +1,6 @@
 """GATE: THE RANKED DRAIN + ITS OFF-ARM (record/prereg/PREREG_DRAIN_ORIGIN.md §A).
 
-⭐ WHY: THE_LADDER.md's "CORRECTION TO THE TALLY READING" located rung 4's zero in
+⭐ WHY: record/canon/THE_LADDER.md's "CORRECTION TO THE TALLY READING" located rung 4's zero in
 QUEUE ORDER, not in description: 388,184 queue records, 82,301 carrying a COMPLETE
 sigma -- and consume() drained OLDEST-FIRST at budget_n=8 through a ~370k
 PRE-CHARACTERIZATION backlog whose {slot,residual,seq} records can only produce a
@@ -14,7 +14,7 @@ THE BUILD: consume()'s PHASE-2 agenda is a bounded RANKED selection instead of F
 ranked over a BOUNDED WINDOW of the newest DRAIN_WINDOW pending records (KNOBS G21,
 Register G, GUESSED) -- never a sort of the whole 370k queue.
 
-THE OFF-ARM IS THE POINT (CLAIM.md's ablation constraint: "a toggle is not a toggle
+THE OFF-ARM IS THE POINT (record/canon/CLAIM.md's ablation constraint: "a toggle is not a toggle
 until something has run with it off"). DRAIN_RANKED=0 reproduces oldest-first
 BYTE-IDENTICALLY -- the same records, in the same order, with the same outcomes, on
 disk -- and that is asserted HERE, at ship, against a literal FIFO reference path.
@@ -191,7 +191,7 @@ class TestOffArm:
 
     def test_off_arm_streams_are_byte_identical_to_a_fifo_reference(
             self, tmp_path, monkeypatch):
-        """THE TOGGLE RECEIPT (CLAIM.md): two identical books; one drained with
+        """THE TOGGLE RECEIPT (record/canon/CLAIM.md): two identical books; one drained with
         DRAIN_RANKED=0, the other drained by the LITERAL pre-change expression
         (`for raw in pending(fabric)`). Every on-disk stream must match byte for
         byte -- same records, same order, same outcomes."""
@@ -291,7 +291,7 @@ class TestCompat:
 class TestRegistryReceipt:
 
     def _row(self, name):
-        path = os.path.join(REPO, "WIRING_REGISTRY.md")
+        path = os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md")
         with open(path, encoding="utf-8") as fh:
             for line in fh:
                 if line.strip().startswith("| %s |" % name):
@@ -300,16 +300,16 @@ class TestRegistryReceipt:
 
     def test_drain_ranked_row_is_live_with_a_consume_receipt(self):
         row = self._row("drain-ranked")
-        assert row is not None, "no drain-ranked row in WIRING_REGISTRY.md"
+        assert row is not None, "no drain-ranked row in record/canon/WIRING_REGISTRY.md"
         assert row[3] == "LIVE", "the ranked drain ships LIVE (got %r)" % row[3]
         assert "consumer:_drain_order" in row[1]
         assert "consumer.py" in row[2]
 
     def test_knobs_registers_the_window_as_guessed(self):
-        with open(os.path.join(REPO, "KNOBS.md"), encoding="utf-8") as fh:
+        with open(os.path.join(REPO, "record", "canon", "KNOBS.md"), encoding="utf-8") as fh:
             text = fh.read()
         assert "DRAIN_WINDOW" in text and "DRAIN_RANKED" in text, (
-            "the ranked drain's knob row is missing from KNOBS.md")
+            "the ranked drain's knob row is missing from record/canon/KNOBS.md")
         row = [ln for ln in text.splitlines() if "DRAIN_WINDOW" in ln]
         assert any("GUESSED" in ln for ln in row), (
             "the window size must carry its GUESSED provenance (A5)")

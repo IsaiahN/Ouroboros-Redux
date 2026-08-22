@@ -1,4 +1,4 @@
-"""GATE: THE ORIGIN MARKER (record/prereg/PREREG_DRAIN_ORIGIN.md §B; CLAIM.md, verified-not-asserted).
+"""GATE: THE ORIGIN MARKER (record/prereg/PREREG_DRAIN_ORIGIN.md §B; record/canon/CLAIM.md, verified-not-asserted).
 
 ⭐ WHY: READ, not asserted -- 1,514 atom records; ZERO carried `imported`, ZERO carried
 `source_game`. local-vs-imported was carried by the ABSENCE OF FIELDS, which is the
@@ -99,7 +99,7 @@ class TestLocalMint:
         assert isinstance(rec["mint_seq"], int)
         assert "source_game" not in rec, (
             "source_game is IMPORTED-ONLY -- a local atom carrying one is the "
-            "silent collapse CLAIM.md names")
+            "silent collapse record/canon/CLAIM.md names")
         assert effects.origin_of(rec) == effects.ORIGIN_LOCAL
 
     def test_mint_seq_is_positional_and_strictly_increasing(self, tmp_path):
@@ -302,7 +302,7 @@ class TestAdditive:
 class TestRegistryReceipt:
 
     def _row(self, name):
-        path = os.path.join(REPO, "WIRING_REGISTRY.md")
+        path = os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md")
         with open(path, encoding="utf-8") as fh:
             for line in fh:
                 if line.strip().startswith("| %s |" % name):
@@ -311,7 +311,7 @@ class TestRegistryReceipt:
 
     def test_origin_marker_row_is_live_with_a_live_path_receipt(self):
         row = self._row("origin-marker")
-        assert row is not None, "no origin-marker row in WIRING_REGISTRY.md"
+        assert row is not None, "no origin-marker row in record/canon/WIRING_REGISTRY.md"
         assert row[3] == "LIVE", "the marker ships LIVE (got %r)" % row[3]
         assert "effects:origin_of" in row[1]
         assert ".py:" in row[2]

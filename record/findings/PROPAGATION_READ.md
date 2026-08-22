@@ -2,7 +2,7 @@
 
 AUTHORITY: Isaiah — *"I want it named as a genus, and I want to know how many other
 known-fixed defects are live on a sibling branch. Read, not sweep."*
-The genus is named in `THE_LADDER.md` (**SITE-SCOPED KNOWLEDGE**). This is the count.
+The genus is named in `record/canon/THE_LADDER.md` (**SITE-SCOPED KNOWLEDGE**). This is the count.
 **Nothing was swept, moved, or fixed.**
 
 ---

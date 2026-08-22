@@ -355,7 +355,7 @@ class TestF3Bounded:
         assert R.DEAD_CAP == 16_384
         assert R.ANCHORS_CAP == 8_192
         assert R.ENABLERS_CAP == 8
-        knobs = open(os.path.join(REPO, "KNOBS.md"), encoding="utf-8").read()
+        knobs = open(os.path.join(REPO, "record", "canon", "KNOBS.md"), encoding="utf-8").read()
         for tok in ("MEMO_CAP=65536", "STATE_BYTES_CAP=64 MiB", "DEAD_CAP=16384",
                     "ANCHORS_CAP=8192", "ENABLERS_CAP=8"):
             assert tok in knobs, "KNOBS.md lacks the pinned row for %s" % tok

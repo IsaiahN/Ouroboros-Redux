@@ -1,7 +1,7 @@
 """SYMBOL-ANCHORED RECEIPTS -- the fingerprint grammar, its resolver, and the
 three registry operations (PREREG_SYMBOL_RECEIPTS.md).
 
-THE DEFECT THIS CLOSES. WIRING_REGISTRY.md stores a claim about STRUCTURE
+THE DEFECT THIS CLOSES. record/canon/WIRING_REGISTRY.md stores a claim about STRUCTURE
 ("this organ is called from inside that function") as a POSITION
 (``file:line``, checked +/-30 lines). Every insertion above the position
 invalidates the claim without touching the fact: ~140 receipt refreshes this
@@ -89,7 +89,7 @@ import sys
 from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_REGISTRY = os.path.join(REPO, "WIRING_REGISTRY.md")
+DEFAULT_REGISTRY = os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md")
 
 MODULE_SCOPE = "<module>"
 KINDS = ("CALL", "REF", "DEF")
@@ -350,7 +350,7 @@ def head_blob(rel: str, sha: str = PRE_MIGRATION_SHA) -> Optional[str]:
     harness reaches them without running a subprocess of its own.
 
     IT USED TO READ `HEAD`, AND THAT SELF-INVALIDATED (2026-08-22). The moment
-    the migration commit became an ancestor of HEAD, `HEAD:WIRING_REGISTRY.md`
+    the migration commit became an ancestor of HEAD, `HEAD:record/canon/WIRING_REGISTRY.md`
     returned the MIGRATED registry and `HEAD:...test_wiring_registry.py` the
     NEW gate -- so the oracle compared the new gate against itself, reddened
     zero rows on a line shift instead of the pinned 37, and failed. The whole

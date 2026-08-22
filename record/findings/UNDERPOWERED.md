@@ -63,7 +63,7 @@ gap.
   exactly this register's subject.
 - **Every wave-1 item** (movement stack, rho ladder, ranked drain, origin marker, corpse
   guard, efficiency read, regen series): gate-passed, **ground n = 0**. Already relabelled
-  CANDIDATE under CLAIM.md's gate-passed-vs-ground-settled status.
+  CANDIDATE under record/canon/CLAIM.md's gate-passed-vs-ground-settled status.
 
 ### ALREADY RETRACTED — kept, not deleted
 rho = 0.000 (partition artifact, twice) · the throughput ratios >=74x and ~163x

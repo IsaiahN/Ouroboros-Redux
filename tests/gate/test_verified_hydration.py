@@ -1,4 +1,4 @@
-"""THE VERIFIED-HYDRATION GATE (KNOBS.md AMENDMENT 3, A3-1 -- the grain audit's defect).
+"""THE VERIFIED-HYDRATION GATE (record/canon/KNOBS.md AMENDMENT 3, A3-1 -- the grain audit's defect).
 
 ⭐ WHY. "Verified" had TWO stores and only one was consulted: settlements persist
 atom_key + atom_bin ("TRANSFERRED", ...) on the fabric, but the planner's DRIVE

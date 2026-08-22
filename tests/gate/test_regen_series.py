@@ -1,6 +1,6 @@
 """ITEM-3 GATE: THE REGENERATION SERIES -- within-fabric rho drift over time.
 
-WHY (THE_LADDER.md, THE REPORT FORMAT rider 2): "THE RATIO HAS ONE TERM --
+WHY (record/canon/THE_LADDER.md, THE REPORT FORMAT rider 2): "THE RATIO HAS ONE TERM --
 rho_readings gives crossing-spend; REGENERATION RATE (rho drift over time within
 a fabric vs its own ground) needs a time series NOBODY COLLECTS, so the
 roving-pool gate fires with one term missing unless the series starts." This is
@@ -363,7 +363,7 @@ class TestDocumentedConsumer:
 # ── the registry row (rung 0c) ───────────────────────────────────────────────
 
 def _registry_row(name):
-    path = os.path.join(REPO, "WIRING_REGISTRY.md")
+    path = os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md")
     with open(path, encoding="utf-8") as fh:
         for line in fh:
             if line.strip().startswith("| %s |" % name):

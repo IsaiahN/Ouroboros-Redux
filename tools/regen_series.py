@@ -1,6 +1,6 @@
 """regen_series.py -- ITEM 3: THE REGENERATION SERIES (within-fabric rho drift).
 
-WHY (THE_LADDER.md, THE REPORT FORMAT rider 2, reviewer 2026-08-17):
+WHY (record/canon/THE_LADDER.md, THE REPORT FORMAT rider 2, reviewer 2026-08-17):
 
     "THE RATIO HAS ONE TERM: rho_readings gives crossing-spend; REGENERATION
      RATE (rho drift over time within a fabric vs its own ground) needs a time

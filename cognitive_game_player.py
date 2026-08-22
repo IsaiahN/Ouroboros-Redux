@@ -1488,7 +1488,7 @@ class CognitiveGamePlayer:
     #    deliberately not built here; the death refusal breaks the lock-in only
     #    as a side effect.
     # CORPSE_GUARD is the MODULE FLAG; the environment variable of the same
-    # name OUTRANKS it, so the off-arm runs without editing code (CLAIM.md's
+    # name OUTRANKS it, so the off-arm runs without editing code (record/canon/CLAIM.md's
     # ablation clause). Off => pre-guard behaviour, byte-identical, both sides.
     CORPSE_GUARD = True
     _GUARD_OFF_WORDS = ("0", "false", "no", "off", "")

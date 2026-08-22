@@ -136,7 +136,7 @@ module, whether ANY of its public top-level names appears in any other `.py` fil
 
 `engines/egocentric/relations.py` is the one that matters: it is **inside the protected
 egocentric package**, it is LIVE by import (depth 3, via `engines/egocentric/__init__.py`), it
-has **no row in `WIRING_REGISTRY.md`**, and none of its three functions is called anywhere. The
+has **no row in `record/canon/WIRING_REGISTRY.md`**, and none of its three functions is called anywhere. The
 registry gate was written to close exactly this blind spot and it does not cover this file.
 
 ### FINDING 3 · `engines/postgame/` is a closed island — six files, zero callers
@@ -304,7 +304,7 @@ reaching 5 of its modules. **Stated. Nothing proposed. This is the GM's ruling t
    but absence of a hit is not proof.
 3. **Reachable ≠ running.** OBSCURE-E means a path exists, not that it fires. Ten of the eleven
    lazy egocentric modules are behind `try:` blocks; a swallowed `ImportError` would present
-   identically to a live import. `WIRING_REGISTRY.md`'s SEVERED rows are the complement of this
+   identically to a live import. `record/canon/WIRING_REGISTRY.md`'s SEVERED rows are the complement of this
    document, not a subset of it.
 4. **`OBSCURE-N` is a judgement about a line, not about intent.** 80 files are tiered on whether
    the one cited line invokes or merely names. Each cites its line so the call is checkable.
@@ -614,28 +614,28 @@ that reaches it and the mechanism. Paths are relative to each section's director
 | `build_action_book.py` | OBSCURE-E | — | static import from a test — `tests/gate/test_action_book.py` |
 | `cold_ship.py` | OBSCURE-N | — | NOMINAL ONLY: named in 2 other file(s) (prose, comment or filename list) — no invocation found — `tests/gate/test_fabric_read_cache.py:587` |
 | `comment_divergence.py` | OBSCURE-N | — | NOMINAL ONLY: named in 2 other file(s) (prose, comment or filename list) — no invocation found — `record/findings/DECISION_ANALYSIS.md:144` |
-| `consumption_sweep.py` | OBSCURE-N | — | NOMINAL ONLY: named in 6 other file(s) (prose, comment or filename list) — no invocation found — `THE_LADDER.md:1214` |
+| `consumption_sweep.py` | OBSCURE-N | — | NOMINAL ONLY: named in 6 other file(s) (prose, comment or filename list) — no invocation found — `record/canon/THE_LADDER.md:1214` |
 | `context_minimiser.py` | OBSCURE-E | — | static import from a test — `tests/gate/test_context_min.py` |
 | `control_arm.py` | OBSCURE-N | — | NOMINAL ONLY: named in 1 other file(s) (prose, comment or filename list) — no invocation found — `record/findings/BUILD_PROGRAM_2.md:52` |
 | `d5_profile_wrapper.py` | DEAD | — | no mention anywhere outside itself |
 | `disk_ceiling.py` | OBSCURE-E | — | static import from a test — `tests/gate/test_disk_ceiling_preserves.py` |
 | `dump_schema.py` | OBSCURE-N | — | NOMINAL ONLY: named in 1 other file(s) (prose, comment or filename list) — no invocation found — `record/findings/FORGOTTEN_CAPABILITIES.md:79` |
-| `durability_test.py` | OBSCURE-N | — | NOMINAL ONLY: named in 3 other file(s) (prose, comment or filename list) — no invocation found — `THE_LADDER.md:730` |
+| `durability_test.py` | OBSCURE-N | — | NOMINAL ONLY: named in 3 other file(s) (prose, comment or filename list) — no invocation found — `record/canon/THE_LADDER.md:730` |
 | `efficiency_read.py` | OBSCURE-E | — | static import from a test — `tests/gate/test_efficiency_read.py` |
 | `fleet_env.py` | LIVE | 1 | static import chain |
-| `fork_divergence.py` | OBSCURE-N | — | NOMINAL ONLY: named in 3 other file(s) (prose, comment or filename list) — no invocation found — `THE_LADDER.md:747` |
+| `fork_divergence.py` | OBSCURE-N | — | NOMINAL ONLY: named in 3 other file(s) (prose, comment or filename list) — no invocation found — `record/canon/THE_LADDER.md:747` |
 | `link3_live_check.py` | OBSCURE-N | — | NOMINAL ONLY: named in 3 other file(s) (prose, comment or filename list) — no invocation found — `tests/gate/test_link3_hook_and_vocabulary.py:39` |
 | `live_coverage_diff.py` | OBSCURE-E | — | named in an invocation (command line / dynamic import / string import) — `tests/gate/test_wiring_registry.py:38` |
 | `n1_metric.py` | OBSCURE-E | — | named in an invocation (command line / dynamic import / string import) — `tests/gate/test_qa_fixes_w4.py:210` |
 | `norm_sweep.py` | OBSCURE-N | — | NOMINAL ONLY: named in 5 other file(s) (prose, comment or filename list) — no invocation found — `cognitive_game_player.py:1994` |
 | `ood_lint.py` | OBSCURE-N | — | NOMINAL ONLY: named in 2 other file(s) (prose, comment or filename list) — no invocation found — `record/findings/BUILD_PROGRAM_2.md:52` |
 | `overnight_run.py` | OBSCURE-N | — | NOMINAL ONLY: named in 2 other file(s) (prose, comment or filename list) — no invocation found — `record/prereg/PREREG_SWARM_OFFLINE_MODE.md:26` |
-| `premise_pass.py` | OBSCURE-N | — | NOMINAL ONLY: named in 2 other file(s) (prose, comment or filename list) — no invocation found — `KNOBS.md:529` |
+| `premise_pass.py` | OBSCURE-N | — | NOMINAL ONLY: named in 2 other file(s) (prose, comment or filename list) — no invocation found — `record/canon/KNOBS.md:529` |
 | `regen_series.py` | OBSCURE-E | — | static import from a test — `tests/gate/test_regen_series.py` |
 | `replay_viewer.py` | OBSCURE-N | — | NOMINAL ONLY: named in 1 other file(s) (prose, comment or filename list) — no invocation found — `record/findings/PROPAGATION_READ.md:40` |
 | `repo_assess.py` | DEAD | — | no mention anywhere outside itself |
 | `sigma_backfill.py` | OBSCURE-E | — | static import from a test — `tests/gate/test_sigma_backfill.py` |
-| `socket_or_filler_lint.py` | OBSCURE-N | — | NOMINAL ONLY: named in 1 other file(s) (prose, comment or filename list) — no invocation found — `PREREG_READOUTS.md:23` |
+| `socket_or_filler_lint.py` | OBSCURE-N | — | NOMINAL ONLY: named in 1 other file(s) (prose, comment or filename list) — no invocation found — `record/prereg/PREREG_READOUTS.md:23` |
 | `split_half.py` | OBSCURE-E | — | named in an invocation (command line / dynamic import / string import) — `tests/gate/test_beat_rates.py:18` |
 | `sprint_keeper.py` | LIVE | 0 | static import chain |
 | `swarm_supervisor.py` | LIVE | 0 | static import chain |

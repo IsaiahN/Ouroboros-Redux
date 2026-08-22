@@ -3,7 +3,7 @@
 Reads first, in order: record/prereg/PREREG_STANDING_HALF_LIFE_ATOMS.md (ruled; the Seat 3
 ruling + riders at its foot are binding: "silence never evicts" TAKEN; decay must BITE — a
 falsifier asserts a decayed atom is REACHED LATER than an undecayed twin, not merely scored
-lower), THE_LADDER.md, engines/egocentric/planner.py (`_candidate_ids`), engines/egocentric/
+lower), record/canon/THE_LADDER.md, engines/egocentric/planner.py (`_candidate_ids`), engines/egocentric/
 scheduler.py (`plan_wrong`, `on_abort`, GATE B's change mark), engines/egocentric/mint.py
 (`_refresh_sig_index` — the incremental-index pattern; the ep stamp on verdicts; the conflict
 clause's superseding append), engines/egocentric/effects.py (Gamma: add/get last-wins),

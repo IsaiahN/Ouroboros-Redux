@@ -1,4 +1,4 @@
-# CLAIM.md — the finding under curation (opened 2026-08-17; the room with a seat now)
+# record/canon/CLAIM.md — the finding under curation (opened 2026-08-17; the room with a seat now)
 THE CLAIM (goal level 2): a minimum viable prior set, declared with provenance,
 sufficient for this class, IRREDUCIBLE UNDER SINGLE REMOVAL — plus a system that
 composed everything else with every atom carrying a receipt. The score demonstrates

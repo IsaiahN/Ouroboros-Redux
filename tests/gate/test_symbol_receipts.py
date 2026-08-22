@@ -70,7 +70,15 @@ from tools.wiring_receipts import (  # noqa: E402
 
 GATE_REL = "tests/gate/test_wiring_registry.py"
 LAWS_REL = "tests/gate/_ast_laws.py"
-REGISTRY_REL = "WIRING_REGISTRY.md"
+REGISTRY_REL = "record/canon/WIRING_REGISTRY.md"
+
+# THE ORACLE READS A HISTORICAL COMMIT, AND THE FILE HAS NOT ALWAYS LIVED THERE. The
+# registry moved out of the repo root into record/canon/ on 2026-08-22; at
+# PRE_MIGRATION_SHA it was still at the root, so `git show <sha>:record/canon/...` finds
+# nothing. A path is only valid relative to a revision -- the same lesson as the receipts
+# themselves, one level up: this constant is the file's location AT THAT COMMIT and must
+# not be "kept in sync" with the one above it.
+REGISTRY_REL_AT_PRE_MIGRATION = "WIRING_REGISTRY.md"
 # The gate's PROD_GLOBS plus tools/: tools are excluded from the REFERENCE
 # scan (they are instruments, never the live path) but four SEVERED rows point
 # AT them, so a scratch tree without tools/ reds those rows for a reason that
@@ -146,8 +154,13 @@ def _scratch(tmp_path_factory, name: str, globs=FULL_GLOBS) -> str:
             shutil.copyfile(src, out)
     os.makedirs(os.path.join(dst, "tests", "gate"), exist_ok=True)
     for rel in (GATE_REL, LAWS_REL, REGISTRY_REL):
-        shutil.copyfile(os.path.join(REPO, rel),
-                        os.path.join(dst, rel.replace("/", os.sep)))
+        # The registry moved to record/canon/ on 2026-08-22, so its directory no longer
+        # exists in a scratch tree built from the production globs alone. Make the parent
+        # of each copied file rather than assuming a flat root -- the assumption the move
+        # broke, and the reason this line names the directory instead of "tests/gate".
+        out = os.path.join(dst, rel.replace("/", os.sep))
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        shutil.copyfile(os.path.join(REPO, rel), out)
     return dst
 
 
@@ -601,7 +614,7 @@ SHIFT_REDS_OLD = 37
 def _oracle_tree(tmp_path_factory, name: str) -> str:
     root = _scratch(tmp_path_factory, name)
     old_gate = head_blob(GATE_REL)
-    old_reg = head_blob(REGISTRY_REL)
+    old_reg = head_blob(REGISTRY_REL_AT_PRE_MIGRATION)
     assert old_gate and old_reg, (
         "the oracle needs the PRE-MIGRATION gate and registry from HEAD and "
         "git did not return them")

@@ -90,7 +90,7 @@ coverage diff (MANUAL)" until enforcement exists.
 
 ## 7. THE NUMBER TO WATCH IS THE SCOPE RATIO, NOT THE CENSUS
 
-Verified at HEAD by Seat 2: WIRING_REGISTRY.md carries 74 status rows (48 LIVE,
+Verified at HEAD by Seat 2: record/canon/WIRING_REGISTRY.md carries 74 status rows (48 LIVE,
 24 SEVERED, 1 DELETED-PENDING, 1 INSTRUMENT). Production classes in the core tree
 (engines/ + cognitive_loop.py + cognitive_game_player.py + tools/): 416.
 

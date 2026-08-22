@@ -354,7 +354,7 @@ adopt what its own ground yields; the rung-4 verdict must not be keyed on shared
 adoption. (2) The import channel's value is measurable ONLY on atoms the receiver could
 NOT have derived, which requires PROVENANCE DISCRIMINATION — the seq-stamps
 (priority < match, mint < match, source_game) are exactly that instrument, and they
-become load-bearing rather than hygienic. (3) The claim (CLAIM.md) must separate
+become load-bearing rather than hygienic. (3) The claim (record/canon/CLAIM.md) must separate
 CONVERGENT from IMPORTED atoms: a win in which every atom was independently derivable
 is a materially weaker finding than one where imports were load-bearing, and the books
 can tell them apart only by provenance. (4) A more hopeful reading of the same numbers,

@@ -1,7 +1,7 @@
 """RUNG 0c FLIP GATE: THE RHO MULTI-RUNG LADDER, LIVE (KNOBS Amendment 2 x THE_LADDER 0c).
 
 ⭐ WHY: rho_at / rederivation_traffic / rho_report had ZERO production callers
-(WIRING_REGISTRY.md rho-ladder row, S8) -- every grain conclusion so far came from
+(record/canon/WIRING_REGISTRY.md rho-ladder row, S8) -- every grain conclusion so far came from
 hand-run tools, so the partition-artifact fix was a REPORT ARTIFACT, not a
 measurement the system takes. THE DONE STANDARD (THE_LADDER rung 0c): a build is
 done when something in the live path calls it with real inputs.
@@ -276,7 +276,7 @@ class TestNarration:
 class TestRegistryFlipped:
 
     def _row(self):
-        path = os.path.join(REPO, "WIRING_REGISTRY.md")
+        path = os.path.join(REPO, "record", "canon", "WIRING_REGISTRY.md")
         with open(path, encoding="utf-8") as fh:
             for line in fh:
                 if line.strip().startswith("| rho-ladder |"):

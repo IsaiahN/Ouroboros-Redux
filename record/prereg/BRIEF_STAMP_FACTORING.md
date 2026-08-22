@@ -58,12 +58,12 @@ Known-negatives as tests: avatar dies (cell -> a colour the delta did not predic
    absent).
 
 ## Discipline
-- Module-bottom helpers; zero receipt rot — refresh every WIRING_REGISTRY.md row you move
-  and state the drift. KNOBS.md: no new numeric constant without a row; the marker and
+- Module-bottom helpers; zero receipt rot — refresh every record/canon/WIRING_REGISTRY.md row you move
+  and state the drift. record/canon/KNOBS.md: no new numeric constant without a row; the marker and
   the rule are PINNED by this prereg, not GUESSED.
 - ruff: zero new findings. Run the full `pytest tests -q` once at the end; report the
   verbatim tail and every red, yours or not.
 - Non-pinned decisions: list them; do not bury them in prose.
 - Another builder's uncommitted work may be in the tree; touch only effects.py, mint.py,
   composer.py (the two notes), the ONE stamp call site in cognitive_loop.py, your test
-  file, WIRING_REGISTRY.md, KNOBS.md. Name anything else you needed and did not touch.
+  file, record/canon/WIRING_REGISTRY.md, record/canon/KNOBS.md. Name anything else you needed and did not touch.
