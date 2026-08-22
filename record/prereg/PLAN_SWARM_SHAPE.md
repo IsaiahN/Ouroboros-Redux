@@ -208,3 +208,72 @@ else RAISE
   closely as possible, which is a second, independent argument for retiring the fleet.
 - The de-cwd work (section 5, step 2) becomes the FIRST and most urgent item: it is
   required by Kaggle, required by any one-process shape, and correct on its own merits.
+
+---
+
+# ADDENDUM 2 — WHAT THE SUBMITTED AGENT CARRIES (the GM's question, answered)
+
+## 12 · THE TWO CLAIMS, AND WHICH ONE THE PORT BUILDS TOWARD
+The GM: if the shared library ships with the submission, that is inherited material and the
+ladder calls it HANDED. If it does not, everything the swarm accumulated is discarded.
+
+**THE PORT BUILDS TOWARD THE SECOND: THE AGENT SHIPS WITH PRIORS AND PRIMITIVES AND NO
+GAME-DERIVED LIBRARY.** Four reasons, in order of force:
+
+1. **The first claim is not available anyway.** Phase B is HIDDEN games. Γ is keyed by game
+   and its atoms are contexts cropped from a specific board; an atom from ls20 cannot anchor
+   on a game nobody has seen. Shipping 12 GB would carry weight that cannot fire. The choice
+   is mostly illusory — what would ship is dead weight, not inheritance.
+2. **FIGURE 4 forbids it in the form we have it.** "downward: something that makes the next
+   search cheaper. NEVER A REPLAY OF WHAT WORKED ONCE." A banked prefix is a recording. A
+   context-keyed effect atom is closer to a recording than to a method: it says *this exact
+   patch became that exact patch here*, not *edits of this kind compose this way*.
+3. **The measurement says the library is not what has been producing the levels.** The two
+   boxes with the most crossings have never minted an atom; 1,496 crossings, best level 2,
+   zero games won, and not one session in 1,542 ever exceeded its box's ceiling. What ships
+   with the library would be the thing that has never crossed new ground.
+4. **It keeps the claim clean.** "The agent composes from primitives against a board it has
+   never seen" is falsifiable at submission. "The agent plus a corpus derived from other
+   games" is a different and weaker claim, and the ladder is right that it is handed.
+
+**WHAT DOES SHIP:** the priors (the rungs, the drives, the gate's grammar), the primitives,
+the composition machinery, the refutation memory's MECHANISM (empty), and the mint's rules —
+everything that is a METHOD. Nothing that is a RECORD of a particular board.
+**WHAT THIS COSTS, STATED:** every hour the fleet ever ran contributes nothing to the score.
+That is not a loss the port creates; it is a fact the port stops hiding.
+
+## 13 · THE ECONOMY MOVES TO RESTARTS — WHAT EXISTS ALREADY
+Full read at `record/findings/NETWORK_FUNCTIONS_AT_AGENT_GRAIN.md`. Summary:
+- **VARIATION — BUILT.** Hypothesis rungs, drive arms, exploration, the planner's search.
+  Caveat: the contradiction branch was UNREACHABLE until last night's Protocol repair and has
+  never executed in a fleet.
+- **SELECTION — MOSTLY BUILT, one organ UNWIRED.** Frontier pariah paths and standing's
+  eviction both work and persist. **`engines/egocentric/falsified_ledger.py` — the
+  purpose-built "weighted, defeasible reject-memory" — is constructed by NOTHING.** Its only
+  references are the package re-export and itself. That is the GM's "pariahs become what has
+  been ruled out", already written, never connected.
+- **RETENTION — BUILT ON DISK, WITH A HOLE AT THE RESTART.** Γ, frontier, action book,
+  mastery, standing all persist. `retention.py` (the application memo, the band negatives,
+  dead-ends, the composer's seams) is IN-MEMORY and cleared at level change — the one
+  structure representing "what this attempt worked out" dies exactly at the boundary the
+  economy now runs on.
+- **INDEPENDENCE — ABSENT, and the GM's argument holds:** the ground is the anchor and does
+  not care that every attempt came from the same head. One caveat carried rather than
+  dissolved: independence is what distinguishes "my hypothesis is wrong" from "my framing is
+  wrong", and Figure 6's outward question has no instrument at agent grain.
+
+## 14 · THE MAP STEP
+Agreed, and it is not a stage today. The board model is implicit, scattered across Γ, the
+frontier book, the binder, the self-locus and the bank's slots, with no place that says
+*this is my model of this board and here is how it changed*. The gate's PERCEIVE utterance is
+the nearest built thing — in shadow, blocking nothing — and its completeness numbers
+(`differing` vs `reported`) are a map-fidelity measure nobody reads as one. Promoting that is
+the more valuable half of the gate work.
+
+## 15 · REVISED ORDER
+1. de-cwd (in flight) — required under every option.
+2. The `Agent` subclass + process-per-game entry point (option b).
+3. **Wire the FalsifiedLedger** — selection across restarts, already written.
+4. **Decide retention's persistence across restart** — carry or discard, explicitly.
+5. **Promote the map to a stage** — PERCEIVE out of shadow, completeness read as fidelity.
+6. Re-home the watermark writer into the new entry point.
