@@ -3451,3 +3451,31 @@ WHAT THIS STILL DOES NOT PROVE, and it is the GM's own point: a green suite exer
 imports, not the LAZY and STRING import paths that fire only in production. 27 modules on
 this fleet are reached ONLY by an in-function import. THE FLEET RUN IS THE TEST THAT IS
 OWED, and it is owed before any of these 138 moves is called safe.
+
+=== THE FLEET RUN CAUGHT WHAT THE SUITE COULD NOT. THIS IS THE WHOLE ARGUMENT. ===
+Relaunched on e52ee32 at 04:17 (25 workers, deploy ledger clean). Within three minutes the
+worker logs carried an error no test in this repo could produce:
+    ModuleNotFoundError: No module named 'engines.planning.sequence_miner'
+    [registry:WARNING] Failed to import subgoal_planner
+    [registry:WARNING] Failed to import replay_learning_engine
+CAUSE: engines/planning/__init__.py:5 imports sequence_miner at package-import time. Moving
+it to preserve/ broke the PACKAGE, and with it two engines the registry loads BY STRING --
+subgoal_planner and replay_learning_engine. A string import cannot fail at collection; it
+fails at registry construction, in a worker, and is CAUGHT AND LOGGED AS A WARNING. The
+fleet kept running with two engines silently absent.
+1,965 TESTS PASSED OVER THIS EXACT TREE. All four entrypoints imported. The suite could not
+see it because nothing in tests/ imports engines.planning, and the registry swallows the
+failure by design.
+AND THE EXAMINATION HAD WARNED ME: EXAM_02 wrote that sequence_miner "is not inert -- it
+loads on every engines.planning.* import and its module-level logger opens a DB handler,
+which is a caution against moving it casually." I moved it anyway, because its row said
+preserve. I READ THE ROW AND NOT THE WARNING BESIDE IT.
+RESTORED; engines.planning and both dependents import; the supervisor redeployed on the
+change at 09:23 UTC and all 25 workers are up.
+FIVE FILES HAVE NOW COME BACK of 142 moved (cognitive_stages, falsified_ledger, janitor,
+relations, sequence_miner) and EVERY ONE for the same reason: A PACKAGE __init__.py IMPORTS
+IT AT IMPORT TIME. That is now a rule, not an anecdote: BEFORE MOVING ANY MODULE, GREP ITS
+OWN PACKAGE'S __init__.py. A re-export is not a mention; it is the package's contract.
+STATED SO IT IS NOT LOST: the fleet run remains the only test that reaches string and lazy
+imports, and it has now earned that claim twice in one night -- once for the manual_tools
+lazy import weeks ago, once here. A green suite is necessary and it is not sufficient.
