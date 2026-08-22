@@ -38,8 +38,9 @@ class CompletionPredictor:
     informed predictions about which tools produce which effects.
     """
 
-    def __init__(self, db_path: str = "core_data.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        from database_interface import resolve_db_path
+        self.db_path = resolve_db_path(db_path)
         self._tool_effect_cache: Dict[str, List[Dict[str, Any]]] = {}
         self._cache_expiry: float = 0.0
         self.CACHE_TTL = 60.0  # Refresh cache every 60 seconds

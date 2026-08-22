@@ -150,7 +150,7 @@ class ConceptDiscoveryEngine:
     def __init__(
         self,
         db: Optional[DatabaseInterface] = None,
-        db_path: str = "core_data.db"
+        db_path: Optional[str] = None
     ):
         self.db = db or DatabaseInterface(db_path)
         self.concept_candidates: Dict[str, ConceptCandidate] = {}
@@ -1103,7 +1103,7 @@ class StructuralPatternLibrary:
     - Success/failure rate tracking per pattern
     """
 
-    def __init__(self, db: Optional[DatabaseInterface] = None, db_path: str = "core_data.db"):
+    def __init__(self, db: Optional[DatabaseInterface] = None, db_path: Optional[str] = None):
         self.db = db or DatabaseInterface(db_path)
         self.patterns: Dict[str, StructuralPattern] = {}
         self.hash_index: Dict[str, List[str]] = {}  # structural_hash -> [pattern_ids]
@@ -1449,7 +1449,7 @@ class StructuralPatternLibrary:
 _pattern_library: Optional[StructuralPatternLibrary] = None
 
 
-def get_pattern_library(db_path: str = "core_data.db") -> StructuralPatternLibrary:
+def get_pattern_library(db_path: Optional[str] = None) -> StructuralPatternLibrary:
     """Get or create the global structural pattern library."""
     global _pattern_library
     if _pattern_library is None:
@@ -1461,7 +1461,7 @@ def get_pattern_library(db_path: str = "core_data.db") -> StructuralPatternLibra
 _concept_engine: Optional[ConceptDiscoveryEngine] = None
 
 
-def get_concept_engine(db_path: str = "core_data.db") -> ConceptDiscoveryEngine:
+def get_concept_engine(db_path: Optional[str] = None) -> ConceptDiscoveryEngine:
     """Get or create the global concept discovery engine."""
     global _concept_engine
     if _concept_engine is None:

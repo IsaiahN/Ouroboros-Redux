@@ -149,7 +149,7 @@ class BeliefSystem:
         active = system.get_beliefs(domain="sp80", only_valid=True)
     """
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize belief system.
 

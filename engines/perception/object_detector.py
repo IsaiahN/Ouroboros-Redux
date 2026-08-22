@@ -34,7 +34,7 @@ class ObjectDetector:
     Converts pixel data into object representations for abstraction.
     """
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """Initialize object detector."""
         self.db = DatabaseInterface(db_path)
         self.enabled = is_abstraction_enabled()

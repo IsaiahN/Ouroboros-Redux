@@ -25,16 +25,18 @@ class FewShotRelations:
     a small number of examples.
     """
 
-    def __init__(self, db: "DatabaseInterface", db_path: str = "core_data.db"):
+    def __init__(self, db: "DatabaseInterface", db_path: Optional[str] = None):
         """
         Initialize few-shot relations.
 
         Args:
             db: Database interface
-            db_path: Path to database (for abstraction engine)
+            db_path: Path to database (for abstraction engine). None takes the
+                anchored default -- see database_interface.resolve_db_path.
         """
+        from database_interface import resolve_db_path
         self.db = db
-        self.db_path = db_path
+        self.db_path = resolve_db_path(db_path)
         self._abstraction_engine: Optional[Any] = None
         self._abstraction_unavailable = False
 

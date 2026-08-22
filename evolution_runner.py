@@ -243,7 +243,7 @@ class EvolutionRunner:
     def __init__(
         self,
         mode: str = "normal",
-        db_path: str = "core_data.db",
+        db_path: Optional[str] = None,
         population_size: int = 100,
         agents_per_generation: int = 30,
         games_per_generation: int = 3,

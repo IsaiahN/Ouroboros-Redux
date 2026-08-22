@@ -73,7 +73,7 @@ which is precisely Seat 3's warning, and it is confirmed rather than hypothetica
 ## PRECONDITION (b) — **THE NEW HOLD MECHANISM**
 
 **The old model was: commit = the boundary between "not running" and "running." That was
-false** (`THE_LADDER.md`, *the working tree is production*): a change is live at the recycle.
+false** (`record/canon/THE_LADDER.md`, *the working tree is production*): a change is live at the recycle.
 **At ~12 boundaries an hour it is live within five minutes, so "hold the commit" protects the
 repository and nothing else.**
 

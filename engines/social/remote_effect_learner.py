@@ -56,7 +56,7 @@ class RemoteEffectLearner:
         self,
         game_type: Optional[str] = None,
         db: Optional[DatabaseInterface] = None,
-        db_path: str = "core_data.db"
+        db_path: Optional[str] = None
     ):
         self.game_type = game_type
         self.db = db or DatabaseInterface(db_path)

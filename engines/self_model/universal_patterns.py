@@ -152,7 +152,7 @@ class UniversalPatternEngine:
     MIN_CONFIDENCE_FOR_TRANSFER = 0.6
     MIN_GAMES_FOR_UNIVERSAL = 3
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize universal pattern engine.
 

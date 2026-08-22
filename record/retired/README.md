@@ -13,7 +13,7 @@ path — verified as an import, a dotted path, **and a bare quoted string**, whi
 |---|---|---|---|---|
 | `progress.md` | 2025-12-03 | a running progress narrative from the v3 era | superseded by a structured beat record with scoreboard-first ordering | **`record/log/PORT_LOG.md`**, which carries GAMES WON, the levels delta and the split-half read every beat |
 | `assesment.md` | 2025-12-25 | a one-off system assessment; its only inbound reference was to `progress.md`, itself retired | overtaken by the audits, each of which reads one link with receipts rather than surveying | **`record/findings/`** — `BOARD_AUDIT`, `HISTORY_TRACE`, `PERF_AUDIT`, `LINK3_AUDIT` |
-| `loop_state.md` | 2026-02-11 | a snapshot of loop state during the February refactor | a snapshot of a build two eras back; `core_gameplay.py`/`learning_systems.py` have not been on the live path since 2026-02-10 | **`THE_LADDER.md`** for the diagnostic ordering; `F8A_READ.md` for why that lineage is dead |
+| `loop_state.md` | 2026-02-11 | a snapshot of loop state during the February refactor | a snapshot of a build two eras back; `core_gameplay.py`/`learning_systems.py` have not been on the live path since 2026-02-10 | **`record/canon/THE_LADDER.md`** for the diagnostic ordering; `F8A_READ.md` for why that lineage is dead |
 | `SUBAGENTS_PLAN.md` | 2026-02-10 | a plan for subagent orchestration | the arrangement it planned for was replaced by the seat map, which is a different structure and not a revision of this one | **`record/corpus/THE_SEAT_MAP_general.md`** |
 
 ## THE RULE THIS FOLDER EXISTS TO ENFORCE

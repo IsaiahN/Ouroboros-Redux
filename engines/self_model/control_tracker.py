@@ -95,7 +95,7 @@ class ControlTracker:
             print(f"Control {obj.object_id} via {obj.action_map}")
     """
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize control tracker.
 

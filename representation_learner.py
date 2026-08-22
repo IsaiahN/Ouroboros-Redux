@@ -204,7 +204,7 @@ class RepresentationLearner:
 
     def __init__(
         self,
-        db_path: str = "core_data.db",
+        db_path: Optional[str] = None,
         model_path: Optional[str] = None,
         latent_dim: int = 128,
         num_colors: int = 10,

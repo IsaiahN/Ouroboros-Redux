@@ -21,32 +21,18 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Path to the main database (NOT the empty tests/core_data.db!)
-# The main database is 15+ GB at project root
-MAIN_DB_PATH = Path(project_root) / "core_data.db"
-
-
-@pytest.fixture
-def db_path() -> Path:
-    """
-    Fixture providing path to the main core_data.db database.
-
-    Use this in tests instead of Path(__file__).parent / "core_data.db"
-    which incorrectly points to an empty tests/core_data.db file.
-    """
-    return MAIN_DB_PATH
-
-
-@pytest.fixture
-def db_connection():
-    """
-    Fixture providing a database connection to core_data.db.
-    Automatically closes connection after test completes.
-    """
-    import sqlite3
-    conn = sqlite3.connect(str(MAIN_DB_PATH))
-    yield conn
-    conn.close()
+# ── D-7 (2026-08-22): the `db_path` and `db_connection` fixtures were REMOVED.
+# They read `MAIN_DB_PATH = Path(project_root) / "core_data.db"` -- the suite's own
+# copy of the defect being fixed, aimed straight at the repo root, and `db_connection`
+# did not merely read it: sqlite3.connect CREATES, so any test taking that fixture
+# would mint the stray root database the GM keeps deleting. Both had ZERO consumers
+# across tests/ (verified by grep for the fixture names before removal), so nothing
+# relied on them and no test needed rewriting.
+#
+# A test that needs a database takes an EXPLICIT path -- `tmp_path / "core_data.db"`
+# handed to DatabaseInterface, which honours explicit paths unchanged. Tests must never
+# take the anchored default: that default lives under .runs/, which is the agent's
+# data, and a test writing there would corrupt a live fleet box.
 
 
 def _find_pycache(root: str):

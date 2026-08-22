@@ -45,15 +45,21 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
-# Database path -- CWD-RELATIVE, matching every other engine's default (2026-08-20).
-# This was `Path(__file__).parent.parent.parent / "core_data.db"`: anchored to the REPO
-# ROOT regardless of cwd. Workers run with cwd=<their box>, so via the `db_path or
-# str(DB_PATH)` fallback below, ALL 25 workers held open handles on ONE shared file at
-# the repo root -- a single evidence pool wearing 25 boxes' clothes, found because the
-# file was LOCKED during the 2026-08-20 audit while holding no writes since 08-18.
-# CWD-relative resolves to the worker's own box DB, which is what every sibling engine
-# (object_detector, sequence_abstraction, registry) already does.
-DB_PATH = Path("core_data.db")
+# Database path -- RESOLVED AT CALL TIME by database_interface.resolve_db_path (D-7,
+# 2026-08-22). The history, kept because both earlier forms were defects:
+#   * `Path(__file__).parent.parent.parent / "core_data.db"` anchored to the REPO ROOT
+#     regardless of cwd. Workers run with cwd=<their box>, so via the `db_path or
+#     str(DB_PATH)` fallback below, ALL 25 workers held open handles on ONE shared file
+#     at the repo root -- a single evidence pool wearing 25 boxes' clothes, found
+#     because the file was LOCKED during the 2026-08-20 audit while holding no writes
+#     since 08-18.
+#   * `Path("core_data.db")`, the 2026-08-20 replacement, was CWD-RELATIVE. It gave the
+#     worker its own box DB, but it gave everything else -- the suite, the tools, any
+#     manual run -- a database at the repo root, which is exactly the rule violation.
+# resolve_db_path keeps the box branch (so the fleet is unchanged) and refuses the rest.
+# There is deliberately NO module-level constant now: this module is imported from the
+# repo root by the suite, and a constant would have to resolve at IMPORT time, turning a
+# path question into an import-time raise.
 
 logger = logging.getLogger(__name__)
 
@@ -1351,7 +1357,7 @@ class GoalEvaluator:
     def save_goal_structure_to_network(
         self,
         game_type: str,
-        db_path: str = "core_data.db",
+        db_path: Optional[str] = None,
         win_validated: bool = False
     ) -> bool:
         """
@@ -1372,8 +1378,12 @@ class GoalEvaluator:
         import json
         import sqlite3
 
+        from database_interface import resolve_db_path
+
         if not self.goals or not self.goals.subgoals:
             return False
+
+        db_path = resolve_db_path(db_path)
 
         try:
             conn = sqlite3.connect(db_path)
@@ -1469,7 +1479,7 @@ class GoalEvaluator:
     @staticmethod
     def load_goal_structure_from_network(
         game_type: str,
-        db_path: str = "core_data.db"
+        db_path: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Load known goal structure for a game type from network.
@@ -1479,6 +1489,10 @@ class GoalEvaluator:
         """
         import json
         import sqlite3
+
+        from database_interface import resolve_db_path
+
+        db_path = resolve_db_path(db_path)
 
         try:
             conn = sqlite3.connect(db_path)
@@ -1779,7 +1793,8 @@ class SymbolicReasoningDatabase:
     """Database interface for symbolic reasoning system."""
 
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or str(DB_PATH)
+        from database_interface import resolve_db_path
+        self.db_path = resolve_db_path(db_path)
         self._ensure_tables()
 
     def _get_connection(self) -> sqlite3.Connection:

@@ -128,7 +128,7 @@ class ClickBehaviorClassifier:
         print(f"Dominant behavior: {profile.dominant_behavior}")
     """
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize click behavior classifier.
 

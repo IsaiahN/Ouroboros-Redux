@@ -84,7 +84,7 @@ class PrimitiveUnlockManager:
     def __init__(
         self,
         db: Optional[DatabaseInterface] = None,
-        db_path: str = 'core_data.db',
+        db_path: Optional[str] = None,
     ):
         self.db = db or DatabaseInterface(db_path)
         self._ensure_tables()

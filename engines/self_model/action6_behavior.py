@@ -55,7 +55,7 @@ class Action6BehaviorEngine:
     - When ACTION6 becomes available/unavailable
     """
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize ACTION6 behavior engine.
 

@@ -162,8 +162,9 @@ class SafeDatabaseCleaner:
        - network_failure_hypotheses: 10,000 (keep validated + high-confidence)
     """
 
-    def __init__(self, db_path='core_data.db'):
-        self.db_path = db_path
+    def __init__(self, db_path=None):
+        from database_interface import resolve_db_path
+        self.db_path = resolve_db_path(db_path)
 
         # =================================================================
         # OPERATIONAL DATA RETENTION (by count or age)

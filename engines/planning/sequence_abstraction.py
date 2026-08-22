@@ -185,7 +185,7 @@ class SequenceAbstraction:
         (0, 2): 'SW', (1, 2): 'S', (2, 2): 'SE'
     }
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """Initialize abstraction engine."""
         self.db = DatabaseInterface(db_path)
         # Cache few-shot relational patterns (action invariants/variants) to avoid repeated queries
@@ -1510,7 +1510,13 @@ if __name__ == "__main__":
 
     # Find game types with most sequences for testing
     print("\n[DISCOVERY] Finding game types with multiple sequences...")
-    conn = sqlite3.connect('core_data.db')
+    # D-7 (2026-08-22): this was a BARE literal `sqlite3.connect('core_data.db')` with no
+    # default parameter to route -- the demo opened whatever cwd it was run from, which
+    # from the repo root is precisely the stray database. It takes the same anchored
+    # default as the live path, so running the demo from the wrong place now RAISES
+    # instead of quietly creating a second database and printing plausible numbers off it.
+    from database_interface import resolve_db_path
+    conn = sqlite3.connect(resolve_db_path())
     cursor = conn.cursor()
     cursor.execute("""
         SELECT SUBSTR(game_id, 1, 4) as game_type, level_number, COUNT(*) as seq_count

@@ -3382,3 +3382,41 @@ ordering decision, not a defect decision.
    and 105 files had changed the count. It could not have matched the number I gave it and
    said so rather than fudging.
 Three proctor errors, all found by the builder, none by me.
+
+=== THE DATABASE PATH IS ANCHORED: DATA CANNOT LAND OUTSIDE .runs ANY MORE ===
+resolve_db_path() at the module bottom of database_interface.py -- chosen on a MEASUREMENT
+(80 importers vs database_logger's 4) and PURE: no mkdir, no connect, so the D-6 property
+stays true. Explicit caller paths honoured unchanged (the escape hatch tests need); the
+DEFAULT resolves to the box when cwd is under .runs, else to the runs root, and any path
+that would land outside raises DatabasePathOutsideRuns NAMING THE PATH AND THE RULE.
+MY "135 SITES" WAS WRONG -- IT IS 35. The real figure, from an AST scan over the production
+globs, is 37 constants minus 2 module docstrings. My grep counted the WHOLE TREE, including
+considered_dead/, preserve/, tools/ and record/ PROSE. A number produced by scope-less
+grep, quoted as a live-path count: the adjacency genus at the measurement grain, and the
+third number of mine a builder has corrected tonight (95s import, four "typos", now this).
+HOW THE 35 WERE FIXED, and not by rewriting 35 literals into a different literal: 21 are
+forward-only and simply stopped asserting a path (default None, resolved at the sink); 8
+that store or connect call the resolver explicitly; database_logger's DATABASE_PATH env
+fallback moved INTO the resolver; symbolic_reasoning_engine's `DB_PATH = Path("core_data.db")`
+module constant was DELETED rather than rewritten, because a constant resolves at IMPORT
+time and that module is imported from the repo root by the suite -- rewriting it would have
+turned a path question into an import-time raise.
+THE MEASUREMENT THAT CLOSES IT, and I re-ran it myself rather than accept the report:
+20 engine log records emitted from the repo root -> root core_data.db BYTE-IDENTICAL
+(3,899,392 bytes, mtime unchanged at 03:47) and the write landed in .runs/. The builder's
+own full-suite run left the root DB's mtime frozen likewise.
+NON-VACUITY PROVEN BY RE-PLANTING THE DEFECT: the builder deliberately restored the old
+relative default into object_detector.py to check F4 reds by name. It did.
+THE EXEMPTION IS AN EQUALITY, NOT A SKIP: engines/registry.py:358 and :696 are two more live
+sites of this exact defect, in the file the Protocol builder owned at the time. They are
+carried in F4 as KNOWN_OUTSTANDING, and the gate REDS WHEN THEY ARE FIXED, demanding the
+entry be deleted. An exemption that can be forgotten is the same species as a convention
+nothing checks -- so it was written as one that cannot be.
+SUITE: 1965 passed, 2 xfailed, zero reds. ruff clean.
+TWO FOSSILS, and only one is mine to remove: the root core_data.db (3.9 MB, 282 tables) is
+now inert -- nothing writes it -- and I deleted it, which the GM's rule requires and which
+is only final NOW that the defect is fixed. And .runs/core_data.db (3.6 MB) is suite noise
+that the fix correctly redirected INTO the sanctioned area; it is inert with respect to the
+fleet (every box reads .runs/swarm/<box>/core_data.db) and it stays. The clean follow-up --
+diverting engine logging under test -- needs a test-detection convention the tree does not
+have, and the builder declined to invent one unilaterally. Correct refusal.

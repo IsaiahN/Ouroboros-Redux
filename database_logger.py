@@ -38,7 +38,14 @@ class DatabaseLogHandler(logging.Handler):
         """
         super().__init__()
 
-        self.db_path = db_path or os.getenv('DATABASE_PATH', 'core_data.db')
+        # D-7 (2026-08-22): the DATABASE_PATH fallback used to end in the relative
+        # string 'core_data.db', so a handler constructed anywhere but a box wrote its
+        # log database to that cwd. resolve_db_path reads DATABASE_PATH itself and
+        # refuses anything outside .runs/. Imported here, not at module top, because
+        # this handler is constructed during the engines import (see D-6 below) and the
+        # import graph is kept shallow deliberately.
+        from database_interface import resolve_db_path
+        self.db_path = resolve_db_path(db_path)
         self._local = threading.local()
         self._lock = threading.Lock()
 
@@ -399,8 +406,9 @@ def get_recent_logs(
     Returns:
         List of log entries
     """
-    if not db_path:
-        db_path = os.getenv('DATABASE_PATH', 'core_data.db')
+    from database_interface import resolve_db_path
+
+    db_path = resolve_db_path(db_path or None)
 
     try:
         conn = sqlite3.connect(db_path)

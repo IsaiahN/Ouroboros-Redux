@@ -38,9 +38,10 @@ class SymbolicStateTracker:
     (transformations) vs. noise (movement).
     """
 
-    def __init__(self, game_type: Optional[str] = None, db_path: str = "core_data.db"):
+    def __init__(self, game_type: Optional[str] = None, db_path: Optional[str] = None):
+        from database_interface import resolve_db_path
         self.game_type = game_type
-        self.db_path = db_path
+        self.db_path = resolve_db_path(db_path)
 
         # Current state tracking
         self.key_objects: Dict[str, Dict[str, Any]] = {}  # object_id -> symbolic state

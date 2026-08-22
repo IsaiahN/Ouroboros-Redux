@@ -23,7 +23,7 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from database_interface import DatabaseInterface
+from database_interface import DatabaseInterface, resolve_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,8 @@ class SchemaAutoMaintenance:
 
     SCHEMA_FILE_PATH = "complete_database_schema.sql"
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
+        db_path = resolve_db_path(db_path)
         self.db = DatabaseInterface(db_path)
         self.db_path = db_path
         self._ensure_schema_versions_table()

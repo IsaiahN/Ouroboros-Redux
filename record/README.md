@@ -4,8 +4,8 @@
 The root looked like accumulated clutter. **It is a citation graph.** Measured before moving
 anything: **36 of 80 root markdown files are cited BY NAME inside `.py`, at 102 sites**,
 including live agent code — `cognitive_loop.py`, `cognitive_game_player.py`,
-`engines/egocentric/consumer.py`. `THE_LADDER.md` alone is cited 8 times; `WIRING_REGISTRY.md`
-8; `CLAIM.md` 7.
+`engines/egocentric/consumer.py`. `record/canon/THE_LADDER.md` alone is cited 8 times; `record/canon/WIRING_REGISTRY.md`
+8; `record/canon/CLAIM.md` 7.
 
 **So the lazy-import lesson generalises: a file that live code cites by name is referenced by
 a live path.** Moving those 36 would stale 102 citations *and* require editing agent code,
@@ -23,12 +23,12 @@ moved.**
 
 ## RELOAD POINTS — read these first after a compaction or a fresh session
 **Canon, in dependency order:**
-1. `THE_LADDER.md` *(root — cited by 8 files, does not move)* — the diagnostic read order,
+1. `record/canon/THE_LADDER.md` *(root — cited by 8 files, does not move)* — the diagnostic read order,
    the failure genera, and every rule adopted this week.
 2. `record/corpus/THE_SEAT_MAP_general.md` — the seats, the laws, the loop appendix.
 3. `record/corpus/THE_LOOP_reference.md` — the eight steps in compact form.
-4. `CLAIM.md` *(root)* — what is claimed and at what status.
-5. `WIRING_REGISTRY.md` *(root)* — live organs and their receipts.
+4. `record/canon/CLAIM.md` *(root)* — what is claimed and at what status.
+5. `record/canon/WIRING_REGISTRY.md` *(root)* — live organs and their receipts.
 
 **State, when picking the board back up:**
 - `record/log/PORT_LOG.md` — the last beat, scoreboard-first.

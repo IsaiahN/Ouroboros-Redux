@@ -5,7 +5,6 @@ os.environ['PYTHONDONTWRITEBYTECODE'] = '1'  # Rule 1: Disable pycache
 """
 Safe Agent Lifecycle Management
 
-Implements "Megaman Net Navi" philosophy:
 - Good players never deleted, just retired
 - Zero-score agents pruned faster
 - Permanent deletion only after 500+ generations of inactivity

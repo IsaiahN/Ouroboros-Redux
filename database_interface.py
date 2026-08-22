@@ -28,13 +28,15 @@ logger = logging.getLogger(__name__)
 class DatabaseInterface:
     """Core database interface for game mechanics."""
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """Initialize database interface.
 
         Args:
-            db_path: Path to the SQLite database file
+            db_path: Path to the SQLite database file. None takes the anchored
+                default -- see ``resolve_db_path`` at the bottom of this module.
+                An explicit path is honoured unchanged.
         """
-        self.db_path = db_path
+        self.db_path = resolve_db_path(db_path)
         self._local = threading.local()
         # Ensure connections close even if caller forgets (prevents ResourceWarning)
         self._finalizer = weakref.finalize(self, DatabaseInterface._finalize_cleanup, weakref.ref(self))
@@ -1873,3 +1875,148 @@ class DatabaseInterface:
     def get_agent_performance_history(self, agent_id):
         """Get agent's performance history"""
         return self.get_agent_recent_performance(agent_id, limit=50)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE DATABASE PATH ANCHOR  (D-7, 2026-08-22)
+#
+# THE DEFECT THIS REPLACES. Thirty-five production sites defaulted db_path to the
+# RELATIVE string "core_data.db". A relative default means the database lands at
+# whatever cwd the process happens to have. Fleet workers were correct BY ACCIDENT
+# (the supervisor spawns them with cwd=<their box>, swarm_supervisor.py:258); every
+# other caller -- the suite, the tools, any manual run from the repo root -- silently
+# created a SECOND database at the root and read and wrote it believing it was the
+# agent's. A 10 MB core_data.db kept reappearing there.
+#
+# D-6 (database_logger.py:56-63) deferred schema init to the first EMIT, which stopped
+# the empty 282-table shell appearing on mere import. It did not stop a REAL database
+# appearing the moment anything actually logged from the root -- which every suite run
+# does. D-6 removed the symptom's cheapest instance; this removes the cause.
+#
+# FIGURE 10, "install what can be violated": a relative default is a convention that
+# nothing can check. The rule "agent data lives only under .runs/" was written in prose
+# and enforced by nothing. Below it is a function that REFUSES.
+#
+# FIGURE 2, "the anchor must not update": a path whose meaning changes with the
+# caller's cwd is an anchor that moves. From the repo root and from a tmp dir the
+# default now resolves to the SAME absolute path.
+#
+# WHY THE BOX BRANCH SURVIVES. symbolic_reasoning_engine.py:48-56 records a real
+# 2026-08-20 finding: an earlier anchor of the form `Path(__file__).parent.parent /
+# "core_data.db"` pinned every one of the 25 workers to ONE file at the repo root --
+# "a single evidence pool wearing 25 boxes' clothes". Collapsing the per-box databases
+# is a WORSE defect than the one being fixed, so a cwd already under .runs/ is honoured
+# exactly as today. The change is that a cwd OUTSIDE .runs/ no longer silently gets the
+# root; it gets the declared unboxed anchor, and anything that would land outside
+# .runs/ raises.
+#
+# PURE. No mkdir, no connect, no getenv side effect -- resolving a path must not create
+# one. That is what keeps the D-6 property (import creates no database) true.
+# ─────────────────────────────────────────────────────────────────────────────
+
+DEFAULT_DB_NAME = "core_data.db"
+RUNS_DIRNAME = ".runs"
+
+#: The repo root -- this module sits at the top level, so its own directory IS the root.
+REPO_ROOT = Path(__file__).resolve().parent
+#: The one sanctioned home for agent data. Nothing may default outside it.
+RUNS_ROOT = REPO_ROOT / RUNS_DIRNAME
+#: Where the default lands when the caller is NOT inside a box. Fixed, cwd-independent.
+UNBOXED_DB_PATH = RUNS_ROOT / DEFAULT_DB_NAME
+
+
+class DatabasePathOutsideRuns(RuntimeError):
+    """A DEFAULT database path resolved outside .runs/.
+
+    Loud on purpose. Not a fallback, not a warning, not a silent redirect: a
+    default that silently does the wrong thing in the wrong cwd is the defect
+    this exception exists to make impossible.
+    """
+
+
+def _normcased(path: Path) -> str:
+    """Absolute, normalised, case-folded -- the form containment must compare in.
+
+    Windows paths differ in case and in separator between ``Path.cwd()`` and a
+    literal, and ``Path.relative_to`` is a pure string operation: without this the
+    containment check would report a box as being outside .runs/.
+    """
+    return os.path.normcase(os.path.normpath(os.path.abspath(str(path))))
+
+
+def _is_under(child: Path, parent: Path) -> bool:
+    """True if ``child`` is ``parent`` or lies beneath it."""
+    c, p = _normcased(child), _normcased(parent)
+    return c == p or c.startswith(p + os.sep)
+
+
+def resolve_db_path(db_path: Optional[Any] = None, *, cwd: Optional[Any] = None) -> str:
+    """Resolve a database path to an ABSOLUTE location under .runs/, or raise.
+
+    THE ESCAPE HATCH. An explicit ``db_path`` from a caller is honoured UNCHANGED --
+    tests must be able to hand in a tmp_path, and a caller that names a path has
+    said what it means. It is the DEFAULT that must never land outside .runs/.
+
+    THE DEFAULT is a base directory and a filename.
+
+    The BASE is the box when there is one:
+      * ``cwd`` already under .runs/ -- the fleet worker standing in its own box.
+        Yields ``<box>/<name>``, byte-identical to today's accidental behaviour,
+        which is why the halted fleet resumes onto its own databases.
+      * otherwise ``RUNS_ROOT`` -- the declared, cwd-independent anchor.
+
+    The NAME is ``DATABASE_PATH`` if that names a bare file, else ``core_data.db``.
+    A RELATIVE ``DATABASE_PATH`` is deliberately NOT joined to the cwd: .env.example
+    ships ``DATABASE_PATH=core_data.db``, and joining that to the cwd would put the
+    old defect straight back through the environment. An ABSOLUTE ``DATABASE_PATH``
+    is taken as given -- and is then rule-checked, so pointing it outside .runs/
+    raises rather than quietly winning.
+
+    Every branch is checked against .runs/ and raises if it escapes.
+
+    Args:
+        db_path: an explicit path, or None to take the default.
+        cwd: the directory to resolve against; defaults to the real cwd. Injected
+             so a test can assert the resolution for a cwd it is not running in.
+
+    Returns:
+        The path as a string -- absolute for every default branch.
+
+    Raises:
+        DatabasePathOutsideRuns: the default resolved outside .runs/.
+    """
+    if db_path is not None:
+        return str(db_path)
+
+    here = Path(cwd) if cwd is not None else Path.cwd()
+    env = (os.getenv("DATABASE_PATH") or "").strip()
+
+    if env and Path(env).is_absolute():
+        candidate = Path(env)
+        origin = "DATABASE_PATH=%r (absolute)" % env
+    else:
+        # A relative DATABASE_PATH contributes only its FILENAME -- never a base.
+        name = Path(env).name if env else DEFAULT_DB_NAME
+        if _is_under(here, RUNS_ROOT):
+            base, where = here, "the cwd %s (a box under .runs/)" % here
+        else:
+            base, where = RUNS_ROOT, "the unboxed anchor (cwd %s is not under .runs/)" % here
+        candidate = base / (name or DEFAULT_DB_NAME)
+        origin = where if not env else "%s with name from DATABASE_PATH=%r" % (where, env)
+
+    candidate = Path(os.path.normpath(os.path.abspath(str(candidate))))
+
+    if not _is_under(candidate, RUNS_ROOT):
+        raise DatabasePathOutsideRuns(
+            "refusing a default database path outside .runs/\n"
+            "  resolved to : %s\n"
+            "  came from   : %s\n"
+            "  the rule    : agent data lives ONLY under %s\n"
+            "A relative default lands wherever the process happens to be standing, so "
+            "it is not an anchor. Pass an explicit db_path if you genuinely mean a "
+            "location outside .runs/ (tests do this with tmp_path); otherwise run from "
+            "a box under .runs/ or leave DATABASE_PATH unset."
+            % (candidate, origin, RUNS_ROOT)
+        )
+
+    return str(candidate)

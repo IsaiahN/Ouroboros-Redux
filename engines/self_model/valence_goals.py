@@ -149,7 +149,7 @@ class ValenceGoalEngine:
     CONFIDENCE_LOW = 0.3
     EVIDENCE_FOR_CERTAINTY = 5
 
-    def __init__(self, db_path: str = "core_data.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize valence goal engine.
 

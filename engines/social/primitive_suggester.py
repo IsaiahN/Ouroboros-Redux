@@ -86,7 +86,7 @@ class PrimitiveSuggester:
         suggester.record_outcome(game_type, primitive, action, success)
     """
 
-    def __init__(self, db: Optional[DatabaseInterface] = None, db_path: str = "core_data.db"):
+    def __init__(self, db: Optional[DatabaseInterface] = None, db_path: Optional[str] = None):
         self.db = db or DatabaseInterface(db_path)
         self.seeds = get_seed_primitives()
         self._ensure_tables()
@@ -664,7 +664,7 @@ _suggester: Optional[PrimitiveSuggester] = None
 
 def get_primitive_suggester(
     db: Optional[DatabaseInterface] = None,
-    db_path: str = "core_data.db"
+    db_path: Optional[str] = None
 ) -> PrimitiveSuggester:
     """
     Get or create singleton PrimitiveSuggester.
