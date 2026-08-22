@@ -27,10 +27,9 @@ the same code CI runs.
       insert-BEFORE case is a NAMED RESIDUE, asserted as a residue below.
   F5  ABSENCES ARE NAMED — an unresolvable row is reported by name, nothing is
       written for it, and the gate still reads its old form.
-  F6  THE ORACLE (§4) — old gate over the pre-migration registry vs new gate
-      over the migrated one, same tree: per-row per-test verdict vectors
-      IDENTICAL; then three mutations on both, including the 200-line shift
-      that reds N rows on the old gate and ZERO on the new.
+  F6  THE ANCHORED MUTATIONS (§4) — the shipped gate is green on an unmutated
+      tree, a rotted anchor reds, and a CUT WIRE reds both of its tests. The
+      OLD-GATE ORACLE that used to sit here is RETIRED (see the section).
 
 PRE-NAMED VERDICTS THE NEW LAWS MUST NOT REPRODUCE (prereg §4): the window-law
 reds and the `_plan_gate` tail-law red of 2026-08-21. The facts held that day;
@@ -61,7 +60,6 @@ if REPO not in sys.path:
 
 from tools.wiring_receipts import (  # noqa: E402
     build_index,
-    head_blob,
     migrate,
     parse_file,
     parse_site,
@@ -72,13 +70,6 @@ GATE_REL = "tests/gate/test_wiring_registry.py"
 LAWS_REL = "tests/gate/_ast_laws.py"
 REGISTRY_REL = "record/canon/WIRING_REGISTRY.md"
 
-# THE ORACLE READS A HISTORICAL COMMIT, AND THE FILE HAS NOT ALWAYS LIVED THERE. The
-# registry moved out of the repo root into record/canon/ on 2026-08-22; at
-# PRE_MIGRATION_SHA it was still at the root, so `git show <sha>:record/canon/...` finds
-# nothing. A path is only valid relative to a revision -- the same lesson as the receipts
-# themselves, one level up: this constant is the file's location AT THAT COMMIT and must
-# not be "kept in sync" with the one above it.
-REGISTRY_REL_AT_PRE_MIGRATION = "WIRING_REGISTRY.md"
 # The gate's PROD_GLOBS plus tools/: tools are excluded from the REFERENCE
 # scan (they are instruments, never the live path) but four SEVERED rows point
 # AT them, so a scratch tree without tools/ reds those rows for a reason that
@@ -592,108 +583,84 @@ class TestF5AbsencesAreNamed:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# F6 · THE ORACLE (prereg §4)
+# F6 · THE ANCHORED MUTATIONS (prereg §4) — THE OLD-GATE ORACLE IS RETIRED
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# The OLD gate cannot parse a fingerprint cell at all (its parser does
-# `int(site.rsplit(":", 1)[1])`). So the comparison that carries the claim is:
-# OLD gate over the PRE-MIGRATION registry (HEAD) vs NEW gate over the MIGRATED
-# registry, over ONE tree. Same rows, same names, same tests -- and the verdict
-# vectors must agree everywhere, with the reasons free to differ (decline-branch
-# and goal-abduction-plan now pass for the right reason for the first time).
-
-OLD_GATE_REL = "tests/gate/_oracle_old_gate.py"
-
-# Measured on this tree, 2026-08-21. The prereg's figure was 24, taken when the
-# registry held 60 LIVE rows; it now holds 89 LIVE + 20 SEVERED. The claim is
-# the SHAPE -- every one of these is a pure line shift, so every one is a false
-# positive -- and the number is pinned so it cannot drift unremarked.
-SHIFT_REDS_OLD = 37
-
-
-def _oracle_tree(tmp_path_factory, name: str) -> str:
-    root = _scratch(tmp_path_factory, name)
-    old_gate = head_blob(GATE_REL)
-    old_reg = head_blob(REGISTRY_REL_AT_PRE_MIGRATION)
-    assert old_gate and old_reg, (
-        "the oracle needs the PRE-MIGRATION gate and registry from HEAD and "
-        "git did not return them")
-    with open(os.path.join(root, OLD_GATE_REL.replace("/", os.sep)), "w",
-              encoding="utf-8", newline="\n") as fh:
-        fh.write(old_gate)
-    with open(os.path.join(root, "OLD_REGISTRY.md"), "w", encoding="utf-8",
-              newline="\n") as fh:
-        fh.write(old_reg)
-    return root
-
-
-def _old_gate(root: str):
-    """The PRE-MIGRATION gate, pointed at the PRE-MIGRATION registry. It cannot
-    read a fingerprint cell at all (its parser does int(rsplit(":", 1)[1])), so
-    the comparison the oracle can actually make is old-gate-over-old-registry
-    against new-gate-over-new-registry, on ONE tree."""
-    prev = os.environ.get("OURO_WIRING_REGISTRY")
-    os.environ["OURO_WIRING_REGISTRY"] = os.path.join(root, "OLD_REGISTRY.md")
-    try:
-        return _load(os.path.join(root, OLD_GATE_REL.replace("/", os.sep)))
-    finally:
-        if prev is None:
-            os.environ.pop("OURO_WIRING_REGISTRY", None)
-        else:
-            os.environ["OURO_WIRING_REGISTRY"] = prev
+# WHAT STOOD HERE. F6 ran the PRE-MIGRATION gate over the PRE-MIGRATION registry
+# (both read out of git at ``wiring_receipts.PRE_MIGRATION_SHA``) beside the
+# shipped gate over the migrated registry, on ONE tree, and compared per-row
+# per-test verdict vectors. Its headline was ``SHIFT_REDS_OLD = 37``: a pure
+# 200-line shift reddened 37 rows on the positional gate and ZERO on the
+# fingerprinted one.
+#
+# RETIRED 2026-08-22 BY GM RULING (third incident). That comparison was the
+# MIGRATION'S JUSTIFICATION, not a check on this tree, and it has made its
+# point. What it cost afterwards: (1) it SELF-INVALIDATED the moment its own
+# migration commit became HEAD~1, which is why the anchor had to be pinned to a
+# SHA at all; (2) it reddened on a DOCS MOVE that touched no code, because the
+# registry's path is only valid relative to a revision; (3) insertions inside
+# ``play_game`` pushed two rows out of the old gate's +/-30 substring window and
+# a courtesy refresh could not fix it. Each workaround spent the MODULE-BOTTOM
+# CONVENTION -- which exists to protect receipts -- on protecting a retired
+# gate's oracle instead, and it taxed every build near a claim site.
+#
+# THE CONDITION NAMED BY ``test_the_registry_is_fully_migrated_...`` WAS MET
+# BEFORE THIS RETIREMENT: 109 of 109 shipped rows carry a fingerprint (89 LIVE +
+# 20 SEVERED, ZERO stragglers), so the last row left the old form at the
+# migration commit and this is several commits after it. That test still runs
+# and still asserts it, so the fact is measured rather than remembered.
+#
+# WHAT SURVIVES, AND IT IS THE HALF THAT CHECKS THIS TREE. The mutations below
+# run against the SHIPPED gate alone:
+#   KNOWN-NEGATIVE  an unmutated tree is fully green (nothing red for a reason
+#                   that has nothing to do with the mutation).
+#   KNOWN-POSITIVE  a ROTTED anchor reds its row; a CUT WIRE reds both of that
+#                   row's tests (prereg §6: if the cut ever PASSES, undo the
+#                   build).
+# The pure-line-shift case is NOT repeated here. F1 already inserts 200 lines
+# above every claim site in EVERY file a row points at, plus 100 lines inside
+# record_result, and asserts zero receipt reds and zero law reds -- which
+# strictly contains the oracle's single-file version of the same mutation.
+#
+# WHAT THIS RETIREMENT LOSES, IN ONE LINE: the ability to re-demonstrate the
+# 37-versus-0 false-positive load of the RETIRED positional gate -- a fact about
+# the registry form no row uses any more, and about no row's validator.
 
 
-def _old_verdicts(root: str) -> Dict[Tuple[str, str], bool]:
-    return _verdicts(_old_gate(root))
-
-
-def _old_verdict1(root: str, rowname: str, testname: str) -> bool:
-    return _verdict1(_old_gate(root), rowname, testname)
-
-
-class TestF6TheOracle:
+class TestF6TheAnchoredMutations:
 
     @pytest.fixture(scope="class")
     def baseline(self, tmp_path_factory):
-        root = _oracle_tree(tmp_path_factory, "oracle_base")
-        return root, _old_verdicts(root), _verdicts(_gate(root))
+        root = _scratch(tmp_path_factory, "f6_base")
+        return root, _verdicts(_gate(root))
 
-    def test_the_verdict_vectors_are_identical(self, baseline):
-        _, old, new = baseline
-        assert set(old) == set(new), (
-            "the two gates do not even see the same rows/tests: %r"
-            % sorted(set(old) ^ set(new))[:10])
-        differ = sorted(k for k in old if old[k] != new[k])
-        assert not differ, (
-            "the migration CHANGED a verdict: %r. The fingerprint must state "
-            "the same facts the position stated, not new ones." % differ[:12])
-        assert not [k for k, v in new.items() if not v], "the tree is not settled"
+    def test_the_known_negative_an_unmutated_tree_is_settled(self, baseline):
+        """The check on the checker. A gate that red on a clean tree would make
+        every mutation below unreadable: the red would already be there."""
+        _, new = baseline
+        assert new, "the gate produced no verdicts at all -- F6 would be vacuous"
+        reds = sorted(k for k, v in new.items() if not v)
+        assert not reds, "the tree is not settled: %r" % reds[:12]
 
-    def test_mutation_i_a_rotted_row_fails_on_both(self, tmp_path_factory):
-        """Rot the SAME row in each registry the way each form can be rotted:
-        old form -> the line set to 1; new form -> a bogus ENCLOSING."""
-        root = _oracle_tree(tmp_path_factory, "oracle_rot")
+    def test_mutation_i_a_rotted_row_fails(self, tmp_path_factory):
+        """Rot the row the way a fingerprint can be rotted: a bogus ENCLOSING.
+        The anchored node still exists in the file -- it is the SCOPE the row
+        claims for it that is now false."""
+        root = _scratch(tmp_path_factory, "f6_rot")
         r = _row(root, "bank-core")
         site = parse_site(r.site_cell)
         reg = _lines(root, REGISTRY_REL)
         reg[r.idx] = reg[r.idx].replace(
             r.site_cell, site._replace(enclosing="CognitiveLoop.no_such_method").render())
         _rewrite(root, REGISTRY_REL, reg)
-        old_lines = _lines(root, "OLD_REGISTRY.md")
-        for i, ln in enumerate(old_lines):
-            if ln.startswith("| bank-core |"):
-                old_lines[i] = ln.replace("cognitive_loop.py:2227", "cognitive_loop.py:1")
-        _rewrite(root, "OLD_REGISTRY.md", old_lines)
         name = "test_claim_site_region_references_symbol"
-        assert _old_verdict1(root, "bank-core", name) is False, (
-            "the OLD gate accepted a rotted row")
         assert _verdict1(_gate(root), "bank-core", name) is False, (
-            "the NEW gate accepted a rotted row")
+            "the gate accepted a rotted row")
 
-    def test_mutation_ii_a_broken_wire_fails_both_tests_on_both_gates(self, tmp_path_factory):
-        """THE KNOWN-NEGATIVE (prereg §6: if this ever PASSES on the new gate,
+    def test_mutation_ii_a_broken_wire_fails_both_tests(self, tmp_path_factory):
+        """THE KNOWN-POSITIVE THAT MATTERS (prereg §6: if this ever PASSES,
         undo the build). Delete every production reference to the organ."""
-        root = _oracle_tree(tmp_path_factory, "oracle_cut")
+        root = _scratch(tmp_path_factory, "f6_cut")
         rel = "cognitive_loop.py"
         laws = _laws(root)
         hits = [n for n in ast.walk(laws.tree(os.path.join(root, rel)))
@@ -703,42 +670,14 @@ class TestF6TheOracle:
             _delete_statement(root, rel, n)
         # ...and the `from ... import PredictorBank` beside it. An ImportFrom
         # produces no Name node, so the sweep above cannot see it -- which is
-        # the vulture blind spot this registry exists to close. Left in place
-        # it would satisfy the OLD gate's +/-30 substring region on its own: a
-        # cut wire reading as wired, on an import. The class DEFINITION in
-        # engines/egocentric/bank.py is untouched -- this is a CUT WIRE, not a
-        # deleted organ.
+        # the vulture blind spot this registry exists to close. The class
+        # DEFINITION in engines/egocentric/bank.py is untouched -- this is a
+        # CUT WIRE, not a deleted organ.
         _rewrite(root, rel, [ln for ln in _lines(root, rel)
                              if "import PredictorBank" not in ln])
-        for gate_v in (_old_verdicts(root), _verdicts(_gate(root))):
-            assert gate_v[("bank-core", "test_claim_site_region_references_symbol")] is False
-            assert gate_v[("bank-core", "test_symbol_referenced_from_production")] is False
-
-    def test_mutation_iii_a_pure_line_shift_reds_the_old_gate_and_not_the_new(
-            self, tmp_path_factory):
-        """THE WHOLE ARGUMENT, in one number. 200 lines inserted above every
-        cognitive_loop.py claim site: N rows red on the old gate, ZERO on the
-        new. Every one of the N is a false positive -- the tree's structure is
-        byte-for-byte the same, only its line numbers moved."""
-        root = _oracle_tree(tmp_path_factory, "oracle_shift")
-        lines = _lines(root, "cognitive_loop.py")
-        _rewrite(root, "cognitive_loop.py",
-                 ["# oracle shift %d" % i for i in range(200)] + lines)
-        old = _old_verdicts(root)
-        new = _verdicts(_gate(root))
-        old_reds = sorted(k for k, v in old.items() if not v)
-        new_reds = sorted(k for k, v in new.items() if not v)
-        assert not new_reds, (
-            "the NEW gate red on a pure line shift: %r -- the fingerprint is "
-            "still carrying a position" % new_reds[:12])
-        assert len(old_reds) == SHIFT_REDS_OLD, (
-            "the old gate red %d rows on the shift, not the pinned %d: %r. If "
-            "this number moved, say why in the commit -- it is the size of the "
-            "false-positive load this build removes."
-            % (len(old_reds), SHIFT_REDS_OLD, old_reds[:12]))
-        assert all(k[1] == "test_claim_site_region_references_symbol"
-                   for k in old_reds), (
-            "the shift broke something other than the region check: %r" % old_reds[:6])
+        gate_v = _verdicts(_gate(root))
+        assert gate_v[("bank-core", "test_claim_site_region_references_symbol")] is False
+        assert gate_v[("bank-core", "test_symbol_referenced_from_production")] is False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -770,9 +709,17 @@ class TestTheCellGrammar:
     def test_the_registry_is_fully_migrated_and_the_old_branch_is_still_live(self):
         """State of the migration, asserted rather than remembered: every
         shipped row carries a fingerprint, AND the gate still accepts the old
-        form. The old-form branch retires in the commit AFTER the last row
-        leaves it (PROCTOR decision 5) -- which is the NEXT commit, not this
-        one."""
+        form.
+
+        THE CONDITION (PROCTOR decision 5): the old-form branch retires in the
+        commit AFTER the last row leaves it. The first half of this test IS
+        that condition, and it is MET -- zero stragglers, since the migration
+        commit. What that unblocked, and what has now been done, is the
+        retirement of the OLD-GATE ORACLE in the F6 section. Retiring the
+        PARSER's old-form branch is a SEPARATE act on a separate file
+        (tools/wiring_receipts.parse_site and the gate that calls it) and is
+        still open; until it is taken, the second half below stays true and is
+        asserted rather than assumed."""
         rows = read_rows(os.path.join(REPO, REGISTRY_REL))[1]
         stragglers = [r.name for r in rows if not parse_site(r.site_cell).fingerprinted]
         assert not stragglers, "rows still on the old form: %r" % stragglers

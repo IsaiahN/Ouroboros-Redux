@@ -115,19 +115,38 @@ class HealthMonitor:
             if self.verbose:
                 print(f"  [HEALTH-ERR] Health check failed: {e}")
 
-    def run_safe_cleanup(self, current_generation: int) -> None:
+    def run_safe_cleanup(
+        self,
+        current_generation: int,
+        observation_log_path: Optional[str] = None,
+    ) -> None:
         """Rule 12 compliance: Run SafeDatabaseCleaner every 30 generations.
 
-        Also truncates observation_log.jsonl to keep only the latest 40k lines.
+        Also truncates the observation log to the latest 40k lines -- IF IT WAS
+        TOLD WHICH ONE.
 
         Args:
             current_generation: Current generation number.
+            observation_log_path: the observation log to truncate, supplied by
+                the caller from the WRITER'S OWN resolved value
+                (``CognitiveGamePlayer.observation_log_path``). None means the
+                caller had no game in hand, and nothing is truncated.
+
+        WHY IT IS AN ARGUMENT AND NOT A DEFAULT. This monitor is constructed at
+        runner init, BEFORE any game id exists, and runs per GENERATION over
+        many games -- so it cannot know the path and must never guess one. Until
+        2026-08-22 it guessed: ``path: str = "log/observation_log.jsonl"``, a
+        second independent copy of the literal the writer carried. Two
+        components, two literals, ONE file -- and the moment the writer's copy
+        moved to the per-game root (which it now has), the truncator would have
+        gone on truncating a DIFFERENT file, silently, which is the same defect
+        in the shape hardest to notice.
         """
         if current_generation % 30 != 0 or current_generation == 0:
             return
 
         # Truncate observation log (rolling 40k lines)
-        self._truncate_observation_log()
+        self._truncate_observation_log(observation_log_path)
 
         try:
             from safe_cleanup import SafeDatabaseCleaner
@@ -142,10 +161,22 @@ class HealthMonitor:
                 print(f"  [CLEANUP-ERR] Safe cleanup failed: {e}")
 
     def _truncate_observation_log(
-        self, path: str = "log/observation_log.jsonl", max_lines: int = 40_000
+        self, path: Optional[str], max_lines: int = 40_000
     ) -> None:
-        """Keep only the latest max_lines in the observation log."""
+        """Keep only the latest max_lines in the observation log it was TOLD.
+
+        ``path`` is REQUIRED and has no default. Not told, not truncated -- and
+        said out loud under verbose rather than falling back to a literal, which
+        is how this component came to name a data file the writer no longer
+        wrote to.
+        """
         import os
+        if not path:
+            if self.verbose:
+                print("  [CLEANUP] Observation log not truncated: no path was "
+                      "supplied. It is per-game data and only the caller "
+                      "holding the game knows where it is.")
+            return
         if not os.path.exists(path):
             return
         try:

@@ -80,7 +80,15 @@ class CognitiveGamePlayer:
         self._last_replay: List[CognitiveFrame] = []
 
         # ═══ Tier 1 Observation Logging ═══
-        self._observation_log_path = "log/observation_log.jsonl"
+        # NOT A PATH YET, AND DELIBERATELY NOT A LITERAL. The observation log is
+        # PER-GAME DATA and the player outlives one game, so the only place that
+        # can decide where it lives is play_game, which knows the game id.
+        # ``"log/observation_log.jsonl"`` stood here until 2026-08-22: a
+        # cwd-relative literal, i.e. one file shared by every game in the
+        # process (record/prereg/PLAN_SWARM_SHAPE.md section 3 item 1, the sixth
+        # site of the defect the de-cwd build removed). None until threaded, and
+        # the write sites refuse rather than guess.
+        self._observation_log_path: Optional[str] = None
         self._observation_max_lines = 40_000  # Ring buffer size
         self._obs_writes_since_check = 0  # Counter for truncation trigger
 
@@ -99,6 +107,7 @@ class CognitiveGamePlayer:
         """
         # ═══ THE PER-GAME DATA ROOT: THE ENTRY POINT DECIDES IT (data_root.py) ═══
         _groot = _game_data_root(game_id)      # module bottom; never the cwd
+        self._observation_log_path = _observation_log_path(_groot)   # threaded
 
         # ═══ MASTERY-LITE: replay probability EARNED from replay reliability ═══
         # Lazy fabric-backed instance (PREREG_MASTERY_LITE.md) on the loop's OWN
@@ -1337,7 +1346,13 @@ class CognitiveGamePlayer:
         Tier 1 of the observation system: zero-infrastructure,
         immediate value. Produces a ring-buffer JSONL file that
         both humans and LLM can analyze after runs.
+
+        REFUSES rather than guesses when play_game has not threaded the per-game
+        path in yet: a default here would be the cwd-relative literal back.
         """
+        obs_path = self._observation_log_path
+        if not obs_path:
+            return
         try:
             record = {
                 'ts': datetime.now().isoformat(timespec='milliseconds'),
@@ -1371,7 +1386,7 @@ class CognitiveGamePlayer:
                 record['timer'] = cf.timer_urgency
 
             # Append to ring-buffer log file
-            with open(self._observation_log_path, 'a', encoding='utf-8') as f:
+            with open(obs_path, 'a', encoding='utf-8') as f:
                 f.write(_json.dumps(record, separators=(',', ':')) + '\n')
 
             # Ring-buffer: truncate when file exceeds max lines.
@@ -1382,11 +1397,11 @@ class CognitiveGamePlayer:
             if self._obs_writes_since_check >= 5000:
                 self._obs_writes_since_check = 0
                 try:
-                    with open(self._observation_log_path, 'r', encoding='utf-8') as rf:
+                    with open(obs_path, 'r', encoding='utf-8') as rf:
                         lines = rf.readlines()
                     if len(lines) > self._observation_max_lines:
                         keep = lines[-self._observation_max_lines:]
-                        with open(self._observation_log_path, 'w', encoding='utf-8') as wf:
+                        with open(obs_path, 'w', encoding='utf-8') as wf:
                             wf.writelines(keep)
                 except Exception:
                     pass
@@ -1421,7 +1436,8 @@ class CognitiveGamePlayer:
         These snapshots enable visual replay and LLM analysis of
         what the agent actually saw.
         """
-        if not self._observe or frame is None:
+        obs_path = self._observation_log_path
+        if not self._observe or frame is None or not obs_path:
             return
         try:
             record = {
@@ -1446,7 +1462,7 @@ class CognitiveGamePlayer:
                 record['strategy'] = cf.strategy
                 record['map_pct'] = round(cf.map_completeness, 3)
 
-            with open(self._observation_log_path, 'a', encoding='utf-8') as f:
+            with open(obs_path, 'a', encoding='utf-8') as f:
                 f.write(_json.dumps(record, separators=(',', ':')) + '\n')
 
         except Exception:
@@ -2097,6 +2113,22 @@ class CognitiveGamePlayer:
         except Exception:
             return False
 
+    # CLASS BOTTOM, per the module-bottom convention: nothing above a
+    # receipt-bearing site moves to add a reader.
+    @property
+    def observation_log_path(self) -> Optional[str]:
+        """WHERE THIS PLAYER'S OBSERVATION LOG IS, or None before a game.
+
+        THE ONE PUBLIC READ OF THE THREADED VALUE. The truncator in
+        health_monitor.py used to carry its OWN copy of the literal
+        ``"log/observation_log.jsonl"``, so two components named one file twice
+        and would have pointed at DIFFERENT files the moment either moved. It is
+        now TOLD, through this property -- the writer's own resolved string, not
+        a second derivation of the rule (data_root.game_data_root's docstring:
+        "a second derivation is a second rule").
+        """
+        return self._observation_log_path
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # THE PER-GAME DATA ROOT  (the de-cwd build, 2026-08-22)
@@ -2124,6 +2156,38 @@ def _game_data_root(game_id: str) -> str:
     """
     from data_root import ensure_data_root, game_data_root
     return str(ensure_data_root(game_data_root(game_id)))
+
+
+# The observation log's FILE NAME. A name, not a path: the directory is the
+# per-game root and nothing else, so this constant cannot become a location.
+OBSERVATION_LOG_NAME = "observation_log.jsonl"
+
+
+def _observation_log_path(game_root: str) -> str:
+    """THE OBSERVATION LOG, ON THE SAME PER-GAME ROOT AS THE FABRIC AND THE DB.
+
+    It was ``"log/observation_log.jsonl"`` -- a bare relative literal, assigned
+    in __init__ before any game existed and therefore resolved against wherever
+    the process happened to be standing. Correct only by the accident that each
+    retired fleet worker was spawned with ``cwd=<its own box>``; put two games
+    in ONE process, which is what the swarm harness and the Kaggle notebook do,
+    and both games' observations FUSE into one file. Nothing raises. That is the
+    same defect as the fused fabric and the fused database, at a sixth site, and
+    it is the one ``tests/gate/test_data_root.py`` F4 could not see, because a
+    bare string literal makes no ``os.getcwd()`` call for an AST to find. F4c
+    now sees it.
+
+    FIGURE 4: a RECORDING must not cross the membrane. This is a recording, and
+    a cwd-relative path is exactly a recording resolving on the wrong side of a
+    boundary.
+
+    Sits at the per-game root rather than under a ``log/`` subdirectory on
+    purpose: ``_game_data_root`` has already ``ensure_data_root``-ed that
+    directory, so the append cannot fail on a missing parent -- and every write
+    site here swallows its exception, which is the shape that would make such a
+    failure silent.
+    """
+    return os.path.join(str(game_root), OBSERVATION_LOG_NAME)
 
 
 def _mastery_fabric(game_root: str):

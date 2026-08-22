@@ -1673,8 +1673,16 @@ class EvolutionRunner:
                 self.current_generation, stats
             )
 
-            # Rule 12: Safe cleanup every 10 generations
-            self._health_monitor.run_safe_cleanup(self.current_generation)
+            # Rule 12: Safe cleanup every 10 generations.
+            # THE TRUNCATOR IS TOLD, NEVER GUESSES: the observation log is
+            # per-game data, so its path comes from the WRITER'S own resolved
+            # value. None before any game has been played, and the monitor
+            # then truncates nothing rather than falling back to a literal.
+            self._health_monitor.run_safe_cleanup(
+                self.current_generation,
+                observation_log_path=getattr(
+                    self._cognitive_player, "observation_log_path", None),
+            )
 
             self.current_generation += 1
 

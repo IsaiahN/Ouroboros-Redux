@@ -121,6 +121,10 @@ def _skeleton(*, verbose: bool = False, start_gen: int = 0, max_gens: int = 3):
     r.initialize_population = MagicMock(name="initialize_population", return_value=[])
     r.run_generation = MagicMock(name="run_generation", return_value={})
     r._health_monitor = MagicMock(name="health_monitor")
+    # run() reads it to TELL the health monitor where this player's observation
+    # log is (the de-cwd build: the truncator is told, never guesses). __init__
+    # always sets it, so None is the honest skeleton value -- no game played.
+    r._cognitive_player = None
     return r
 
 

@@ -207,6 +207,126 @@ def test_f1_two_games_in_one_process_write_disjoint_fabrics(tmp_path, monkeypatc
     assert not os.path.exists(os.path.join(str(root_a), GAMES_DIRNAME))
 
 
+def _stub_player(verbose=False):
+    """A CognitiveGamePlayer whose ``arcade.make`` returns None.
+
+    play_game then decides the per-game root, threads the observation log path,
+    and returns an empty GameResult -- so the SHIPPED entry point does the
+    resolving, not the test. A test that assigned the path itself would be
+    asserting its own arithmetic.
+    """
+    from unittest.mock import MagicMock
+
+    from cognitive_game_player import CognitiveGamePlayer
+
+    gp = MagicMock()
+    gp.arcade.make.return_value = None
+    return CognitiveGamePlayer(gp, verbose=verbose)
+
+
+def _play(player, game_id):
+    import io
+    from contextlib import redirect_stdout
+
+    agent = types.SimpleNamespace(agent_id="agent_" + game_id)
+    with redirect_stdout(io.StringIO()):
+        player.play_game(agent, game_id, 1, lambda: True)
+    return player.observation_log_path
+
+
+def test_f1c_two_games_in_one_process_write_disjoint_observation_logs(
+        tmp_path, monkeypatch):
+    """THE SIXTH SITE, FALSIFIED. The observation log is a RECORDING, and until
+    2026-08-22 its path was the bare literal ``"log/observation_log.jsonl"``
+    assigned in ``CognitiveGamePlayer.__init__`` -- before any game existed, so
+    resolved against wherever the process was standing. Two games in one
+    process wrote ONE file.
+
+    F4 could not see it: a bare string literal makes no ``os.getcwd()`` call for
+    an AST to find, which is why F4c below exists as well.
+
+    FIGURE 4, the membrane: a recording must never cross it. This is the
+    assertion that can fail -- the two paths must DIFFER.
+    """
+    monkeypatch.setenv(ENV_VAR, str(tmp_path))
+    player = _stub_player()
+
+    assert player.observation_log_path is None, (
+        "the player named an observation log BEFORE it was told a game -- that "
+        "is the literal back, by definition: no game id was in scope")
+
+    path_a = _play(player, GAME_A)
+    path_b = _play(player, GAME_B)
+
+    for path, gid in ((path_a, GAME_A), (path_b, GAME_B)):
+        assert path, "%s got no observation log path at all" % gid
+        assert os.path.isabs(path), (
+            "%s's observation log is RELATIVE (%r) -- it names a different file "
+            "for every process depending on where it was started" % (gid, path))
+        root = str(game_data_root(gid))
+        assert os.path.normcase(path).startswith(os.path.normcase(root) + os.sep), (
+            "%s's observation log %r is not under its per-game root %r"
+            % (gid, path, root))
+
+    assert os.path.normcase(path_a) != os.path.normcase(path_b), (
+        "both games resolved to ONE observation log (%s) -- the recordings "
+        "fused, which is the defect this gate exists to prevent" % path_a)
+
+    # ...and asserted on the BYTES, like F1: the SHIPPED write method, called
+    # once per game, and neither file holds the other's name. A path comparison
+    # would pass on a resolver returning two correct strings while the writes
+    # still merged.
+    for gid, path in ((GAME_A, path_a), (GAME_B, path_b)):
+        player._observation_log_path = path
+        player._write_observation_record(
+            agent_id="agent_" + gid, game_id=gid, generation=1, step=0, level=0,
+            action_type=1, action_data=None, frame_changed=True, cf=None)
+
+    for path, mine, theirs in ((path_a, GAME_A, GAME_B), (path_b, GAME_B, GAME_A)):
+        assert os.path.isfile(path), "nothing was written to %s" % path
+        with open(path, encoding="utf-8") as fh:
+            body = fh.read()
+        assert body.strip(), "%s is empty -- the byte check would be vacuous" % path
+        games = {json.loads(ln)["game"] for ln in body.splitlines() if ln.strip()}
+        assert games == {mine}, (
+            "%s holds records for %r; expected only %r. %s is in there: %s"
+            % (path, sorted(games), mine, theirs, theirs in games))
+
+
+def test_f1d_the_observation_log_is_the_same_file_from_a_different_cwd(
+        tmp_path, monkeypatch):
+    """THE ANCHOR MUST NOT UPDATE (Figure 2), read on this path specifically.
+
+    The player is driven from TWO different working directories, neither of them
+    the data root, and must name the SAME file both times. Before the fix this
+    test could not have been written: the answer was the cwd, so two cwds gave
+    two answers and both were "correct".
+    """
+    monkeypatch.setenv(ENV_VAR, str(tmp_path))
+    here = tmp_path / "stand_here"
+    there = tmp_path / "stand_there"
+    here.mkdir()
+    there.mkdir()
+
+    before = os.getcwd()
+    try:
+        os.chdir(str(here))
+        from_here = _play(_stub_player(), GAME_A)
+        assert os.path.normcase(os.getcwd()) == os.path.normcase(str(here))
+        os.chdir(str(there))
+        from_there = _play(_stub_player(), GAME_A)
+    finally:
+        os.chdir(before)
+
+    assert os.path.normcase(from_here) == os.path.normcase(from_there), (
+        "the observation log moved with the process: %r from %s, %r from %s"
+        % (from_here, here, from_there, there))
+    assert os.path.isabs(from_here)
+    assert str(here) not in from_here and str(there) not in from_here, (
+        "the resolved path CONTAINS the directory the process was standing in "
+        "(%r) -- the cwd is still in the answer" % from_here)
+
+
 def test_f1b_two_games_in_one_process_resolve_disjoint_databases(tmp_path, monkeypatch):
     """The database half of the same defect: ONE cwd, two per-game roots, two
     databases that are read back and compared. sqlite is used directly so the
@@ -490,6 +610,217 @@ def test_f4b_the_loop_no_longer_names_a_relative_fabric_root():
     assert EGO_FABRIC_DIRNAME == "ego_fabric", (
         "the fabric directory name moved; existing boxes are laid out under the old "
         "one and would read as empty")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# F4c · AST: NO PRODUCTION MODULE ASSIGNS A BARE RELATIVE PATH LITERAL
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WHY F4 WAS NOT ENOUGH, AND IT TOOK A PERSON TO FIND OUT. F4 walks for CALLS to
+# ``os.getcwd``/``Path.cwd``. ``self._observation_log_path =
+# "log/observation_log.jsonl"`` makes no call at all -- it is the identical
+# defect with the resolution left implicit, performed by ``open()`` at write
+# time against whatever directory the process is standing in. F4 was built to
+# stop the tree growing a sixth cwd-derived data path and could not see the one
+# it already had. F4b closed the special case (a literal root passed to
+# KnowledgeFabric); this closes the genus.
+#
+# THE HEURISTIC, STATED SO ITS FALSE POSITIVES ARE PREDICTABLE: a str constant
+# assigned to a target named ``path`` or ``*_path`` -- including a function's
+# DEFAULT ARGUMENT, which is where the truncator carried its copy -- that is not
+# absolute and either contains a separator or ends in a data-file suffix. URLs,
+# ``:memory:``, format templates and globs are excluded by name; docstrings and
+# comments cannot match because this is an AST walk, not a text scan.
+
+DATA_SUFFIXES = (".jsonl", ".ndjson", ".json", ".db", ".sqlite", ".sqlite3",
+                 ".log", ".csv", ".txt", ".md", ".pkl", ".npy", ".yaml", ".yml")
+
+# (rel, target name, literal) -> (how many, why it is still here).
+#
+# NOT AN EXEMPTION. These are FOUND, REPORTED AND UNFIXED: the same defect
+# shape, in a component this build was not ruled on. ``EngineRegistry.__init__``
+# and ``get_registry`` both default ``db_path`` to the cwd-relative
+# ``"core_data.db"``, and it is CONSUMED -- ``DatabaseInterface(self._db_path)``
+# at engines/registry.py:380 and ``cls(self._db_path)`` at :433 -- with FOUR
+# live construction sites taking the default and passing nothing
+# (decision_rung_system.py:601/734, rungs/base.py:450, and the two
+# ``EngineRegistry(legacy_core=...)`` calls beside them). Routed up rather than
+# repaired here because the instruction was to report the list, not to fix a
+# component nobody ruled on. THE COUNT IS PINNED so a fifth site reds this gate,
+# and the staleness check below forces the entry out the day it is fixed.
+RELATIVE_PATH_DEBT = {
+    ("engines/registry.py", "db_path", "core_data.db"): (
+        2, "EngineRegistry.__init__ and get_registry default a CONSUMED "
+           "database path to a cwd-relative literal; 4 live construction sites "
+           "take the default. Found by F4c 2026-08-22, reported not fixed."),
+}
+
+
+def _relative_path_literals(path):
+    """(lineno, target, literal) for each bare relative data-path constant.
+
+    AST, so a docstring or a comment naming the literal is prose and does not
+    count -- this file's own header names ``log/observation_log.jsonl`` twice.
+    """
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        src = fh.read()
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return []
+    hits = []
+    for node in ast.walk(tree):
+        for names, value, lineno in _constant_bindings(node):
+            # Case-INSENSITIVE: a module constant ``DB_PATH = "core_data.db"``
+            # is the same defect as an attribute ``self.db_path``, and a
+            # case-sensitive filter would have called the first one clean.
+            if not any(n.lower() == "path" or n.lower().endswith("_path")
+                       for n in names):
+                continue
+            if _is_relative_data_path(value):
+                hits.append((lineno, sorted(names)[0], value))
+    return sorted(set(hits))
+
+
+def _constant_bindings(node):
+    """Every (target names, constant, lineno) this node binds: assignments,
+    annotated assignments, AND DEFAULT ARGUMENTS -- the third is not an
+    afterthought, it is exactly where health_monitor.py carried its copy."""
+    out = []
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        targets = getattr(node, "targets", None) or [node.target]
+        names = [t.attr if isinstance(t, ast.Attribute) else
+                 t.id if isinstance(t, ast.Name) else "" for t in targets]
+        if isinstance(node.value, ast.Constant):
+            out.append(([n for n in names if n], node.value.value, node.lineno))
+    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        a = node.args
+        positional = list(a.posonlyargs) + list(a.args)
+        pairs = list(zip(positional[len(positional) - len(a.defaults):],
+                         a.defaults, strict=True))
+        pairs += [(k, d) for k, d in zip(a.kwonlyargs, a.kw_defaults, strict=True)
+                  if d is not None]
+        for arg, default in pairs:
+            if isinstance(default, ast.Constant):
+                out.append(([arg.arg], default.value,
+                            getattr(default, "lineno", node.lineno)))
+    return out
+
+
+def _is_relative_data_path(value):
+    if not isinstance(value, str) or not value:
+        return False
+    if os.path.isabs(value) or (len(value) > 1 and value[1] == ":"):
+        return False
+    if value.startswith(("http://", "https://", "sqlite://", ":memory:")):
+        return False
+    if any(ch in value for ch in "{}%*?"):     # templates and globs are not paths
+        return False
+    return ("/" in value or "\\" in value
+            or value.lower().endswith(DATA_SUFFIXES))
+
+
+def test_f4c_no_production_module_assigns_a_relative_path_literal():
+    """THE LAW F4 COULD NOT STATE. A path literal is a path the cwd decides."""
+    found = {}
+    for path in _prod_files():
+        rel = os.path.relpath(path, REPO).replace("\\", "/")
+        for lineno, target, value in _relative_path_literals(path):
+            found.setdefault((rel, target, value), []).append(lineno)
+
+    unexpected = {k: v for k, v in found.items() if k not in RELATIVE_PATH_DEBT}
+    assert not unexpected, (
+        "production module(s) binding a bare RELATIVE path literal: %s\n"
+        "A relative data path is resolved by open()/connect() against whatever "
+        "directory the process is standing in, which every game in the process "
+        "shares -- the fused-fabric defect without the os.getcwd() call F4 "
+        "looks for. Thread the per-game root (data_root.game_data_root), or add "
+        "an entry to RELATIVE_PATH_DEBT in this file WITH A COUNT AND A REASON "
+        "if the site is genuinely reported-and-unfixed." % unexpected)
+
+    for key, (count, reason) in RELATIVE_PATH_DEBT.items():
+        assert key in found, (
+            "RELATIVE_PATH_DEBT names %r, which is no longer there -- delete "
+            "the entry. Debt that can be forgotten is the same species of "
+            "defect as a convention nothing checks." % (key,))
+        assert len(found[key]) == count, (
+            "%r now occurs %d time(s), not the pinned %d (lines %r). The count "
+            "is pinned so a NEW instance of a KNOWN shape still reds."
+            % (key, len(found[key]), count, found[key]))
+        assert len(reason.strip()) >= 20, "unreasoned debt entry: %r" % (key,)
+
+
+def test_f4c_falsifier_a_constructed_violation_reds_and_the_repaired_shape_does_not(
+        tmp_path):
+    """R4, BOTH HALVES. A known-positive proves the detector CAN fire and says
+    nothing about whether it OVER-fires; the known-negative is the check on the
+    checker."""
+    bad = tmp_path / "fake_organ.py"
+    bad.write_text(
+        '"""Prose naming log/observation_log.jsonl must NOT count."""\n'
+        "class Player:\n"
+        "    def __init__(self):\n"
+        "        self._observation_log_path = 'log/observation_log.jsonl'\n"
+        "\n"
+        "def truncate(path: str = 'log/observation_log.jsonl'):\n"
+        "    return path\n"
+        "\n"
+        "DB_PATH = 'core_data.db'\n",
+        encoding="utf-8",
+    )
+    hits = _relative_path_literals(str(bad))
+    assert [(h[0], h[1]) for h in hits] == [
+        (4, "_observation_log_path"), (6, "path"), (9, "DB_PATH")], (
+        "F4c missed a constructed violation, or counted the docstring: %r"
+        % (hits,))
+
+    clean = tmp_path / "good_organ.py"
+    clean.write_text(
+        '"""log/observation_log.jsonl and core_data.db in prose only."""\n'
+        "import os\n"
+        "from data_root import game_data_root\n"
+        "OBSERVATION_LOG_NAME = 'observation_log.jsonl'   # a NAME, not a path\n"
+        "class Player:\n"
+        "    def __init__(self):\n"
+        "        self._observation_log_path = None   # threaded per game\n"
+        "    def start(self, game_id):\n"
+        "        root = game_data_root(game_id)\n"
+        "        self._observation_log_path = os.path.join(\n"
+        "            str(root), OBSERVATION_LOG_NAME)   # os.getcwd() in a comment\n"
+        "def truncate(path=None, url_path='https://x/y.jsonl', db_path=':memory:',\n"
+        "             tmpl_path='runs/{gid}/o.jsonl'):\n"
+        "    return path or url_path or db_path or tmpl_path\n",
+        encoding="utf-8",
+    )
+    assert _relative_path_literals(str(clean)) == [], (
+        "F4c fired on the REPAIRED shape: %r. A detector that reds the fix is "
+        "worse than no detector -- it makes the fix look like the defect."
+        % (_relative_path_literals(str(clean)),))
+
+
+def test_f4c_the_two_repaired_sites_are_gone_by_structure():
+    """The two sites this ruling named, asserted ABSENT rather than remembered.
+
+    They were INDEPENDENT copies of one literal: cognitive_game_player.py wrote
+    the file and health_monitor.py TRUNCATED it. Fixing one and not the other
+    would have left the truncator pointing at a file nothing writes -- the same
+    defect a second time, in the shape hardest to notice.
+    """
+    for rel in ("cognitive_game_player.py", "health_monitor.py"):
+        hits = _relative_path_literals(os.path.join(REPO, rel))
+        assert hits == [], "%s binds a relative path literal again: %r" % (rel, hits)
+
+    # ...and the truncator has NO default at all, so "not told" cannot silently
+    # become "told the old literal".
+    import inspect
+
+    from health_monitor import HealthMonitor
+    sig = inspect.signature(HealthMonitor._truncate_observation_log)
+    assert sig.parameters["path"].default is inspect.Parameter.empty, (
+        "HealthMonitor._truncate_observation_log grew a default for `path` "
+        "again (%r). It is constructed before any game exists and runs per "
+        "GENERATION over many games, so it cannot know the path: it must be "
+        "TOLD." % sig.parameters["path"].default)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
