@@ -3652,3 +3652,25 @@ ever used. The swarm's "one agent instance per game" replaces it exactly.
 NOT CLAIMED: that this makes the agent fast. 375 of the 389 seconds before a first cognitive
 cycle are STILL UNATTRIBUTED. The shape problem and the speed problem are separate and this
 plan solves only the shape.
+
+=== THE SEQ WATERMARK LANDED -- AND ITS WRITER WAS RETIRED ONE BEAT LATER ===
+2024 passed / 2 xfailed (baseline 1993 + 31). tools/watermark.py is the one assembly; the
+sidecar is .runs/swarm/<box>/watermarks.jsonl, one line per launcher poll mapping
+collective stream -> head seq with a UTC stamp and the writer's OWN declared poll interval
+-- which is what makes the reader's boundary-slack rule DERIVED rather than a threshold
+somebody chose. NO RECORD GAINED A CLOCK: F1 asserts the fabric's bytes AND mtimes are
+identical across a watermark sweep, so byte-identity survives intact.
+Degradation is the undo: no sidecar -> the report is byte-for-byte what it was; a gap ->
+NOT READABLE naming the boundary distance, never an interpolation.
+THE HONEST EXPOSURE, and I caused it: both writers are the SUPERVISOR and the SPRINT KEEPER,
+and the GM retired that shape one beat after I dispatched this. The build is sound and its
+two call sites are now homeless. Nothing is wasted -- the sidecar, the record grammar, the
+bracket resolver and beat_rates' A2 section are all shape-independent -- but the WRITER must
+be re-homed into whatever entry point the swarm shape lands on, and that is a real item
+rather than a footnote. I dispatched a build into a shape that was about to be replaced;
+the plan should have come first.
+ALSO WORTH KEEPING from that build, because it is a rule not an implementation detail: the
+trim lives in the WRITER, not in the janitor, because janitor.py is production and the
+build's own falsifier forbids any production module naming the watermark. The bound is the
+janitor's STREAM_MAX_BYTES, IMPORTED rather than copied, so its value is never asserted in
+two places.

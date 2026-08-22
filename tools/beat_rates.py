@@ -61,8 +61,21 @@ a clock.
     domain fields, and NOT ONE carries a wall-clock stamp. The only clock any
     stream has is its FILE MTIME.
 
-THE MTIME BRACKET is therefore the only sound window over a fabric stream, and
-this tool applies it literally:
+THE SEQ WATERMARK CLOSES THIS -- WITHOUT GIVING A RECORD A CLOCK (2026-08-22,
+record/prereg/PREREG_SEQ_WATERMARK.md). A UTC field on `fabric.append` would have
+broken the byte-identity gate (tests/gate/test_system_determinism.py), so the
+clock lives OUTSIDE the measured frame instead: the LAUNCHERS (swarm_supervisor
+at its 60s poll, sprint_keeper at its --interval pass) append one line per box to
+`.runs/swarm/<box>/watermarks.jsonl` -- {utc, poll, streams:{"collective/<topic>":
+head seq}} -- through tools/watermark.py. A window then resolves to the pair of
+watermarks that bracket it and the count is taken in SEQ space, exactly. Where
+the sidecar exists, section A prints TRUE PER-HOUR RATES and section B prints a
+real NOVEL count; where it does not, or where it has a gap at this window's
+boundary, the tool falls back to the mtime bracket below, unchanged, byte for
+byte. NOTHING IS INTERPOLATED ACROSS A GAP.
+
+THE MTIME BRACKET is therefore the only sound window over a fabric stream that
+has no watermark, and this tool applies it literally:
 
     mtime(stream) <  window start  ->  0 records landed in the window. This is a
                                        SOUND ZERO, printed as a rate.
@@ -166,6 +179,11 @@ RUNS = os.path.join(ROOT, ".runs", "swarm")
 
 if ROOT not in sys.path:                      # importable as `tools.beat_rates`
     sys.path.insert(0, ROOT)
+
+# The watermark sidecar's ONE reader and ONE set of field names -- the writer's own
+# module, never a transcription of its format. Import-time pure (it imports the fabric
+# and the janitor lazily), so this tool's clean-import gate still holds.
+from tools import watermark as wm  # noqa: E402
 
 # ── the constants, each with its derivation (record/canon/KNOBS.md REGISTER O, row O5) ─────
 
@@ -507,6 +525,186 @@ class Bracket:
                     NOT_READABLE, what, stamp(self.mtime)))
 
 
+# ── THE SEQ WINDOW (the watermark sidecar) ────────────────────────────────────
+
+def watermark_file(box: str) -> str:
+    return os.path.join(RUNS, box, wm.WATERMARK_NAME)
+
+
+# The parsed sidecar, per box, VALID ONLY WHILE (size, mtime_ns) MATCH -- the
+# fabric's own `_anchor_size` genus of validity rule, and for the same reason: a
+# beat resolves four windows per box (verdicts, atoms, settlements, and the
+# previous window in section C), and re-parsing a 2 MB sidecar four times x 25
+# boxes is 200 MB of JSON for one report. A file that changes underneath a run is
+# re-read, never served stale.
+_TICK_CACHE: Dict[str, Tuple[Any, List[Dict[str, Any]]]] = {}
+
+
+def watermark_ticks(box: str) -> List[Dict[str, Any]]:
+    """Every well-formed tick of one box's sidecar, through the writer's own
+    reader (tools/watermark.read_watermarks) -- so a torn tail is skipped here
+    exactly as it is skipped there."""
+    path = watermark_file(box)
+    try:
+        st = os.stat(path)
+        key: Any = (st.st_size, st.st_mtime_ns)
+    except OSError:
+        key = None
+    hit = _TICK_CACHE.get(path)
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    ticks = wm.read_watermarks(path)
+    _TICK_CACHE[path] = (key, ticks)
+    return ticks
+
+
+class SeqBracket:
+    """THE SEQ WINDOW -- what the launcher's watermark can say about a window,
+    and the one place that decision is made (`_window_seq` is its thin wrapper).
+
+    `state` is one of:
+      "absent"     no sidecar, or it does not bracket this window on both sides,
+                   or the bracketing ticks do not declare their poll interval:
+                   the caller falls back to the MTIME BRACKET, unchanged. This is
+                   the undo.
+      "gap"        the sidecar brackets the window, but a boundary sits FURTHER
+                   from its bracketing tick than that tick's own declared poll
+                   interval -- the launcher missed a tick right there, so the
+                   count over the bracket is not attributable to this window.
+                   NOT READABLE. Never an interpolation.
+      "bracketed"  readable: the window's boundaries fall within one declared
+                   poll of their bracketing ticks, so the count is the window's
+                   plus at most one poll interval of slack at each edge, and the
+                   slack is PRINTED rather than rounded away.
+      "exact"      readable, and both boundaries land exactly on a tick: the
+                   count is the window's, exactly.
+
+    THE COUNTING RULE IS (lo, hi] -- half-open, matching the DB clock's
+    (start, end] to the byte, so two consecutive beats partition the stream
+    instead of double-counting the record that sits on the boundary.
+
+    WHY A MISSING KEY IS SEQ 0 AND A NULL KEY IS NOT: the writer emits every
+    collective stream file it finds, empty ones included, so a key absent from a
+    tick means that stream did not exist yet -- head 0, the floor below the first
+    append there will ever be. A key present but NULL means the writer could not
+    read that stream's head at that tick; that tick is dropped for this topic
+    rather than read as a zero, which would rewind the floor and over-count."""
+
+    def __init__(self, box: str, topic: str, w: Window,
+                 scope: str = "collective",
+                 ticks: Optional[List[Dict[str, Any]]] = None):
+        self.key = "%s/%s" % (scope, topic)
+        self.state = "absent"
+        self.lo: Optional[int] = None
+        self.hi: Optional[int] = None
+        self.tick_lo: Optional[_dt.datetime] = None
+        self.tick_hi: Optional[_dt.datetime] = None
+        self.slack_lo = 0.0
+        self.slack_hi = 0.0
+        self.reason = "no watermark sidecar brackets this window"
+        rows = self._rows(watermark_ticks(box) if ticks is None else ticks)
+        if len(rows) < 2:
+            return
+        before = [r for r in rows if r[0] <= w.start]
+        after = [r for r in rows if r[0] >= w.end]
+        if not before or not after:
+            self.reason = ("the sidecar does not bracket this window on both "
+                           "sides (%d ticks, %s .. %s UTC)"
+                           % (len(rows), stamp(rows[0][0]), stamp(rows[-1][0])))
+            return
+        a, b = before[-1], after[0]
+        self.tick_lo, self.tick_hi = a[0], b[0]
+        self.slack_lo = (w.start - a[0]).total_seconds()
+        self.slack_hi = (b[0] - w.end).total_seconds()
+        if a[2] is None or b[2] is None:
+            self.reason = ("a bracketing tick does not declare its poll "
+                           "interval, so its slack cannot be judged")
+            return
+        if self.slack_lo > a[2] or self.slack_hi > b[2]:
+            self.state = "gap"
+            self.reason = ("a boundary is %.0fs / %.0fs from its bracketing tick "
+                           "(%s .. %s UTC) against declared polls of %.0fs / "
+                           "%.0fs -- the launcher missed a tick here"
+                           % (self.slack_lo, self.slack_hi, stamp(a[0]),
+                              stamp(b[0]), a[2], b[2]))
+            return
+        if b[1] < a[1]:
+            self.state = "gap"
+            self.reason = ("the head seq went BACKWARDS between the bracketing "
+                           "ticks (%d -> %d) -- the stream was rewritten under "
+                           "the window and seq space is not continuous across it"
+                           % (a[1], b[1]))
+            return
+        self.lo, self.hi = a[1], b[1]
+        self.state = ("exact" if self.slack_lo == 0.0 and self.slack_hi == 0.0
+                      else "bracketed")
+        self.reason = ""
+
+    def _rows(self, ticks: List[Dict[str, Any]]) -> List[Tuple]:
+        """(utc, head, poll) for every tick that can speak about this topic."""
+        out: List[Tuple] = []
+        for t in ticks:
+            try:
+                when = parse_utc(str(t.get(wm.F_UTC)))
+            except ValueError:
+                continue
+            streams = t.get(wm.F_STREAMS)
+            if not isinstance(streams, dict):
+                continue
+            head = streams.get(self.key, 0)
+            if head is None or isinstance(head, bool):
+                continue                       # unreadable head: not a tick here
+            try:
+                head = int(head)
+            except (TypeError, ValueError):
+                continue
+            poll = t.get(wm.F_POLL)
+            if isinstance(poll, bool) or not isinstance(poll, (int, float)) \
+                    or poll <= 0:
+                poll = None
+            out.append((when, head, poll))
+        out.sort(key=lambda r: r[0])
+        return out
+
+    @property
+    def readable(self) -> bool:
+        return self.state in ("exact", "bracketed")
+
+    def contains(self, rec: Dict[str, Any]) -> bool:
+        """(lo, hi] over the record's own `seq`. A record with no readable seq is
+        NOT in the window: an unstamped record cannot be placed, and placing it
+        anyway is the interpolation this whole build refuses."""
+        if not self.readable:
+            return False
+        s = rec.get("seq")
+        if isinstance(s, bool) or not isinstance(s, (int, float)):
+            return False
+        return self.lo < int(s) <= self.hi
+
+    def select(self, recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return [r for r in recs if self.contains(r)]
+
+    def cell(self) -> str:
+        if self.state == "exact":
+            return "seq (%d,%d] EXACT" % (self.lo, self.hi)
+        if self.state == "bracketed":
+            return "seq (%d,%d] +/-%.0fs" % (self.lo, self.hi,
+                                             max(self.slack_lo, self.slack_hi))
+        return NOT_READABLE
+
+
+def _window_seq(box: str, topic: str, t0: _dt.datetime,
+                t1: _dt.datetime) -> Optional[Tuple[int, int]]:
+    """The prereg's named accessor: (seq_lo, seq_hi) for [t0, t1] over one
+    topic, or None when the sidecar cannot bracket it. None is the signal to
+    fall back to the mtime bracket -- the fallback IS the undo. A GAP also
+    returns None here; callers that must distinguish "no sidecar" from "a gap in
+    the sidecar" read the SeqBracket itself, which is the one resolver both go
+    through."""
+    sb = SeqBracket(box, topic, Window(t0, t1))
+    return (sb.lo, sb.hi) if sb.readable else None
+
+
 def read_records(path: str) -> List[Dict[str, Any]]:
     """Every well-formed record of one stream. `_read_stream`'s own rules --
     strip, skip blank, skip corrupt, skip non-dict -- because a crash-torn tail
@@ -668,12 +866,56 @@ def learning(box: str, w: Window) -> Dict[str, Any]:
     # PROBE: is there any eviction append at all?
     out["evicted_field"] = any(bool(r.get("evicted")) for r in atoms)
 
+    per, comp = _tally(verdicts, atoms, settles, out["used_field"])
+    out["per_game"] = per
+
+    # THE SEQ WINDOW, when the launcher's watermark sidecar covers this window.
+    # The SAME tally over the SAME records, filtered to (lo, hi] on each stream's
+    # own seq -- one counting rule, applied twice, so a windowed number and an
+    # all-time number can never be produced by two different definitions.
+    seq = {t: SeqBracket(box, t, w)
+           for t in (T_VERDICTS, T_ATOMS, T_SETTLEMENTS)}
+    out["seq"] = seq
+    out["window_per_game"] = None
+    if seq[T_VERDICTS].readable and seq[T_ATOMS].readable:
+        used_in_window = (out["used_field"]
+                          if seq[T_SETTLEMENTS].readable else None)
+        wper, _wcomp = _tally(seq[T_VERDICTS].select(verdicts),
+                              seq[T_ATOMS].select(atoms),
+                              seq[T_SETTLEMENTS].select(settles),
+                              used_in_window)
+        out["window_per_game"] = wper
+        out["window_used_readable"] = bool(used_in_window)
+    # THE LIBRARY's settled/candidate split: composer.SETTLED_FIELD is absent
+    # until a live settle, so a composite without it is a CANDIDATE, and saying
+    # "composed" without saying "settled" would report machinery firing as a
+    # milestone -- exactly what Figure 5 forbids.
+    out["composites_settled"] = len({str(r.get("id")) for r in atoms
+                                     if r.get("settled") and r.get("id")})
+    out["composites_total"] = len(set().union(*comp.values()) if comp else set())
+    return out
+
+
+_SERIES = ("verdicts", "mint", "rederivation", "atoms", "composed", "retired",
+           "used")
+
+
+def _blank() -> Dict[str, int]:
+    return dict.fromkeys(_SERIES, 0)
+
+
+def _tally(verdicts: List[Dict[str, Any]], atoms: List[Dict[str, Any]],
+           settles: List[Dict[str, Any]],
+           used_field: Optional[str]) -> Tuple[Dict[str, Dict[str, int]],
+                                               Dict[str, set]]:
+    """THE ONE COUNTING RULE, over whatever records it is handed -- a whole
+    stream (all-time) or a seq-windowed slice of one. Returns (per game, the
+    composite id sets), so the caller can report the composite population
+    without recomputing it under a second definition."""
     per: Dict[str, Dict[str, int]] = {}
     for r in verdicts:
         g = str(r.get("game") or "")
-        d = per.setdefault(g, {"verdicts": 0, "mint": 0, "rederivation": 0,
-                               "atoms": 0, "composed": 0, "retired": 0,
-                               "used": 0})
+        d = per.setdefault(g, _blank())
         d["verdicts"] += 1
         v = r.get("verdict")
         if v == "mint":
@@ -688,9 +930,7 @@ def learning(box: str, w: Window) -> Dict[str, Any]:
     cited: Dict[str, set] = {}
     for r in atoms:
         g = str(r.get("game") or "")
-        d = per.setdefault(g, {"verdicts": 0, "mint": 0, "rederivation": 0,
-                               "atoms": 0, "composed": 0, "retired": 0,
-                               "used": 0})
+        d = per.setdefault(g, _blank())
         aid = r.get("id")
         if aid is not None:
             ids.setdefault(g, set()).add(str(aid))
@@ -703,7 +943,7 @@ def learning(box: str, w: Window) -> Dict[str, Any]:
         per[g]["atoms"] = len(s)
     for g, s in comp.items():
         per[g]["composed"] = len(s)
-    if out["used_field"] == "settlements.atom_key":
+    if used_field == "settlements.atom_key":
         # USED is "atoms cited", not "citations": one atom ridden ten thousand
         # times is one atom used, and counting the rides would print a ratio
         # above 1 and call it a rate.
@@ -711,21 +951,11 @@ def learning(box: str, w: Window) -> Dict[str, Any]:
             k = r.get("atom_key")
             if k:
                 g = str(r.get("game") or "")
-                per.setdefault(g, {"verdicts": 0, "mint": 0, "rederivation": 0,
-                                   "atoms": 0, "composed": 0, "retired": 0,
-                                   "used": 0})
+                per.setdefault(g, _blank())
                 cited.setdefault(g, set()).add(str(k))
         for g, s in cited.items():
             per[g]["used"] = len(s)
-    out["per_game"] = per
-    # THE LIBRARY's settled/candidate split: composer.SETTLED_FIELD is absent
-    # until a live settle, so a composite without it is a CANDIDATE, and saying
-    # "composed" without saying "settled" would report machinery firing as a
-    # milestone -- exactly what Figure 5 forbids.
-    out["composites_settled"] = len({str(r.get("id")) for r in atoms
-                                     if r.get("settled") and r.get("id")})
-    out["composites_total"] = len(set().union(*comp.values()) if comp else set())
-    return out
+    return per, comp
 
 
 def _plan_probe(box: str) -> List[Dict[str, Any]]:
@@ -739,21 +969,40 @@ def _plan_probe(box: str) -> List[Dict[str, Any]]:
     return out
 
 
-def novel_keys(box: str) -> Dict[str, Any]:
-    """NOVEL -- atoms whose key appears in no stream before the window. The only
-    line that speaks to novelty (mandate item 4; Figure 5's third guard). It
-    needs a window over the fabric, which the fabric cannot give; what IS
-    computable and stated here is the key population and how many keys are held
-    by exactly one atom record."""
+def novel_keys(box: str, seq: Optional[SeqBracket] = None) -> Dict[str, Any]:
+    """NOVEL -- atoms whose key appears in no record before the window. The only
+    line that speaks to novelty (mandate item 4; Figure 5's third guard).
+
+    WITHOUT a watermark this needs a window the fabric cannot give, and what is
+    computable is stated instead: the key population and how many keys are held
+    by exactly one atom record.
+
+    WITH one, `novel` is exact: a key is NOVEL iff its FIRST record on this box's
+    atoms stream falls inside (lo, hi]. The scope is that stream and is named --
+    a key first seen here may have been imported from a seed fabric that carries
+    it earlier, which is a different claim and is not made."""
     atoms = read_records(stream_path(box, T_ATOMS))
     seen: Dict[str, int] = {}
+    first: Dict[str, int] = {}
     for r in atoms:
         atom = r.get("atom") if isinstance(r.get("atom"), dict) else {}
         k = atom.get("key") or r.get("key")
-        if k:
-            seen[str(k)] = seen.get(str(k), 0) + 1
-    return {"keys": len(seen), "records": len(atoms),
-            "single_record_keys": sum(1 for v in seen.values() if v == 1)}
+        if not k:
+            continue
+        k = str(k)
+        seen[k] = seen.get(k, 0) + 1
+        s = r.get("seq")
+        if not isinstance(s, bool) and isinstance(s, (int, float)):
+            s = int(s)
+            if k not in first or s < first[k]:
+                first[k] = s
+    out = {"keys": len(seen), "records": len(atoms),
+           "single_record_keys": sum(1 for v in seen.values() if v == 1),
+           "novel": None}
+    if seq is not None and seq.readable:
+        out["novel"] = sum(1 for s in first.values() if seq.lo < s <= seq.hi)
+        out["unplaceable"] = len(seen) - len(first)
+    return out
 
 
 # ── B · THE ECONOMY ───────────────────────────────────────────────────────────
@@ -870,8 +1119,11 @@ def _rate(num: int, den: int) -> str:
     return "%d/%d = %.3f" % (num, den, num / float(den))
 
 
-def _window_cell(br: Bracket) -> str:
-    """What the MTIME BRACKET can soundly say about the window, in one cell."""
+def _window_cell(br: Bracket, sb: Optional[SeqBracket] = None) -> str:
+    """What can soundly be said about the window, in one cell. The SEQ WATERMARK
+    answers first when it can; the MTIME BRACKET is the fallback, unchanged."""
+    if sb is not None and sb.readable:
+        return sb.cell()
     if br.state == "zero":
         return "0/0 SOUND ZERO"
     if br.state == "absent":
@@ -905,6 +1157,25 @@ def report(w: Window, only: Optional[str], out) -> int:
     p("       over it: mtime before the window start = a SOUND ZERO; mtime inside")
     p("       the window = an unknown suffix landed here and the count is NOT")
     p("       READABLE. Nothing is joined across the two clocks.")
+    # The paragraph above stays exactly true of the RECORDS -- none of them gained
+    # a clock and none ever will. What CAN change is whether a launcher's watermark
+    # SPEAKS TO THIS WINDOW, and that is the condition used here: not "a sidecar
+    # file exists" (a sidecar whose ticks all precede the window says nothing about
+    # it and degrades to the mtime bracket) but "a sidecar brackets it". A fleet
+    # this window cannot be windowed on reads byte-for-byte as it did before this
+    # instrument existed -- which is the F3 the gate holds this line to, and the
+    # exact line it caught wrong first.
+    marked = [b for b in names
+              if any(SeqBracket(b, t, w).state != "absent"
+                     for t in (T_VERDICTS, T_ATOMS))]
+    if marked:
+        p("  SEQ WATERMARK: present on %d/%d boxes. The launcher's sidecar"
+          % (len(marked), len(names)))
+        p("       (watermarks.jsonl, OUTSIDE ego_fabric, written by the supervisor")
+        p("       and the sprint keeper, read by no worker) carries a head seq per")
+        p("       collective topic per poll, so a window over those streams is exact")
+        p("       in SEQ space -- section A2. The records themselves are unchanged:")
+        p("       the clock is beside them, never inside them.")
 
     ground_rows: List[Tuple] = []
     floors: Dict[str, Tuple[int, float, str]] = {}
@@ -1060,7 +1331,7 @@ def report(w: Window, only: Optional[str], out) -> int:
             for k in fleet:
                 fleet[k] += d.get(k, 0)
             p("   %-22s %-6s %-14s %-18s %-18s %-14s %-14s %d (%d)%s"
-              % (game, box, _window_cell(vb),
+              % (game, box, _window_cell(vb, L["seq"][T_VERDICTS]),
                  _rate(d["mint"], d["verdicts"]),
                  _rate(d["rederivation"], d["verdicts"]),
                  _rate(d["composed"], d["mint"]),
@@ -1084,6 +1355,60 @@ def report(w: Window, only: Optional[str], out) -> int:
     p("   Atom and composite counts are DISTINCT IDS, not stream records: the atoms")
     p("   stream carries superseding appends (ctx_min / ctx_conflict rewrite the")
     p("   same id), and counting records would inflate every denominator here.")
+    # ── A2 · THE SEQ-WINDOWED RATES (the watermark's whole purpose) ──────────
+    # Printed ONLY where the sidecar brackets this window. With no sidecar
+    # anywhere, this section does not exist and the report above is byte-for-byte
+    # what it was before the watermark shipped -- the fallback IS the undo.
+    wm_rows: List[Tuple] = []
+    wm_gaps: List[str] = []
+    for box in names:
+        L = learn_all.get(box) or {}
+        sq = L.get("seq") or {}
+        for topic in (T_VERDICTS, T_ATOMS):
+            sb = sq.get(topic)
+            if sb is not None and sb.state == "gap":
+                wm_gaps.append("   %-6s %-14s %s: %s" % (box, topic,
+                                                         NOT_READABLE, sb.reason))
+        wper = L.get("window_per_game")
+        if not wper:
+            continue
+        for game in sorted(wper):
+            wm_rows.append((game, box, wper[game], sq[T_VERDICTS],
+                            bool(L.get("window_used_readable"))))
+    if wm_rows or wm_gaps:
+        p()
+        p("A2. PER HOUR [frame-internal] -- THE SEQ WATERMARK's window, which is the")
+        p("    only true rate this section has ever been able to print. The launcher")
+        p("    appends {utc, poll, streams:{topic: head seq}} to")
+        p("    .runs/swarm/<box>/watermarks.jsonl once per poll; a window resolves to")
+        p("    the bracketing ticks and the count is taken in SEQ space over (lo,hi],")
+        p("    the same half-open rule the DB clock uses. NO RECORD GAINED A CLOCK.")
+        if wm_rows:
+            p("    %-22s %-6s %9s %9s %9s %9s %9s  %s"
+              % ("game", "box", "mint/h", "rederiv/h", "compos/h", "retire/h",
+                 "used/h", "seq window"))
+            for game, box, d, sb, used_ok in wm_rows:
+                p("    %-22s %-6s %9.2f %9.2f %9.2f %9.2f %9s  %s%s"
+                  % (game, box, d["mint"] / w.hours, d["rederivation"] / w.hours,
+                     d["composed"] / w.hours, d["retired"] / w.hours,
+                     ("%.2f" % (d["used"] / w.hours)) if used_ok else NOT_READABLE,
+                     sb.cell(), BELOW_FLOOR if below.get(game) else ""))
+            p("    Each numerator is the SAME tally as the all-time table above,")
+            p("    applied to the records the window's seq range selects -- one")
+            p("    counting rule, two ranges. `+/-Ns` on a bracketed window is the")
+            p("    slack between a boundary and its tick, printed rather than rounded")
+            p("    away; EXACT means the boundaries landed on ticks. retire/h and")
+            p("    used/h stay 0 and NOT READABLE respectively wherever no writer")
+            p("    emits the field -- a clock does not write a field nobody writes.")
+        for line in wm_gaps:
+            p(line)
+        if wm_gaps:
+            p("    A GAP IS NOT INTERPOLATED. The sidecar brackets the window but a")
+            p("    boundary sits further from its tick than the launcher's own declared")
+            p("    poll interval, so the count over that bracket is not attributable to")
+            p("    this window and no number is printed for it.")
+        p()
+
     if no_evict:
         p("   RETIRED -- %s on %d/%d boxes: no atoms record carries `evicted`, and"
           % (NOT_READABLE, len(no_evict), len(names)))
@@ -1126,7 +1451,8 @@ def report(w: Window, only: Optional[str], out) -> int:
                BELOW_FLOOR.strip() if below.get(game) else "")
             for game, cat, n, score, wins, prog in E["perf"]) or "none in window"
         p("   [%s] perf per (GAME, category), never averaged: %s" % (box, perf_txt))
-        nk = novel_keys(box)
+        ab_seq = (learn_all.get(box, {}).get("seq") or {}).get(T_ATOMS)
+        nk = novel_keys(box, ab_seq)
         ab = learn_all.get(box, {}).get("atom_bracket")
         p("   [%s] retire %d/%d (%d active), evidence on %d | library %d recs /"
           " %d keys / %d singles | catalogue %d rows, %d unlocked by nobody%s"
@@ -1135,7 +1461,22 @@ def report(w: Window, only: Optional[str], out) -> int:
              nk["single_record_keys"], E["catalogue_rows"],
              E["catalogue_unlocked_by_nobody"],
              " -- NONE, the table is empty" if E["catalogue_rows"] == 0 else ""))
-        if ab is not None and ab.readable_zero:
+        if nk["novel"] is not None:
+            # THE LINE THE MISSING CLOCK COST, now payable. A key is NOVEL iff its
+            # FIRST record on this box's atoms stream falls in the window's seq
+            # range -- "appears in no record before the window", stated over the
+            # stream it is read from and no wider.
+            p("   [%s] NOVEL: %s keys first appear in this window (%.2f/h), %s --"
+              " atoms %s [frame-internal: Figure 5, a system can mint"
+              " enthusiastically and return nothing new]"
+              % (box, _rate(nk["novel"], nk["keys"]), nk["novel"] / w.hours,
+                 "scope: this box's atoms stream, not the seed fabrics it mounts",
+                 ab_seq.cell()))
+            if nk.get("unplaceable"):
+                p("   [%s] %s: %d keys carry no readable seq and are placed in NO"
+                  " window -- named, never apportioned"
+                  % (box, NOT_READABLE, nk["unplaceable"]))
+        elif ab is not None and ab.readable_zero:
             p("   [%s] NOVEL: 0 keys minted in window -- atoms last written %s"
               " UTC, before it opened. A SOUND ZERO, and Figure 5's reading:"
               " the machinery may be firing and it returned nothing new here."
@@ -1195,7 +1536,21 @@ def report(w: Window, only: Optional[str], out) -> int:
                               " windows" % (game, box, ea["episodes"]))
         vb = learn_all.get(box, {}).get("verdict_bracket")
         pv = Bracket(stream_path(box, T_VERDICTS), prev)
-        if vb is not None and vb.state == "absent":
+        sv = (learn_all.get(box, {}).get("seq") or {}).get(T_VERDICTS)
+        sp = SeqBracket(box, T_VERDICTS, prev)
+        if sv is not None and sv.readable and sp.readable:
+            # THE WATERMARK MAKES ITEM 5 ANSWERABLE ON THIS STREAM: two windows
+            # counted in seq space are comparable, so "unchanged" is a finding
+            # rather than a shrug. Silence here means the series MOVED.
+            recs = read_records(stream_path(box, T_VERDICTS))
+            n_now, n_prev = len(sv.select(recs)), len(sp.select(recs))
+            if n_now == n_prev:
+                stalls.append(
+                    "   LEARNING  %-22s [%s] unchanged: %d verdict records in"
+                    " this window and %d in the previous, counted in SEQ space"
+                    " over the watermark ticks %s -- not a clockless guess"
+                    % ("(all games)", box, n_now, n_prev, sv.cell()))
+        elif vb is not None and vb.state == "absent":
             stalls.append("   LEARNING  %-22s [%s] unchanged: this box has no"
                           " mint_verdicts stream at all -- no verdict has ever"
                           " been written here" % ("(all games)", box))

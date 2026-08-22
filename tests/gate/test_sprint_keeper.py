@@ -483,9 +483,15 @@ def test_no_fleet_env_sets_neither_var_and_logs_bare(tmp_path, monkeypatch):
     assert lines == [["ar25", "spawn", "5001", "bare-env"], ["g50t", "spawn", "5002", "fleet-env"]]
 
 
-def test_cli_flag_routes_the_mode_and_default_is_fleet(monkeypatch):
+def test_cli_flag_routes_the_mode_and_default_is_fleet(tmp_path, monkeypatch):
     """`--no-fleet-env` is the only way to bare mode; a bare argv is fleet mode."""
     seen = []
+    # NO .runs. This test drives the REAL main(), which takes a seq-watermark tick per
+    # pass (tools/watermark.py) against the module-level ROOT -- the live fleet. Every
+    # other side effect main() has is already patched out here for the same reason; the
+    # tick is patched out by pointing ROOT at tmp (where no box has a fabric, so the
+    # writer creates nothing at all). The tick itself is gated in test_seq_watermark.py.
+    monkeypatch.setattr(sk, "ROOT", str(tmp_path / "swarm"))
     monkeypatch.setattr(sk, "load_template", lambda: sk.tokenize(TEMPLATE_LINE))
     monkeypatch.setattr(sk, "list_python_processes", lambda: [])
     monkeypatch.setattr(sk, "run_once", lambda *a, **kw: seen.append(kw.get("fleet_env")))

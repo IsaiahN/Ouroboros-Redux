@@ -58,6 +58,12 @@ if REDUX not in sys.path:
 # transcription of it. tools/fleet_env.py has no import-time side effects.
 from tools.fleet_env import GAMES, SEED_SEP, fleet_env_for  # noqa: E402
 
+# THE SEQ WATERMARK (record/prereg/PREREG_SEQ_WATERMARK.md), the keeper's half of it:
+# the supervisor ticks at its 60s poll, the keeper at its --interval pass, and both call
+# THE SAME assembly -- tools/watermark.py -- for the same reason fleet_env exists. A
+# sprint whose boxes carry no ticks is a sprint the beat cannot window.
+from tools.watermark import write_all as write_watermarks  # noqa: E402
+
 ROOT = os.path.join(REDUX, ".runs", "swarm")
 ARGV_FILE = os.path.join(REDUX, ".runs", "sprint_argv.txt")
 LOG_FILE = os.path.join(ROOT, "sprint_keeper.log")
@@ -297,6 +303,11 @@ def main(argv=None):
     try:
         while True:
             run_once(a.games, template, list_python_processes(), fleet_env=a.fleet_env)
+            # ONE TICK PER PASS, at the keeper's own declared cadence. It lives here and
+            # not inside run_once because run_once is the RELAUNCH decision and a pass
+            # that relaunches nothing must stay a no-op that writes nothing (its gate
+            # says so); a watermark is taken every pass, relaunch or not.
+            write_watermarks(ROOT, a.games, a.interval)
             if a.once:
                 break
             time.sleep(a.interval)

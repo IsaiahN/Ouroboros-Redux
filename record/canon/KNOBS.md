@@ -138,6 +138,35 @@ O5 beat instrument (tools/beat_rates.py; an INSTRUMENT, never the live path -- i
    sound zero; mtime inside = NOT READABLE) and names, at every such line, the record
    that would close it: a UTC field written by fabric.append, or a persisted per-beat seq
    watermark.
+O6 seq watermark (tools/watermark.py; record/prereg/PREREG_SEQ_WATERMARK.md, landed
+   2026-08-22). THE SECOND OPTION IN O5's LAST LINE, TAKEN -- and the first one REFUSED
+   ON PURPOSE: a UTC field on fabric.append would have broken the byte-identity gate
+   (tests/gate/test_system_determinism.py), which already forced a wall-clock `ms` field
+   out of a gate record on 2026-08-21. NO RECORD GAINS A CLOCK. Instead the LAUNCHERS --
+   which are already outside the agent's determinism surface, writing status.txt and
+   deploys.jsonl today -- append one line per box per poll to
+   .runs/swarm/<box>/watermarks.jsonl: {utc, poll, streams:{"collective/<topic>": head
+   seq}}. The beat resolves a window to the bracketing ticks and counts in SEQ space over
+   (lo,hi], the same half-open rule the DB clock uses.
+   NO NEW KNOB, and this row exists to say so in three places:
+     * CADENCE = each launcher's OWN existing interval (supervisor POLL_SEC=60, row O1;
+       keeper --interval), WRITTEN INTO EVERY TICK as `poll`. That field is what makes
+       the beat's gap rule DERIVED rather than chosen: a window boundary further from its
+       bracketing tick than the writer said it polls is a MISSED TICK, and that window
+       reads NOT READABLE -- never an interpolation. Resolution therefore equals the poll
+       interval, finer than the hourly rates the mandate asks for.
+     * BOUND = FabricJanitor.STREAM_MAX_BYTES (row O2, 2 MB), IMPORTED not transcribed;
+       the sidecar is trimmed to its newest half when it exceeds that. SIZE-triggered,
+       never cadence-triggered -- the janitor's own philosophy against the janitor's own
+       number. Retention at 60s is therefore never below ~30 hours of ticks.
+     * SCOPE = the collective streams only, by directory listing (a new topic is covered
+       the day it appears). The personal scope is NOT watermarked: ~300 narration streams
+       per box, and no line of the beat windows narration (rung 1 is a bounded tail sample
+       with its denominator printed).
+   THE TRIM DOES NOT LIVE IN THE JANITOR, and the prereg asked for it there: a janitor
+   policy row would have put a watermark reference inside engines/, which is exactly what
+   the build's F4 falsifier forbids (no production module may name the sidecar -- FIGURE 2,
+   the anchor does not update). Gate tests/gate/test_seq_watermark.py.
 
 ## SELF-TUNING (the later mechanism, principle fixed now)
 Agents may eventually tune REGISTER G ONLY, by the mechanism already live for the LP

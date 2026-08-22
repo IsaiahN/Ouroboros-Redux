@@ -46,6 +46,12 @@ sys.path.insert(0, REDUX)
 # sprint keeper, so the two launchers cannot drift apart.
 from tools.fleet_env import GAMES, fleet_env_for
 
+# THE SEQ WATERMARK (record/prereg/PREREG_SEQ_WATERMARK.md): one sidecar tick per box
+# per poll, so the beat can window the ego_fabric streams -- which carry `seq` and no
+# clock -- WITHOUT any record gaining a timestamp (that would break the byte-identity
+# gate). ONE assembly, both launchers, the fleet_env precedent. Import-time pure.
+from tools.watermark import write_all as write_watermarks
+
 PY = sys.executable
 ROOT = os.path.join(REDUX, ".runs", "swarm")
 
@@ -359,6 +365,15 @@ def main():
 
     while True:
         time.sleep(POLL_SEC)
+
+        # ── THE SEQ WATERMARK ─────────────────────────────────────────────────
+        # Taken FIRST, before any stop/spawn in this poll can tear a stream's tail:
+        # one line per box in .runs/swarm/<box>/watermarks.jsonl, {utc, poll, streams}
+        # with each collective stream's head seq. It is the beat's only way to window
+        # a fabric stream, and it costs one tail read per stream. NOT in status.txt and
+        # NOT in deploys.jsonl: the ticks are their own evidence, and a measurement that
+        # perturbed the deploy ledger's bytes would be measuring the instrument.
+        write_watermarks(ROOT, GAMES, POLL_SEC)
 
         # ── DEPLOY ON CHANGE (Seat 3, 2026-08-19) ──────────────────────────────
         # THE POINT: queue a change, have it live within one poll, and pay the
