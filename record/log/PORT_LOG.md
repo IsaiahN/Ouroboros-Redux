@@ -3868,3 +3868,47 @@ only report of a swallowed loop exception behind `if self.verbose:`. The 0-in-95
 trustworthy ONLY because --verbose happened to be on. Recommend unconditional.
 SUITE: 2045 passed, 2 xfailed, 0 failed (2038 baseline + exactly the 7 new). ruff clean.
 F6 oracle unaffected -- no production line moved, because nothing moved.
+
+---
+
+## BEAT 59 — THE INSTRUMENT IS THE QUEUE NOW; THE MOVE IS PARKED BEHIND IT
+
+RATES THIS HOUR: minted 0 · used 0 · composed 0 · retired 0. ALL ZERO BY CONSTRUCTION --
+zero python processes, fleet retired, denominator is zero. Not a stall. LEVELS ARE MUTE.
+
+THE ECONOMY, LAST TRUE READING (restated so no beat implies motion): best level ever 2 on
+one box · 1,496 crossings · 0 games won of 25 · 1,542 sessions, none ever exceeding its
+box's ceiling · 28,886 agents, ONE genome · prestige 0 written by nothing.
+
+WHAT MOVED SINCE BEAT 58: one thing, and it is a subtraction from what we know rather than
+an addition. THE BLIND SPOT IS SIZED: a crude AST probe finds **105 of 215 modules holding a
+constructor-injected object, across 211 seams.** HALF THE TREE is invisible to the instrument
+that produced the port's manifest. The ladder was not an unlucky special case; it was the
+first one anybody checked.
+
+DISPATCHED: one builder, the injection-aware reachability instrument. Its gate is
+pre-registered and can fail: KNOWN-POSITIVE it must find the ladder reached via the
+injection path (the exact case that broke us, asserting the PATH not the verdict);
+KNOWN-NEGATIVE it must come back EMPTY on real tree code with the seam stripped -- because a
+known-positive proves sensitivity and says NOTHING about specificity; and the DIFFERENTIAL
+is the deliverable: exactly which modules the old closure called dead that the new one calls
+live. Briefed to over-approximate deliberately, since the consumer is a DELETE decision: a
+false "dead" costs the agent's behaviour, a false "live" costs a module left in the tree.
+Briefed to PRODUCE NO DELETION -- instrument and measurement only, rulings stay at this seat.
+
+STALLED SINCE THE LAST BEAT, NAMED WITH WHY:
+ · THE MOVE -- HALTED at slice 1, not by the abort threshold (13:3 passed it) but by the
+   falsifier. Parked until the differential lands. Correct place for it to be.
+ · THE 46 AND THE 97 -- both now LOWER BOUNDS, banner-marked in canon. Unsafe to act on.
+ · THE F6 ORACLE -- ruled retired, STILL NOT REMOVED. Now the oldest unexecuted ruling on
+   the board by two beats. It survived this build only because nothing moved.
+ · THE OBSERVATION LOG literal at cognitive_game_player.py:83 -- ruled folded into the port,
+   not folded. F4 cannot see a bare literal; only a person will catch it.
+ · THE 55 no-call-site __init__ RE-EXPORTS -- untouched, and now explicitly IN SCOPE for the
+   new instrument, which must tell "reached only via a re-export nobody calls" from "reached".
+ · evolution_runner.py:905 -- the swallowed-exception report still behind `if self.verbose:`.
+   ROUTED UP AT BEAT 58, NO RULING YET. My 0-in-952,951 held only because --verbose was on.
+ · FalsifiedLedger still constructed by nothing. Retention still dies at the restart.
+ · The 375 unattributed seconds and the ~310MB floor -- fleet-grain, no fleet, stay parked.
+
+FIGURE 1: sizing a blind spot is not capability gained. Nothing here moved a level.
