@@ -131,3 +131,80 @@ sampler filtered out its own answer and the corrected run has not been made. Cha
 harness removes process overhead and the supervisor; it does not touch the per-action cost,
 and under (a) it would make aggregate throughput worse. The speed problem and the shape
 problem are separate, and only the shape problem is what this plan solves.
+
+---
+
+# ADDENDUM — THE KAGGLE CONSTRAINT (2026-08-22), AND WHAT IT REVEALS
+
+## 7 · WHAT THE COMPETITION ACTUALLY IS (docs.arcprize.org/arc-prize-2026.md, fetched today)
+- **"You submit a notebook, Kaggle runs it twice."** Phase A validation, then **Phase B
+  HIDDEN GAME EVALUATION**.
+- **"All accelerated Kaggle sessions have internet disabled."** Fully offline, self-contained.
+- The starter kit's ONLY editable file is `agent/my_agent.py`, implementing exactly the two
+  methods the swarm calls: `is_done(frames, latest_frame)` and
+  `choose_action(frames, latest_frame)`. `make play-local` runs every game locally;
+  `make submit` builds the notebook and pushes it. Output is `submission.parquet`.
+- Accelerators offered: CPU-only, T4 x2 (default), P100, RTX 6000.
+
+## 8 · THE FINDING THIS FORCES, AND IT IS NOT ABOUT STORAGE
+**PHASE B IS HIDDEN GAMES. A HIDDEN GAME HAS NO BANKED PREFIX. SO REPLAY CONTRIBUTES
+EXACTLY NOTHING AT SUBMISSION.**
+Tonight's measurement, restated against that fact: 1,496 level completions across 3,474
+sessions, and **not one session in 1,542 ever exceeded its box's ceiling**; the two boxes
+with the MOST completions (g50t 298, sk48 273) **have never minted a single atom**. The
+fleet's entire demonstrated capability is playback of prefixes banked on games it has
+already seen.
+On a hidden game the agent arrives with an empty bank, and the only thing left is the
+cognition that has never, in 3,474 sessions, produced a crossing beyond playback.
+**THE SUBMISSION SCORE IS THEREFORE PREDICTED BY THE ONE NUMBER WE HAVE NEVER MOVED, NOT BY
+THE ONE THAT LOOKS HEALTHY.** That reorders everything: the replay port (section 4) is work
+for local iteration only, and the salient path — a coin flip with 13/13 measured deaths —
+should be questioned rather than ported, exactly as Seat 4 said.
+
+## 9 · STORAGE, MEASURED — AND THE REAL CONSTRAINT IS THE OPPOSITE OF THE ONE ASKED ABOUT
+Our footprint today, measured: **`.runs/swarm` is 12 GB for 25 boxes** — median box 493 MB,
+largest 1,209 MB (g50t: a 976 MB database and a 205 MB fabric). That is MONTHS OF
+ACCUMULATION on games we have played repeatedly.
+KAGGLE'S `/kaggle/working` QUOTA: **I could not obtain a current figure.** kaggle.com/docs
+and the competition page are JavaScript-rendered and returned only titles to a fetch; the
+ARC starter-kit page does not state disk, RAM or runtime limits and says so. **I am not
+quoting a number I could not verify** — the last figure I hold is ~20 GB, undated and
+unconfirmed, and this is precisely the "bound derived against a machine that is not the
+target" defect, so I will not repeat it as fact. **It needs one look at the competition's
+own Rules/Environment tab by a human session, and the date recorded.**
+BUT THE BINDING CONSTRAINT IS NOT THE CEILING, IT IS THE FLOOR: **the notebook starts with
+NOTHING.** No `.runs`, no databases, no fabric, no banked prefixes — unless we ship them as
+a Kaggle Dataset input. And atoms are keyed by game, so shipping our 12 GB would contribute
+nothing to a HIDDEN game anyway. The submission writes only what it produces during one run:
+25 games × one session ≈ tens of MB, not gigabytes. **We are nowhere near any plausible
+quota, and that is not good news — it is the same finding as section 8 from the storage
+side. Nothing we have accumulated transfers.**
+
+## 10 · HOW THE ROOT IS DETERMINED (the GM's constraint, answered)
+One resolver, one rule, no cwd anywhere:
+```
+OURO_DATA_ROOT   env var, explicit               -- wins if set
+else /kaggle/working/ouro   if os.path.isdir("/kaggle/working")   -- the Kaggle branch
+else <repo>/.runs           if the repo marker is present         -- the local branch
+else RAISE
+```
+- The per-game root is then `root / "games" / game_id`, **passed explicitly** into
+  `KnowledgeFabric` and `resolve_db_path`. No component reads `os.getcwd()` or `Path.cwd()`.
+- **NO CWD FALLBACK, EVER.** If none of the three branches resolves, it raises naming all
+  three and what it looked for. Falling back to cwd is the defect being removed; a fallback
+  would reintroduce it wearing a nicer name (Figure 10 — install what can be violated).
+- Kaggle detection is by DIRECTORY EXISTENCE, not by an env var Kaggle might rename.
+- FALSIFIERS: two games in one process write two disjoint fabrics and two disjoint databases,
+  read back and compared; an unset/unresolvable root RAISES rather than defaulting; the
+  Kaggle branch is selected on a constructed `/kaggle/working` and the local branch on a
+  constructed repo, with the same code and no cwd change between them; and an AST test that
+  no module under the production globs calls `getcwd`/`Path.cwd()` for a data path.
+
+## 11 · WHAT CHANGES IN THE PLAN
+- Section 2's option (b) still stands for LOCAL iteration (four cores, process-per-game).
+- **But the submission shape is fixed by the competition: ONE notebook, the framework's own
+  swarm, `my_agent.py`.** There is no supervisor and no population to argue about — the
+  competition already deleted them. Our local shape should match the submission shape as
+  closely as possible, which is a second, independent argument for retiring the fleet.
+- The de-cwd work (section 5, step 2) becomes the FIRST and most urgent item: it is
+  required by Kaggle, required by any one-process shape, and correct on its own merits.
