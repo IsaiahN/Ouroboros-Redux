@@ -4034,3 +4034,70 @@ STALLED, NAMED WITH WHY:
  · The 375 unattributed seconds and the ~310MB floor -- fleet-grain, no fleet, parked.
 
 FIGURE 1: executing old rulings is not capability gained. Nothing here moves a level.
+
+---
+
+## BEAT 62 — BOTH RULINGS EXECUTED, AND THE EXTENDED GATE FOUND A SEVENTH SITE ON THE
+## LADDER'S OWN PATH
+
+RATES: minted 0 · used 0 · composed 0 · retired 0 -- zero processes, denominator zero, BY
+CONSTRUCTION not by stall. LEVELS MUTE AT 2. Economy unchanged: best level 2, 1,496
+crossings, 0 games won of 25, one genome across 28,886 agents.
+
+RULING 1 -- THE OBSERVATION LOG IS FOLDED. Verified by me, not on report: both literals are
+gone. cognitive_game_player.py:91 is `None` at __init__ (no game in scope, so no path can
+exist), threaded at :110 from the already-resolved per-game root, and the write sites REFUSE
+rather than guess when untold. health_monitor.py:121 takes `observation_log_path=None` with
+NO DEFAULT AT ALL; evolution_runner passes the writer's own resolved string through a new
+read-only property -- TOLD, never a second derivation, which is data_root's own rule.
+STATED LIMITATION, and correctly: HealthMonitor is built at runner init BEFORE any game id
+exists and runs per generation over many games, so it can never know "the" observation log.
+One game per process (the fleet shape) truncates exactly what it used to; multi-game
+truncates only the most-recent game's log. Named rather than papered over.
+
+RULING 2 -- THE F6 ORACLE IS RETIRED. The condition its own comment at :773 named -- "retires
+in the commit AFTER the last row leaves the old form" -- was MEASURED, not remembered: 109
+rows, 89 LIVE + 20 SEVERED, ZERO stragglers. The symbol-anchored half survives whole with its
+known-positive (rotted anchor reds; CUT WIRE reds both of that row's tests) and its
+known-negative (unmutated tree fully settled, with `assert new` so it cannot pass vacuously).
+COVERAGE LOST, IN ONE LINE, AS REQUIRED: the ability to re-demonstrate the 37-versus-0
+false-positive load of the retired positional gate -- a fact about a registry form no row
+uses, and about NO ROW'S VALIDATOR. The oracle was verified GREEN AT BASELINE (25 passed)
+BEFORE removal, and Ruling 2 was done BEFORE Ruling 1 so the insertions could not push a row
+out of the dying oracle's +/-30 window. That ordering is the discipline working.
+
+## THE FIND: A SEVENTH CWD-RELATIVE SITE, AND IT IS A DATABASE
+The extended F4 swept 210 production files and returned ONE remaining shape, two occurrences:
+   engines/registry.py:358  EngineRegistry.__init__(db_path: str = "core_data.db")
+   engines/registry.py:696  get_registry(db_path: str = "core_data.db")
+I VERIFIED THE CONSUMPTION CHAIN MYSELF AND IT IS LIVE, NOT LATENT:
+   EngineRegistry() no-args at decision_rung_system.py:598/601 and rungs/base.py:447/450
+   -> _get_db_interface() CALLED at decision_rung_system.py:613 and :633
+   -> DatabaseInterface("core_data.db") at engines/registry.py:380
+   -> resolve_db_path("core_data.db") RETURNS "core_data.db" UNCHANGED -- measured.
+   plus 8 engines declaring requires_db_path=True take the bare string DIRECTLY at :433.
+That is inside the ladder Beat 58 measured deciding 266,570 actions.
+
+**AND THE GUARD IS NOT AT FAULT, WHICH IS THE INTERESTING PART.** resolve_db_path's escape
+hatch is DELIBERATE AND DOCUMENTED: "an explicit db_path from a caller is honoured VERBATIM
+-- tests must be able to hand in a tmp_path, and a caller that names a path has said what it
+means. It is the DEFAULT that must never land outside the root." The guard is correct. The
+registry defeats it by supplying a STALE LITERAL AS A DEFAULT, which reads to the guard as a
+caller who meant it. A NEW GENUS: not a guard passing on an accident, but a guard BYPASSED BY
+A CALLER WEARING THE ESCAPE HATCH IT WAS BUILT TO ALLOW. Every future escape hatch in this
+tree needs to ask who is allowed through it, not just that someone asked.
+Reported and NOT fixed, per brief. Held as RELATIVE_PATH_DEBT with a PINNED COUNT, not an
+exemption -- a third instance in that file reds the gate, and a staleness check forces the
+entry out the day it is repaired. That is the right shape for debt.
+EMPIRICAL BOUND, measured: no stray core_data.db in the repo root. The ones on disk are
+.runs/core_data.db and .runs/swarm/<box>/core_data.db -- correct locations. But NOTHING HAS
+RUN SINCE THE DE-CWD BUILD, so absence of a stray is not evidence of a working guard here.
+
+SUITE 2063 passed / 2 xfailed / 0 failed (2059 + 5 new - 1 retired oracle test, accounted
+exactly). ruff clean. I re-ran the two touched gate files myself: 41 passed.
+FIGURE 4 ASSERTED by the two-game-ids test -- and asserted ON THE BYTES the shipped method
+writes, not on two strings. FIGURE 2 ASSERTED: same code, two working directories, one
+answer, cwd absent from the answer. FIGURE 10 ASSERTED: the F4 extension fires on a
+constructed violation and returns EMPTY on the repaired shape -- a detector that reds the fix
+is worse than no detector. FIGURE 1: NEITHER RULING IS CAPABILITY GAINED. This is port debt
+paid. No level moved.
