@@ -98,7 +98,7 @@ class CognitiveGamePlayer:
         Preserves all side effects (DB writes, events, etc.).
         """
         # ═══ MASTERY-LITE: replay probability EARNED from replay reliability ═══
-        # Lazy fabric-backed instance (PREREG_MASTERY_LITE.md). CWD is the run
+        # Lazy fabric-backed instance (record/prereg/PREREG_MASTERY_LITE.md). CWD is the run
         # box, so "ego_fabric" is the SAME root the loop uses -- intended.
         if getattr(self, '_mastery', None) is None:
             try:
@@ -238,7 +238,7 @@ class CognitiveGamePlayer:
         # Per-level action budget: starts at max_actions (150), extends
         # by actions_per_level on each level-up. Unused actions carry
         # forward as a speed bonus for fast solvers.
-        # BUDGET RESTORATION (PREREG_BUDGET_RESTORATION.md): the allowance is
+        # BUDGET RESTORATION (record/prereg/PREREG_BUDGET_RESTORATION.md): the allowance is
         # role-scaled via the committed ROLE_BASE_ATP table -- pioneers get a
         # bigger purse, exploiters a leaner one; unknown roles get 1.0.
         try:
@@ -287,7 +287,7 @@ class CognitiveGamePlayer:
                 # Terminal replays (win, game over, exhausted budget, or no
                 # observation to resume from) end the episode as before.
                 replay_obs = getattr(self, '_last_replay_obs', None)
-                # BUDGET RESTORATION (PREREG_BUDGET_RESTORATION.md): replayed
+                # BUDGET RESTORATION (record/prereg/PREREG_BUDGET_RESTORATION.md): replayed
                 # levels fund like live levels -- the handoff budget is
                 # allowance x (1 + levels_replayed) - replay_cost, mirroring
                 # the live level-up grant exactly (owner directive overriding
@@ -425,7 +425,7 @@ class CognitiveGamePlayer:
                 _mv = _ep_moves.setdefault(action_num, [0, 0])
                 _mv[0 if frame_changed else 1] += 1
             # B7 (BUILD_PROGRAM_2 W1): the salient-step ledger (playback channel)
-            # PREREG_CORPSE_GUARD.md A: `terminal` is stamped AT THE STEP THAT
+            # record/prereg/PREREG_CORPSE_GUARD.md A: `terminal` is stamped AT THE STEP THAT
             # PRODUCED IT — a death cannot be reconstructed afterwards (dying
             # CHANGES THE FRAME, so the death step looks like the most
             # effectful step in the ledger). The bank truncates on this flag;
@@ -760,8 +760,8 @@ class CognitiveGamePlayer:
         # ═══ 3d-ii (EGO-FRONTIER): harvest the episode's exploration ═══
         # BOTH end kinds land here (GAME_OVER break above AND budget/loop
         # expiry): bank the dead/effect cells and the established action->delta
-        # map — observations, never signal (PREREG_FRONTIER_HARVEST.md).
-        # CK-1b (PREREG_CK_WAVE1.md): banked at EPISODE END regardless of
+        # map — observations, never signal (record/prereg/PREREG_FRONTIER_HARVEST.md).
+        # CK-1b (record/prereg/PREREG_CK_WAVE1.md): banked at EPISODE END regardless of
         # level/death — level-0 episodes bank too. This is the SINGLE
         # record_harvest site (one write per episode; no double-banking).
         try:
@@ -1439,7 +1439,7 @@ class CognitiveGamePlayer:
 
     @staticmethod
     def _role_allowance_multiplier(role) -> float:
-        """Role-scaled allowance multiplier (PREREG_BUDGET_RESTORATION.md).
+        """Role-scaled allowance multiplier (record/prereg/PREREG_BUDGET_RESTORATION.md).
 
         Isaiah's committed ROLE_BASE_ATP table: pioneer 1.5 / generalist 1.2 /
         optimizer 1.0 / exploiter 0.8. None or unknown roles get 1.0.
@@ -1472,7 +1472,7 @@ class CognitiveGamePlayer:
     _SALIENT_K = 3          # nontrivial frame changes that make a prefix salient
     _SALIENT_REPLAY_P = 0.2  # the mastery-lite mirror: fresh-rate replay draw
 
-    # ═══ THE CORPSE GUARD (PREREG_CORPSE_GUARD.md; KNOBS G22) ═══════════
+    # ═══ THE CORPSE GUARD (record/prereg/PREREG_CORPSE_GUARD.md; KNOBS G22) ═══════════
     # MEASURED HARM (ar25, FRONTIER_AUDIT F-1): 13 of 13 salient replays ended
     # in GAME_OVER on the FIRST cognitive action after playback and divergence
     # fired ZERO times — the replay was FAITHFUL and what it faithfully
@@ -1732,7 +1732,7 @@ class CognitiveGamePlayer:
             if getattr(_obs, 'state', None) in (GameState.WIN,
                                                 GameState.GAME_OVER):
                 break
-        # THE CONSUMPTION RECORD (PREREG_CORPSE_GUARD.md B; the scoped rule:
+        # THE CONSUMPTION RECORD (record/prereg/PREREG_CORPSE_GUARD.md B; the scoped rule:
         # an artifact SUBJECT TO SELECTION carries its consumption record or
         # the selection runs on a constant). The outcome answers "did this
         # still WIN": died > reached_level > aborted, death first because a

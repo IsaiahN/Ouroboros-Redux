@@ -1,4 +1,4 @@
-"""G-C GATE: goal abduction — the thin link past d->0-to-reference (PREREG_FINAL_GAPS.md).
+"""G-C GATE: goal abduction — the thin link past d->0-to-reference (record/prereg/PREREG_FINAL_GAPS.md).
 
 At the moment of a level-up, the frame delta is mined for STRUCTURAL predicates that
 BECAME true across the transition (mechanics, never answers): region-became-uniform,

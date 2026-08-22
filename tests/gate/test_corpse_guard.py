@@ -1,4 +1,4 @@
-"""THE CORPSE GUARD GATE (PREREG_CORPSE_GUARD.md; FRONTIER_AUDIT.md F-1).
+"""THE CORPSE GUARD GATE (record/prereg/PREREG_CORPSE_GUARD.md; FRONTIER_AUDIT.md F-1).
 
 ⭐ WHY. MEASURED (ar25, 13 of 13, zero ambiguity): every salient-prefix replay
 ended in GAME_OVER on the FIRST cognitive action after playback, and [SALIENT]

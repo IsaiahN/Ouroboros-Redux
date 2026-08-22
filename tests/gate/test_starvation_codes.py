@@ -1,4 +1,4 @@
-"""R1 GATE (PREREG_READOUTS.md): socket starvation codes — the agent reads its RESIDUAL.
+"""R1 GATE (record/prereg/PREREG_READOUTS.md): socket starvation codes — the agent reads its RESIDUAL.
 
 THE LINE: the agent may read its own residual; it may never read its own grade. R1 is the
 residual readout: a fixed ENUM of game-agnostic machinery codes; when a socket is exercised
@@ -39,7 +39,7 @@ def _B():
         )
     except Exception as e:
         pytest.fail("engines.egocentric.starvation missing (%s) -- R1 has not landed; "
-                    "see PREREG_READOUTS.md" % e)
+                    "see record/prereg/PREREG_READOUTS.md" % e)
     from engines.egocentric.starvation import StarvationBook as B
     return B
 

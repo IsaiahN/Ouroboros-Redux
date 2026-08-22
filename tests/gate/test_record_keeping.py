@@ -1,4 +1,4 @@
-"""RECORD-KEEPING GATE (VICTORY_PROTOCOL.md): what costs nothing now is
+"""RECORD-KEEPING GATE (record/prereg/VICTORY_PROTOCOL.md): what costs nothing now is
 unrecoverable later.
 
 Three laws pinned here, dispatched on receipt of the protocol:

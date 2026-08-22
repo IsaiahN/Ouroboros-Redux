@@ -1,4 +1,4 @@
-"""test_rho.py -- G-A THE RHO ESTIMATOR (PREREG_FINAL_GAPS.md §G-A).
+"""test_rho.py -- G-A THE RHO ESTIMATOR (record/prereg/PREREG_FINAL_GAPS.md §G-A).
 
 ⭐ WHY: the anchor figure's missing metric. Cross-mounted fabrics are NOT independent
 witnesses -- the swarm replicates banks verbatim, so k agreeing sources can be one

@@ -1,6 +1,6 @@
 """mastery.py -- mastery-lite: replay probability EARNED from replay reliability.
 
-PREREG_MASTERY_LITE.md: the v2 mastery principle scoped to available evidence.
+record/prereg/PREREG_MASTERY_LITE.md: the v2 mastery principle scoped to available evidence.
 A bank that keeps reproducing its levels keeps its high replay rate; a bank that
 starts failing decays back toward exploration automatically. Records live in the
 fabric's collective "replay_outcomes" stream (seeds + local, insertion order),

@@ -1,4 +1,4 @@
-"""G-D GATE: the LP drive — C33's three-arm control, finally run (PREREG_FINAL_GAPS.md).
+"""G-D GATE: the LP drive — C33's three-arm control, finally run (record/prereg/PREREG_FINAL_GAPS.md).
 
 LP_DRIVE_ARM selects the arm per worker: "fixed" (default) and "random" leave the
 loop's choice path BYTE-IDENTICAL to current behavior (random exists as a label for

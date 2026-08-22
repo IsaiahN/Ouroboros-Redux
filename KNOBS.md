@@ -374,7 +374,7 @@ A12-1 DEAD_DEDUP = True (engines/egocentric/frontier.py). Provenance: GUESSED, R
    stays 2; what changed is what counts as ONE. Registering the distinction here because
    an F-row and a G-row over the same sentence is exactly how a frozen rule gets tuned
    by accident.
-A12-2 THE MEASURED HARM (audit F-3, PREREG_DEAD_DEDUP.md): live ar25 level 2 —
+A12-2 THE MEASURED HARM (audit F-3, record/prereg/PREREG_DEAD_DEDUP.md): live ar25 level 2 —
    dead(as coded)=163 vs dead(as documented)=41. 122 cells (75% of the blacklist) were
    eliminated by WITHIN-EPISODE repeats, and nothing decays it (no recency term, the
    janitor has never run), so the elimination was MONOTONE across every future episode
@@ -390,7 +390,7 @@ A12-4 THE OFF-ARM IS THE RECEIPT (CLAIM.md's ablation constraint): env DEAD_DEDU
    BYTE-IDENTICALLY at BOTH ends — the banked record bytes equal a literal pre-fix
    append, and the returned dead set equals the literal pre-fix computation. Shipped as
    PASSING tests (tests/gate/test_dead_dedup.py::TestTheOffArm), not an intention.
-A12-5 REGISTERED VERDICT (PREREG_DEAD_DEDUP.md): ar25 L2 dead falls from 163 toward the
+A12-5 REGISTERED VERDICT (record/prereg/PREREG_DEAD_DEDUP.md): ar25 L2 dead falls from 163 toward the
    documented 41 (READ-ONLY RECOMPUTE ON THE LIVE BOOKS AT SHIP: 163 -> 41 exactly, on
    the 32 L2 records in .runs/swarm/ar25/ego_fabric; L1 13 -> 12, L0 40 -> 35). READ
    WITH ITS LIMIT, so the welcome number gets the same check as an unwelcome one: hitting

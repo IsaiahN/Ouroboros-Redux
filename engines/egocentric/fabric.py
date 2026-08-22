@@ -1,4 +1,4 @@
-"""fabric.py -- Phase 3a: the knowledge fabric + the idea economy (PREREG_PHASE3A.md §1).
+"""fabric.py -- Phase 3a: the knowledge fabric + the idea economy (record/prereg/PREREG_PHASE3A.md §1).
 
 Pure-stdlib JSONL streams under scoped directories -- no database, no wall-clock, no threads:
 
@@ -127,7 +127,7 @@ class KnowledgeFabric:
         """The last `n` well-formed records of one stream -- identical to
         `_read_stream(path)[-n:]`, reading O(tail) bytes instead of O(stream).
 
-        PERF_AUDIT.md Q4: the per-step affect read (affect.py:_recent_settlements ->
+        record/prereg/PERF_AUDIT.md Q4: the per-step affect read (affect.py:_recent_settlements ->
         cognitive_loop.py:1849, twice per step) asked a 20-record question by parsing
         every record ever written -- 0.314 ms at 20 records, 262.250 ms at 40,000.
 
@@ -295,7 +295,7 @@ class KnowledgeFabric:
 
         Byte-identical to the slice by contract (tests/gate/test_tail_read.py asserts it
         against a literal transcription of the pre-tail-read code), and O(tail) instead
-        of O(stream): PERF_AUDIT.md Q4 measured the full read at 0.314 ms over 20 records
+        of O(stream): record/prereg/PERF_AUDIT.md Q4 measured the full read at 0.314 ms over 20 records
         and 262.250 ms over 40,000, on a call the loop makes twice per step.
 
         The window is the tail of the SAME concatenation `query` builds -- seed roots in

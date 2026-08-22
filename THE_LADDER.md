@@ -939,7 +939,7 @@ construction," and only the code separates them.
 *Composition does exist, elsewhere:* `effects.compose()` memoises id sequences into `COMPOSITE`
 atoms. **If reachability belongs anywhere in this system it belongs there, and that is where
 the question should be asked.** Imports enter by a third route again —
-`consumer.seed_imports()` with `ORIGIN_IMPORTED` stamps (`PREREG_DRAIN_ORIGIN.md`).
+`consumer.seed_imports()` with `ORIGIN_IMPORTED` stamps (`record/prereg/PREREG_DRAIN_ORIGIN.md`).
 
 **MDL AS A GUARD IS A REAL CONFLATION, AND THE LEDGER IS ALREADY MORE CORRECT THAN THE
 DOCSTRING.** The canon separates **three gates (a product; any factor at zero forces

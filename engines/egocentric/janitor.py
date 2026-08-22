@@ -1,4 +1,4 @@
-"""janitor.py -- B14 FABRIC_JANITOR (PREREG_SMART_CLEANUP.md): compaction that changes
+"""janitor.py -- B14 FABRIC_JANITOR (record/prereg/PREREG_SMART_CLEANUP.md): compaction that changes
 NO consumer answer.
 
 Philosophy (the prereg): keep knowledge forever, cap telemetry; SIZE-triggered, never
@@ -30,7 +30,7 @@ atom_narrowings, ideas, idea_events (priors/credibility/reputation), frontier_pa
 frontier_harvest, starvation, import_candidates, replay_outcomes. Seed roots are
 read-only mounts and are never touched; only the LOCAL root is rewritten.
 
-THE ARCHIVE LAW (VICTORY_PROTOCOL.md record-keeping): the janitor ARCHIVES before it
+THE ARCHIVE LAW (record/prereg/VICTORY_PROTOCOL.md record-keeping): the janitor ARCHIVES before it
 folds, strips or drops -- every record a sweep removes is appended VERBATIM (the
 original line, never re-serialized) to <stream>.archive.jsonl BEFORE the stream is
 rewritten. The archive is append-only, sits outside the size trigger (the trigger

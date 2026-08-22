@@ -2265,7 +2265,7 @@ class SafeDatabaseCleaner:
         c.execute('SELECT COUNT(*) FROM agents WHERE is_active = 1')
         agents = c.fetchone()[0]
 
-        # D-3 (PREREG_D3_VERIFIER.md): count by EVIDENCE, not by SCORE.
+        # D-3 (record/prereg/PREREG_D3_VERIFIER.md): count by EVIDENCE, not by SCORE.
         # This verifier previously counted final_score > 0 -- the exact key
         # condemned on 2026-02-24 after zero-score deletion destroyed ~80% of the
         # metrics corpus. Zero-score rows record what agents TRIED AND FAILED and

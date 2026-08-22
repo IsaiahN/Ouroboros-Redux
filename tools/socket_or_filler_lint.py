@@ -1,4 +1,4 @@
-"""PROCTOR-ONLY (R2, PREREG_READOUTS.md): socket-vs-filler lint on builder diffs.
+"""PROCTOR-ONLY (R2, record/prereg/PREREG_READOUTS.md): socket-vs-filler lint on builder diffs.
 
 The grade the agent must never read: did a diff wire a CAPACITY (socket) or write
 CONTENT (filler)? Content markers in AGENT code (engines/, cognitive_*.py; tests

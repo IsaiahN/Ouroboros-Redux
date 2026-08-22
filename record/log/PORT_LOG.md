@@ -1,7 +1,7 @@
 # PORT LOG — the egocentric port onto v4-cold
 
 Beat log for a human who was away. Every entry leads with the L2 count against the cold
-baseline. Charter: `EGOCENTRIC_PORT_PLAN.md` (§6 fusion, §7 the wheel rule).
+baseline. Charter: `record/prereg/EGOCENTRIC_PORT_PLAN.md` (§6 fusion, §7 the wheel rule).
 
 ---
 
@@ -16,7 +16,7 @@ started. DB 425 MB / 20 gens, knowledge pipeline healthy throughout, telemetry-d
 
 **Phase 1 (the self) opens this beat:** verbatim port of `perception` + `self_locus` + `agency`
 from `Nexus:src/newhorse/` into `engines/egocentric/`, wrapped by a small `EgoObserver`, wired
-READ-ONLY into the loop (logs `[EGO]` lines, feeds nothing). Prereg: `PREREG_PHASE1.md`.
+READ-ONLY into the loop (logs `[EGO]` lines, feeds nothing). Prereg: `record/prereg/PREREG_PHASE1.md`.
 Pre-wire control shas capturing now (4 games, seed 5) → `.runs/p1_controls.json`.
 
 ---
@@ -3255,3 +3255,61 @@ remainder) and EXAM_03 (root + tools + rungs + config) are NOT executed yet -- t
 repair builder currently owns engines/interfaces.py, engines/registry.py and rungs/, and
 moving files under a running builder is the hazard that cost six investigations this week.
 They go the moment it returns.
+
+=== PROCTOR ERROR IN bed4757: `git add -A` SWEPT IN A RUNNING BUILDER'S WORK ===
+The commit was meant to contain 105 file moves. It also contains the Protocol-repair
+builder's IN-FLIGHT, UNFINISHED edits: engines/interfaces.py (+381), rungs/hypothesis.py
+(+80), rungs/exploitation.py (+61), rungs/base.py (+42), engines/__init__.py (-4). That
+builder is still running and has not reported, so this code has not passed its own gate and
+has never been through a suite.
+WHY IT HAPPENED, and it is the genus I have spent the night cataloguing: `git add -A` is an
+ADJACENCY OPERATION. It stages everything PRESENT, not everything I meant -- the same shape
+as attributing a delay to the last line printed, or a caller to the nearest name. I have
+been telling builders all night to name what they touch, and then staged by proximity.
+WHAT I AM NOT DOING: reverting. The builder holds those files right now; a revert would
+destroy work in progress and produce exactly the moving-tree collision this discipline
+exists to prevent. The partial state is at least importable (entrypoints load, 1,949 tests
+collect) and the builder's own final run is what validates it.
+DISPOSITION: the commit stands, MARKED. The builder's completion commit supersedes it and
+its full-suite run is the gate this content never got. If that run reds on its own files,
+the cause is here and not in its work.
+THE RULE, adopted now: WHILE A BUILDER IS RUNNING, STAGE EXPLICIT PATHS. Never `git add -A`,
+never `git commit -a`. The proctor's own commits name their files, exactly as builders are
+required to name what they touch.
+
+=== ROOT MARKDOWN CONSOLIDATED: 20 MOVED, 49 FILES OF CITATIONS REWRITTEN WITH THEM ===
+THE PROBLEM WAS NOT UNTIDINESS, IT WAS TWO HOMES FOR ONE CLASS OF DOCUMENT: 19 old
+PREREG_*.md sat at the repo root while every prereg written since lives in record/prereg/.
+Same kind of file, two locations, and nothing said which was canonical.
+MOVED to record/prereg/: 19 PREREG_*.md + VICTORY_PROTOCOL.md, PERF_AUDIT.md,
+EGOCENTRIC_PORT_PLAN.md (20 total).
+KEPT AT ROOT, and the reason is measured, not habitual:
+  WIRING_REGISTRY.md and KNOBS.md are OPENED AND PARSED by gate tests
+  (test_dead_dedup.py:328/336, test_efficiency_read.py:344, test_origin_marker.py:305,
+  test_planner_retention.py:358). Moving them BREAKS TESTS, not just pointers.
+  THE_LADDER.md, CLAIM.md, THE_GOALS.md, README.md -- canon, cited from ~100 sites.
+THE CITATIONS MOVED IN THE SAME OPERATION -- 49 files rewritten. A move that leaves stale
+references behind IS THE RECEIPT-ROT DEFECT IN PROSE, and this project has spent the week
+paying for exactly that at the line-number grain. Verified after: zero bare references
+remain to any moved document.
+TESTS AFTER: 1,959 collect (up from 1,949 -- the Protocol builder's new gate file); the two
+parsing suites pass, 45 tests.
+BUILDER SAFETY, checked rather than assumed: the Protocol repair builder holds
+engines/registry.py, rungs/{exploitation,filter_rungs,hypothesis,orientation}.py and its new
+test file. NONE of the six cites any moved document, so the rewrite could not collide. That
+check is the thing I skipped an hour ago when `git add -A` swept its work into bed4757.
+
+=== ON MOVING PREREGS TO considered_dead: I HAVE NOT, AND HERE IS WHY ===
+The GM asked for preregs that are no longer relevant to go to considered_dead. A landed
+prereg is not stale -- IT IS THE REASON THE CODE IS SHAPED AS IT IS, and live code CITES IT
+BY NAME at the site it governs (cognitive_game_player.py:428 cites the corpse guard's
+clause A; the composer's stages cite theirs). Moving those breaks the only explanation the
+code carries for its own behaviour.
+WHAT IS GENUINELY STALE is a smaller and different set, and it needs the GM's eye because
+each is a judgement about intent rather than reachability:
+  * PREREG_STAMP_FACTORING + BRIEF_STAMP_FACTORING -- F1 FIRED, held, never built
+  * PREREG_SWARM_OFFLINE_MODE -- "PREREG ONLY. NOT EXECUTED."
+  * PREREG_W2_APPLICABILITY_INDEX -- "AWAITING SEAT 3's CLEARANCE" (long since overtaken)
+  * PREREG_MINT_CONTEXT_RING -- withdrawn, then re-admitted and queued; live, not stale
+Four candidates, one of which is explicitly still queued. That is a ruling, not a sweep, so
+it waits for the GM rather than being executed on a guess.

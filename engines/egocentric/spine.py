@@ -1,7 +1,7 @@
 """spine.py -- Phase 2's goal spine: confirmed reward earns the wheel; everything else is None.
 
 `GoalSpine` wraps the verbatim-ported `GoalManager` (goal.py) with the two things the wheel rule
-needs (PREREG_PHASE2.md, EGOCENTRIC_PORT_PLAN.md sec. 7):
+needs (record/prereg/PREREG_PHASE2.md, record/prereg/EGOCENTRIC_PORT_PLAN.md sec. 7):
 
   * a per-action VECTOR delta map of the controllable's centroid, learned live from
     `note_move(action, delta)` -- an action is ESTABLISHED once its dominant delta has been seen

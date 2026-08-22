@@ -1,4 +1,4 @@
-"""CK-1b GATE: affordance harvest un-gating (PREREG_CK_WAVE1.md, section CK-1b).
+"""CK-1b GATE: affordance harvest un-gating (record/prereg/PREREG_CK_WAVE1.md, section CK-1b).
 
 WHY (measured). Frontier harvest banks only when an episode reached a frontier
 (level >= 1): the accrual in cognitive_loop.record_result and the episode-end

@@ -1,4 +1,4 @@
-"""starvation.py -- R1 (PREREG_READOUTS.md): socket starvation codes.
+"""starvation.py -- R1 (record/prereg/PREREG_READOUTS.md): socket starvation codes.
 
 THE LINE: the agent may read its own RESIDUAL; it may never read its own GRADE.
 This module is the residual readout: a fixed ENUM of game-agnostic machinery
@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-# The fixed enum -- game-agnostic machinery facts only (PREREG_READOUTS.md R1).
+# The fixed enum -- game-agnostic machinery facts only (record/prereg/PREREG_READOUTS.md R1).
 CODES = (
     "NO_STABLE_REFERENCE",    # g2 never passed: no reference snapshot materialised
     "NO_REFERENCE_BINDING",   # g4 never passed: no class ever bound to REFERENCE

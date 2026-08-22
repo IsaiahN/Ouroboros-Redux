@@ -1001,7 +1001,7 @@ class CognitiveLoop:
     def end_game(self) -> List[CognitiveFrame]:
         """End the game and return the replay."""
         # ═══ R1 (EGO-STARVE): the episode boundary settles the starvation book ═══
-        # PREREG_READOUTS.md: a socket exercised all episode with ZERO passes
+        # record/prereg/PREREG_READOUTS.md: a socket exercised all episode with ZERO passes
         # emits ONE enum-coded record to the PERSONAL "starvation" stream —
         # pure function of the counters (plan gates + mint/bank), narrated,
         # <= 1 per socket per episode (guarded by the settled flag).
@@ -1494,7 +1494,7 @@ class CognitiveLoop:
 
         # ═══ PHASE 2 (EGO-GOAL): the ONE pre-empt site — a confirmed goal earns the wheel ═══
         # drive() is None unless a reward CONFIRMED a goal AND an established action helps;
-        # None changes NOTHING, ever (the wheel rule, PREREG_PHASE2.md).
+        # None changes NOTHING, ever (the wheel rule, record/prereg/PREREG_PHASE2.md).
         try:
             # PHASE 3a: remember the agent's identity for the knowledge fabric
             self._ego_agent_id = str(agent_id) if agent_id else "agent"
@@ -2518,7 +2518,7 @@ class CognitiveLoop:
                         _wfab.append("collective", "import_queue", _wrec)
             except Exception:
                 _swal(self, "MINT_DRAIN")
-            # ── THE REBINDING BIN GETS A DESTINATION (PREREG_REFIT_DESTINATION.md,
+            # ── THE REBINDING BIN GETS A DESTINATION (record/prereg/PREREG_REFIT_DESTINATION.md,
             # Seat 3 ruling 2026-08-19) ──────────────────────────────────────────
             # ROUTE has four bins. Three drained somewhere: NOVEL -> import_queue
             # (above), BROKEN·mechanism -> mint_queue -> the mint, TRANSFERRED ->
@@ -2725,7 +2725,7 @@ class CognitiveLoop:
                 self._ego_first_frontier_click = (int(_ax), int(_ay))
             # ═══ 3d-ii (EGO-FRONTIER): accrue the harvest material ═══
             # Every click is an OBSERVATION — effectful or dead — banked at
-            # episode end. CK-1b (PREREG_CK_WAVE1.md): level 0 accrues too —
+            # episode end. CK-1b (record/prereg/PREREG_CK_WAVE1.md): level 0 accrues too —
             # the affordance harvest is un-gated from the frontier (18 level-0
             # games banked nothing across 48-112 episodes each). A level-up
             # step's click belongs to the level below, so it is skipped (the

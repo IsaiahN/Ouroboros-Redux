@@ -195,7 +195,7 @@ class TestTriangulationHit:
                                                           monkeypatch):
         """DISPOSITION 2026-08-17 (THE_LADDER "NO PERMANENT RED", rule 1): this
         test was `test_budget_drains_oldest_first` and it no longer tested what
-        it named -- PREREG_DRAIN_ORIGIN.md §A replaced consume()'s FIFO agenda
+        it named -- record/prereg/PREREG_DRAIN_ORIGIN.md §A replaced consume()'s FIFO agenda
         with the bounded RANKED drain. FIXED TO CURRENT REALITY rather than left
         red: oldest-first is now the OFF-ARM's contract (DRAIN_RANKED=0), and it
         is asserted as such. The ranked arm's own ordering is owned by

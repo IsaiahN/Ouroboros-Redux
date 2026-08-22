@@ -134,7 +134,7 @@ if _WIPE:
         _clw.CognitiveLoop._load_prior_knowledge = _wiped
 
 # --- EGO-CONFIRM CUT-WIRE (OURO_CW_EGOCONFIRM=N). Consumption falsifier for the goal spine
-# (PREREG_PHASE2.md): at the Nth drive() call, force-confirm the current top candidate through
+# (record/prereg/PREREG_PHASE2.md): at the Nth drive() call, force-confirm the current top candidate through
 # the REAL credit path, then let the shipped drive run. If the forced arm's action sequence is
 # byte-identical to control, the drive is decorative. Instrument-side only; shipped code never
 # reads this env var.

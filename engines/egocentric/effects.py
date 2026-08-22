@@ -60,7 +60,7 @@ __all__ = ["learn_effect", "apply_effect", "classify_transform", "Gamma",
 DONT_CARE = -1
 
 
-# ── THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B; CLAIM.md) ───────────────────
+# ── THE ORIGIN MARKER (record/prereg/PREREG_DRAIN_ORIGIN.md §B; CLAIM.md) ───────────────────
 #
 # READ, not asserted: 1,514 atom records carried ZERO `imported` and ZERO
 # `source_game` -- local-vs-imported was carried by the ABSENCE OF FIELDS. That

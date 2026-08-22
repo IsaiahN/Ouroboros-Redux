@@ -1,6 +1,6 @@
 """PERF_AUDIT Q4 · THE TAIL READ — an O(tail) read that is BYTE-IDENTICAL to the O(stream) one.
 
-THE DEFECT (measured, PERF_AUDIT.md:21-41): `affect.AffectGains._recent_settlements`
+THE DEFECT (measured, record/prereg/PERF_AUDIT.md:21-41): `affect.AffectGains._recent_settlements`
 answers a question about the LAST 20 settlements by handing `fabric.query()` the whole
 stream — a full-file parse, `json.loads` per line, no seek, no index — TWICE PER STEP
 from `cognitive_loop.py:1849`. 0.314 ms at 20 records; 262.250 ms at 40,000.

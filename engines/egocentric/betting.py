@@ -1,4 +1,4 @@
-"""betting.py -- C33 STEP 1: every action carries a bet (PREREG_MARKETPLACE_MERGE.md).
+"""betting.py -- C33 STEP 1: every action carries a bet (record/prereg/PREREG_MARKETPLACE_MERGE.md).
 
 The iced pricing spine's settle machinery, adapted to the fabric. Per action the loop
 COMMITS a prediction family (paste + temporal-transform members) at choice time and

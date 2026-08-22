@@ -1,4 +1,4 @@
-"""GATE: THE DEAD-CELL DEDUP + ITS OFF-ARM (PREREG_DEAD_DEDUP.md, audit F-3).
+"""GATE: THE DEAD-CELL DEDUP + ITS OFF-ARM (record/prereg/PREREG_DEAD_DEDUP.md, audit F-3).
 
 ⭐ WHY: frontier.py documents the dead set as ">=2 INDEPENDENT records" and the code
 increments ONCE PER LIST ENTRY, while the caller banks the per-episode dead list

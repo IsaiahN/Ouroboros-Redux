@@ -6,7 +6,7 @@ frontier-checkpoint blueprint, adapted: bank the FATAL OPENING (the first post-f
 of an episode that died there) in the fabric; veto its repetition population-wide. Exploration
 ordering, not goal-claiming — the wheel rule is untouched.
 
-THE CONTRACT (PREREG_FRONTIER_PARIAH.md):
+THE CONTRACT (record/prereg/PREREG_FRONTIER_PARIAH.md):
   * `FrontierBook(fabric)` in engines/egocentric/frontier.py:
       - record_fatal_opening(game, level, cell) -> appends to collective "frontier_paths";
       - avoid_set(game, level) -> set of cells from seeds+local; deterministic;

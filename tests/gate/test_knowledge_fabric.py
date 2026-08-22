@@ -6,7 +6,7 @@ verified Kaggle pattern: mounted input + local working). The viral idea economy 
 MINT only on signal, ECHO pays the origin author (reputation — the viral reward), FALSIFY
 pariah-marks defeasibly. v4's version was measured consumer-less; this one is consumer-first.
 
-THE CONTRACT (PREREG_PHASE3A.md / PHASE3_DESIGN.md):
+THE CONTRACT (record/prereg/PREREG_PHASE3A.md / PHASE3_DESIGN.md):
   * `KnowledgeFabric(root, seeds=[...], agent_id=..., kin_key=...)` — stdlib only;
   * `append(scope, topic, record) -> record` (adds monotonic per-stream "seq"; no wall-clock
     in the default path); `query(scope, topic, where=None, limit=None)` — insertion order;

@@ -1,11 +1,11 @@
 """PHASE 2 GATE: the goal spine — confirmed reward earns the wheel; everything else is None.
 
 ⭐ WHY. The 20-generation baseline: breadth from lottery+banking, ZERO depth. Depth needs
-directed play; directed play is allowed only under the wheel rule (EGOCENTRIC_PORT_PLAN.md §7):
+directed play; directed play is allowed only under the wheel rule (record/prereg/EGOCENTRIC_PORT_PLAN.md §7):
 blind explore is the incumbent, a level-up CONFIRMS a candidate goal (cue-proposes,
 reward-disposes), and only a confirmed goal may drive.
 
-THE CONTRACT (PREREG_PHASE2.md):
+THE CONTRACT (record/prereg/PREREG_PHASE2.md):
   * `engines/egocentric/` gains verbatim `goal`, `relations`, `navigation` (importable);
   * `GoalSpine` (engines/egocentric/spine.py):
       - `note_move(action, delta)` accrues per-action centroid vector deltas; an action's delta
@@ -57,7 +57,7 @@ def _spine():
         )
     except Exception as e:
         pytest.fail("engines.egocentric.spine is missing (%s) — Phase 2 has not landed; see "
-                    "PREREG_PHASE2.md" % e)
+                    "record/prereg/PREREG_PHASE2.md" % e)
     from engines.egocentric.spine import GoalSpine as GS
     return GS
 

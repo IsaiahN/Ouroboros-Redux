@@ -1,4 +1,4 @@
-"""THE REBINDING BIN MUST HAVE A DESTINATION. PREREG_REFIT_DESTINATION.md.
+"""THE REBINDING BIN MUST HAVE A DESTINATION. record/prereg/PREREG_REFIT_DESTINATION.md.
 
 ROUTE sorts every settled bet into one of four bins. Three of them drained somewhere:
 NOVEL -> the `import_queue` stream, BROKEN-mechanism -> the mint, TRANSFERRED -> settlements.

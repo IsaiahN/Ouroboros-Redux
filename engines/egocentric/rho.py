@@ -1,4 +1,4 @@
-"""rho.py -- G-A THE RHO ESTIMATOR (PREREG_FINAL_GAPS.md §G-A; the anchor figure's metric).
+"""rho.py -- G-A THE RHO ESTIMATOR (record/prereg/PREREG_FINAL_GAPS.md §G-A; the anchor figure's metric).
 
 Cross-mounted fabrics are not independent witnesses: the swarm banks and replicates
 fabrics verbatim, so k agreeing sources can be one source photocopied k times.

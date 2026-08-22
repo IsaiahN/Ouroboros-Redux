@@ -12,7 +12,7 @@ one (post_frame, action) pair per step and get back a small dict of beliefs:
                  for the compose seam; a multi-cell body has no one exact cell,
                  and the loop then falls back to the rounded centroid, stated).
 
-Discipline (PREREG_PHASE1.md): deterministic (no RNG, no I/O), and EVERY exception is
+Discipline (record/prereg/PREREG_PHASE1.md): deterministic (no RNG, no I/O), and EVERY exception is
 swallowed to the `errors` counter -- sensing must never crash the loop it feeds.
 """
 from __future__ import annotations

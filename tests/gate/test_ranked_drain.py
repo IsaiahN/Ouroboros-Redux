@@ -1,4 +1,4 @@
-"""GATE: THE RANKED DRAIN + ITS OFF-ARM (PREREG_DRAIN_ORIGIN.md §A).
+"""GATE: THE RANKED DRAIN + ITS OFF-ARM (record/prereg/PREREG_DRAIN_ORIGIN.md §A).
 
 ⭐ WHY: THE_LADDER.md's "CORRECTION TO THE TALLY READING" located rung 4's zero in
 QUEUE ORDER, not in description: 388,184 queue records, 82,301 carrying a COMPLETE

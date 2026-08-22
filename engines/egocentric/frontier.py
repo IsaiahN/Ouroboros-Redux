@@ -1,4 +1,4 @@
-"""frontier.py -- 3d-i: frontier pariah paths (PREREG_FRONTIER_PARIAH.md).
+"""frontier.py -- 3d-i: frontier pariah paths (record/prereg/PREREG_FRONTIER_PARIAH.md).
 
 Each frontier death permanently removes an opening: when an episode that stood
 at frontier level N dies, its FIRST post-frontier click is banked in the fabric
@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 TOPIC = "frontier_paths"
 HARVEST_TOPIC = "frontier_harvest"
 
-# ── DEAD-CELL DEDUP (PREREG_DEAD_DEDUP.md; audit F-3) ────────────────────────
+# ── DEAD-CELL DEDUP (record/prereg/PREREG_DEAD_DEDUP.md; audit F-3) ────────────────────────
 # The dead set is documented as ">=2 INDEPENDENT RECORDS"; the code counted per
 # LIST ENTRY and the caller banked the per-episode list verbatim, so ONE episode
 # clicking a cell twice blacklisted it forever (live ar25 L2: 163 as coded vs 41
@@ -130,12 +130,12 @@ class FrontierBook:
     def record_harvest(self, game: str, level: int, dead=None, effects=None,
                        fatal: Optional[Tuple[int, int]] = None,
                        deltas: Optional[Dict[str, Tuple[int, int]]] = None) -> None:
-        """Bank one episode's frontier experience (PREREG_FRONTIER_HARVEST.md):
+        """Bank one episode's frontier experience (record/prereg/PREREG_FRONTIER_HARVEST.md):
         dead cells (clicked, no effect), effect cells (clicked, frame changed),
         the fatal cell if the episode died, and the established action->delta
         map. Observations, never signal -- nothing here opens the wheel.
 
-        THE WRITE HALF OF THE DEDUP (PREREG_DEAD_DEDUP.md): the dead list is
+        THE WRITE HALF OF THE DEDUP (record/prereg/PREREG_DEAD_DEDUP.md): the dead list is
         reduced to DISTINCT cells in FIRST-SEEN ORDER (deterministic), so one
         episode contributes AT MOST ONE dead report per cell. Effects, fatal and
         deltas are banked verbatim -- this build touches the dead list only.
@@ -211,7 +211,7 @@ class FrontierBook:
         tried is the union of every reported cell; deltas keep the first-seen
         value per action in record order (deterministic).
 
-        THE READ HALF OF THE DEDUP (PREREG_DEAD_DEDUP.md): "independent" is
+        THE READ HALF OF THE DEDUP (record/prereg/PREREG_DEAD_DEDUP.md): "independent" is
         counted in DISTINCT RECORDS -- a cell repeated inside ONE record is ONE
         report, however many times it appears. This corrects the history ALREADY
         BANKED (the pre-fix records that banked per-episode lists verbatim)

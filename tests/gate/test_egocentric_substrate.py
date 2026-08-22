@@ -5,7 +5,7 @@ failure begins with not knowing what the game wants; knowing what the game wants
 knowing which object is *me*. This phase ports the new horse's belief-state bricks and wires
 them READ-ONLY (the wheel rule: Phase 1 is sensing, not even signal).
 
-THE CONTRACT (PREREG_PHASE1.md):
+THE CONTRACT (record/prereg/PREREG_PHASE1.md):
   * `engines/egocentric/` carries verbatim ports: `perception.segment` + `Object` +
     `ObjectTracker`, `SelfLocus` (contingency, not correlation), `CursorAgency`;
   * `EgoObserver` wrapper: holds the previous frame internally; `observe(frame, action)` →
@@ -38,7 +38,7 @@ def _mods():
         from engines.egocentric.observer import EgoObserver  # noqa: F401
     except Exception as e:
         pytest.fail("engines.egocentric is missing or broken (%s) — Phase 1 has not landed; "
-                    "see PREREG_PHASE1.md" % e)
+                    "see record/prereg/PREREG_PHASE1.md" % e)
     from engines.egocentric import perception as P
     from engines.egocentric import self_locus as SL
     from engines.egocentric.observer import EgoObserver as EO

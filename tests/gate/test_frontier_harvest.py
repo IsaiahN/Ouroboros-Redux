@@ -6,7 +6,7 @@ evaporated at episode end (unrewarded => unminted). The harvest banks it as OBSE
 never signal, nothing opens the wheel — and later agents explore the frontier as one
 cumulative population-wide sweep instead of independent blind draws.
 
-THE CONTRACT (PREREG_FRONTIER_HARVEST.md):
+THE CONTRACT (record/prereg/PREREG_FRONTIER_HARVEST.md):
   * FrontierBook gains: record_harvest(game, level, dead=[cells], effects=[cells],
     fatal=cell|None, deltas={action: (dr, dc)}) — one collective "frontier_harvest" record;
   * load_harvest(game, level) -> dict with:

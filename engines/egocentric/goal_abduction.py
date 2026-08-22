@@ -1,4 +1,4 @@
-"""goal_abduction.py -- G-C: goal abduction (PREREG_FINAL_GAPS.md).
+"""goal_abduction.py -- G-C: goal abduction (record/prereg/PREREG_FINAL_GAPS.md).
 
 The thin link past d->0-to-reference: at the moment of a level-up, the frame
 delta is mined for STRUCTURAL predicates that BECAME true across the transition

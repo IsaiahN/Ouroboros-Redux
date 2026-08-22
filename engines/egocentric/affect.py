@@ -85,7 +85,7 @@ class AffectGains:
     def _recent_settlements(self) -> List[Dict[str, Any]]:
         """The last WINDOW settlements -- read as a TAIL, not as a whole stream.
 
-        PERF_AUDIT.md Q4: this was `query(...)[-WINDOW:]`, a full-file parse answering a
+        record/prereg/PERF_AUDIT.md Q4: this was `query(...)[-WINDOW:]`, a full-file parse answering a
         20-record question, and gains() calls it from cognitive_loop.py:1849 twice per
         step -- 0.314 ms over 20 records, 262.250 ms over 40,000, on boxes carrying
         28,772. `query_tail` returns the identical list (byte-identical by contract:
@@ -145,7 +145,7 @@ class AffectGains:
                    mints, len(verdicts), self.errors))
         return line
 
-    # ── R1 CONSUMER (PREREG_READOUTS.md): starvation STEERS, never prices ─────
+    # ── R1 CONSUMER (record/prereg/PREREG_READOUTS.md): starvation STEERS, never prices ─────
 
     STARVE_WINDOW = 6     # <= 1 record/socket/episode: the trailing episode's block
     STARVE_STEP = 0.25    # one starved socket -> +25% exploration effort

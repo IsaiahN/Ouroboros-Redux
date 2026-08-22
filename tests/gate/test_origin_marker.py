@@ -1,4 +1,4 @@
-"""GATE: THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B; CLAIM.md, verified-not-asserted).
+"""GATE: THE ORIGIN MARKER (record/prereg/PREREG_DRAIN_ORIGIN.md §B; CLAIM.md, verified-not-asserted).
 
 ⭐ WHY: READ, not asserted -- 1,514 atom records; ZERO carried `imported`, ZERO carried
 `source_game`. local-vs-imported was carried by the ABSENCE OF FIELDS, which is the

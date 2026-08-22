@@ -44,7 +44,7 @@ hits are DOWN-WEIGHTED in ranking (a stranger's equal atom always outranks kin's
 Lineage is read from the atom record's "agent"/"by"/"kin" fields where present; the
 candidate's `kin_echo` flag makes the down-weight auditable.
 
-THE RANKED DRAIN (PREREG_DRAIN_ORIGIN.md §A; KNOBS G21): the PHASE-2 agenda is a
+THE RANKED DRAIN (record/prereg/PREREG_DRAIN_ORIGIN.md §A; KNOBS G21): the PHASE-2 agenda is a
 BOUNDED RANKED SELECTION, not FIFO. The queue-order defect (THE_LADDER, "CORRECTION
 TO THE TALLY READING"): 388,184 records of which 82,301 carry a COMPLETE sigma, while
 a ~370k PRE-CHARACTERIZATION backlog of {slot,residual,seq} records sat at the FRONT --
@@ -59,7 +59,7 @@ THE OFF-ARM (CLAIM.md's ablation constraint, shipped as a PASSING test): DRAIN_R
 in the environment, or DRAIN_RANKED=False on this module, returns `pending(fabric)`
 VERBATIM -- oldest-first, byte-identical on disk (tests/gate/test_ranked_drain.py).
 
-THE RHO RANKING (G-A, PREREG_FINAL_GAPS.md): mounted fabrics are correlated
+THE RHO RANKING (G-A, record/prereg/PREREG_FINAL_GAPS.md): mounted fabrics are correlated
 witnesses. Below the kin-echo key, multi-source hits prefer the LOW-rho source
 (lowest weighted-Jaccard correlation with the HOME fabric's own atoms --
 independence is the gate, Fig 8's debit); the COLLAPSE-4 GUARD folds source
@@ -416,7 +416,7 @@ def _rank_key(rec: Dict[str, Any]) -> Tuple[int, float, int]:
 
 
 def _drain_order(fabric) -> List[Dict[str, Any]]:
-    """THE PHASE-2 AGENDA (PREREG_DRAIN_ORIGIN.md §A). Ranked arm: the NEWEST
+    """THE PHASE-2 AGENDA (record/prereg/PREREG_DRAIN_ORIGIN.md §A). Ranked arm: the NEWEST
     DRAIN_WINDOW pending records, sorted by (characterized, -residual, -seq) --
     bounded by construction, never a whole-queue sort, so a characterized record
     older than the window is NOT promoted (that is the bound's falsifier).
@@ -941,7 +941,7 @@ def seed_imports(gamma, fabric, game, level) -> int:
     the atom does not already carry one), so the 25/25 census can name every
     atom's native + imported source.
 
-    THE ORIGIN MARKER (PREREG_DRAIN_ORIGIN.md §B): this is the IMPORTED write
+    THE ORIGIN MARKER (record/prereg/PREREG_DRAIN_ORIGIN.md §B): this is the IMPORTED write
     site. Every seeded record is stamped origin="imported" + source_game (+ the
     source atom's seq) AT WRITE TIME by Gamma.add -- provenance recorded
     positively, never by the absence of fields. The already-have scan reads that

@@ -5,7 +5,7 @@ granularity, and the room chain's admission substrate. The spine was proven on t
 (nine lifecycles); its three paid-for laws are baked in from commit one. IN THIS STEP THE BETS
 DRIVE NOTHING — containment is byte-identity.
 
-THE CONTRACT (PREREG_MARKETPLACE_MERGE.md):
+THE CONTRACT (record/prereg/PREREG_MARKETPLACE_MERGE.md):
   * engines/egocentric/pricing.py — the iced marketplace core VERBATIM (sha-verified):
     Hypothesis, informative_salience (no-change frame → match fraction; hallucination
     penalised; normalised by n_changed), Marketplace.resolve (name tie-break, positive-to-

@@ -1,6 +1,6 @@
 """B14 GATE: FABRIC_JANITOR — smart compaction that changes NO consumer answer.
 
-⭐ WHY (PREREG_SMART_CLEANUP.md). 25 fabrics grow in parallel; telemetry is capped,
+⭐ WHY (record/prereg/PREREG_SMART_CLEANUP.md). 25 fabrics grow in parallel; telemetry is capped,
 knowledge is kept forever. Size-triggered (never cadence), loud (a manifest every run,
 the silent-failure fix), compaction not deletion where data has summary value.
 

@@ -1,4 +1,4 @@
-"""G-D: the LP drive -- C33's three-arm exploration control (PREREG_FINAL_GAPS.md).
+"""G-D: the LP drive -- C33's three-arm exploration control (record/prereg/PREREG_FINAL_GAPS.md).
 
 The arm is selected per worker by the LP_DRIVE_ARM env variable (the swarm
 supervisor assigns it deterministically, sha1(game) mod 3 -- assign_arm below):

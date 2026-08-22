@@ -1,4 +1,4 @@
-"""R3 GATE (PREREG_READOUTS.md): produced-but-never-consumed — the build gate.
+"""R3 GATE (record/prereg/PREREG_READOUTS.md): produced-but-never-consumed — the build gate.
 
 Static source inventory over the repo's PRODUCTION python sources: every fabric topic
 WRITTEN somewhere (an `.append(scope, "topic", record)` call whose topic resolves to a
@@ -17,7 +17,7 @@ has a real consumer; a stream nothing ever queries does not.
 Topic literals are resolved through module- and class-level string constants
 (`TOPIC = "atoms"` etc.); unresolvable dynamic topics are outside this gate's reach.
 
-KNOWN OPEN TODAY: "levelup_frames" (VICTORY_PROTOCOL.md record-keeping) — written by
+KNOWN OPEN TODAY: "levelup_frames" (record/prereg/VICTORY_PROTOCOL.md record-keeping) — written by
 GoalBook.observe_levelup so the level-up pre/post snapshots survive; its consumer is
 the OFF-LINE 25/25 victory census (archive + annotate), not runtime code, so the
 entry stands as a cited promise. import_queue's consumer landed (B12,
@@ -41,7 +41,7 @@ if REPO not in sys.path:
 # B15: import_queue's entry DELETED — the triangulation consumer (B12) reads it.
 ALLOWLIST: Dict[str, str] = {
     "levelup_frames": (
-        "VICTORY_PROTOCOL.md (records kept NOW, unrecoverable later): level-up "
+        "record/prereg/VICTORY_PROTOCOL.md (records kept NOW, unrecoverable later): level-up "
         "pre/post frame snapshots, persisted by GoalBook.observe_levelup; the "
         "consumer is the off-line 25/25 victory census (archive + annotate)"),
     "rho_readings": (
@@ -71,7 +71,7 @@ ALLOWLIST: Dict[str, str] = {
         "mechanism (gate.deadline_violation) refuses that flip until the "
         "opener-side PERCEIVE has relocated into the spine"),
     "refit_queue": (
-        "PREREG_REFIT_DESTINATION.md (Seat 3 ruling, 2026-08-19): ROUTE has four "
+        "record/prereg/PREREG_REFIT_DESTINATION.md (Seat 3 ruling, 2026-08-19): ROUTE has four "
         "bins and BROKEN-rebinding was the only one with no destination -- it "
         "appended to an in-memory list referenced nowhere, so the bin that means "
         "'repair this, do not mint' died with the process. The ruled order is "
