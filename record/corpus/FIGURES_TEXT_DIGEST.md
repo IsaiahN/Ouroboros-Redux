@@ -1,0 +1,554 @@
+# FIGURES — text digest (auto-extracted from figures/*.svg, document order; the SVGs are the law, this is the index)
+
+## Figure_1_The_Agent_REV3.svg
+- FIGURE 1
+- The Agent: How Structure Grows
+- Everything here either produces a residual or consumes the library.
+- Γ: typed DSL + library
+- holds structure
+- ground: RLVR
+- the only metric
+- per-step loop (POMDP)
+- perceive · plan · act · predict
+- one bet per object slot, every action
+- residual R indexed by object slot
+- transition · reward · bracket
+- a global R near zero with one live slot residual is a legal state
+- boundary diff
+- where to look: broken vs novel
+- mint φ if the description length pays
+- guards: support · reach · novel
+- support evaluated per slot
+- The residual is indexed by object slot, not aggregated.
+- Support is satisfied when some slot carries positive mass, so a global residual near zero with one live slot is a legal state and not an inert
+- one.
+- Aggregating across slots is how a live signal disappears into an average.
+- The ground enters as the only metric.
+- Everything else either produces a residual or consumes the library. These do not count:
+- coverage, and compression achieved
+- predicates minted, and credibility accrued
+- They are frame-internal. A frame cannot score itself with a quantity it also produces.
+- The gap is measured per object, not per step. A system that averages across objects has thrown away the only signal that says where to look.
+
+## Figure_2_The_Ground_REV (1).svg
+- FIGURE 2
+- The Ground and the Alignment Problem
+- What makes correction possible, and the two ways a design destroys it.
+- collapse 1: mutual update
+- (coherent drift)
+- collapse 2: common cause
+- (hidden shared source)
+- grounded: the guard
+- (what correction needs)
+- A
+- B
+- C
+- no anchor; each updates on the others
+- they converge, and what they converge on
+- is whoever had the most influence
+- one evidence pool
+- they never talk, and still agree
+- so the agreement is the pool talking,
+- not two frames confirming each other
+- the anchor
+- pinned: it does not update on A or B
+- both range against it; it is not
+- a third party to the disagreement
+- Two words this figure introduces, used by every figure after it
+- An anchor is whatever settles the question and does not change its answer because of what any frame thinks. A measurement, an experiment, a counter, a market, a patient outcome. If it moves when
+- you push on it, it is not an anchor.
+- Independence, between two frames, is how little they draw on the same evidence. Two people reading the same report are not two frames; two instruments pointed at the same thing are. Independence
+- is what makes agreement mean something.
+- The anchor must not update.
+- If it does, panel 3 turns into panel 1: the anchor becomes another frame, everything drifts together, and the drift is coherent, which is why nobody notices.
+- Alignment is triangulation, not negotiation. A mirror cannot correct you.
+- An anchor is legitimate when the question is constitutively about it.
+- Human judgment is the right anchor for is this a good answer for a person, because the question is about people. It is only an instrument for is this code correct, and instruments can be wrong on axes they
+- do not measure.
+- Correlation has valence.
+- disqualifying for a verdict: agreement about the world is worthless when the agreeing frames share an evidence pool
+- efficient for a convention: agreement about a shared meaning is the product, not a corruption of it
+- Buy independence in proportion to the cost of being wrong.
+- Guard, from Figure 10: a convention that decides an outcome has stopped being one.
+- The effective-sample-size correction for correlated observations is standard in survey statistics and meta-analysis; the collapse is the same arithmetic read as a warning.
+- Frames range against the ground. They do not negotiate with it.
+- The anchor is not a third party to the disagreement and it is not the tie-breaker in a vote. Each frame is corrected by it separately, and what makes the correction sound is that neither frame can move it.
+- A ground listed as one of the parties has already become a frame. Which is panel 1, arrived at by a different route.
+
+## Figure_3_Dependency_Chain_REV.svg
+- FIGURE 3
+- The Dependency Chain: Status Per Link
+- Why a chain that is strong at the top and broken in the middle produces nothing at all.
+- 1 · perception
+- the system can tell what is in front of it, and tell it apart from what was there before
+- 2 · vocabulary
+- it has terms for what things afford: what can be moved, opened, joined, blocked
+- what the search can reach
+- 3 · the objective
+- it can say what would count as progress here, in its own terms
+- what the search is for
+- 4 · planning
+- a route to that objective, chosen under incomplete information
+- 5 · learn and carry
+- name what worked, verify it, and carry it to the next problem
+- measured, and failing
+- never reached, so never assessed
+- Optimising a link that already works cannot rescue one that does not.
+- The chain is ordered by dependency, not by importance. Each link consumes what the one above produces, so effort spent above the break arrives at a step
+- that cannot use it.
+- A step whose input never arrives cannot be diagnosed, only its predecessor can. Which is why a reading taken below the break is not a weak
+- reading. It is a reading of nothing.
+- Why the middle link is where chains usually break.
+- Perception has obvious failures and obvious tests. Planning has obvious failures and obvious tests. The link between them, having terms for what a
+- situation offers and being able to say what would count as progress, has neither, so it attracts the least attention and the fewest instruments.
+- A link with no instrument is not a link that works. It is a link nobody has looked at.
+- What this figure is for.
+- Before asking whether a system is good, ask which link it currently stops at, and whether the answer was measured or assumed. Most improvement effort in
+- practice lands above the break, because that is where the measurements already exist.
+
+## Figure_4_The_Membrane.svg
+- FIGURE 4
+- The Membrane Between Scales
+- The same machine at two sizes, and the rule about what may pass between them.
+- the population
+- many agents, a shared library, and something that ranks what they produce
+- the membrane
+- carry up
+- a method that can be reapplied
+- verified, and compressed to its essentials
+- send down
+- a head start, never a recording
+- it makes the next agent’s search cheaper
+- the round trip
+- carry it up, bring it
+- back down, compare
+- one agent
+- the step-by-step loop, and the thing that names what it found
+- Two words this figure uses
+- The kernel is the part that does not change with size: the same loop and the same rule for naming what worked, whether one agent is running
+- it or a thousand. Only the actors, the currency and the anchor change.
+- The membrane is the boundary between the sizes, and the rule about what may cross it. Not a wall: a filter with a direction.
+- Only methods cross up. Only head starts come down.
+- upward: a method that can be reapplied. Never the recording of a particular success.
+- downward: something that makes the next search cheaper. Never a replay of what worked once.
+- A recording carried upward looks like knowledge and is a description of one occasion. Replayed downward, it produces a system that repeats a past success
+- and cannot produce a new one.
+- The transform between scales loses information, and that is the point.
+- Going up throws away detail; that is what makes the result reapplicable. But it means the trip is not reversible, and something carried up and brought
+- back down will not match what was sent.
+- So take the round trip and measure the gap. Without it you are navigating by dead reckoning: confident about a position nobody checked.
+- The gap is not an error to eliminate. It is the measurement of what the coarser description cannot hold, and it is the only honest report of how much was
+- given up.
+- Which is why there is no top and no infinite regress.
+- The level a method lands on remakes it. A seed carries no small tree: it carries what will grow one, and the conditions it lands in decide what it
+- becomes.
+- The round trip is a rediscovery of the abstraction-and-concretisation cycle in abstract interpretation, Cousot and Cousot, 1977. What is not borrowed is using the size of the gap to decide
+- when a new term is worth minting.
+
+## Figure_5_The_Mint_Pipeline_REV.svg
+- FIGURE 5
+- The Mint Pipeline
+- What licenses a new term, and what forces the system to make do with the ones it has.
+- the prediction gap
+- fires on every action
+- the score
+- only when something scores
+- the round trip
+- the loss across scales
+- sort the gap into four kinds
+- held: the model was right, nothing owed
+- new: extend perception, aim the probe here
+- mis-attached: refit what you have, do not invent
+- mechanism broken: a new term is owed
+- the curiosity drive
+- fires when nothing is scoring
+- aimed at the new bin
+- seeks the gap that is large and compressible
+- the three guards, all of which must pass
+- is there anything to explain?
+- the gap has real mass somewhere
+- can we even build this term?
+- it composes from what we already have
+- is it actually new?
+- it is not already in the library
+- and then: does the new term cost less to state than the confusion it removes?
+- park it
+- keep the gap, look for an import
+- nothing new here
+- the machinery worked; the answer was already known
+- admit the term
+- then check it against the ground, then carry it up
+- The three guards are a product, not a checklist.
+- They are drawn in the diagram in the order each becomes checkable, not in order of importance:
+- is there anything to explain, before the search starts
+- 1.
+- can the term be built from what we have, during the search
+- 2.
+- is it actually new, after a candidate exists
+- 3.
+- Any one of them at zero stops the mint entirely. Which is why a system that is minting nothing may have nothing wrong with its minting.
+- The acceptance test is a bargain, not a threshold.
+- A new term is worth having when stating it, plus what remains unexplained after it, costs less than what was unexplained before. A term that explains everything by saying nothing
+- fails this, and so does a term that explains one occasion perfectly.
+- This is minimum description length, Rissanen 1978, which is itself a composition of Kolmogorov complexity and Shannon coding put to work on model selection.
+- When nothing is scoring, the drive manufactures a gradient.
+- So a system that starts with nothing can still be shaped, by seeking the gap that is large and compressible, which is the same quantity the acceptance test scores.
+- Its own output is never a measure of success. A system can be enthusiastically curious and produce nothing.
+- Machinery firing is not the milestone. A running system can mint and still return nothing new, which is exactly what the third guard exists to record.
+
+## Figure_6_Closure_Reachability_REV.svg
+- FIGURE 6
+- Closure and Reachability: What Moves the Wall
+- Why composition cannot escape its own library, and what can.
+- φ*
+- closure(Γ)
+- atoms(Γ)
+- mint moves only in here
+- not composable: REACHABILITY fails
+- external source
+- nature · corpus · peer frame
+- IMPORT
+- source gate: provenance
+- shadow test: explains a gap
+- the only operator that moves the wall
+- closure(Γ): expanded
+- atoms(Γ) + one
+- the imported primitive
+- mint can now reach φ*
+- closure expands; φ* now reachable
+- MINT composes inside the closure and can never add an atom.
+- NOVEL means novel relative to atoms, not to the world. IMPORT adds an atom, and the added atom is what expands the closure.
+- No frame escapes its own closure. The bound moves only on contact with a frame whose closure differs.
+- Import from a live peer is debited against that frame’s independence. A wrong atom costs more than starting from primitives.
+- An import adds no atom to the world.
+- The world does not gain primitives; a frame gains access. Composition explores what the operators reach; instruments extend what can be represented at all.
+- Which is why some unreachability is depth and some is genuine absence, and from inside the frame the two look the same.
+- Which makes reachability two questions, not one. The instruments are opposed.
+- inward: is our representation adequate to hold it? The instrument extends access. Fails by refining forever on an axis that cannot carry it. Sharpen in our own terms.
+- outward: does another frame already hold it? The description travels. Fails by being sharpened into terms only we can read. Cast it in effect terms.
+- Neither answer tells you much about the other. Run them as two tracks, and never read one against the other.
+- An instrument is not built from a description. It is improved from a worse instrument already returning something.
+- Nobody specified a telescope from an account of Mars. A wandering point in the sky was already a reading, and every sharper instrument was built on the residual the last one produced.
+- The question is not whether a sensor could exist. It is whether anything, at any resolution, is already returning something that fails to resolve. Where nothing is, there is no edge to
+- extend from, and the search for a proto-instrument is a search for one that is already there.
+- What this rule does not say
+- It tells a question that nothing could ever answer apart from one that is merely hard. It is not a rule about theory.
+- theory routinely precedes its instrument, and is welcome to. Neptune was calculated before it was seen, and the prediction is what told anyone where to point
+- instruments do not have to improve by small steps. A jump in resolution is fine
+- What is unavailable is a sensor for something that has never registered anywhere, at any resolution. That is the whole of it.
+
+## Figure_7_The_Room_Chain_REV.svg
+- FIGURE 7
+- The Room Chain
+- Handing a question along, and what makes the handoff progress rather than motion.
+- collapse 3: the mirror chain
+- grounded: selection between rooms
+- the limit: no last room
+- room t
+- ρ ≈ 1
+- room t+1
+- room t+2
+- same closure, handed along;
+- agreement compounds, evidence does not
+- blending: novelty swamped to the mean
+- R_t
+- h²
+- ground
+- R_t+1
+- low ρ between rooms; the next room is picked
+- against the residual the last one surfaced
+- progress per handoff: R = h² × S
+- reality
+- gap > 0
+- what the chain can reach
+- every room closes some of the gap;
+- no finite number of them ever arrives
+- → one long room: motion, no progress
+- → variation inside, selection between
+- → the truth is where the schedule is heading
+- A room’s agreement is variation, not a verdict. Selection between rooms is where the ground votes.
+- A chain of mirrors is one long room. The next room must differ from the last, and match the residual it surfaced.
+- Progress per handoff has two factors. Zero either and the chain runs in place:
+- the bracket’s fidelity across the handoff
+- the ground’s pressure on the room
+- The room is summoned by the residual rather than composed.
+- And the pool it is drawn from must be unauthored. See Figures 10 and 11.
+- The chain approaches the truth only as the world runs out of ways to refuse it. Which means the next room you book is the direction you travel, and booking a room like the last one is how a chain stops travelling at all.
+
+## Figure_8_The_Union_Surplus.svg
+- FIGURE 8
+- The Union Surplus: Where Imports Live
+- Why two frames together reach what neither reaches alone.
+- collapse 4: the blend
+- → vocabulary, never an atom
+- collapse 5: the undirected union
+- → interdisciplinarity, no mint
+- grounded: triangulation
+- → the wall moves
+- A
+- B
+- high overlap
+- same atoms, different names
+- their union adds nothing
+- two names for one frame
+- ?
+- closures differ, so a surplus exists
+- but no residual is described
+- nothing was aimed; the union is mute
+- R
+- 2: the atom crosses back
+- 1: describe R, then find the frame
+- that already predicts its shape
+- low overlap: B does not draw on A’s evidence
+- underivable, and searchable
+- Why A cannot derive the atom on its own
+- Closure is idempotent. Composing inside a closed set never leaves it, so no search, however long, adds an atom. This one is definitional: it is what closure means.
+- 1.
+- A frame cannot reach its own metaframe. Godel’s second theorem: a consistent system cannot prove its own consistency. Tarski: truth for a language is not definable
+- within that language.
+- 2.
+- A frame cannot certify its own limit. Chaitin: beyond a fixed constant, no system proves that any object exceeds its own complexity.
+- 3.
+- So a search that finds nothing is never a proof of absence.
+- Scope. These prove the metaframe is underivable. They do not prove any particular atom is far away. Underivable-in-principle and unreachable-at-this-budget are
+- different facts, and they issue the same instruction: go outside.
+- Godel 1931; Tarski 1936; Chaitin 1974.
+- Two frames together reach what neither reaches alone.
+- Composition crosses the boundary between them, and that surplus is where imports live.
+- Independence is one quantity read twice.
+- How much two frames draw on the same evidence decides both whether their agreement means anything and whether their union has any surplus. Two frames that overlap almost
+- completely are one frame wearing two names.
+- But shared atoms are not the signature. Two frames can hold the same atom by convergence, reaching it separately, which is corroboration at maximum independence.
+- Convergent derivation and adopted import look identical in the contents. Only the record of where each came from separates them, and the surplus lives only where the closures
+- differ.
+- Residual first, frame second.
+- The atom cannot be derived from inside A. But the union is searchable from contact, so underivable is not unknowable.
+- Figure 6 says only import moves the wall. Figure 8 says why nothing else can, where the atom comes from, and in which direction it is found.
+- How to read the claims here. Rules 1 to 3 are proved theorems. The triangulation claim fits four cases already known and has not been tested forward: Wiles and Frey, Montgomery and Dyson, Bekenstein and
+- holography, the relativization barriers in complexity theory.
+
+## Figure_9_Leave_Arrive_Search.svg
+- FIGURE 9
+- When Composition Stops Working
+- How you know to leave, where to go, and what it costs to arrive.
+- First: is there a fact here? Disagreements that do not shrink with effort, where each rule keeps working well on a different subset,
+- are not one hard question but several well-formed ones. Split it rather than search.
+- 1 · the verdict: is φ* in here at all?
+- 2 · the lookup: which frame holds it?
+- 3 · the narrowing: which one is it?
+- closure(Γ)
+- φ
+- φ*
+- REACHABILITY fails
+- the witness
+- a frame whose
+- closure differs
+- the edge can only be named from beyond it
+- φ found: one composition that pays, proved inside
+- φ* out of reach: nothing inside can prove that
+- the witness is always imported
+- → "it is not in here" cannot be proved from inside
+- R, described
+- arity · symmetry · scale
+- the frame whose
+- closure predicts it
+- one lookup
+- R's own predicates name the habitat that holds φ*
+- describe it before you go looking, or
+- any frame you pick will seem to fit
+- matching is a one-pass check, not a search
+- your words are borrowed too, so describe the effect
+- rather than the cause
+- → you get a kind of thing, never the answer itself
+- candidates
+- kept
+- + φ*
+- ground
+- elimination compounds here, and only here
+- cheap because the new atom shrank the space
+- a wrong cut removes the answer and speeds up
+- so keep every cut ranked and reversible
+- → narrowing gets you close, the ground decides
+- The verdict tells you to leave. The lookup tells you where to go. Elimination is what you do after you arrive.
+- Only a sealed room can be searched to the end, and no frame is a sealed room. So searching and finding nothing proves nothing.
+- Describing the residual is the expensive part. Leaving, looking up and recognising are one step each, and cheap only in that order.
+- The residual selects at three ranges.
+- the question it is a residual of
+- 1.
+- the frame whose closure predicts its shape
+- 2.
+- what the verifier may see: evidence bearing on the residual is admissible; evidence bearing only on its maker is a stake-inducing channel, and the verifier is denied it
+- 3.
+- Nobody chooses. The gap does, and the gap is only as good as its description.
+- And when the split lands on a union rather than a partition, unbundle before you search again.
+- A bundled problem is usually a union of overlapping conditions, not a list of separate ones. A single lever clears the region where only one condition holds and leaves the
+- intersections standing, because the second condition still binds.
+- What remains is smaller and it is also categorically different: a case in two conditions is not a harder case of either. It stops being a mixture and becomes a specific
+- compound.
+- Which is the second-order value of a big lever, and usually the larger one: not that the pile is smaller, but that the residue is finally describable.
+- Use filters for the budget and witnesses for the verdict. Never let a filter hand you a verdict.
+- Figure 8 says where the new atom comes from. Figure 9 says how you know to leave, where to go, and what it costs to arrive. Figure 11 says where the actors come from once you are there.
+
+## Figure_10_The_Ground_Maintainer.svg
+- FIGURE 10
+- The Ground Maintainer
+- The seat that keeps the ground reachable, and what it may never author.
+- 1 · the seam
+- 2 · the channel
+- 3 · the crossing
+- writes
+- level
+- reads
+- convention
+- both locally correct
+- two frames, one field, no shared reading
+- a disagreement nothing can state
+- is not yet a defect
+- the convention does not fix the bug
+- it makes the bug statable
+- a declared meaning is not a grounded one
+- → install what can be violated
+- closure(Γ)
+- the ground
+- does not update
+- R never arrives
+- the ground does not decay, the channel does
+- stale percepts, dropped transients,
+- saturated metrics, pooled readings
+- the output is not a verdict, it is
+- you have lost touch
+- → keep the anchor reachable
+- another frame
+- closure differs
+- φ*
+- provenance
+- shadow test
+- the only seat standing in a second frame
+- it carries only what it did not author,
+- and as little as it can
+- every atom carried is a discovery
+- the frame did not have to make
+- → carry, never author
+- A verifier that can reconstruct the claim cannot verify it.
+- Soundness requires the checker to be unable to produce what it is checking. Never a player, never a proxy, never the author of a verdict or an atom. It transmits verdicts and issues
+- none.
+- It does author conventions, because nothing else can see across a seam.
+- A convention makes no claim about the world; a verdict and an atom both do. The seat may author what has no truth value and nothing that does.
+- a convention that decides an outcome has stopped being one
+- a convention nothing can check is a constant the seat authored, carrying the seat’s authority
+- Declaring a meaning does not ground it.
+- Looking inside the frame it grades is how the seat stops being outside.
+- A seat that reads that interior acquires the frame’s model, and thereafter grades reports against its own picture rather than against the ground.
+- Bring a characterised residual, never the source.
+- And a prohibition nothing can satisfy is a prohibition stated wrong.
+- A rule no real occupant could meet describes an idealisation, not a position. Before enforcing an absolute, ask what would have to be true for a real occupant to meet it.
+- The cost is not only that the rule describes nobody. An idealisation licenses inferences no real position would support, and those inferences will be drawn by whoever
+- finds them useful.
+- Below is the one this figure had.
+- A seat with no stake at all does not exist.
+- The condition is that nothing about which value the ground returns today serves the occupant: an interest in the outcome is unavoidable, an interest in the reading is disqualifying.
+- Where a stake cannot be removed, declare it. An undeclared interest is modelled anyway and an unnamed model runs unchallenged.
+- And standing is a stake that survives the outcome it was earned on.
+- A ruling carries provenance like an atom.
+- The residual it answered, the reasoning, the date, in a record the seats below can read. Not so the ruling can be appealed, but so a later reader can locate the error rather than
+- only feel it.
+- Provenance shows a ruling was reached legitimately. It never shows it was right: the ground does that, and a wrong ruling stays wrong however clean its record. A
+- perfectly provenanced wrong ruling is an unimpeachable record of nothing, and it is still to be corrected.
+- The seat above is not a larger copy of this one.
+- Different actors, a different currency, a different ground, and a lossy transform between. That is why there is no top rung and no regress: a generator crosses, an instance does
+- not, and the level it lands on remakes it.
+- If levels were copies there would be one lineage drifting and no branches. The tree of life is what a non-invertible transform looks like from outside.
+- The room composition is a function of the question.
+- When the question changes, the room should change. A room that stays fixed while the question moves is the failure; the correlation is only its symptom.
+- The residual selects the members, but only from what is available. A candidate set chosen by a participant is an authored room however well the selection is reasoned, so the pool
+- must be unauthored first and examined second. Reverse the order and the stacking is the selection.
+- A conscientious selection is still a selection, so unauthored needs a mechanism:
+- a lottery
+- everyone who qualifies
+- a set assembled before the question existed
+- or the habitat itself, enumerated rather than composed. See Figure 11.
+- And divergence regenerates unevenly. Frames whose independence is renewed by separate experience can be maintained; frames whose correlation is fixed at origin can only be rotated,
+- because no amount of use makes them less alike and replacement is the only refresh.
+- Three panels, one move: arrange for refusal. Nothing on the list is judgment, which is why the seat survives being held by someone who cannot see inside.
+- How to read the claims here. The three offices and the three prohibitions are rules this framework imposes on itself. The selection test is derived from Figure 2 and has not been tested forward, so it can still come back wrong.
+- see also. Zero-knowledge proof systems, where the verifier’s non-access to the witness is what makes the verification sound rather than a limitation it tolerates.
+- Who holds the seat is not chosen. The position selects the occupant.
+- Outside the slice being graded. Whoever is measured by a reading cannot own it.
+- 1.
+- No gain from any particular reading. A seat with no stake at all does not exist, so declare what cannot be removed, and remember that standing is a stake that
+- survives the outcome it was earned on.
+- 2.
+- Sees what agreement hides. The collapses are invisible from inside the frames that are collapsing.
+- 3.
+- A ground with a reputation to protect is a ground someone benefits from, and its keeper is thereby disqualified.
+
+## Figure_11_The_Habitat.svg
+- FIGURE 11
+- The Habitat: Survival, Arrival, and Isolation
+- Where the actors come from, who may act on them, and what it costs to move a residual somewhere else.
+- 1 · unmaintained
+- survival of the fittest
+- 2 · maintained
+- arrival worked on
+- 3 · isolated
+- the habitat substituted
+- the habitat
+- pure contact
+- the ground
+- no seat, no live frame
+- nothing selects; what survives
+- is what the ground kept
+- introduced
+- a seat acts on the habitat
+- instrument, distil, introduce;
+- the ground still decides
+- new habitat
+- substituted
+- reproduced
+- unchosen
+- two silent failure modes
+- what you failed to reproduce,
+- and what you brought with you
+- → nothing chooses
+- → introduce, never subtract
+- → substituted, not removed
+- What is intelligence?
+- The wrong question, and this figure is the replacement for it.
+- Where nothing maintains anything, intelligence is a label applied afterwards to a lineage that met its ground. Nothing was intelligent; selection ran. The word does no work there.
+- Where a seat exists, something is doing work, and it is exactly what the seat does: enumerate the habitat, rank by cascade, introduce actors, build instruments, read the ground.
+- That is not a metaphor for intelligence. It is a description of the practice.
+- So the answerable question is not what intelligence is, but what makes a system capable. And capability is a property of agent-and-habitat, never of the agent alone.
+- A system cannot be made more capable by improving the agent in isolation. An improvement that does not change contact changes nothing, however much it improves.
+- Which is the same move as asking what generates lift rather than whether a thing is a bird. The substrate question dissolves; the contact question does not.
+- The lift move is Cayley’s, 1799: separating the forces from the flapping is what made powered flight a problem anyone could work on.
+- The habitat is enumerated, never composed.
+- List everything in contact with the residual, then what is in contact with those, and outward until the cascade stops mattering.
+- actors: what acts on it, and what it acts on
+- conditions: light, water, temperature, season, terrain
+- relations: pollination, predation, competition, dependency
+- You do not invent the list. You read it off the world, and what you cannot perceive or measure yet is the residual.
+- An actor’s valence is relative to the residual, not a property it carries.
+- The same actor is a benefactor to one residual and a malfactor to another, so mutualism and parasitism are relations rather than kinds.
+- No standing list of good actors survives a change of residual.
+- And contact cascades. Scoping the habitat to direct contact is how DDT reached the eagles: first-order enumeration, second-order effect, and the residual that mattered was three
+- steps out.
+- Carson, Silent Spring, 1962. The mechanism, biomagnification through the food chain to eggshell thinning, was established over the following decade.
+- Two modes, and only one of them has a seat.
+- Unmaintained. No maintainer and no live frame in the seat. The habitat is pure contact, nothing selects, and what survives is what the ground kept.
+- 1.
+- Maintained. A seat exists and can act: choose the instruments, distil the impactful actors, introduce what was not there. That is the garden, and it is how arrival is worked on
+- rather than waited for.
+- 2.
+- The seat’s power is asymmetric. Introduction is available; exclusion is not. You can add an actor and you cannot subtract the habitat, because contact is a fact about
+- the world and does not consult you.
+- Which is why a managed ecosystem is permanent work rather than a solved state. And in neither mode is the habitat composed: unmaintained nothing composes it, maintained the seat
+- adds to a habitat it still did not author.
+- Introducing an actor for its cascade is ecosystem engineering, after Jones, Lawton and Shachak, 1994. Cane toads and kudzu are the same move with the cascade unenumerated.
+- Isolation is not removal of the habitat. It is substitution of one habitat for another.
+- Move the residual and you must reproduce everything its goal required, and you inherit the new habitat’s actors, which you did not choose.
+- what you failed to reproduce is invisible until the goal fails
+- what you unintentionally introduced is invisible until it acts
+- A test harness is a substituted habitat. Which is why a synthetic solve proves wiring and never capability.
+- How to read the claims here. Enumeration and asymmetry are rules this framework imposes on itself. The isolation law and the capability claim fit cases already known and have not been tested forward, so they
+- can still come back wrong: an agent-only improvement that moved the ground would refute the capability claim.
+- The habitat is not the ground. The habitat is where actors come from and it updates; the ground is what settles, and it does not.

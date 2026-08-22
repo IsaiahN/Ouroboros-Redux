@@ -238,7 +238,8 @@ class TestTheLpArm:
         before = affect.gains()
         affect.lp_steer([((5, 5), 0.9), ((2, 2), 0.5)], GAME)
         after = affect.gains()
-        assert before == after and set(after) == {"seed_bias", "mint_bar"}
+        assert before == after and set(after) == {"seed_bias", "mint_bar",
+                                                  "persist"}
         with open(lp.__file__, encoding="utf-8") as f:
             src = f.read()
         assert ".append(" not in src.replace("out.append(", ""), (

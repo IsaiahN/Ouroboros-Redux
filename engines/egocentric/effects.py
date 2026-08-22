@@ -448,11 +448,23 @@ def _context_anchors_vector(b: np.ndarray,
     return out
 
 
-def _context_anchors(b: np.ndarray, ctx: np.ndarray):
+def _context_anchors(b: np.ndarray, ctx: np.ndarray, band=None):
     """Anchors (r, c), row-major, where b[r:r+ph, c:c+pw] == ctx -- the ONE
     dispatch between the vectorised pass and the scalar undo path. A size-0
     patch (every in-range anchor matches vacuously) stays scalar rather than
-    pushing a degenerate window through stride tricks."""
+    pushing a degenerate window through stride tricks.
+    W2c (PREREG_W2C_PLANNER_RETENTION.md, tier 2): `band` = the changed
+    cells C (an (n, 2) array / sequence of (r, c)) RESTRICTS the scan to the
+    anchors whose window covers a changed cell (the dilation of C by the
+    patch dims, _band_mask). Sound ONLY under the caller's precondition --
+    the patch matched NOWHERE on the frame before C -- because off-band
+    windows are unchanged; the band scan then equals the full scan on the
+    new frame (first-in-row-major preserved: every off-band anchor is a
+    known non-match). The full scan stays the equivalence oracle
+    (gate: band ≡ full ∩ band on any frame). band=None is the unchanged
+    dispatch, byte-identical."""
+    if band is not None and ctx.size:
+        return _context_anchors_band(b, ctx, band)
     if _ANCHOR_SCAN_VECTORISED and ctx.size:
         return _context_anchors_vector(b, ctx)
     return _context_anchors_scalar(b, ctx)
@@ -1118,3 +1130,71 @@ def encoding_cost_atom(atom: Optional[Dict[str, Any]]) -> float:
         a = np.asarray(atom["transform"]["after"])
         changed = int((b != a).sum()) if b.shape == a.shape else int(a.size)
     return 1.0 + float(changed or 0)
+
+
+# ── W2c (PREREG_W2C_PLANNER_RETENTION.md): the BAND restriction of the scan ──
+#
+# Tier 2 of the per-state negative: a patch known to match NOWHERE on frame K
+# is re-examined on K' = K + C (C = the changed cells) ONLY at the anchors
+# whose window covers a changed cell. Every off-band window is byte-identical
+# between K and K', so it is a known non-match; the first in-band match is
+# therefore the first overall and the band scan's result EQUALS the full
+# scan's on K'. The full scan (_context_anchors with band=None) is the kept
+# equivalence oracle (tests/gate/test_planner_retention.py, F4). UNDO: drop
+# the `band` argument at the caller; this block then has no reader.
+
+def _band_mask(bh: int, bw: int, ph: int, pw: int, band) -> Optional[np.ndarray]:
+    """The anchor-grid mask ((bh-ph+1) x (bw-pw+1), bool): True where the
+    window at (r, c) covers some changed cell -- the dilation of C by the
+    patch dims, clipped to the grid. None when the patch does not fit."""
+    nr, nc = bh - ph + 1, bw - pw + 1
+    if nr <= 0 or nc <= 0:
+        return None
+    mask = np.zeros((nr, nc), dtype=bool)
+    cells = np.asarray(band).reshape(-1, 2) if np.size(band) else np.zeros((0, 2), int)
+    for cell in cells.tolist():
+        cr, cc = int(cell[0]), int(cell[1])
+        r0, r1 = max(0, cr - ph + 1), min(nr, cr + 1)
+        c0, c1 = max(0, cc - pw + 1), min(nc, cc + 1)
+        if r0 < r1 and c0 < c1:
+            mask[r0:r1, c0:c1] = True
+    return mask
+
+
+def band_positions(b_shape, ctx_shape, band) -> int:
+    """The number of anchor positions a band scan examines (the instrument's
+    band_anchors unit; the full scan's unit is the whole grid). 0 when the
+    patch does not fit."""
+    try:
+        mask = _band_mask(int(b_shape[0]), int(b_shape[1]),
+                          int(ctx_shape[0]), int(ctx_shape[1]), band)
+    except Exception:
+        return 0
+    return 0 if mask is None else int(mask.sum())
+
+
+def _context_anchors_band(b: np.ndarray, ctx: np.ndarray,
+                          band) -> List[Tuple[int, int]]:
+    """The vectorised pass restricted to the band's bounding rows/cols and
+    masked to the exact band, row-major. Same comparison as
+    _context_anchors_vector (DONT_CARE cells loose), chunked the same way."""
+    ph, pw = ctx.shape
+    bh, bw = b.shape
+    mask = _band_mask(bh, bw, ph, pw, band)
+    if mask is None or not mask.any():
+        return []
+    rows = np.flatnonzero(mask.any(axis=1))
+    cols = np.flatnonzero(mask.any(axis=0))
+    r0, r1 = int(rows[0]), int(rows[-1]) + 1
+    c0, c1 = int(cols[0]), int(cols[-1]) + 1
+    win = np.lib.stride_tricks.sliding_window_view(b, (ph, pw))[:, c0:c1]
+    loose = ctx == DONT_CARE
+    step = max(1, _SCAN_CHUNK_BYTES // max(1, (c1 - c0) * ph * pw))
+    out: List[Tuple[int, int]] = []
+    for rs0 in range(r0, r1, step):
+        rs1 = min(r1, rs0 + step)
+        hits = (((win[rs0:rs1] == ctx) | loose).all(axis=(2, 3))
+                & mask[rs0:rs1, c0:c1])
+        rs, cs = np.nonzero(hits)
+        out.extend(zip((rs + rs0).tolist(), (cs + c0).tolist(), strict=True))
+    return out

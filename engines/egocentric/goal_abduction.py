@@ -333,8 +333,14 @@ class GoalBook:
 def abduced_plan(gamma: Any, book: GoalBook, frame: Any, game: str, level: int,
                  budget: float, verified_counts: Optional[Dict[str, int]],
                  harvest: Any = None, avoid: Any = None,
-                 min_co: int = MIN_CO) -> Optional[Dict[str, Any]]:
+                 min_co: int = MIN_CO, retained: Any = None,
+                 standing: Any = None) -> Optional[Dict[str, Any]]:
     """The planner's SECOND target mode, one call (the loop's compact fallback).
+    W2c: `retained` is passed through to plan_to_identity untouched (the
+    scheduler's retention store, or None -- the undo). R3/R4: `standing` is
+    passed through the same way (the scheduler's standing book, or None) --
+    the abduced path is the SAME candidate set, so it is ranked and filtered
+    by the same rule; nothing here reads S.
 
     With no reference snapshot, plan toward the top abduced goal predicate via
     plan_to_identity's predicate mode. None when there is no credible
@@ -358,7 +364,8 @@ def abduced_plan(gamma: Any, book: GoalBook, frame: Any, game: str, level: int,
         f = np.asarray(frame)
         plan = plan_to_identity(f, None, gamma, game=str(game), level=int(level),
                                 budget=float(budget), cost_per_action=None,
-                                goal_predicate=top["pred"])
+                                goal_predicate=top["pred"], retained=retained,
+                                standing=standing)
         if plan is None:
             return None
         # L1 narration -- BOTH values on the line: the estimate AND the 1.0

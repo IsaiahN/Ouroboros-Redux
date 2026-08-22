@@ -52,16 +52,9 @@ ALLOWLIST: Dict[str, str] = {
         "by consumer._persist_rho_readings) are read at every diagnostic "
         "beat beside the counters; runtime writes, the seat reads -- the "
         "adoption rung is unanswerable without this stream"),
-    "narration": (
-        "PREREG_W1_NARRATION.md (W1: the narration spine + memory at three "
-        "ranges): the agent narrates its own loop in the loop's vocabulary -- "
-        "bet-side records (BET/PLAN/ACT) BEFORE the action executes, "
-        "outcome-side records (PERCEIVE/ROUTE/MINT/ECHO) closing against the "
-        "bet by reference, every record tagged [EP]/[OWN]/[COL] ([REPLAY] for "
-        "playback). THE CONSUMER LANDS WITH THE FALSIFIER EXPERIMENT (arm C, "
-        "narrate-and-consume: ROUTE/MINT read their own immediately-prior "
-        "narration state vs arm W write-but-never-read); this entry is "
-        "deleted then"),
+    # "narration": entry DELETED 2026-08-21 -- the persistence monitor
+    # (PREREG_PERSISTENCE_MONITOR.md, engines/egocentric/persistence.py) is the
+    # stream's reader; this gate asserts it by name below.
     "gate": (
         "PREREG_GATE_STAGE1_SHADOW.md (REASONING GATE STAGE 1: SHADOW MODE): one "
         "JSONL record per utterance (PERCEIVE / BET / ACT + a per-step SUMMARY, "
@@ -251,6 +244,18 @@ class TestTheGate:
         outside = _outside_readers("starvation", writes, reads)
         assert outside, "starvation lost its consumer (AffectGains.starvation_steer)"
         assert any("affect" in path for path, _fn in outside)
+
+    def test_narration_is_consumed_and_not_allowlisted(self):
+        """PREREG_PERSISTENCE_MONITOR.md: the persistence monitor's offline
+        replay is the stream reader the W1 entry promised -- the entry is
+        deleted and the reader must exist BY NAME."""
+        assert "narration" not in ALLOWLIST
+        writes, reads = _scan()
+        assert "narration" in writes, "the narration spine's writer vanished"
+        outside = _outside_readers("narration", writes, reads)
+        assert outside, "narration lost its consumer (the persistence monitor)"
+        assert any("persistence" in path for path, _fn in outside), (
+            "the narration reader is not the persistence monitor")
 
 
 class TestTheFalsifier:

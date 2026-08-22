@@ -1,6 +1,10 @@
 # PREREG — STAMP FACTORING: self-motion out of world-edits (DRAFT for Seat 3 ruling, 2026-08-21)
 
-Status: CLEARED (Seat 3 + Seat 4 ruling, 2026-08-21). This changes what an EFFECT atom IS
+Status: F1 FIRED (2026-08-21, builder prototype, zero tree edits) -- see PORT_LOG. The
+rule is sound on the true body (sp80 colour 9: 396 -> 27 signatures over 471 arrow
+events) but the 17 'near-twins' are 14 distinct edits and colour 14 is the budget clock,
+not the avatar (D-14). Not the composer's fix. HELD for Seat 3 re-targeting.
+Was: CLEARED (Seat 3 + Seat 4 ruling, 2026-08-21). This changes what an EFFECT atom IS
 (same class as the re-point amendment).
 
 ## THE RULING (verbatim in substance)

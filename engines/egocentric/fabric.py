@@ -5,12 +5,23 @@ Pure-stdlib JSONL streams under scoped directories -- no database, no wall-clock
   * scopes: "collective" -> collective/, "personal" -> personal/<agent_id>/,
     "kin" -> kin/<kin_key>/; a stream is <scopedir>/<topic>.jsonl;
   * `append()` adds a monotonic per-stream "seq" read back from disk (reopen continues);
-    the seq high-water mark is CACHED per stream after the first read and advanced in
-    memory -- re-read only when the file's size stops matching this writer's own
-    bookkeeping (a janitor rewrite shrinks it; any out-of-band byte is a reason to
-    re-read) or on explicit reload_seqs(). CROSS-PROCESS INVARIANT: each stream has a
-    single WRITER process by design (own-scope appends only; seed mounts are read-only
-    and never appended to), so the in-memory advance can never hand out a seq twice;
+    the seq high-water mark is CACHED PER PROCESS, per stream path (PREREG_FABRIC_IO.md,
+    TARGET SHARPENED BY WINDOW 6-b): seeded from the stream's LAST record on first
+    touch (one tail read, never a whole-file parse), advanced in memory on every
+    append, and re-seeded whenever the file stops matching this writer's bookkeeping
+    -- size AND the last ANCHOR_BYTES before it (the same anchor rule the read cache
+    uses; a janitor shrink, a same-size rewrite, any out-of-band byte) -- or after
+    reload_seqs() (the escape hatch: a full oracle re-read). CROSS-PROCESS INVARIANT:
+    each stream has a single WRITER process by design (own-scope appends only; seed
+    mounts are read-only and never appended to), so the in-memory advance can never
+    hand out a seq twice; and the process-level key is what keeps the loop's several
+    KnowledgeFabric instances on one root from re-parsing the stream for each other;
+  * `query()` serves each root's stream from a process-level PARSED-STREAM CACHE
+    (PREREG_FABRIC_IO.md STAGE 1): terminated lines are parsed once and kept; every
+    call re-validates by stat + anchor, tail-parses only the bytes appended since, and
+    re-reads the unterminated remainder every time. Bounded (LRU by stream bytes,
+    READ_CACHE_CAP_BYTES); returned records are SHALLOW copies; `READ_CACHE = False`
+    routes `query` back to `_read_stream`, which is unchanged and remains the oracle;
   * `seeds` are READ-ONLY overlay roots (the verified Kaggle pattern: mounted input +
     local working) -- queried first, never written;
   * a corrupt line (a crash mid-write) is skipped silently, never fatal;
@@ -22,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import OrderedDict
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
@@ -31,6 +43,11 @@ class KnowledgeFabric:
     IDEAS_TOPIC = "ideas"
     EVENTS_TOPIC = "idea_events"
     _SCOPE_PREF = {"personal": 0, "kin": 1, "collective": 2}
+    # THE UNDO (PREREG_FABRIC_IO.md): False routes `query` to `_read_stream`, the
+    # uncached oracle, in one dispatch. Class-level so a test or an operator flips
+    # every instance at once; the seq cache is not on this switch (it has its own
+    # escape hatch, reload_seqs()).
+    READ_CACHE = True
 
     def __init__(self, root: str, seeds: Optional[List[str]] = None,
                  agent_id: str = "agent", kin_key: str = "kin"):
@@ -39,13 +56,11 @@ class KnowledgeFabric:
         self.seeds = [str(s) for s in (seeds or [])]
         self.agent_id = str(agent_id)
         self.kin_key = str(kin_key)
-        # seq cache: (scope, topic) -> {"seq": last LOCAL seq, "size": file size
-        # after this writer's last sync, "clean": file ends in a newline}. Valid
-        # only while the file's size still matches "size" -- our own appends keep
-        # it matched; any out-of-band byte (janitor shrink, torn tail, foreign
-        # write) forces a full re-read. Safe across the swarm because each stream
-        # has ONE writer process (own-scope appends only; seeds are read-only).
-        self._seq_cache: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        # No per-instance seq cache any more: the seq tail lives in the PROCESS-
+        # level _SEQ_TAIL (module bottom), keyed by the stream's absolute path, so
+        # the loop's several instances on one root (cognitive_loop.py builds one per
+        # reachability seam and one per game) share a single high-water mark
+        # instead of each re-parsing the stream on its first append.
 
     # ── scope / stream resolution ─────────────────────────────────────────────
 
@@ -171,46 +186,40 @@ class KnowledgeFabric:
                     return out
                 block *= 2
 
-    @staticmethod
-    def _ends_in_newline(path: str) -> bool:
-        """True unless the file ends mid-line (a crash-truncated tail): the next
-        append would MERGE with that tail and be lost with it -- the cache must
-        account the same way a from-disk re-read would."""
-        try:
-            with open(path, "rb") as fh:
-                fh.seek(-1, os.SEEK_END)
-                return fh.read(1) == b"\n"
-        except OSError:
-            return True                      # missing or empty: nothing to merge with
-
     def _next_seq(self, scope: str, topic: str) -> int:
-        """1 + max existing seq in the LOCAL stream (seeds are never appended to).
-        Cached per stream after the first full read (a size stat replaces the
-        re-read); the stream is re-read whenever its size stops matching this
-        writer's own bookkeeping, or after reload_seqs()."""
-        key = (scope, str(topic))
+        """1 + the seq high-water mark of the LOCAL stream (seeds are never appended
+        to). Served from the process-level seq tail while the stream still matches
+        the bookkeeping (size AND anchor -- `_anchor_size`, the one validity rule);
+        re-seeded from the stream's LAST record otherwise (`_seed_seq`: a tail read,
+        never a whole-file parse), or by the full oracle scan once after
+        reload_seqs()."""
         path = self._stream_path(self.root, scope, topic)
-        try:
-            size = os.path.getsize(path)
-        except OSError:
-            size = 0
-        hit = self._seq_cache.get(key)
-        if hit is not None and hit["size"] == size:
-            return hit["seq"] + 1
-        top = 0
-        for rec in self._read_stream(path):
-            try:
-                top = max(top, int(rec.get("seq", 0)))
-            except Exception:
-                continue
-        self._seq_cache[key] = {"seq": top, "size": size,
-                                "clean": self._ends_in_newline(path)}
-        return top + 1
+        key = os.path.abspath(path)
+        hit = _SEQ_TAIL.get(key)
+        if hit is not None and not hit.get("verify"):
+            size = _anchor_size(path, hit["upto"], hit["anchor"])
+            if size is not None and size == hit["upto"]:
+                return hit["seq"] + 1
+        hit = _seed_seq(path, full=bool(hit is not None and hit.get("verify")))
+        _SEQ_TAIL[key] = hit
+        return hit["seq"] + 1
 
     def reload_seqs(self) -> None:
-        """Drop the per-stream seq cache: the next append re-reads from disk.
-        The escape hatch for an out-of-band edit the size check cannot see."""
-        self._seq_cache.clear()
+        """The escape hatch for an edit the anchor rule cannot see (a rewrite that
+        keeps the size AND the last ANCHOR_BYTES -- e.g. a seq edited mid-file):
+        every stream touched so far is marked for ONE full oracle re-read (the
+        pre-cache `_next_seq` computation, max seq over `_read_stream`) on its next
+        append. Process-wide, like the cache it resets."""
+        for hit in _SEQ_TAIL.values():
+            hit["verify"] = True
+
+    @staticmethod
+    def drop_read_cache() -> None:
+        """Drop the parsed-stream read cache (the reload_seqs pattern): the next
+        `query` of every stream is a full read. Derived state only -- nothing is
+        lost, nothing is written."""
+        _READ_CACHE.clear()
+        _READ_CACHE_BYTES[0] = 0
 
     # ── the fabric: append / query ────────────────────────────────────────────
 
@@ -225,29 +234,55 @@ class KnowledgeFabric:
         d = os.path.dirname(path)
         if d and not os.path.isdir(d):
             os.makedirs(d)
+        line = json.dumps(rec, ensure_ascii=False) + "\n"
         with open(path, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        key = (scope, str(topic))
-        hit = self._seq_cache[key]           # _next_seq above ensured the entry
+            fh.write(line)
+        key = os.path.abspath(path)
+        hit = _SEQ_TAIL[key]                 # _next_seq above ensured the entry
         if hit["clean"]:
             hit["seq"] = rec["seq"]          # advance in memory: no re-read next time
         # else: the record merged into a crash-truncated tail and is lost with it
         # (exactly what a re-reading _next_seq would conclude); our newline ended
         # the merged line, so the stream is clean again from here on.
         hit["clean"] = True
+        # Advance the bookkeeping IN MEMORY by the bytes text mode just put on disk
+        # (newline=None translates the one "\n" to os.linesep; json.dumps escapes
+        # every other control character, so nothing else is translated) -- then
+        # hold the disk to it: a size that disagrees means bytes we did not write,
+        # and the entry is dropped so the next append re-seeds from the tail.
+        written = line.replace("\n", os.linesep).encode("utf-8")
+        hit["anchor"] = (hit["anchor"] + written)[-ANCHOR_BYTES:]
+        hit["upto"] += len(written)
         try:
-            hit["size"] = os.path.getsize(path)
+            if os.path.getsize(path) != hit["upto"]:
+                del _SEQ_TAIL[key]
         except OSError:
-            del self._seq_cache[key]         # stat failed: force a re-read next time
+            del _SEQ_TAIL[key]               # stat failed: force a re-seed next time
         return rec
 
     def query(self, scope: str, topic: str,
               where: Optional[Callable[[Dict[str, Any]], Any]] = None,
               limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Records in insertion order: seed roots FIRST, then the local root."""
+        """Records in insertion order: seed roots FIRST, then the local root.
+
+        Served from the parsed-stream cache (`_cached_stream`, module bottom) unless
+        READ_CACHE is False; `where`/`limit` are applied exactly as before over the
+        same concatenation. Cached records are handed out as SHALLOW copies (a
+        consumer assigning a top-level key cannot poison the next read); values
+        nested inside a record are shared with the cache and are READ-ONLY by
+        contract -- every production consumer was audited for in-place nested
+        mutation (tests/gate/test_fabric_read_cache.py, RIDER 2: 44 sites, 40
+        read-only, 4 copy-before-write, 0 nested writes). The live aliases to
+        keep that way: Gamma.get returns rec["atom"] itself (effects.py), and the
+        composer's atom pool holds the same objects -- `dict(atom)` before any
+        write, as mint._reinstate and consumer.seed_imports already do.
+        """
         out: List[Dict[str, Any]] = []
+        cached = bool(self.READ_CACHE)
         for base in list(self.seeds) + [self.root]:
-            for rec in self._read_stream(self._stream_path(base, scope, topic)):
+            path = self._stream_path(base, scope, topic)
+            for raw in (_cached_stream(path) if cached else self._read_stream(path)):
+                rec = dict(raw) if cached else raw
                 if where is not None and not where(rec):
                     continue
                 out.append(rec)
@@ -401,3 +436,230 @@ class KnowledgeFabric:
         out.sort(key=lambda p: (bool(p["pariah"]), -int(p["credibility"]),
                                 self._SCOPE_PREF.get(p["scope"], 3), str(p["id"])))
         return out
+
+
+# ═══ FABRIC I/O (PREREG_FABRIC_IO.md): the two process-level caches + THE ONE anchor rule ═══
+#
+# Module bottom by the placement law: nothing above moves. Both caches are DERIVED
+# state keyed by the stream's absolute path -- they hold nothing the file does not,
+# are never written back, and are dropped by reload_seqs() / drop_read_cache().
+
+# THE ANCHOR (PINNED by the prereg, KNOBS G35): the last 64 bytes before the byte
+# offset a cache has synced to. A cache never trusts a stat alone -- a rewrite of any
+# length, including one that grew the file or landed inside stat granularity, changes
+# these bytes; mtime is not part of the rule because its granularity varies by
+# filesystem and an identical-size rewrite inside one tick would pass it.
+ANCHOR_BYTES = 64
+
+# RIDER 1 (KNOBS G35, GUESSED from observation): the read cache's bound, in STREAM
+# BYTES represented (sum of every entry's parsed span). 32 MiB is the smallest power
+# of two above the largest per-box working set of the per-cycle `query` topics
+# observed read-only under .runs/swarm/*/ego_fabric on 2026-08-21 (25 boxes; atoms +
+# mint_verdicts + goal_hypotheses + frontier_* + starvation/swallow/ideas/idea_events/
+# replay_outcomes + import_candidates + settlements = 24.3 MiB max, sb26/tn36; atoms
+# alone <= 6.5 MB, mint_verdicts <= 9.5 MB, settlements <= 14.4 MB). import_queue
+# (0.4-73.6 MB, 15 boxes > 15 MB) is deliberately NOT covered on the large boxes: a
+# stream larger than the cap is served uncached (parsed as today, never retained).
+# Held memory per stream byte measured 3.5x-6.5x (tracemalloc over _read_stream on
+# real streams), so the cap's RSS ceiling is ~110-210 MB -- a PLATEAU, not growth
+# (record/findings/MEMORY_PROFILE_L0.md: the kill suspects grow by retained state).
+READ_CACHE_CAP_BYTES = 32 * 1024 * 1024
+
+# seq tail: abspath -> {"seq": high-water mark, "upto": size at last sync, "anchor":
+# the last ANCHOR_BYTES before upto, "clean": the file ends in a newline, "verify":
+# reload_seqs() asked for one full oracle scan}
+_SEQ_TAIL: Dict[str, Dict[str, Any]] = {}
+
+# read cache: abspath -> {"records": parsed dicts of every TERMINATED line, in file
+# order; "upto": byte offset just past the last terminator (never mid-line);
+# "anchor": the last ANCHOR_BYTES before upto}. OrderedDict = LRU order; the
+# unterminated remainder is NEVER here (parsed and returned, re-read next call).
+_READ_CACHE: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+_READ_CACHE_BYTES = [0]                      # sum of "upto" over the entries
+
+# The instrument the gates count by (never wall-clock): full = path-3 whole-stream
+# decodes, tail = path-2 decodes of appended bytes, hit = nothing new on disk,
+# bytes = bytes decoded, evict = LRU evictions, uncached = streams over the cap.
+READ_STATS: Dict[str, int] = {"full": 0, "tail": 0, "hit": 0, "bytes": 0,
+                              "evict": 0, "uncached": 0}
+
+
+def _anchor_size(path: str, upto: int, anchor: bytes) -> Optional[int]:
+    """THE ONE VALIDITY RULE, shared by both caches: the stream's current size, or
+    None if the file is shorter than `upto` or the ANCHOR_BYTES at
+    [upto - len(anchor), upto) are not `anchor` (one stat, one open, one seek, one
+    short read). The seq cache additionally requires size == upto (any growth is
+    foreign bytes); the read cache accepts size >= upto (growth is an append)."""
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return None
+    if size < upto:
+        return None
+    if anchor:
+        try:
+            with open(path, "rb") as fh:
+                fh.seek(upto - len(anchor))
+                if fh.read(len(anchor)) != anchor:
+                    return None
+        except OSError:
+            return None
+    return size
+
+
+def _anchor_bytes(path: str, upto: int) -> bytes:
+    """The last ANCHOR_BYTES before `upto` (fewer if the file is shorter)."""
+    n = min(ANCHOR_BYTES, max(0, upto))
+    if n <= 0:
+        return b""
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(upto - n)
+            return fh.read(n)
+    except OSError:
+        return b""
+
+
+def _seed_seq(path: str, full: bool = False) -> Dict[str, Any]:
+    """A fresh seq-tail entry for `path`. Default: the LAST well-formed record's seq
+    via `_tail_records` (O(tail)). The full oracle scan (max seq over
+    `_read_stream`, the pre-cache computation) runs only when asked (reload_seqs)
+    or when the tail cannot answer -- no record, or a last record whose "seq" is
+    missing/unparseable, where the oracle's answer lives in earlier records."""
+    top = 0
+    seeded = False
+    if not full and os.path.isfile(path):
+        tail = KnowledgeFabric._tail_records(path, 1)
+        if tail and "seq" in tail[-1]:
+            try:
+                top = max(0, int(tail[-1].get("seq", 0)))
+                seeded = True
+            except Exception:
+                seeded = False
+    elif not full:
+        seeded = True                        # missing: nothing to read, top = 0
+    if not seeded:
+        for rec in KnowledgeFabric._read_stream(path):
+            try:
+                top = max(top, int(rec.get("seq", 0)))
+            except Exception:
+                continue
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        size = 0
+    anchor = _anchor_bytes(path, size)
+    # "clean" = the file ends in a newline: the next append would otherwise MERGE
+    # with a crash-truncated tail and be lost with it. Missing or empty: nothing
+    # to merge with. Read off the anchor -- it already holds the last byte.
+    clean = (anchor[-1:] == b"\n") if anchor else True
+    return {"seq": top, "upto": size, "anchor": anchor, "clean": clean}
+
+
+def _parse_lines(blob: bytes) -> List[Dict[str, Any]]:
+    """`_read_stream`'s exact rules over a byte range that starts at a line
+    boundary: `_tail_lines` splitting (universal newlines, the same decoder state
+    as a whole-file decode), strip, skip blank / corrupt / non-dict."""
+    out: List[Dict[str, Any]] = []
+    for raw in KnowledgeFabric._tail_lines(blob):
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except Exception:
+            continue                         # crash mid-write: skipped, never fatal
+        if isinstance(rec, dict):
+            out.append(rec)
+    return out
+
+
+def _terminated_upto(blob: bytes) -> int:
+    """The byte offset just past the last universal-newline terminator in `blob`
+    (0 if none). A LONE "\\r" as the very last byte is NOT committed: its "\\n" may
+    not have landed, so it stays in the volatile remainder and is re-read whole."""
+    end = len(blob)
+    if blob.endswith(b"\r"):
+        end -= 1
+    return max(blob.rfind(b"\n", 0, end), blob.rfind(b"\r", 0, end)) + 1
+
+
+def _read_cache_evict(key: str) -> None:
+    ent = _READ_CACHE.pop(key, None)
+    if ent is not None:
+        _READ_CACHE_BYTES[0] -= ent["upto"]
+        READ_STATS["evict"] += 1
+
+
+def _read_cache_trim() -> None:
+    """LRU by bytes: drop least-recently-served entries until the represented
+    bytes fit the cap (an entry that has grown past the cap on its own goes too)."""
+    while _READ_CACHE and _READ_CACHE_BYTES[0] > READ_CACHE_CAP_BYTES:
+        _read_cache_evict(next(iter(_READ_CACHE)))
+
+
+def _cached_stream(path: str) -> List[Dict[str, Any]]:
+    """The records of one stream file, byte-identical to `_read_stream(path)`, from
+    the parsed-stream cache. Every call: stat -> exactly one of
+      1. MISSING  -> drop the entry, return [];
+      2. VALID    -> decode ONLY the bytes appended since (terminated lines are
+                     cached; the unterminated remainder is returned, never cached);
+      3. INVALID  -> full read from byte 0 through the same decoder, entry re-seeded.
+    Records come back UNCOPIED -- `query` makes the shallow copies."""
+    key = os.path.abspath(path)
+    ent = _READ_CACHE.get(key)
+    if not os.path.isfile(path):
+        if ent is not None:
+            _read_cache_evict(key)
+        return []
+    if ent is not None:
+        size = _anchor_size(path, ent["upto"], ent["anchor"])
+        if size is not None:
+            blob: Optional[bytes]
+            try:
+                with open(path, "rb") as fh:
+                    fh.seek(ent["upto"])
+                    blob = fh.read(size - ent["upto"])
+            except OSError:
+                blob = None
+            # a short read = the file shrank between the stat and this read
+            if blob is not None and len(blob) == size - ent["upto"]:
+                _READ_CACHE.move_to_end(key)
+                if not blob:
+                    READ_STATS["hit"] += 1
+                    return ent["records"]
+                READ_STATS["tail"] += 1
+                READ_STATS["bytes"] += len(blob)
+                cut = _terminated_upto(blob)
+                if cut:
+                    done = blob[:cut]
+                    ent["records"].extend(_parse_lines(done))
+                    ent["anchor"] = (ent["anchor"] + done)[-ANCHOR_BYTES:]
+                    ent["upto"] += cut
+                    _READ_CACHE_BYTES[0] += cut
+                    _read_cache_trim()
+                if cut < len(blob):
+                    return ent["records"] + _parse_lines(blob[cut:])
+                return ent["records"]
+        _read_cache_evict(key)
+    # path 3: the whole stream, once, through the decoder `_read_stream` would
+    # have used line by line (the tail-read gate proved them identical)
+    READ_STATS["full"] += 1
+    try:
+        with open(path, "rb") as fh:
+            blob = fh.read()
+    except OSError:
+        return []
+    READ_STATS["bytes"] += len(blob)
+    cut = _terminated_upto(blob)
+    records = _parse_lines(blob[:cut])
+    if cut <= READ_CACHE_CAP_BYTES:
+        _READ_CACHE[key] = {"records": records, "upto": cut,
+                            "anchor": blob[max(0, cut - ANCHOR_BYTES):cut]}
+        _READ_CACHE_BYTES[0] += cut
+        _read_cache_trim()
+    else:
+        READ_STATS["uncached"] += 1
+    if cut < len(blob):
+        return records + _parse_lines(blob[cut:])
+    return records

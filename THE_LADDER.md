@@ -1205,3 +1205,29 @@ costs, but *what* consumes the time per action — Γ evaluation, replay, planni
 matching — is unmeasured. **That is the next read and it needs a per-action timing breakdown,
 not another correlation.** Naming a cause from this table would be exactly the inference this
 seat keeps catching in others.
+
+## CURRENCY 2026-08-21 (proctor audit, mandate item 1; read against Figure 3)
+Walked every rung against the tree. 11 read something today; 2 read an instrument that
+does not exist; 1 has never returned a value in its named form. Corrections to statements
+above that are now false the other way:
+- RUNG 0c DOWNGRADE ("no CI gate, [main,master] only"): STALE — .github/workflows/ci.yml
+  triggers on `['**']` and runs test_wiring_registry.py + consumption_sweep.py --strict.
+- RUNG 2 ("the `reason` field stays unbuilt"): STALE — engines/egocentric/mint.py W4 carries
+  the closed reason vocabulary (:82-84, :160-178).
+- RUNG 4 ("matched-and-rejected is inexpressible"): STALE — consumer.py kind="declined"
+  (:27-31, :148; tests/gate/test_decline_branch.py).
+Absences, named: RUNG 0b has no instrument (MIN_EXPOSURE appears in no .py; nothing computes
+episodes/hour, actions/episode, completion rate, sec/action) and has never returned a value
+in its named form — the most consequential gap by Figure 3, since every rung beneath it is
+unmeasured by this ladder's own stop rule. RUNG 0e names no instrument. RUNG 1 has returned
+only a guaranteed zero (R_T = 0), which Q8 rules is not a reading.
+Disposition: tools/beat_rates.py (building) carries the 0b exposure line per game, MEASURED
+or UNMEASURED against split_half's derived k. A rung nobody has run is not a rung.
+Seat 4's reading of the same audit, carried as the rule it is: until 0b reads, a null read
+at any rung above it is UNMEASURED — not "failed", not "blocked". The current instance is
+g7 = 0 on a fleet whose leaders run 0.1 act/min: unmeasured. Rung 1 is hollow the same way
+(a guaranteed zero is not a reading). Both instruments are owed before the next number above
+them is quoted as a result: 0b exposure (episodes/hour, actions/episode, s/action,
+completion, against split_half's derived k) and rung 1's per-slot residual (largest
+single-slot mass and live-slot count from the bank's settlement records; never a mean —
+Figure 1). Both ride tools/beat_rates.py.

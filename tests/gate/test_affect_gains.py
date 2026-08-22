@@ -49,8 +49,10 @@ class TestTheContract:
     def test_two_channels_bounded(self, tmp_path):
         a = _A()(_fabric_with_history(tmp_path))
         g = a.gains()
-        assert set(g.keys()) == {"seed_bias", "mint_bar"}, (
-            "channels <= knobs: exactly the two live knobs, no free-floating moods")
+        assert set(g.keys()) == {"seed_bias", "mint_bar", "persist"}, (
+            "channels <= knobs: the two live knobs + the persistence modulator "
+            "(PREREG_PERSISTENCE_MONITOR.md), no free-floating moods")
+        assert g["persist"] == 0.0, "no monitor attached: no live run"
         assert 0.0 <= g["seed_bias"] <= 1.0
         assert a.MINT_BAR_FLOOR <= g["mint_bar"] <= a.MINT_BAR_CEIL
         assert a.MINT_BAR_FLOOR >= 1.0, "the bar's floor never dips below the standing guards"

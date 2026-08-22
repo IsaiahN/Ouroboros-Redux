@@ -92,8 +92,12 @@ class TestTheWidening:
     def test_gains_keys_stay_exactly_the_two_channels(self, tmp_path):
         f = self._fab(tmp_path)
         _starve(f)
-        assert set(_gains(f).gains().keys()) == {"seed_bias", "mint_bar"}, (
-            "seed_gain is a SEPARATE method — gains() is the priced contract")
+        assert set(_gains(f).gains().keys()) == {"seed_bias", "mint_bar",
+                                                 "persist"}, (
+            "seed_gain is a SEPARATE method — gains() is the priced contract "
+            "(+ the persistence modulator, PREREG_PERSISTENCE_MONITOR.md; it "
+            "is not widened by starvation either)")
+        assert _gains(f).gains()["persist"] == 0.0
 
 
 class TestTheWiring:

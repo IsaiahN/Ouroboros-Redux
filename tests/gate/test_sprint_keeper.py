@@ -382,6 +382,14 @@ def test_fleet_env_parity_with_supervisor_assembly(tmp_path, monkeypatch):
     sup = importlib.import_module("tools.swarm_supervisor")
     monkeypatch.delenv("OURO_FABRIC_SEEDS", raising=False)
     monkeypatch.delenv("LP_DRIVE_ARM", raising=False)
+    # TEST-ISOLATION (2026-08-21): `added` below asks which keys the LAUNCHER inserts, so it
+    # must not depend on what the ambient process environment already holds. Another gate
+    # file imports evolution_runner at module level, and that import calls load_dotenv()
+    # (evolution_runner.py:38), which puts ARC_API_KEY into os.environ for the whole pytest
+    # process -- so this test passed alone and failed in the suite, deterministically, by
+    # file order. Delete it here, as the two lines above already do for the fleet vars; the
+    # launcher still supplies its own key, asserted below.
+    monkeypatch.delenv("ARC_API_KEY", raising=False)
     for x in ("sk48", "ar25", "g50t", "wa30"):
         got = fe.fleet_env_for(x, root)
         assert got == _supervisor_assembly(x, root), x

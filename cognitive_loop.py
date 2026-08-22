@@ -269,6 +269,7 @@ def _narr_bet(loop, action_num, cf, pg0, frame=None) -> None:
             # rebind when the seeded fabric replaces the pre-cycle instance
             _nsp = _na.NarrationSpine(_fab, game=_gid or "game")
             loop._narration = _nsp
+        _pm_attach(loop, _nsp)   # PERSISTENCE MONITOR: the one attach site
         _nsp.start_step(int(getattr(loop, "_actions_taken", 0) or 0))
         # W1 FALSIFIER ARMS: the switch narrated once at game start (the ARM
         # record -- idempotent per spine; absent on loops with no arm state)
@@ -289,7 +290,8 @@ def _narr_bet(loop, action_num, cf, pg0, frame=None) -> None:
         _nsp.bet(slots=_slotmap, route_bin=_pbin, why_not=_why,
                  mint_candidate=("pending" if _pend else None),
                  guard_zero=(None if _pend else _na.GUARD_SUPPORT),
-                 rng=_rng, col_class=_cc)
+                 rng=_rng, col_class=_cc,
+                 level=int(getattr(loop, "_ego_level", 0) or 0))   # additive
         # W2b (PREREG_W2B_PLANNER_SCHEDULING.md): a scheduler skip owns the
         # PLAN point this cycle -- the skip is narrated WITH ITS REASON (F3,
         # mode="skipped", gate=reason), never silent; otherwise the g-gate
@@ -383,14 +385,23 @@ def _narr_close(loop, post_array, frame_changed) -> None:
 
 def _w2b_mark(loop) -> tuple:
     """W2b (PREREG_W2B_PLANNER_SCHEDULING.md): the world-change mark GATE B
-    compares -- (Gamma mints passed, cross-role imports seeded), both already
-    counted by the loop (R1 mint socket counter + the _seed_imp narration
-    count). O(1) reads of in-hand state; an unchanged mark alongside an
-    unchanged state key means nothing was minted or imported since the last
-    planner attempt."""
+    compares -- (Gamma mints passed, cross-role imports seeded, standing
+    RE-ENTRIES), all three already counted by the loop's own organs (R1 mint
+    socket counter + the _seed_imp narration count + standing.StandingBook's
+    reentry counter). O(1) reads of in-hand state; an unchanged mark alongside
+    an unchanged state key means nothing was minted, imported or re-admitted
+    since the last planner attempt.
+
+    THE THIRD COMPONENT (R3/R4, PREREG_STANDING_HALF_LIFE_ATOMS.md): a
+    RE-ENTRY grew the candidate set, so the search would no longer return the
+    same nothing. An EVICTION shrank it and deliberately does NOT reopen the
+    gate -- asking the same question of a strictly smaller set gets the same
+    answer, and the starvation guard is untouched either way."""
     return (int((getattr(loop, "_w4c_counters", None) or {}
                  ).get("mint_passed", 0) or 0),
-            int(getattr(loop, "_narr_import_n", 0) or 0))
+            int(getattr(loop, "_narr_import_n", 0) or 0),
+            int(getattr(getattr(getattr(loop, "_w2b_sched", None),
+                                "standing", None), "reentries", 0) or 0))
 
 
 def _w2b_engage(loop, pframe, cf) -> bool:
@@ -433,6 +444,14 @@ def _w2b_engage(loop, pframe, cf) -> bool:
             loop._w2b_sched.note_attempt(_g, _lv, _key, _w2b_mark(loop))
             loop._w2b_key = _key    # the abort router's plan-time key
             print(f"[PLAN] engage reason={_v['reason']}")
+            # R3/R4 (PREREG_STANDING_HALF_LIFE_ATOMS.md): THE ENGAGEMENT
+            # SWEEP -- tau is recomputed over the atoms valid at this
+            # (game, level) and the eviction / re-entry transitions are
+            # written HERE, not inside the search itself, which goes on
+            # treating Gamma as read-only. Ordered AFTER note_attempt on
+            # purpose: a re-entry written now differs from the mark just
+            # retained, so it reopens GATE B on the NEXT cycle.
+            _std_sweep(loop, _g, _lv)
             return True
         loop._w2b_narr = ("skipped", _v["reason"])
         print(f"[PLAN] skip reason={_v['reason']}")
@@ -463,20 +482,111 @@ def _w2b_abort(loop, frame_changed, level_changed) -> None:
         if level_changed:
             _sch.on_level_change()       # the board redraws; the key re-earns
             return
-        if _dr is None or frame_changed or _dr.get("key") is None:
-            return                       # no driven plan, or the step landed
+        if _dr is None or _dr.get("key") is None:
+            return                       # no driven plan
+        if frame_changed:
+            # THE NO-ABORT BRANCH (R3/R4): the step LANDED. This early return
+            # recorded nothing until now, so an atom that held a hundred times
+            # was indistinguishable from one that had never been tried. It is
+            # recorded per step atom as an EARN event (e3) and the routing
+            # below is skipped exactly as before.
+            _std_held(loop, list(_dr.get("steps") or []))
+            return
         from engines.egocentric import scheduler as _s2b
         _pf = getattr(loop, "_prev_frame", None)
         _obs = _s2b.state_key(_pf) if _pf is not None else str(_dr.get("key"))
         _rt = _s2b.route_abort(str(_dr.get("key")), _obs)
+        _steps = [str(_s) for _s in (_dr.get("steps") or [])]
         _sch.on_abort(_rt["route"], str(getattr(loop, "_game_id", "") or "game"),
-                      int(getattr(loop, "_ego_level", 0) or 0),
-                      list(_dr.get("steps") or []))
+                      int(getattr(loop, "_ego_level", 0) or 0), _steps)
         _nsp = getattr(loop, "_narration", None)
         if _nsp is not None:
             _rng, _cc = _narr_range(loop)
-            _nsp.plan("abort", _rt["route"], rng=_rng, col_class=_cc)
+            # R3/R4: `steps` + `ep` on the record that ALREADY fires -- the
+            # ledger's in-memory increment made durable without a second
+            # stream. A world-moved abort carries the same pair and is never
+            # counted: the reader keys on the gate, and those atoms were never
+            # given the state they bet on (FIGURE 2 -- no penalty without a
+            # contact with the ground).
+            _ep = _std_ep(loop)
+            _nsp.plan("abort", _rt["route"], rng=_rng, col_class=_cc,
+                      extra=({"steps": _steps, "ep": int(_ep)}
+                             if _ep is not None else {"steps": _steps}))
         print(f"[PLAN] abort routed={_rt['route']} ({_rt['fact']})")
+    except Exception:
+        _swal(loop, "PLANNER")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# R3/R4 -- STANDING AT THE ATOM GRAIN (PREREG_STANDING_HALF_LIFE_ATOMS.md):
+# the loop-side seams. Three one-line call sites (the engagement sweep in
+# _w2b_engage, the HELD record in _w2b_abort, the composite settle's ordinal
+# in _w3d_settle) and one clock read. Nothing here computes S: the book does,
+# and S leaves this module only as a VISIT ORDER (FIGURE 1 -- never a price,
+# never a report). Containment: every seam swallows.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _std_ep(loop):
+    """THE ONE CLOCK: the A3-4 episode ordinal in force, read from the mint
+    that already stamps it on every verdict. None when there is no mint --
+    and by the module's law an event with no ordinal is not counted, never
+    counted at a guessed one."""
+    from engines.egocentric import standing as _std
+    return _std.episode_of(getattr(loop, "_mdl_mint", None))
+
+
+def _std_book(loop):
+    """The scheduler's standing book (it owns it beside the W2c retention
+    store), or None before the scheduler exists."""
+    return getattr(getattr(loop, "_w2b_sched", None), "standing", None)
+
+
+def _std_held(loop, steps) -> None:
+    """EARN EVENT e3: a driven plan step that LANDED, recorded per step atom
+    at the PLAN point with the fixed token `held`. The record carries `steps`
+    + `ep` -- exactly the pair the plan-wrong abort record carries, so one
+    reader reads both sides of the ledger and neither side is a special
+    case."""
+    try:
+        from engines.egocentric import standing as _std
+        _nsp = getattr(loop, "_narration", None)
+        _ep = _std_ep(loop)
+        if _nsp is None or _ep is None or not steps:
+            return
+        _rng, _cc = _narr_range(loop)
+        _nsp.plan(_std.PLAN_HELD, _std.HELD_GATE, rng=_rng, col_class=_cc,
+                  extra={"steps": [str(_s) for _s in steps], "ep": int(_ep)})
+    except Exception:
+        _swal(loop, "PLANNER")
+
+
+def _std_sweep(loop, game, level) -> None:
+    """THE ENGAGEMENT SWEEP: recompute tau over the atoms valid at
+    (game, level) and write the eviction / re-entry transitions
+    (standing.StandingBook.engage -- the ONE writer). Each transition is
+    narrated at the PLAN point with the FIXED tokens `evicted` / `re-entered`
+    and the atom id, carrying tau and the decay rate beside it (FIGURE 10:
+    the append itself carries S / tau / ep / cause, so a later reader can
+    locate the error rather than feel it)."""
+    try:
+        _bk = _std_book(loop)
+        _gm = getattr(loop, "_gamma", None)
+        if _bk is None or _gm is None:
+            return
+        from engines.egocentric import standing as _std
+        _out = _bk.engage(_gm, str(game), int(level))
+        _nsp = getattr(loop, "_narration", None)
+        for _tok, _slot in ((_std.PLAN_EVICTED, "evicted"),
+                            (_std.PLAN_REENTERED, "re_entered")):
+            for _aid in _out.get(_slot) or []:
+                if _nsp is not None:
+                    _rng, _cc = _narr_range(loop)
+                    _nsp.plan(_tok, str(_aid), rng=_rng, col_class=_cc,
+                              extra={"tau": _out.get("tau"),
+                                     "d": _out.get("d"),
+                                     "borrowed": _out.get("borrowed")})
+                print(f"[PLAN] {_tok} id={_aid} tau={_out.get('tau')} "
+                      f"d={_out.get('d'):.4f} borrowed={_out.get('borrowed')}")
     except Exception:
         _swal(loop, "PLANNER")
 
@@ -1511,7 +1621,13 @@ class CognitiveLoop:
                                 level=int(getattr(self, "_ego_level", 0) or 0) + 1,
                                 budget=float(max(
                                     0, self._max_actions - self._actions_taken)),
-                                cost_per_action=None)  # L1 LIVE: the books price it
+                                cost_per_action=None,  # L1 LIVE: the books price it
+                                # W2c: the scheduler's retention store (None = undo)
+                                retained=getattr(getattr(self, "_w2b_sched", None),
+                                                 "retained", None),
+                                # R3/R4: the scheduler's standing book -- RANK
+                                # + the evicted filter only (None = undo)
+                                standing=_std_book(self))
                             if _plan is not None and "cost_per_action" in _plan:
                                 # L1 narration -- BOTH values on the line: the
                                 # estimate AND the 1.0 constant it replaced.
@@ -1625,7 +1741,12 @@ class CognitiveLoop:
                                      or {}).get(_lv4),
                             avoid=(_fb4.avoid_set(
                                 str(getattr(self, "_game_id", "") or "game"),
-                                _lv4) if _fb4 is not None else None))
+                                _lv4) if _fb4 is not None else None),
+                            # W2c: the scheduler's retention store (None = undo)
+                            retained=getattr(getattr(self, "_w2b_sched", None),
+                                             "retained", None),
+                            # R3/R4: the same standing book, passed through
+                            standing=_std_book(self))
                         if _ap is not None:
                             # [NAV] the abduced predicate's site doubles as the
                             # movement stack's target (px x,y; a steer, only)
@@ -4802,7 +4923,9 @@ def _w3c_compose(loop, pframe, want):
         _res = _cmp.compose_attempt(
             want, pframe, _gm, _av, _en.book_deltas(_g),
             (_en.fatal_cells(_bk, _g, _lv) if _bk is not None else set()),
-            _g, _lv + 1)
+            _g, _lv + 1,
+            # W2c: the ONE memo the planner shares (None = the undo)
+            retained=getattr(getattr(loop, "_w2b_sched", None), "retained", None))
         _res["avatar"] = _src
         if _res.get("composite"):
             _extra = {"settled": False, "driven": False, "avatar": _src}
@@ -4951,10 +5074,17 @@ def _w3d_abort(loop, chain, route, fact, component, pre_frame):
         _conf = _cmp.conflict_component(getattr(loop, "_mdl_mint", None),
                                         getattr(loop, "_gamma", None),
                                         str(component), pre_frame)
-    _w3d_narrate(loop, "abort", route,
-                 {"composite": _cid, "settled": False,
-                  "component": (str(component) if component else None),
-                  "conflict": _conf})
+    # R3/R4: the SAME `steps` + `ep` pair the planner's abort record carries,
+    # so one reader reads both paths. The stage-4 plan-wrong ALSO wrote a
+    # ctx_conflict just above -- that append is stamped via="plan-wrong" and
+    # is counted under m1 only: one event, one count.
+    _ep = _std_ep(loop)
+    _extra = {"composite": _cid, "settled": False,
+              "component": (str(component) if component else None),
+              "conflict": _conf, "steps": _steps}
+    if _ep is not None:
+        _extra["ep"] = int(_ep)
+    _w3d_narrate(loop, "abort", route, _extra)
     print(f"[PLAN] composite abort routed={route} id={_cid} "
           f"component={component} ({fact})")
 
@@ -5157,7 +5287,10 @@ def _w3d_settle(loop, post_array, level_changed):
             chain["cursor"] = i + 1             # the chain continues next cycle
             return
         loop._w3d_chain = None
-        _res = _cmp.live_settle(getattr(loop, "_gamma", None), drive, post_array)
+        # R3/R4: the settle append carries the episode ordinal -- the
+        # CANDIDATE -> SETTLED transition is the composite's earn event (e3).
+        _res = _cmp.live_settle(getattr(loop, "_gamma", None), drive,
+                                post_array, ep=_std_ep(loop))
         _w3d_narrate(loop, "settled" if _res["settled"] else "abort",
                      drive["composite"] if _res["settled"] else _res["reason"],
                      {"composite": drive["composite"],
@@ -5179,6 +5312,36 @@ def _d8_fallback(md) -> bool:
         return bool((md or {}).get("weighted_fallback", False))
     except Exception:
         return False
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# THE PERSISTENCE MONITOR (PREREG_PERSISTENCE_MONITOR.md): the loop-side seam.
+# Placed directly ABOVE _gate_step, which tests/gate/test_gate_stage1.py pins
+# as the module's LAST function; the only receipts this block moves are the
+# two gate-step rows below it, refreshed by grep in WIRING_REGISTRY.md.
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def _pm_attach(loop, nsp) -> None:
+    """THE ONE ATTACH SITE (called from _narr_bet, every step, O(1) after the
+    first). Ensures the spine carries a PersistenceMonitor -- constructed ONCE
+    per spine and PRIMED from the agent's own narration stream (the single
+    O(stream) read, once per game/spine, never per record: the spine's
+    observer hook feeds it in memory from here on) -- and hands the SAME
+    monitor to the affect gains, so the `persist` channel reads the live fold
+    (AffectGains is built lazily in record_result, after the first bet; the
+    handoff lands on the next step, when a run can first exist). Containment:
+    never raises; a failure leaves the spine unmonitored -- the records are
+    unchanged and the channel reads 0."""
+    try:
+        if getattr(nsp, "monitor", None) is None:
+            from engines.egocentric.persistence import PersistenceMonitor
+            nsp.monitor = PersistenceMonitor.from_fabric(nsp.fabric)
+        _aff = getattr(loop, "_affect", None)
+        if _aff is not None and getattr(_aff, "monitor", None) is not nsp.monitor:
+            _aff.monitor = nsp.monitor
+    except Exception:
+        _swal(loop, "OTHER")
 
 
 def _gate_step(loop, action_num, cf, nsp, frame) -> None:

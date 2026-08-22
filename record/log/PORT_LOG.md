@@ -1662,3 +1662,688 @@ NEW SMALL GENUS (Seat 4): a registry row's SITE is gated and re-checked; its NOT
 nobody validates ("ms rides the SUMMARY" stood false until rewritten). Notes rot silently
 in the file whose purpose is not rotting. No mechanism today; the symbol apparatus will not
 catch it either -- known.
+
+=== BEAT 50 (2026-08-21, post-commit 41886d6) ===
+ASK: nothing. Levels: MUTE (split-half run 1: 0 improved / 0 regressed / 5 unchanged;
+11 never-scored in window, 5 not-yet-readable). g7: 0 -- UNREAD, not failed (D-12).
+LANDED 41886d6: reasoning gate stage 1 (shadow, blocks nothing, two reds fixed under the
+law), D-9 (diagnostic gated), D-11 (headless workers). Suite 2427+ green, ruff clean.
+HOLD DROPPED for the deploy; goes back up for the stamp build the moment the fleet is
+relaunched on 41886d6 (the tree is production).
+NEXT: stamp factoring (cleared; brief at record/prereg/BRIEF_STAMP_FACTORING.md) -- the
+one build between the fleet and a readable g7. Then fabric I/O, W2c, standing_half_life,
+persistence monitor, symbol receipts, in that order. Memory profile parked with its
+instrument specified. At Seat 3: nothing outstanding.
+DEPLOYED 41886d6 at 18:42:51 local (fingerprint ea7474ad7381293a, dirty none); 25 workers
+relaunched, boot RSS 193-349MB (headless). HOLD back up: stamp factoring building.
+
+GATE, FIRST LIVE BEAT (18:49, 11,938 gate records, 25 boxes, 2,943 steps): mode observe
+on every box; MODE records 163 (one per game start; enforcement off, deadline marker
+carried). THE THREE-NUMBER BEAT: derivations 0 : negative derivations 0 : probes 2,943 --
+class=probe on EVERY step. Consistent with D-12 (nothing anchorable -> nothing derivable);
+the gate reads what the composer reads. BET would-refuse 570/2,943 = 19.4% (shadow count,
+blocks nothing); ACT pass 2,943; PERCEIVE unverdicted 163 = first step per game (no
+previous opener, by design); unbuildable 0; completeness reported == differing on every
+step with a previous (unreported 0). Stratum mass at 9-12.
+ANOMALY UNDER VERIFICATION: `ms` is present on 2,677 of the 2,943 SUMMARY records -- the
+field removed before 41886d6. The fleet ran b10bc12 (no gate) until 18:43; records with
+`ms` can only have come from a process that imported the builder's UNCOMMITTED gate. The
+suspect: the bounded-lifetime recycle respawns a worker from the working tree, and HOLD
+suspends deploys but not recycles. If so, HOLD is not a complete stop and uncommitted
+builder code ran live for ~50 min. Creation times of gate.jsonl decide it.
+ANOMALY CONFIRMED -> D-13, HOLD IS NOT A STOP. tools/swarm_supervisor.py: RECYCLE_MIN=120
+(:44); the HOLD check (:337) suspends DEPLOYS only; the bounded-lifetime recycle (:374)
+fires regardless and spawn() imports the working tree. status.txt r/m/c went 0/0/0 (17:44)
+-> 0/0/1 (18:45): all 25 workers recycled at ~18:03 onto the dirty tree -- the gate with
+`ms` and the raw-origin read ran live for ~40 min under HOLD. Crash restarts and mem-kills
+have the same hole. No harm this time (shadow gate; the `ms` records sit in personal
+streams -- mixed vintage, stated). Fix: under HOLD, defer lifetime recycles; any forced
+respawn under HOLD is appended to deploys.jsonl as reason="respawn-under-hold" with the
+dirty state, so the ledger never again shows a clean history over a dirty fleet. Builder
+dispatched; tooling grain; its own gate.
+D-13 TIMING PINNED: first gate.jsonl per box created 18:03:51-18:09:53 = 120 min after the
+16:03 start (RECYCLE_MIN); post-deploy files 18:43-18:46 match the new PIDs (18:43:03-
+18:44:40). Three independent reads agree (code path, recycle counter, file creation).
+GATE BEAT, POST-DEPLOY VINTAGE (18:5x, 519 steps, 25 boxes, 60 game starts): THE THREE
+NUMBERS 0 : 0 : 519 (class=probe on every step). BET would-refuse 110/519 = 21.2% (shadow);
+PERCEIVE pass 459 + 60 first-step unverdicted; ACT pass 519; unbuildable 0; completeness
+unreported 0 everywhere. Instrument note: a fleet-wide deploy stamp is the WRONG vintage
+cut -- 16 `ms`-bearing SUMMARY records leaked through because an old worker opened a fresh
+agent stream between the deploy stamp and its own kill (ls20: 18:43:10-18:44:09, replaced
+18:44:15). The cut is PER-BOX WORKER START (the D-10 rule at the box grain); instrument
+tightened, excluded streams counted and stated.
+Beat instrument verified: per-box worker-start cut excludes 62 pre-vintage streams; ms-
+bearing SUMMARY = 0 post-cut (the known-positive of the cut). 668 steps on the deployed
+vintage at 18:5x; mode observe everywhere.
+
+STAMP FACTORING: F1 FIRED THE LOSING CONDITION. The builder ran the falsifier on a
+scratchpad prototype of THE RULE before touching the tree (its decision 1 -- the right
+order under "the tree is production"). Readings, each with its population:
+  - the 17 sp80 near-twins, THE RULE, locus=colour 14, book deltas: 17 -> 17 (the book
+    holds translate=None for every action; fail-closed is byte-identical by construction)
+  - same, bank-style centroid deltas: 17 -> 17 (every delta rounds to (0,0))
+  - the REJECTED colour-anywhere reading, as a diagnostic bound: 17 -> 16 -- decisive:
+    even the widest subtraction leaves 16, because the 8<->9 edits are 14 DISTINCT
+    geometries (64/96/128 cells, 4x24..28x40). THE NEAR-TWINS ARE NOT TWINS.
+  - THE RULE on sp80's actual mover (colour 9, 80 cells, deltas +-4): 471 arrow events,
+    self_cells derived on 425, signatures 396 -> 27. The mechanism works -- on the shelf
+    the prereg did not point it at.
+D-12 CORRECTED (proctor error): colour 14 on sp80 is NOT the avatar. It is a contiguous
+bottom-row bar losing 1-2 cells per action regardless of action -- the per-action budget
+clock THE_LADDER rung 0d already records as "nothing reads". The "14->0 trail inside the
+changed set" is the CLOCK'S TICK, and the near-twins' varying widths are the tick's
+column. The evidence was in the log I read ("[EGO] colour=14"); I did not ask what 14 was.
+D-14 OPENED -- THE SELF-LOCUS IS ACTION-CONTINGENT, NOT ACTION-SPECIFIC: the ego observer
+names as "the controllable" whatever changes when the agent acts (676/~900 [EGO] lines on
+sp80 name the clock); the Goodhart guard fails on contingency alone. Consequences: every
+[PLAN] line on sp80 is avatar=centroid-rounded OF THE CLOCK (35/35); the BODY shelf on any
+box with a per-action indicator is the indicator; cross-shelf reach computes paths for a
+clock; the "[[14]]-class atoms that anchor 62-64x" are clock ticks. Question for the
+BODY-NOVEL proposal at Seat 3: how many of the 2,467 "unexplained self-motions" are ticks?
+WHAT THE COMPOSER'S STARVATION ACTUALLY IS: large world-edits that each happen ONCE, minted
+with context = full crop, so the minimiser (which needs a second observation of the SAME
+edit) never fires and no later frame matches. Over-specification proper. Self-motion
+factoring does not touch it. The fix class: narrow at MINT (changed + one ring retained,
+DONT_CARE elsewhere, context_full as the undo -- the minimiser's own retention rule applied
+at first mint), tightened by the re-point's existing conflict clause on divergence. Start
+loose, tighten on conflict -- the same machinery the re-point already runs, direction
+reversed. Object change -> ruling, not patch.
+F (the two composer notes) ships alone: one line each, no ruling needed.
+PREREG_STAMP_FACTORING: status -> F1 FIRED; the rule is sound on the true body (396->27)
+and the prereg is re-targetable at BODY/world separation for MOVES, but it is not the
+composer's fix. Held for Seat 3.
+
+GM CORRECTION (evening): "your job is not to solve the games for the agents." Accepted.
+The drift, named: five layers upstream of a null (act_offset -> anchoring -> stamp ->
+context -> self-locus), each a ruling-grade change to the agent's representation so the
+composer could be tested, the last reasoning from what colours 14 and 9 ARE on sp80.
+The wheel rule applies to the proctor too: the composer's falsifier HAS answered -- Γ's
+large effects are single-use, the chain anchors nothing, g7 = 0 is a READ NULL. Per its
+own prereg the finding routes to the WANT supply (abduction) or the composer stays on the
+shelf until signal earns it. PREREG_MINT_CONTEXT_RING withdrawn. D-14 stands as a FINDING
+(the self-locus names a non-mover), no fix attached. Back to the cleared queue: fabric
+I/O, W2c, standing_half_life, persistence monitor, symbol receipts.
+
+FIREWALL STATEMENT (GM asked; stated, not assumed): two game identifications reached
+builder-class agents this session, both in BRIEFS, neither in code or a fixture --
+BRIEF_STAMP_FACTORING F1 ("the avatar colour 14's locus"; that builder touched zero tree
+files) and the D-14 diagnosis prompt ("colour 9 is the mover"; read-only agent). Source was
+the agents' own .runs records, not GAME_TRUTH -- one step from an answer, as ruled. Both
+scrubbed; the D-14 agent instructed: criterion only, no identification in any recommendation.
+BOARD CONSTRAINT (GM): the proctor does not look at the board -- frames are the agent's
+view. Both diagnoses decoded frames from action_traces; that stops. The seat works from
+records, streams, logs and code.
+RULINGS: PREREG_MINT_CONTEXT_RING -- Seat 4 "take it"; Seat 3 sequences it behind the
+infrastructure queue; re-admitted with game-specific language removed, falsifiers by
+behaviour. D-14's fix, when drafted, is a PRIOR ("a locus that does not move under a
+movement action is not a body"), never an identification. Seat 3 has seat-specific work
+queued after the infrastructure queue lands.
+FIREWALL ASYMMETRY (Seat 4): the D-14 prompt went to a read-only agent -- contained BY
+CONSTRUCTION. The stamp-factoring brief went to a BUILDER with the identification in F1;
+it touched zero tree files only because F1 fired -- contained BY CIRCUMSTANCE. One safe by
+design, one safe by luck; the second is the lesson. Closed by the board rule (frames are
+never read from this seat) and the criterion rule (identifications never enter a brief).
+D-13 LANDED (tree, uncommitted): under HOLD lifetime recycles DEFER ("RECYCLE DEFERRED
+(HOLD)"); forced respawns (restart/mem_kill) are ledgered as reason="respawn-under-hold"
+with head/dirty/fingerprint through the ONE assembly deploy_record(); F4 oracle captured
+from the unedited supervisor and frozen. 308 passed. Receipts in this log's D-13 entry
+(:44/:337/:374) are as-of; the symbols now sit at :53/:374/:425.
+COMPOSER NOTES LANDED (tree, uncommitted): NO_ANCHOR / NO_REACH noted per candidate at
+the two formerly silent fall-throughs; reason label unchanged; 11 tests; registry rows
+refreshed by symbol (+7/+7/+11 stated).
+
+QUEUE STATE (post-GM-correction): IN FLIGHT in parallel, files disjoint -- fabric I/O
+(fabric.py only; stage 1 + _next_seq cache, stage 2 attribution read only), W2c (retention.py
+new; planner/scheduler/composer/effects band; two loop call sites), persistence monitor
+(persistence.py new; narration/affect/goal; one loop hook; the `narration` ALLOWLIST entry
+deletes). SERIALIZED: standing_half_life after W2c (shares planner._candidate_ids and
+scheduler.plan_wrong); symbol receipts LAST (its migration rewrites every registry row --
+any build landing after it would refresh rows in the retired form). Landed in tree,
+uncommitted, green: D-13, composer notes. Then ONE settled-tree suite -> commit -> HOLD
+down -> deploy. D-14 diagnosis read-only, criterion-only, report with no fix.
+D-14 DIAGNOSED (read-only, criterion-only, no board reads): self_locus.py scores a colour
+by the SPREAD of per-action mean displacement MAGNITUDE (direction discarded at :49-51);
+lifetime accrual, zero-overlap matches admitted, move_eps met by losing an end cell; a body
+moving equally under every arrow scores 0 across arrows. NO consumer checks the locus moves
+per action; the only locus-independent per-action VECTOR (W4c classifier, :2141-2163) is
+unread by the chooser. SIZE: 10 of 16 named loci fleet-wide have no stored mover evidence;
+9 boxes have no locus. Finding doc: record/findings/D14_SELF_LOCUS_CRITERION.md. No fix
+dispatched; the fix is a prior and needs a ruling; queued behind the infrastructure work.
+D-14 amplifiers recorded as four SEPARATE items (no reset; zero-overlap match; move_eps=0.5;
+frame_change_rate 1.0 under every action) beside the criterion defect, so the criterion
+change is never credited with fixing them (Seat 4).
+FLEET, 19:4x: the RUNNING supervisor is pre-D-13 code; at ~20:43 (120 min after the 18:43
+relaunch) it will recycle all 25 workers onto a tree with three builders mid-edit, ledger
+silent. Proctor attempted to stop the supervisor PROCESS ONLY (workers orphaned alive,
+recycles/deploys frozen until the commit) -- blocked by the permission classifier; routed
+to the GM for decision. If allowed: at deploy, kill the orphans, start the new supervisor
+(D-13 code) from the committed tree. If not: the recycle is recorded by hand when it fires.
+FABRIC I/O, RIDER-2 AUDIT (Seat 4 read it in flight): zero nested mutations, zero
+top-level-only writes, forty read-only consumers; the shallow-copy contract is SUFFICIENT
+TODAY and held by dict(atom) at two sites that no rule states -- "a contract nobody wrote
+down that everybody depends on": produced-and-unread INVERTED. Two pins ordered on the
+builder: (1) an AST wall naming the no-nested-mutation invariant over production globs
+(exemplar: gate.py's no-posthoc wall); (2) the mint-index / cache consistency invariant
+(_scan_pos resets only on shrink) as a constructed test or, failing that, a stated contract
+at both sites. Hazards pinned, not fixed -- the right disposition for a contract audit.
+
+## ENTRY 50 — 2026-08-21. FABRIC I/O LANDED (tree, uncommitted, HOLD up): the seq tail (A) and the read cache (B); stage 2's attribution read names execute_query, not the log handler.
+WHAT EXISTED BEFORE vs WHAT 6-b CLAIMED: `_next_seq` already cached the high-water mark --
+per INSTANCE, keyed by file SIZE -- and test_fabric_seq_cache.py proved 0 re-reads after a
+priming append on ONE instance. The 1.5M json.loads / 1,220 appends came from the loop
+building a fresh KnowledgeFabric per reachability seam and per game on one root
+(cognitive_loop.py:133/262/1819/1943 + cognitive_game_player.py:107): every fresh instance
+paid one whole-stream `_read_stream` per stream on first touch. What the old gate never
+counted: the priming read; two instances on one root; a same-size rewrite (size-blind).
+A. THE SEQ TAIL (fabric.py `_next_seq`/`append`/`reload_seqs` + module-bottom `_seed_seq`,
+`_anchor_size`, `_anchor_bytes`): one PROCESS-level entry per stream path; seeded from the
+LAST record via `_tail_records` (first touch of a 3,000-record stream: 0 full reads, 1 tail
+read, <= 4 json.loads -- counted); advanced in memory (anchor advanced from the bytes text
+mode wrote, then held to the stat: a disagreeing size drops the entry); invalidated by THE
+SAME anchor rule as the read cache (one definition, `_anchor_size`; the seq side requires
+size == upto, the read side size >= upto). Shrink / grow / same-size rewrite: exactly ONE
+re-seed each (counted). Two instances alternating on one root: live 0 full + 0 tail reads;
+the literal transcription of the 41886d6 writer re-parsed on EVERY alternation (>= 40, the
+known-positive). `reload_seqs()` = one full oracle scan (keeps the existing gate's
+"exactly one _read_stream" assertion true by meaning, not by accident). `_ends_in_newline`
+removed: the anchor already holds the last byte. STATED RESIDUE: a foreign tail record
+whose seq is LOWER than an earlier one reads last+1 where the old scan read max+1 (pinned
+as a test; append is monotonic and the janitor keeps order, so only an out-of-band writer
+can produce it; reload_seqs is the hatch).
+B. THE READ CACHE (`_cached_stream`, the one dispatch in `query` at fabric.py:284): paths
+1/2/3 as the prereg specifies; parsed_upto never mid-line; a lone trailing "\r" stays
+volatile; path 3 decodes the same bytes `_read_stream` would through `_tail_lines` (proved
+identical by the tail-read gate) rather than calling `_read_stream` and re-reading for the
+seed. F1: the whole corpus list + random sequences + EVERY stream of one real box
+(the smallest with >= 100 streams, read-only) == the oracle at every read. F2 (100 cycles,
+today's query set against growing streams): full reads per cycle 4 -> 0 for all 99
+post-warm-up cycles; tail reads 4/cycle; bytes decoded <= bytes appended; `_read_stream`
+called 0 times under the cache (by construction -- so the count that carries F2 is
+READ_STATS["full"], not the old probe, which would be a guaranteed zero). F3: append never
+invalidates (0 full / 20 tail over 20 appends); rewrite exactly once; a shrink between the
+stat and the anchor read falls to path 3 and returns the oracle's answer on the shrunk file.
+RIDER 1: LRU by stream bytes, READ_CACHE_CAP_BYTES = 32 MiB (KNOBS G35: GUESSED from the
+25-box observation, 24.3 MiB max per-box working set of the per-cycle topics; held memory
+3.5x-6.5x measured; a stream over the cap is served uncached, never retained). L0
+INTERACTION (stated in G35): the cache is a PLATEAU bounded by cap x 6.5 (~210 MB worst
+case), not growth -- it cannot be the unbounded grower, and it removes the per-cycle
+transient parses of the cached streams; import_queue (> cap on 15/25 boxes) keeps
+today's per-cycle whole parse -- the L0 suspect (b) path is lp_drive.py:124's
+`query("collective", "import_queue")`, untouched by this build and worth its own read.
+RIDER 2: AUDIT + CONTRACT chosen over deep copies (44 production consumers: 40 read-only,
+4 copy-before-write, 0 nested writes; deep-copying 80k records per call would cost what the
+cache saves). PIN 1 built: an AST wall over the production globs (alias-depth model, the
+no-posthoc shape; R4 known-positive fires on six shapes, known-negative silent on the
+dict(atom) idioms) -- 0 violations on the tree today; the contract is on the
+fabric-read-cache registry row. PIN 2 built: control (plain supersede) agrees; TWO STRICT
+XFAILS = a pre-existing FINDING at mint.py:535-554 -- a shrink-then-grow between refreshes
+that ends LONGER than _scan_pos skips the records in [old len, new len) and a re-base never
+evicts vanished ids (scratch: 10 stale / 2 missing of 8); a same-size rewrite of the last
+record re-seeds the cache but not the mint's index. The pre-build `query` returned the
+identical list, so the cache neither causes nor hides it; a mint fix flips both xfails loud.
+C. STAGE 2 NOT BUILT; THE ATTRIBUTION READ DONE from the existing W6 pstats
+(.runs/d5_profile_g50t_W6.pstats, read-only): sqlite commit 79.2 s of 396.7 s (20.0%),
+1,328 commits -- 917 / 72.4 s under `DatabaseInterface.execute_query` (FIX #16 auto-commit,
+79 ms each) vs 350 / 6.7 s under `DatabaseLogHandler.emit` (19 ms each). THE NUMBERS POINT
+AT execute_query's per-statement auto-commit, NOT the log handler the review named first.
+execute_query's callers by cumulative time: game_player._record_action_trace 20.4 s (130),
+routing_traces.execute 18.3 s (130), i_thread._save_state 10.7 s (113),
+sensation_engine._update_object_sensation_mapping 6.3 s (260) + learn_from_outcome 5.9 s
+(260) + _update_action_bias 2.4 s (260), i_thread._log_history 5.5 s (113) = 69.5 of 75 s.
+Stage 2's batch is designed for THAT site; the log handler's level is the successor if
+commits prove cheap under WAL.
+GATES: tests/gate/test_fabric_next_seq_cache.py (23) + tests/gate/test_fabric_read_cache.py
+(45 + 2 strict xfail) green; the five pre-existing fabric gates (88) green; test_consumers.py
+untouched by this build (its working-tree delta is the persistence-monitor builder's,
+narration entry deleted); WIRING_REGISTRY +2 [helper] rows (sites by grep: fabric.py:284,
+:203; no prior row carried a fabric.py receipt -- drift 0); KNOBS G35; ruff clean. Full-suite
+tail in the dispatch report. Registry reds seen this session, NOT mine: lp-steer /
+goal-abduction-plan / composer-cross-shelf-reach / admission-bargain receipts rotted and
+persistence.py's BROKEN_REBINDING reference + 4 unregistered classes (persistence.py,
+retention.py) -- the concurrent composer/supervisor/persistence builds.
+D-13 FIRED AGAIN, 20:46 (recorded by hand -- the running supervisor is pre-D-13 and its
+ledger is silent): RECYCLED#2 on every box. The tree at that instant carried three
+builders' uncommitted edits (fabric.py read/seq cache; W2c retention across planner/
+scheduler/composer/effects/cognitive_loop; persistence across narration/affect/goal/
+cognitive_loop), each mid-suite. The fleet now runs that code. The proctor's attempt to
+stop the supervisor process beforehand was blocked by the permission layer and routed to
+the GM; no decision arrived before the recycle.
+FLEET THRASHING (status 20:46): mem-kills s5i5 x16, sb26 x21, tn36 x13, su15 #14 (2027MB),
+vc33 #16 (1688MB), all accumulated since ~19:30 = when the builders began editing. Crash
+and mem-kill respawns import the working tree (D-13's other half), so these workers run
+half-built code that reaches ~2GB in minutes. The 20:46 recycle put the other 20 on the
+same tree. Suspect: an unbounded parsed-stream cache mid-build (Rider 1 bounds it; the
+bound may not have existed at respawn time) -- the builders' reports decide. A builder also
+deleted architecture/Autonomous Research Lab.md outside scope; restored from git.
+DECISION REQUESTED OF THE GM: halt the fleet (stop supervisor + workers) until the commit,
+since HOLD cannot stop respawns and the proctor is blocked from stopping processes.
+
+FLEET HALTED (GM ruling): 52 processes stopped (supervisor pair + 25 worker pairs), 0
+remaining. Reasons as ruled: streams since ~19:30 are CONTAMINATED EVIDENCE (mixed-vintage
+code under a changing tree -- the eight-dirty-deploys defect again), and a ~500 MB/min
+memory ramp of unattributed origin was running unsupervised while slowing the very suites
+that would name it. Nothing of value lost: levels mute, g7 a null, split-half sealed before.
+WHAT D-13 ACTUALLY DOES (answering the GM): under HOLD it DEFERS lifetime recycles and
+LEDGERS forced respawns (crash/mem-kill) as respawn-under-hold. It does NOT stop respawns
+-- a crashed worker can only be respawned from the tree that exists. So after D-13, HOLD is
+a deploy gate + a recycle gate; it is still not a fleet gate.
+THE STANDING LESSON: HOLD was designed as a deploy gate and treated all week as a fleet
+gate. Every build done "under HOLD" on the production tree was exposed to respawns
+importing half-built code. THE RULE FROM HERE: builds on live-path files happen with the
+fleet HALTED, or the fleet deploys from a SNAPSHOT (a worktree at the deployed commit) --
+the second is the infrastructure fix and is proposed to Seat 3 as the next queue item after
+symbol receipts. Until then: halt for builds.
+RAMP ATTRIBUTION (pending the three reports): the five mem-killed boxes (s5i5, sb26, tn36,
+su15, vc33) are the SMALL-stream, never-scored boxes, not the big-stream ones -- evidence
+against the read cache as the ramp. If none of the three reports owns it, a fourth thing is
+running and gets its own read before anything lands.
+
+THE PROCTOR MANDATE received (GM, evening) -- saved verbatim-in-substance at
+record/corpus/THE_PROCTOR_MANDATE.md and in memory. Eight items; the queue finishes first.
+THE ELEVEN FIGURES internalised (text digest at record/corpus/FIGURES_TEXT_DIGEST.md; the
+SVGs are the law). From here every brief states the laws its build satisfies and every read
+states the figure it reads against. The law behind the board constraint is FIGURE 10:
+"Looking inside the frame it grades is how the seat stops being outside ... Bring a
+characterised residual, never the source." The seat reading frames was the seat acquiring
+the agent's model and grading against its own picture. The two briefs already written
+(standing, symbol receipts) now carry their laws. FIGURE 11 names the other standing
+caution for every gate test in the tree: a test harness is a substituted habitat -- a
+synthetic solve proves wiring, never capability.
+W2c LANDED (tree, uncommitted): retention.py (store + session, content-keyed), planner/
+composer/effects band at the one dispatch, scheduler owns and clears the store, 3 loop hunks,
+31 tests green; F1 by counting (exact repeat applied_cold 5 -> 0; second compose attempt 0
+scans); band oracle 0 mismatches on 300 + 400 cases. Caps G30-G34 pinned by prereg. Its full
+run: 2606 passed / 5 failed, all attributable to concurrent builds -- persistence's hook
+appended BELOW _gate_step breaks the gate's "lives at module bottom" law (a POSITION PROXY:
+"is last" rather than "is a module-level def after the class" -- the genus symbol receipts
+retires; the gate test is corrected when persistence lands), persistence's third gains
+channel breaks the test pinning "exactly two channels" (the prereg adds a third; the
+test is in that builder's scope), and the supervisor env-order parity (re-checked at the
+settled suite). W2c wrote no PORT_LOG entry (file under concurrent edit) -- correct.
+SERIALIZATION: standing_half_life waits for persistence too (it stamps the PLAN-abort
+NARRATION record; persistence owns narration.py until it lands).
+FABRIC I/O LANDED (tree, uncommitted): A) _next_seq -- TARGET CORRECTED: it was already
+cached PER INSTANCE; the 1.5M loads came from fresh KnowledgeFabric instances per seam/game
+on one root (cognitive_loop.py:133/262/1819/1943, cognitive_game_player.py:107), each
+parsing the whole stream on first touch. Now ONE process-level entry per path, tail-seeded
+(3,000-record stream: 0 full reads, 1 tail read), anchor-invalidated; 23 tests. B) the read
+cache: 45 tests + 2 strict xfails; F2 full reads 4 -> 0 after warm-up; cap 32 MiB stream
+bytes GUESSED from the observed per-box working set (24.3 MiB max), import_queue (>15MB on
+15/25 boxes) deliberately uncached; held memory a ~110-210MB PLATEAU, not growth (G35).
+PIN 1 (no nested mutation) built as an AST wall, 0 violations; PIN 2 found a PRE-EXISTING
+mint defect (mint.py:535-554: shrink-then-grow past _scan_pos skips records and never
+evicts; same-size last-record rewrite unseen) -- two strict xfails, independent of the
+cache. C) ATTRIBUTION READ: sqlite commit 79.2s / 396.7s (20.0%), 1,328 commits -- 917 /
+72.4s under execute_query AUTO-COMMIT vs 350 / 6.7s under DatabaseLogHandler.emit. The
+proctor's first suspect (the log handler) was wrong; the numbers name execute_query. Top
+callers: game_player._record_action_trace 20.4s, routing_traces.execute 18.3s,
+sensation_engine.* 14.6s, i_thread._save_state 10.7s, i_thread._log_history 5.5s. This is
+MANDATE ITEM 2's first number. Stage 2 (per-step batch) now has its target.
+Its full run: same 5 reds as W2c's, all attributable to the persistence build + supervisor
+env order; none its own.
+SEAT 4 on the two landings: "not mine" by CONTROLLED SUBSTITUTION (HEAD's fabric.py swapped
+in, four reds reproduce identically) is the strongest form available. test_sprint_keeper
+flipping mid-suite under a concurrent supervisor edit = the MOVING-TREE HAZARD, fifth
+instance this week; the policy meant to close it (full suite proctor-only on a settled
+tree) did not hold because three builders ran simultaneously -- the proctor's parallelism
+decision is the cause. PIN 2's xfails are a real pre-existing mint gap, correctly filed
+not fixed. The 32 MiB cap leaves the largest stream on >half the fleet cold: right trade;
+if import_queue reads prove hot, the cap is the wrong SHAPE not the wrong number.
+SUITE TIME IS A DESIGN CONSTRAINT: 57 min now vs 2.5 min on a quiet box a week ago; two
+new gate files add ~20 min (file-open cost on this box). Every gate written from here is
+shaped by that fact. Mandate item 2 owns it.
+RAMP REPRODUCTION (one worker in-process on a thrashed box, FINAL tree, fleet halted):
+NOT REPRODUCED -- 625MB private / 442MB working set at 27 min, versus the fleet's ~2GB in
+~4 min during the build window. Consistent with the ramp belonging to a MID-EDIT tree state
+(e.g. a cache before its bound landed) under 25 workers + 3 suites; not provable from here.
+THE TEST IS THE RELAUNCH: on the committed tree, status.txt mem-kills must stay 0 across the
+first hour; any recurrence is caught at the first heartbeat read (the halt rule), not after
+21 kills. Instrument lesson: the sampler thread owned the timer and died silently on one
+transient OSError -- a sampler must never share a thread with the deadline.
+HEARTBEAT: session cron replaced with the canonical prompt (job 47e58640, 11,41 * * * *);
+the verbatim prompt lives in memory (proctor-session-start) and in THE_PROCTOR_MANDATE.md
+so any model re-arms it identically.
+GM: fleet relaunch AUTHORIZED on the proctor's timing once the mandate's item-6
+obligations are met (figures internalised; laws in every brief -- done). The halt lifts at
+the verified commit: persistence lands -> standing builds -> ONE settled suite with no
+builder in flight -> commit -> new supervisor (D-13 code) from the committed tree -> the
+first status.txt read is the ramp's test (mem-kills must stay 0).
+
+MANDATE ITEM 2, FIRST NUMBER (records only, worker.log stamps, per PROCESS lifetime; read
+against FIGURE 3): WITHIN-PROCESS GENERATION GAP median 1,995s = 33 MIN (p25 19 min, p75
+55 min; n=2,133 gaps, 3,804 process lifetimes, 25 boxes). Target: several generations in
+10 min -> a >= 10x gap. Median GENERATIONS PER PROCESS = 1: most workers complete one
+generation before they end (recycle/restart/mem-kill/deploy), so every generation also pays
+a boot: ~95s import (pre-D-11) + median 72s from the runner banner to the first cognitive
+cycle (replay handoff + agent construction). Per-box: first-cycle 9s (cn04) to 235s (su15);
+gen gap 711s (ar25) to 3,870s (sp80). NEXT READ: actions per generation and seconds per
+action per box, from the logs -- to split the 33 min into per-action work (the profile
+windows' terms: sqlite auto-commit 20%, apply_effect, record_result) vs per-generation
+overhead (agent creation, evaluation, DB), and to show the arithmetic to the target.
+Item 2, sidebar: the supervisor spawns --max-generations 50, so "1 generation per process"
+is not the argv -- it is process death (120-min recycle, restarts, mem-kills, deploys)
+landing before generation 2, which a 33-min generation makes near-certain: a 120-min
+lifetime holds ~3 generations at best, and every respawn re-pays boot + first-cycle
+(~95s + 72s) and a replay handoff. Speed and lifecycle are one problem: shorten the
+generation and the lifecycle overhead shrinks with it; lengthen the lifetime and the
+memory growth (L0) bites instead. The anatomy read splits the 33 min next.
+Item 2, ANATOMY (2,133 complete generations, records only): a generation = 4 agents played
+SEQUENTIALLY in one process; median 277 narration events; 6.25s per event (fleet median;
+ar25 0.67s ... sp80 23.7s). Head (banner -> first [AGENT]) and tail (last event -> next
+banner) read 0s at this grain -- no logger stamp there -- so the 33 min is the play itself,
+not evaluation/selection overhead (to be confirmed at the action grain from the DB).
+
+MANDATE ITEM 2, ACTION GRAIN (core_data.db action_traces, non-frame columns; records only):
+  box    actions/session  span    s/action (all / last 50)
+  g50t        130         318s     5.1 / 3.7
+  tu93         50         325s     6.7 / 6.6
+  ka59        100         734s     8.3 / 8.6
+  sb26         22         283s    11.1 / 11.2
+  ar25         84         619s    11.8 / 17.6   (composer engaged, 73 candidates/cycle)
+  sp80         32        1122s    45.8 / 44.3   (composer engaged every cycle, 17 candidates)
+A generation = 4 sessions -> 1,130s (sb26) .. 4,490s (sp80). Per-action cost varies 12x
+across boxes and is dominated on the slow boxes by PER-CYCLE COGNITION (composer/planner
+scans -- W2c retains them; fabric reads -- now cached; sqlite auto-commit 20% -- stage 2's
+target), not by boot. THE FIFTH LAYER, named: the per-cycle plan/compose engagement on
+boxes where the planner engages every cycle (sp80 45s/action vs g50t 3.7s) -- W2c is its
+fix and its measurement (applied_cold per call, first vs repeat engagement) is pre-committed.
+THE ARITHMETIC TO THE TARGET. "Several generations in 10 min, fleet-wide": take 3 per 10
+min = 200s per generation = 4 sessions x ~100 actions = 0.5 s/action PER WORKER WITH THE
+CORE TO ITSELF. THE BOX: Intel i5-6500, 4 cores / 4 threads, 56GB. 25 single-threaded
+workers share 4 cores -> each sees ~0.16 core; a fleet-wide generation is 25 x 400 = 10,000
+actions through 4 cores. At 1 s/core-action (plausible after the four landings) that is
+2,500s = 42 min per fleet-wide generation; the target needs ~0.07 s/core-action, a further
+~14x beyond the landings, OR fewer actions per generation (the 150 budget), OR fewer boxes
+concurrently (sprint mode: 3 workers on 4 cores -- the GM's own preference while builds
+run), OR more cores. The GPU does not enter: the hot paths are numpy/SQLite/Python, not
+tensor-shaped. Stated as the GM asked: part of the remaining cost IS the work (per-cycle
+cognition on engaged boxes), and part is contention that no code change removes.
+MEASUREMENT PRE-COMMITTED FOR THE RELAUNCH: s/action per box from action_traces over the
+first hour on 41886d6+landings vs this table (same query, same boxes); sprint-vs-full
+comparison on the same boxes if the GM wants the contention term isolated.
+
+MANDATE ITEM 1, THE LADDER AUDIT (read against Figure 3): 11 rungs read something today
+(0, 0c, 0d, 1, 1b, 2, 3, 4, 5, 5b, 6); 2 read an instrument that does not exist (0b the
+exposure floor -- MIN_EXPOSURE in no .py, no tool; 0e publication -- none named, answered
+once by hand); 1 has NEVER returned a value in its named form (0b), +1 returned only a
+guaranteed zero (rung 1, R_T=0, ruled not-a-reading by Q8). THREE STATEMENTS IN THE LADDER
+ARE NOW FALSE THE OTHER WAY: 0c "no CI gate" (ci.yml runs both gates on all branches);
+rung 2 "reason field unbuilt" (mint.py W4 built it); rung 4 "matched-and-rejected
+inexpressible" (kind=declined built). MOST CONSEQUENTIAL ABSENCE: 0b -- the break is being
+read at g7 on a fleet whose leaders run 0.1 act/min, and without an exposure instrument
+the ladder cannot say whether that null is a reading or a reading of nothing; by its own
+stop rule every rung beneath is unmeasured until 0b reads. DISPOSITION: the beat-rates
+tool (in build) gains the 0b line (episodes/hour, actions/episode, s/action, completion
+rate, MEASURED/UNMEASURED against split_half's derived k); the three stale statements are
+corrected in THE_LADDER by a dated currency section.
+SEAT 4 on the ladder audit -- CORRECTION TO THIS LOG'S OWN FRAMING: g7 is not "a read
+null". With no exposure instrument (0b never built; MIN_EXPOSURE in no .py), the g7 null
+on a fleet whose leaders run 0.1 act/min is UNMEASURED by the ladder's own stop rule --
+nobody knows whether enough happened for the number to be a reading. Rung 1 likewise: only
+R_T = 0 ever returned, arithmetic-not-result by Q8; no localised R_tau figure anywhere. Two
+hollow rungs at the bottom; every reading this project has taken sits above them. The
+three stale "gap" statements mean the ladder UNDER-reported its own coverage -- a stale
+receipt in the document that governs receipts. The mechanism that replaced 0b's threshold
+(split_half's derived k, the no-wall-clock ruling) was never re-scoped onto the rung.
+DISPOSITION: beat_rates.py (building) carries BOTH instruments -- 0b exposure per game
+against split_half's k, and rung 1's per-slot residual from the bank's settlement records
+(largest single-slot mass, live-slot count, never a mean -- Figure 1). If the bank writes
+no per-slot field, the tool prints that, and rung 1's instrument becomes a queued build.
+
+PERSISTENCE MONITOR LANDED (tree, uncommitted): persistence.py (pure fold, O(1)/record,
+one observer hook in the spine), the PERSISTENCE token, `persist` as affect's third channel
+into exactly two sinks, 42 tests. Its one red (keeper env order) REPRODUCED GREEN in
+isolation by the proctor (21 passed) -- another mid-suite artifact of a concurrent
+supervisor edit: the SIXTH moving-tree instance, and the last, because no builder runs a
+full suite from here (proctor-only, alone, after every builder stops -- the root cause was
+my parallelism, not their discipline).
+SEAT 4 on the build, three notes:
+1. THE GOAL SINK IS LATENT AND MARKED: GoalManager.observe has no live caller; the builder
+   registered it SEVERED with a loud waiver rather than driving it (scope creep) or hiding
+   it (the ten-instance genus). F6's wire check runs through the LIVE sink instead, so it
+   tests something that fires. The right refusal.
+2. [COL] FALLBACK = the same stream prefix, not a disk read of other agents' streams:
+   determinism over richer evidence, because byte-identity between the live emitter and
+   replay() is what makes the monitor auditable. The same trade as the `ms` field, one
+   build later, taken unprompted.
+3. PRIMING COST, to become a beat number not a note: from_fabric parses the agent's whole
+   personal narration stream once per spine per game (~0.3s / 40k records). Narration grows
+   per step, so a long-lived worker pays a longer parse for every new game -- the same
+   shape as the replay tails, which were invisible until measured at 12 minutes.
+THE POSITIONAL LAW THAT SURVIVES THE APPARATUS: test_gate_stage1 pins _gate_step as the
+module's LAST function, so persistence's helper had to go ABOVE it -- the third build shaped
+by a gate constraint rather than by design, and the second collision this week between the
+module-bottom convention and a positional law. Symbol receipts removes the RECEIPT half; it
+does not remove a last-function pin. Added to that brief as L7, in scope.
+HEARTBEAT VERIFIED 21:21 (GM asked): job 47e58640, 11,41 * * * *, next 21:41; survived the
+model switch (session-scoped, not model-scoped). Backstop for a session death: the verbatim
+prompt in THE_PROCTOR_MANDATE.md + the session-start memory, re-armed as the first act of
+any new session. GM away a few hours; the fleet stays HALTED until the commit (the ruled
+discipline), then relaunches on the committed tree and accumulates for the remainder.
+
+RETURN REPORT CONTRACT (GM, before leaving; the heartbeat carries this, not the proctor's
+memory). The report on the GM's return must contain, in this order:
+1. THE RAMP'S TEST -- first status.txt read after relaunch: mem-kills across the first hour.
+   Must be 0. Non-zero means the ~500 MB/min pathology is IN the committed code, not in a
+   half-built state, and it becomes the next build ahead of everything.
+2. DOES RUNG 0b ACTUALLY READ -- not "the instrument exists" but "it returned a value":
+   per game, episodes/hour, actions/episode, s/action, completion rate, and the
+   MEASURED/UNMEASURED verdict against split_half's derived k. Until it reads, g7's null
+   stays UNMEASURED (not failed, not blocked) and no rung above it is quoted as a result.
+3. SPLIT-HALF AFTER, against the sealed 0-improved/0-regressed/5-unchanged baseline, in the
+   PER-GAME three-number form (never a fleet average).
+4. Then the beat proper (rates with denominators, the economy per game, what is STALLED).
+COUNT CORRECTED: the moving-tree hazard ran to SIX instances, not five -- tonight's keeper
+red inside the persistence builder's suite was the sixth, and it is the one that named the
+cause as the PROCTOR'S PARALLELISM (three builders each running a full suite over each
+other's mid-edit files), not any builder's discipline. Closed on two axes: the fleet is
+halted during live-path builds, and no builder runs a full suite -- the proctor runs it
+once, alone, after every builder has stopped.
+
+MANDATE ITEM 7 -- THE INVENTORY LANDED (record/findings/CODEBASE_INVENTORY.md, 524 .py
+rows; read against FIGURE 11 enumerate-never-compose and FIGURE 6 improve-a-worse-
+instrument). LIVE 160 / OBSCURE 331 / DEAD 33 / HELD 26. The OBSCURE split is the
+load-bearing part: OBSCURE-E 251 (an executable path reaches it) vs OBSCURE-N 80 (its name
+occurs somewhere but NOTHING INVOKES IT) -- the mandate's literal "no string mention" test
+would have cleared all 80, so a bare-string sweep cannot tell an INVENTORY from an
+INVOCATION, and that difference is 80 files.
+FINDINGS:
+1. THE LIVE PATH IS 27 MODULES WIDER THAN ANY IMPORT SCAN SHOWS -- reached only by
+   in-function imports from LIVE modules; ELEVEN are in engines/egocentric (narration
+   cl.py:229, scheduler :433, starvation :1011, frontier :1667, composer :4906,
+   persistence :5338, gate :5362, action_book :5399, plus grammar, latents, janitor).
+   manual_tools was not the exception -- it was the first instance of the rule.
+2. THE RE-EXPORT BLIND SPOT HAS SIX INSTANCES, NOT ONE. engines/egocentric/relations.py is
+   LIVE by import (depth 3 via the package __init__), has NO WIRING_REGISTRY ROW, and its
+   three public functions are referenced nowhere in the tree -- inside the very package the
+   registry gate exists to cover. The gate checks the rows that exist; it cannot see a
+   module that has no row. -> added to the symbol-receipts brief as a coverage falsifier.
+3. engines/postgame/ is a CLOSED ISLAND: 6 files, zero callers; its docstring names a
+   caller that lives in legacy/. The largest unreferenced subsystem in the tree.
+4. A live CROSS-REPO edge: a hard-coded absolute path at manual_tools/_extract_rungs.py:5
+   into GitHub\BitterTruth-AI\. The habitat cannot be fully enumerated from this repo alone
+   -- stated as the read's limit (Figure 11: enumerate outward until the cascade stops).
+5. 33 files nothing mentions -- including tools/repo_assess.py, which encodes the
+   lazy-import lesson in its own docstring and is DEAD by its own criteria. Per Figure 6
+   that is the worse instrument this inventory was improved from.
+6. HELD (26, for the GM, no moves, no recommendations). The one that changes a build in
+   flight: lab/trend_tracker.py + lab/comparative_analyst.py are MANDATE ITEMS 3 AND 5 IN
+   CODE (experiment memory, convergence/plateau detection, Cohen's d) -- and I dispatched a
+   builder an hour ago to write that from scratch. NAME-THE-EXEMPLAR sent mid-build: read
+   both, then either call them with the citation or state precisely why they do not fit.
+   The composer-lineage lesson repeating inside the very read that found it.
+   Others: ab_testing (promotion AND ROLLBACK on evidence -- the build can assign arms and
+   can do neither), edge_inference + validate_inferred_edges (a closed discover/falsify
+   loop, neither half reachable), perception/palette_detector, spatial_learning (NONE).
+ONE-SUBDIRECTORY RULE, where it loses to the requirement: flattening exceeds 60 files in
+engines/ (161), tests/ (156), record/ (97), manual_tools/ (65); engines/ additionally
+cannot flatten without destroying 13 __init__.py files that are the ONLY thing reaching 5
+registry-loaded modules; environment_files/ would collide on 4 filenames. Stated; nothing
+proposed; no move made.
+
+---
+
+## ENTRY 51 — 2026-08-21. STANDING AT THE ATOM GRAIN LANDED (tree, uncommitted, HOLD up): the Dislodging residual gets an expression — an atom that keeps being wrong stops ranking, and decay BITES at the reach, not at a number.
+
+> **The gap it closes, from the code:** `Gamma` only grew, `_candidate_ids` returned every
+> valid id sorted LEXICALLY, and `scheduler.plan_wrong` was a ledger "deliberately not yet a
+> demotion". An atom that had mispredicted a hundred times entered the search on equal
+> footing with one that had held a hundred times.
+
+**The build.** `engines/egocentric/standing.py`: the event fold over the books —
+e1 mint verdict / e2 rederivation verdict (by KEY, from `mint_verdicts`), e3 a HELD driven
+step + the composite CANDIDATE→SETTLED transition, m1 a routed plan-wrong, m2 an
+observation-time `ctx_conflict`. `S(a,t) = Σ_E d^(t−ep) − Σ_M d^(t−ep)`, ONE rate on both
+sides. `d = 0.5^(1/g*)` from the population's own median re-earn gap; 0.97 BORROWED and
+flagged below 30 qualifying atoms. `τ = Q1 − 1.5·IQR` recomputed at every planner
+engagement; evict iff `S < τ AND M_d > 0`.
+
+**Four seams had no clock, so four seams got one.** The abort router's no-abort branch
+recorded NOTHING (that early return is now the earn event); the routed abort's PLAN record
+now carries `steps` + `ep`; `mint._reinstate` stamps `ep` and takes a `via: plan-wrong`
+marker so the stage-4 path counts ONCE; `composer.live_settle` takes `ep=`. An event with no
+readable ordinal is NOT counted — the drop is counted (`unstamped`), never absorbed.
+
+**The rider is the point.** Seat 3 took "silence never evicts"; Seat 4 required that decay
+BITE. It does at the REACH: `_candidate_ids` orders by S, the search visits in that order,
+and under `_MAX_NODES` it returns on the first solution — so the decayed twin is applied
+LATER or, as the gate shows, never applied at all. Asserted as an ordering of reach with a
+lexical control, never as a comparison of S.
+
+**Cross-grain counter #6, filled in:** tick y · rate y · combine y · negative side y ·
+threshold y — five of five, plus the ruling's own first YES (silence is evidence among
+agents and not among atoms). Per the verdict rule named BEFORE the code: the claim HOLDS at
+the SHAPE grain and FAILS at the PARAMETER grain. "Shape shared, parameters re-derived per
+grain" — not rescued into "one mechanism".
+
+**Gate** `tests/gate/test_standing.py` (39): F1–F7, R4, the decay-bites rider, and the four
+laws — FIGURE 1 asserted by source (no pricing or reporting module reads S), FIGURE 2 as no
+mutual update between atoms, FIGURE 5 in the recovery falsifier, FIGURE 10 on every
+eviction/re-entry append. Scoped suites green (476). Ruff zero. `standing=None` is the undo.
+
+STANDING_HALF_LIFE LANDED (tree, uncommitted; the queue's last engine build): standing.py
+(events e1/e2/e3 + m1/m2 with the `via` marker so one event counts once; S with the SAME
+decay both sides; d = 0.5^(1/g*) from the population's own median re-earn gap, 0.97 BORROWED
+below 30 atoms; rank by S in _candidate_ids; eviction at Tukey's lower fence with the
+M_d > 0 clause so SILENCE NEVER EVICTS; re-entry reopens GATE B). 39 tests + 437 scoped +
+405 blast-radius, all green; ruff clean on its files.
+THE RIDER HELD: decay BITES -- twins identical to the search, asserted by REACH not by S:
+the penalised twin is reached later and, because the search returns on the first solution,
+is NEVER APPLIED AT ALL. Instrument = the apply_effect log, counting, never wall-clock.
+CROSS-GRAIN COUNTER #6, THE VERDICT: five of five components needed adjustment (tick, rate,
+combine, negative side, threshold) plus the ruling's own first YES. Per the rule named
+BEFORE the code: the claim HOLDS AT THE SHAPE GRAIN, FAILS AT THE PARAMETER GRAIN --
+"shape shared, parameters re-derived per grain", never rescued into "one mechanism". The
+counter's first real FAIL, and it was pre-named, not argued after the fact.
+RECEIPT DISCIPLINE, BETTER THAN THE PROCTOR'S: 41 drifted receipts refreshed by INVERTING
+the build's own edits and mapping every claimed line through difflib opcodes; the builder's
+first pass used nearest-symbol-hit, mis-picked ~6 rows (consumer-drain 916 -> 944 instead
+of 1026), and it REVERTED AND REDID the whole pass. One receipt (abort-router) needed a
+SEMANTIC fix, not a map fix -- its claimed line had landed inside a rewritten docstring.
+Adopt: difflib-map refresh is the method; nearest-hit is not.
+ITS OWN RED, CAUGHT AND FIXED: a comment it wrote contained the string `plan_to_identity`,
+which became the first occurrence in the loop and moved a +/-2500-char window law off its
+gate -- the POSITION-PROXY genus again, in a comment. Reworded; green.
+SETTLED SUITE RUNNING (proctor, alone) with tests/gate/test_beat_rates.py ignored -- the
+tooling builder still holds those two files and nothing on the agent's path imports them.
+RETURN REPORT CONTRACT, addendum: report the CROSS-GRAIN COUNTER's first FAIL as a result
+in its own right -- five of five components adjusted, verdict "shape shared, parameters
+re-derived per grain", pre-named before the code and not argued after it. That is the
+counter working as designed, and it is the first time it has returned anything but "yes".
+
+MANDATE ITEMS 3-5 -- tools/beat_rates.py LANDED, AND RUNG 0b READS FOR THE FIRST TIME.
+THE HEADLINE FINDING IS BIGGER THAN THE TOOL: **THE FABRIC HAS NO CLOCK.** Surveyed
+read-only across all 17 topics on 25 boxes: NOT ONE ego_fabric record carries a timestamp.
+Every record has `seq` plus its domain fields -- atoms, mint_verdicts, settlements,
+narration, starvation, swallow, ideas, idea_events, goal_hypotheses, frontier_*, import_*,
+replay_outcomes, rho_readings, gate: all clockless. CONSEQUENCE: every frame-internal rate
+the mandate asks for CANNOT BE WINDOWED. The builder refused the two available fabrications
+(joining narration `step` to action_traces ordinals; apportioning by seq) and shipped THE
+MTIME BRACKET instead: mtime before the window = a SOUND ZERO; mtime inside = NOT READABLE,
+with all-time populations printed beside it labelled "[all-time, NOT a rate]". Refusing to
+fabricate a window is the right call and it is why item 3 is honestly unanswerable today.
+THE FIX AND ITS TRAP (proctor, before anyone builds it): the obvious repair -- a UTC field
+on fabric.append -- WOULD BREAK THE BYTE-IDENTITY GATE (test_system_determinism: every
+stream identical across identically-seeded runs), which has been the strongest falsifier in
+five of this week's builds and which already forced the gate's `ms` field out of a record
+tonight. A timestamp in a record is the same defect wearing a useful hat. THE SOUND FIX IS
+THE WATERMARK: a per-beat sidecar (NOT a stream record) mapping seq -> UTC per stream,
+written by the beat tool itself at each read; windows are then computed in SEQ space and
+the records stay deterministic. Queued as a prereg, not a patch.
+WHAT THE FIRST REAL BEAT SAYS (3h window, fleet halted, read-only):
+ - THE GROUND IS MUTE: 0 games won, 11 levels completed fleet-wide, and only 3 boxes of 25
+   contributed (g50t 6, sk48 4, lp85 1). 22 boxes completed nothing.
+ - RUNG 0b CHANGES THE READING: 6 of 25 games are BELOW their derived exposure floor
+   (ft09 needs 16 episodes, produced 2; cn04 needs 10, produced 2) -- every later line for
+   those games is suffixed "(below exposure floor)". Seconds/action is bimodal with a 60x
+   spread: 3-8s on most boxes vs 44s (cd82), 63s (r11l), 177s (cn04), 185s (sp80). No
+   aggregate would have shown it.
+ - RUNG 1 READS, AND FIGURE 1'S WARNING IS REAL AND COUNTED: per-slot residuals live in
+   narration PERCEIVE.slots. `R~0 & >=1 slot live` fires on 12 of 25 boxes (tu93 92 steps,
+   re86 60, wa30 37, cd82 31, bp35 30) -- steps where an AGGREGATING instrument would have
+   printed "nothing here" while a slot carried mass. Largest single slots: 462 REFERENCE
+   (bp35), 451 REFERENCE (ar25) -- a mutated reference is the loudest residual the bank has.
+ - THE MINT RUNS AND RETURNS ALMOST NOTHING NEW: fleet all-time 2,018 mints against 222,119
+   rederivations over 335,316 verdicts (0.6%). vc33: 53,578 rederivations to 2 mints; s5i5
+   53,512 to 72. Figure 5's third guard, visible.
+ - 152 COMPOSITES EXIST FLEET-WIDE AND 0 ARE SETTLED. Every composite is a candidate; none
+   is citable. (Consistent with D-12: nothing anchors, so nothing settles.)
+ - 7 BOXES HAVE NEVER MINTED AT ALL -- including g50t and sk48, THE TWO BOXES THAT
+   COMPLETED THE MOST LEVELS THIS WINDOW. Level progress and minting are anti-correlated on
+   this fleet. That is a finding about what is actually producing the levels (replay), and
+   it goes in the return report.
+ - RETIREMENT EVIDENCE IS NULL EVERYWHERE: `agents.retirement_reason` is NULL on every
+   retired row fleet-wide (866/878 on ls20, 2306/2462 on sb26). The field exists and
+   nothing writes it -- "a field that looks like data and isn't", the named genus, at the
+   economy's grain. No `retired_at` column at all.
+ - PRIMING COST (Seat 4's rider, now a number): 1,489,132 narration records / 505.0 MB
+   fleet-wide, re-parsed per spine per game; g50t alone 283,086 records / 95.1 MB.
+   Narration is NEVER COMPACTED (the janitor's policy names only import_queue, settlements,
+   mint_verdicts). It only grows.
+ - COMPOSED/mints EXCEEDS 1 (ar25 143/73) because composer.compose() files NO
+   mint_verdicts record while the denominator counts the MDL mint's accepted terms: TWO
+   PRODUCERS WRITE ONE LEDGER AND ONLY ONE IS LEDGERED. The composer needs its own verdict
+   ledger before that rate means anything.
+EXEMPLAR CHECK (my rider): verdict (b) -- lab/trend_tracker and lab/comparative_analyst do
+NOT fit, with four disqualifiers each (trend_tracker indexes by GENERATION over a table
+that exists on NO box; every entry point CREATE-TABLEs and commits, unusable read-only
+under HOLD; one repo-root DB where the grain is per box; "converged" is a boolean with no
+reason, which is not "stalled since the last beat, and why"). Reason recorded in the module
+docstring and PINNED by a test. One corroboration worth keeping: comparative_analyst's
+success criterion is `level_completions > 0`, the same ground predicate the new D2 uses --
+two independent readers picked the same ground.
+PREREG_SEQ_WATERMARK drafted (queued behind symbol receipts): the launcher (supervisor at
+its 60s poll, keeper likewise) appends a per-box sidecar mapping stream head seq -> UTC;
+the beat windows in SEQ space. No record gains a clock, so byte-identity survives; the
+agent never reads the file; a missing sidecar degrades to today's mtime bracket. Resolution
+60s, finer than the hourly rates asked for. Named as NOT fixed by it: RETIRED (no atom
+carries `evicted` until standing deploys), USED on 7 boxes (settlements predate atom_key),
+and retirement_reason/retired_at (a writer defect at the economy's grain -- a clock does
+not write a field nobody writes).
+
+ATTRIBUTION CORRECTED -- I WAS WRONG TWICE ABOUT THE SAME RED, AND THE REAL CAUSE IS WORSE.
+test_sprint_keeper::test_fleet_env_parity kept failing in full suites and passing alone. I
+called it a MOVING-TREE artifact of a concurrent supervisor edit -- twice, once "the fifth
+instance", once "the sixth". IT IS NEITHER. tests/gate/test_d9_diagnostic_gate.py:47
+imports evolution_runner AT MODULE LEVEL; evolution_runner.py:38 calls load_dotenv() AT
+IMPORT; that puts ARC_API_KEY into os.environ for the whole pytest process; the keeper test
+then computes "which keys did the LAUNCHER add" as `[k for k in env if k not in
+os.environ]` and loses ARC_API_KEY. Deterministic, by FILE ORDER, every time.
+Reproduced on demand: `pytest test_d9_diagnostic_gate.py test_sprint_keeper.py` -> red;
+`pytest test_sprint_keeper.py` -> green. Fixed by one monkeypatch.delenv("ARC_API_KEY")
+beside the two the test already does for the fleet vars; verified green in BOTH orders
+(63 passed polluted-order, 21 passed alone), ruff clean.
+THE LESSON, sharper than the fix: "passes alone, fails in the suite" has TWO causes and I
+assumed the one I had a story for. A moving tree was real this week (builders editing under
+running suites) and it made the other explanation invisible. CROSS-TEST POLLUTION is
+deterministic and reproducible; the moving tree is not. THE DISCRIMINATOR IS FREE AND I
+SKIPPED IT: re-run the two files together in the failing ORDER. If it reproduces, it is
+pollution, not a tree. Do that before attributing, always.
+UNDERNEATH IT, a production observation (not fixed, not in scope tonight): evolution_runner
+calls load_dotenv() at IMPORT time -- a side effect at import, the same genus D-6 closed
+for the supervisor. Any test or tool that imports the runner inherits the fleet's real
+environment. Recorded for the cleanup queue; the test-side fix is correct regardless,
+because the launcher-parity assertion must not depend on ambient environment at all.
+THE MOVING-TREE COUNT IS THEREFORE OVERSTATED: at least two of the instances I logged were
+this. The structural fixes stand on their own merits (the fleet is halted during live-path
+builds; no builder runs a full suite) but the evidence for them is thinner than I wrote.

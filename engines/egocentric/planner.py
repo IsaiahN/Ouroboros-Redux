@@ -57,17 +57,32 @@ the plan as data ("cost_per_action", "cost_missing" -- the honest fallback of
 1.0 rides a MISSING flag, never silence). Estimates price feasibility only --
 the DRIVE gates (verification, site, veto) are untouched.
 
+W2c (PREREG_W2C_PLANNER_RETENTION.md): RETENTION. The per-call memo above is
+the produced-and-destroyed-at-production shape -- every application re-earned
+on the next call. With `retained` (a retention.RetentionStore, owned by the
+W2b scheduler and cleared at level change / fission) the memo is served
+THROUGH the store: (a) every EFFECT / EFFECT_IF application and every verified
+inverse hits by (atom CONTENT key, state key); (b) a matched-nowhere negative
+for a RAW-path atom carries to the child state across the change set
+(parent -> child delta inside the search; previous root -> root across calls)
+via the BAND scan; (c) a state at which every candidate failed is a DEAD-END
+under (direction, state key, candidate-set key) -- re-encountered, the loop is
+skipped but `expanded` is still spent. Retention changes WORK, never the
+ANSWER: plans, reasons and `expanded` are identical cold or warm (R4).
+retained=None is today's per-call behaviour, byte-identical (the undo).
+
 Deterministic: sorted atom-id expansion order, visited-state dedup, level-by-level
 frontier alternation, no RNG. Stdlib + numpy only.
 """
 from __future__ import annotations
 
-import hashlib
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from engines.egocentric import retention as _retention
+from engines.egocentric import standing as _standing
 from engines.egocentric.applicability import frame_signature, prune_candidates
 from engines.egocentric.discrepancy import compute_d
 from engines.egocentric.effects import apply_effect, apply_inverse, invert_transform
@@ -131,21 +146,29 @@ def gate_summary() -> str:
                c["ANCHOR_MISS"], c["INFEASIBLE_COST"]))
 
 
-def _state_key(state: np.ndarray) -> str:
-    a = np.ascontiguousarray(state)
-    h = hashlib.sha1()
-    h.update(str(a.shape).encode("utf-8"))
-    h.update(a.dtype.str.encode("utf-8"))     # C-level attr: str(dtype) is hot-path slow
-    h.update(a.tobytes())
-    return h.hexdigest()
+# THE state key: ONE hash function for the search, the W2b scheduler and the
+# W2c retention store (retention.state_key -- the definition moved there so the
+# store can hash results without importing the planner; the bytes are unchanged).
+_state_key = _retention.state_key
 
 
-def _candidate_ids(gamma, game: str, level: int) -> List[str]:
-    """Gamma's stored entries for the game, still valid at (game, level), sorted."""
-    recs = gamma.fabric.query("collective", "atoms",
-                              where=lambda r: r.get("game") == str(game))
-    ids = sorted({r["id"] for r in recs if r.get("id") is not None})
-    return [aid for aid in ids if gamma.valid_in(aid, game, level)]
+def _candidate_ids(gamma, game: str, level: int, standing=None) -> List[str]:
+    """Gamma's stored entries for the game, still valid at (game, level).
+
+    standing=None: sorted lexically -- today's behaviour, byte-identical (the
+    undo). With a standing.StandingBook (R3/R4,
+    PREREG_STANDING_HALF_LIFE_ATOMS.md) the set is RANKED by S descending
+    (ties keeping the lexical order) and ids whose LAST atoms-stream record
+    carries `evicted: true` are DROPPED. The order is the search's visit
+    order, so under _MAX_NODES it decides which plans are found at all -- a
+    demoted atom is reached LATER, and a dropped one is never applied. The
+    population itself is unchanged: standing.valid_ids IS this function's
+    pre-build body, so the eviction sweep's fence is computed over exactly the
+    atoms the search would otherwise have visited."""
+    ids = _standing.valid_ids(gamma, game, level)
+    if standing is None:
+        return ids
+    return standing.rank(gamma, ids, game)
 
 
 def _invertible(atom: Optional[Dict[str, Any]]) -> bool:
@@ -159,8 +182,21 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
                      game: str, level: int,
                      budget: float, cost_per_action: Optional[float],
                      goal_predicate: Optional[Dict[str, Any]] = None,
+                     retained: Optional[_retention.RetentionStore] = None,
+                     standing: Optional[_standing.StandingBook] = None,
                      ) -> Optional[Dict[str, Any]]:
     """None | {"steps": [atom ids in order], "feasible": bool}.
+
+    W2c: `retained` (retention.RetentionStore, the scheduler's) serves the
+    application memo, the band negatives and the dead-end marks across
+    calls; None keeps the per-call memo exactly as before (the undo).
+
+    R3/R4: `standing` (standing.StandingBook, also the scheduler's) RANKS the
+    candidate set by S descending and drops evicted ids -- the search visits
+    stronger atoms first, so under _MAX_NODES standing decides which plans are
+    found at all. READ-ONLY here: the eviction/re-entry WRITER runs at the
+    scheduler's engagement seam, never inside a search (this call still treats
+    Gamma as read-only). None = today's lexical order (the undo).
 
     TWO TARGET MODES (G-C): with `reference` an array, the stopping test is
     compute_d(state, reference)["differing"] == 0 (unchanged). With
@@ -208,7 +244,7 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
     if _done(ws):
         return _ret(_annotate({"steps": [], "feasible": True}))
 
-    ids = _candidate_ids(gamma, game, level)
+    ids = _candidate_ids(gamma, game, level, standing)
     if not ids:
         _set_reason("NO_APPLICABLE_ATOMS")
         return None
@@ -232,16 +268,26 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
 
     # -- one call, one Gamma read: atoms fetched once, applications memoized --------
     memo: Dict[Tuple[str, str], Optional[np.ndarray]] = {}
+    # W2c: the session over the retained store (None = per-call memo only).
+    # The store is (game, level)-bound here; every key it writes carries the
+    # atom's CONTENT key, so a superseded atom misses by construction.
+    sess = None if retained is None else _retention.Session(retained, game, level)
 
     def _get(aid: str) -> Optional[Dict[str, Any]]:
         if aid not in atoms:
             atoms[aid] = gamma.get(aid)       # composite parts outside the candidate set
         return atoms[aid]
 
-    def _run(aid: str, state: np.ndarray, key: str) -> Optional[np.ndarray]:
+    def _run(aid: str, state: np.ndarray, key: str,
+             lineage=None) -> Optional[np.ndarray]:
         """gamma.apply with the fabric read done once per atom and every
         (atom, state) application memoized by state key -- the anchor scans inside
-        apply_effect run at most once per pair. Results are never mutated."""
+        apply_effect run at most once per pair. Results are never mutated.
+        W2c: with a session, EFFECT / EFFECT_IF applications go through the
+        retained memo (tier 1) and, given `lineage` = (parent key, changed
+        cells), the band negative (tier 2). COMPOSITEs recurse through their
+        parts (each part hits by its OWN content key -- a superseded part can
+        never serve a stale composite result)."""
         mk = (aid, key)
         if mk in memo:
             return memo[mk]
@@ -251,20 +297,37 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
         elif atom.get("kind") == "COMPOSITE":
             cur: Optional[np.ndarray] = state
             ck = key
+            lin = lineage
             for pid in atom.get("parts") or []:
-                cur = _run(pid, cur, ck)
+                cur = _run(pid, cur, ck, lin)
                 if cur is None:
                     break
                 ck = _state_key(cur)
+                lin = None
             res = cur
         elif atom.get("kind") in ("EFFECT", "EFFECT_IF"):
-            res = apply_effect(atom, state)
+            res = (apply_effect(atom, state) if sess is None
+                   else sess.apply(aid, atom, state, key, lineage))
         else:
             res = None                                    # INERT / lexical: nothing to run
         memo[mk] = res
         return res
 
+    def _inverse(aid: str, state: np.ndarray, key: str) -> Optional[np.ndarray]:
+        """apply_inverse, through the retained memo when a session exists."""
+        if sess is None:
+            return apply_inverse(atoms[aid], state)
+        return sess.apply_inverse(aid, atoms[aid], state, key)
+
     ws_key = _state_key(ws)
+    # W2c lineage across calls: (previous root key, argwhere(prev != cur)) from
+    # the store's retained root -- the band carries the last call's negatives
+    # to this root; then this root is retained for the next call.
+    root_lineage = None if sess is None else sess.root(ws_key, ws)
+    fwd_set = None if sess is None else sess.set_key(
+        (aid, sess.ckey(aid, atoms[aid])) for aid in ids)
+    bwd_set = None if sess is None else sess.set_key(
+        (aid, sess.ckey(aid, atoms[aid])) for aid in inv_ids)
 
     def _finish(steps: List[str]) -> Optional[Dict[str, Any]]:
         """Replay the stitched plan forward from current; only a plan that reaches
@@ -282,7 +345,9 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
         return _ret(_annotate({"steps": list(steps), "feasible": bool(feasible)}))
 
     fwd_paths = {ws_key: []}                  # state key -> steps from current
-    fwd_frontier = deque([(ws, [], ws_key)])
+    # frontier entries carry a 4th slot: the W2c lineage (parent key, changed
+    # cells) the band negative reads -- None without a session (unchanged work)
+    fwd_frontier = deque([(ws, [], ws_key, root_lineage)])
     # goal mode has no reference frame to invert from: the backward frontier
     # stays empty and the loop degrades to the exact forward-only BFS
     if pred_mode:
@@ -291,24 +356,31 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
     else:
         ref_key = _state_key(ref)
         bwd_paths = {ref_key: []}             # state key -> forward-direction suffix to REFERENCE
-        bwd_frontier = deque([(ref, [], ref_key)])
+        bwd_frontier = deque([(ref, [], ref_key, None)])
     expanded = 0                              # nodes expanded, summed over BOTH frontiers
     applied = 0                               # INSTRUMENT: successful applications, both frontiers
 
     while fwd_frontier or bwd_frontier:
         # -- forward level: current outward via apply_effect ------------------------
         for _ in range(len(fwd_frontier)):
-            state, steps, skey = fwd_frontier.popleft()
+            state, steps, skey, lineage = fwd_frontier.popleft()
             if len(steps) >= _MAX_DEPTH:
                 continue
             if expanded >= _MAX_NODES:
                 _set_reason("BUDGET_EXHAUSTED")
                 return None                   # budget spent: a shadow, not a stall
             expanded += 1
+            # W2c (c): a retained dead-end -- every candidate returned None here
+            # under this exact candidate set -- skips the loop; `expanded` was
+            # spent above exactly as on the cold path (budget/depth unchanged)
+            if sess is not None and sess.dead(_retention.FWD, skey, fwd_set):
+                continue
+            any_hit = False
             for aid in ids:
-                nxt = _run(aid, state, skey)
+                nxt = _run(aid, state, skey, lineage)
                 if nxt is None:
                     continue
+                any_hit = True
                 applied += 1
                 key = _state_key(nxt)
                 if key in fwd_paths:
@@ -326,29 +398,38 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
                     out = _finish(path + bwd_paths[key])
                     if out is not None:
                         return out
-                fwd_frontier.append((nxt, path, key))
+                fwd_frontier.append((nxt, path, key,
+                                     None if sess is None
+                                     else _lineage(sess, skey, state, nxt)))
+            if sess is not None and not any_hit:
+                sess.mark_dead(_retention.FWD, skey, fwd_set)
         # -- backward level: REFERENCE inward via verified inverses -----------------
         # (no typed atoms -> inv_ids empty -> this level only drains the frontier,
         #  and the search is exactly the forward-only BFS it always was)
         for _ in range(len(bwd_frontier)):
-            state, suffix, skey = bwd_frontier.popleft()
+            state, suffix, skey, _lin = bwd_frontier.popleft()
             if len(suffix) >= _MAX_DEPTH:
                 continue
             if expanded >= _MAX_NODES:
                 _set_reason("BUDGET_EXHAUSTED")
                 return None                   # budget spent: a shadow, not a stall
             expanded += 1
+            if sess is not None and sess.dead(_retention.BWD, skey, bwd_set):
+                continue                      # W2c (c): every inverse failed here before
+            all_failed = bool(inv_ids)        # nothing tried (no typed atoms) marks nothing
             for aid in inv_ids:
-                prev = apply_inverse(atoms[aid], state)
+                prev = _inverse(aid, state, skey)
                 if prev is None:
                     continue
                 key = _state_key(prev)
                 if key in bwd_paths:
+                    all_failed = False        # the inverse fired: not a dead-end
                     continue
                 redo = _run(aid, prev, key)               # forward replay is the proof
                 if (redo is None or redo.shape != state.shape
                         or not (redo == state).all()):
                     continue
+                all_failed = False
                 applied += 1                              # a verified backward application
                 sfx = [aid] + suffix
                 bwd_paths[key] = sfx
@@ -356,8 +437,21 @@ def plan_to_identity(workspace: np.ndarray, reference: Optional[np.ndarray], gam
                     out = _finish(fwd_paths[key] + sfx)
                     if out is not None:
                         return out
-                bwd_frontier.append((prev, sfx, key))
+                bwd_frontier.append((prev, sfx, key, None))
+            if sess is not None and all_failed:
+                sess.mark_dead(_retention.BWD, skey, bwd_set)
     # frontiers drained: ZERO applications means nothing ever anchored to this
     # frame (ANCHOR_MISS); otherwise the search ran and never met (NO_MEET)
     _set_reason("ANCHOR_MISS" if applied == 0 else "NO_MEET")
     return None
+
+
+# ── W2c module-bottom helper ──────────────────────────────────────────────────
+
+def _lineage(sess: _retention.Session, parent_key: str, parent: np.ndarray,
+             child: np.ndarray) -> Optional[Tuple[str, np.ndarray]]:
+    """(parent key, argwhere(parent != child)) -- the change set the band
+    negative carries across inside the search (one counted delta compare per
+    child); None when the shapes differ (no band can be drawn)."""
+    delta = sess.delta(parent, child)
+    return None if delta is None else (parent_key, delta)

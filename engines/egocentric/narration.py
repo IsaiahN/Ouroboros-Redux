@@ -35,15 +35,18 @@ MEMORY AT THREE RANGES -- every record carries one:
 OVERHEAD LAW (F2's build-side half): every emit is O(1) -- one dict build plus
 one fabric append; no scans, no queries, at emit time or anywhere in here.
 
-CONSUMER (R3 gate): allowlisted in tests/gate/test_consumers.py citing
-PREREG_W1_NARRATION.md. THE CONSUME ARMS LANDED (2026-08-20, "ARM C's
-CONSUMPTION MUST BE REAL"): arm C (NARRATION_ARM=C, resolve_arm below) reads
-its own immediately-prior narration IN MEMORY -- ROUTE consumes last_bet's
-stated expectation inside the router's ambiguous band; MINT consumes
-last_mint's guard-zero history and skips an unchanged repeat -- never a
-re-read of the JSONL on the hot path, so the STREAM's reader is still the
-experiment's off-line analysis and the allowlist entry stands until that
-lands. Arm W (default) writes and never reads: byte-identical to before.
+CONSUMERS. THE CONSUME ARMS (2026-08-20, "ARM C's CONSUMPTION MUST BE
+REAL"): arm C (NARRATION_ARM=C, resolve_arm below) reads its own
+immediately-prior narration IN MEMORY -- ROUTE consumes last_bet's stated
+expectation inside the router's ambiguous band; MINT consumes last_mint's
+guard-zero history and skips an unchanged repeat -- never a re-read of the
+JSONL on the hot path. Arm W (default) writes and never reads those.
+THE STREAM'S READER (2026-08-21, PREREG_PERSISTENCE_MONITOR.md): the
+persistence monitor (engines/egocentric/persistence.py) -- a read-only
+consumer handed every emitted record by THE ONE OBSERVER HOOK (_notify,
+in memory, O(1) per record) and replayed offline over the JSONL; its
+finding comes back through this emitter as the PERSISTENCE record
+(side=monitor, never a bet). The R3 allowlist entry was deleted with it.
 
 Containment (house law): the spine never raises into the host loop; failures
 bump `errors` and drop the record.
@@ -68,15 +71,22 @@ ECHO = "ECHO"
 PLAN = "PLAN"
 ACT = "ACT"
 ARM = "ARM"
-POINTS = (BET, PERCEIVE, ROUTE, MINT, ECHO, PLAN, ACT, ARM)
+# SCHEMA EVENT (PREREG_PERSISTENCE_MONITOR.md, 2026-08-21): the persistence
+# monitor's ONE finding -- a run of the same residual under an unchanged
+# strategy reached k. A fixed token beside the loop points; the monitor
+# classifies no event, it counts, and its record is never a bet.
+PERSISTENCE = "PERSISTENCE"
+POINTS = (BET, PERCEIVE, ROUTE, MINT, ECHO, PLAN, ACT, ARM, PERSISTENCE)
 
 # record sides: bet-side lines land BEFORE the action, outcome-side after;
 # replay is playback narrated as playback (F3), never either of the others;
-# meta is session configuration (the ARM record), never a decision.
+# meta is session configuration (the ARM record), never a decision;
+# monitor is a consumer's finding over the stream, never a decision either.
 SIDE_BET = "bet"
 SIDE_OUTCOME = "outcome"
 SIDE_REPLAY = "replay"
 SIDE_META = "meta"
+SIDE_MONITOR = "monitor"
 
 # -- the falsifier arms (PREREG_W1_NARRATION.md, "ARM C's CONSUMPTION MUST BE
 # REAL"): C = narrate-and-consume (ROUTE/MINT read their own immediately-prior
@@ -137,6 +147,8 @@ GLOSS = {
     (ROUTE, SIDE_OUTCOME): "THIS IS LIKE THIS; THIS IS NOT LIKE THE OTHER",
     (MINT, SIDE_OUTCOME): "MAYBE NOW I KNOW SOMETHING I DID NOT KNOW BEFORE",
     (ECHO, SIDE_OUTCOME): "THIS HAPPENED; I SAY IT HAPPENED",
+    (PERSISTENCE, SIDE_MONITOR): ("I DID THE SAME THING MANY TIMES; "
+                                  "THE SAME BAD THING HAPPENED; I KNOW THIS NOW"),
 }
 
 
@@ -195,6 +207,28 @@ def predict_bin(staked: bool, known_atoms: bool
     return TRANSFERRED, {
         "not": NOVEL,
         "fact": "bet staked without a known atom; a miss lands NOVEL"}
+
+
+def make_record(game: str, step: int, sq: int, point: str, side: str,
+                rng: str, payload: Optional[Dict[str, Any]] = None,
+                ref: Optional[str] = None, col_class: Optional[str] = None
+                ) -> Dict[str, Any]:
+    """PURE: THE record shape -- fixed keys in fixed order, the payload's
+    keys after them (a payload key never overwrites a fixed one). The spine's
+    emitter builds every record through this function and so does the
+    persistence monitor's OFFLINE replay (persistence.replay), which is how
+    a replayed PERSISTENCE record is byte-identical to the online one."""
+    rec: Dict[str, Any] = {
+        "id": "n:%s:%d:%d" % (game, int(step), int(sq)),
+        "step": int(step), "sq": int(sq),
+        "point": point, "side": side, "range": rng,
+        "col_class": col_class, "ref": ref,
+        "gloss": GLOSS.get((point, side), ""), "game": str(game),
+    }
+    for k, v in (payload or {}).items():
+        if k not in rec:
+            rec[k] = v
+    return rec
 
 
 def route_why_not(settled_bin: Optional[str]) -> Dict[str, Optional[str]]:
@@ -303,6 +337,13 @@ class NarrationSpine:
         self.arm_told: bool = False
         self.last_bet: Optional[Dict[str, Any]] = None       # WIRE 1 source
         self.last_mint: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        # THE ONE OBSERVER HOOK (PREREG_PERSISTENCE_MONITOR.md): the attached
+        # persistence monitor is handed every emitted record IN MEMORY (see
+        # _notify). None = unmonitored; the loop attaches one per spine
+        # (cognitive_loop._pm_attach). A monitor failure is counted here and
+        # never reaches the host loop.
+        self.monitor: Any = None
+        self.monitor_errors = 0
 
     @property
     def bet_id(self) -> Optional[str]:
@@ -316,25 +357,39 @@ class NarrationSpine:
     def _emit(self, point: str, side: str, rng: str,
               payload: Optional[Dict[str, Any]], ref: Optional[str] = None,
               col_class: Optional[str] = None) -> Optional[str]:
-        """One record, fixed keys, one append. O(1); contained."""
+        """One record, fixed keys, one append. O(1); contained. The monitor
+        hook runs AFTER a successful append, in memory (_notify)."""
         try:
             self._sq += 1
-            rid = "n:%s:%d:%d" % (self.game, int(self._step), self._sq)
-            rec: Dict[str, Any] = {
-                "id": rid, "step": int(self._step), "sq": self._sq,
-                "point": point, "side": side, "range": rng,
-                "col_class": col_class, "ref": ref,
-                "gloss": GLOSS.get((point, side), ""), "game": self.game,
-            }
-            for k, v in (payload or {}).items():
-                if k not in rec:
-                    rec[k] = v
+            rec = make_record(self.game, self._step, self._sq, point, side,
+                              rng, payload, ref, col_class)
             self.fabric.append("personal", TOPIC, rec)
             self.emitted += 1
-            return rid
         except Exception:
             self.errors += 1
             return None
+        self._notify(rec)
+        return rec["id"]
+
+    def _notify(self, rec: Dict[str, Any]) -> None:
+        """THE ONE OBSERVER HOOK (PREREG_PERSISTENCE_MONITOR.md): hand the
+        record just written to the attached persistence monitor, in memory --
+        O(1) per record, no stream read. A finding the monitor returns is
+        emitted through this same emitter as the PERSISTENCE record
+        (side=monitor, never a bet; the monitor ignores its own point, so the
+        nesting is one level deep). Contained: a monitor failure is counted
+        and the record already written stands."""
+        mon = self.monitor
+        if mon is None:
+            return
+        try:
+            fired = mon.observe(rec)
+        except Exception:
+            self.monitor_errors += 1
+            return
+        for f in fired or ():
+            self._emit(PERSISTENCE, SIDE_MONITOR, f["range"], f["payload"],
+                       ref=f["ref"], col_class=f["col_class"])
 
     # -- the arm record (ONCE, at game start) ---------------------------------
 
@@ -362,20 +417,29 @@ class NarrationSpine:
     def bet(self, slots: Optional[Dict[str, Any]], route_bin: str,
             why_not: Optional[Dict[str, Any]], mint_candidate: Optional[str],
             guard_zero: Optional[str], rng: str,
-            col_class: Optional[str] = None) -> Optional[str]:
+            col_class: Optional[str] = None,
+            level: Optional[int] = None) -> Optional[str]:
         """THE one bet-side record per step (F1: exactly one, with bin +
         why-not-neighbour + range tag). A second bet on the same step is
-        refused and counted -- never a duplicate record."""
+        refused and counted -- never a duplicate record.
+        ``level`` (PREREG_PERSISTENCE_MONITOR.md, ADDITIVE): the loop's
+        _ego_level at bet time -- the persistence monitor's level-reset and
+        its k derivation (steps between level crossings) read it. Absent
+        when the caller gives none: such records cannot reset on level and
+        the monitor's readout says so."""
         if self._bet_id is not None and self._bet_step == self._step:
             self.dup_bets += 1
             return self._bet_id
-        rid = self._emit(BET, SIDE_BET, rng, {
+        payload: Dict[str, Any] = {
             "slots": dict(slots or {}),
             "bin": route_bin,
             "why_not": dict(why_not or {}),
             "mint_candidate": mint_candidate,
             "guard_zero": guard_zero,
-        }, col_class=col_class)
+        }
+        if level is not None:
+            payload["level"] = int(level)
+        rid = self._emit(BET, SIDE_BET, rng, payload, col_class=col_class)
         if rid is not None:
             self._bet_id = rid
             self._bet_step = self._step

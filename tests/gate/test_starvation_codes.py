@@ -202,7 +202,9 @@ class TestTheConsumer:
                                budget_spent=100)
         after = AffectGains(f).gains()
         assert before == after, "one-currency law: starvation steers, never prices"
-        assert set(after.keys()) == {"seed_bias", "mint_bar"}
+        assert set(after.keys()) == {"seed_bias", "mint_bar", "persist"}, (
+            "the third key is the persistence modulator (PREREG_PERSISTENCE_"
+            "MONITOR.md), read from the narration fold -- not from this stream")
 
 
 class TestTheWiring:

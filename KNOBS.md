@@ -90,6 +90,15 @@ G18 handoff funding: allowance*(1+levels_replayed)-replay_cost           (player
 
 ## REGISTER O — OPS (infrastructure; proctor-tuned freely; no cognitive content)
 O1 supervisor: MEM_CAP=1200MB, RECYCLE=120min, VACUUM=200MB, DB_CAP=600MB, POLL=60s
+   D-13 (2026-08-21, record/log/PORT_LOG.md): RECYCLE is DEFERRED while .runs/swarm/HOLD
+   exists -- spawn() imports the working tree, so a recycle IS a deploy and HOLD had
+   suspended deploys only (all 25 workers recycled onto a dirty tree at ~18:03). A worker
+   past RECYCLE_MIN is left running ("RECYCLE DEFERRED (HOLD) up=Nm" in status.txt) and
+   the first poll after HOLD lifts recycles it through the existing path. NOT A NEW KNOB:
+   RECYCLE_MIN unchanged, HOLD is the deferral. A forced respawn under HOLD (crash restart,
+   mem-kill) cannot be avoided and is LEDGERED -- deploys.jsonl reason="respawn-under-hold"
+   with game, trigger and head/dirty from the deploy records' own assembly (deploy_record).
+   Gate tests/gate/test_hold_stops_recycles.py (F4 = the pre-edit behaviour, frozen).
 O2 janitor: 2MB stream threshold; settlements fold window 100
 O3 population shape: 25 pinned workers, pop 6, agents/gen 4, max-gen 50
 O4 diagnostic pass: OURO_DIAGNOSTIC env flag, default OFF (unset) -- A SWITCH, NOT GUESSED.
@@ -100,6 +109,30 @@ O4 diagnostic pass: OURO_DIAGNOSTIC env flag, default OFF (unset) -- A SWITCH, N
    no reader -- x25 workers. Supervisor and sprint keeper set nothing; an operator who
    wants the printout opts in per process. Read ONCE at init (evolution_runner.py
    diagnostic_enabled / _init_system_diagnostic), never per generation.
+O5 beat instrument (tools/beat_rates.py; an INSTRUMENT, never the live path -- it
+   changes no decision and is outside test_wiring_registry.PROD_GLOBS by construction).
+   AGG_EPS=1.0 [DERIVED, not a dial]: the across-slot aggregate below which FIGURE 1's
+   legal state is counted -- "a global residual near zero with one live slot". Every
+   residual the bank writes is INTEGER-VALUED (PredictorBank._grid_residual returns
+   float((p != o).sum()), a differing-cell count; BODY/RESOURCE return integer position
+   or scalar deltas), so the smallest POSITIVE residual is exactly 1.0 and an aggregate
+   strictly below it is precisely one that has rounded a live slot away. There is no
+   tolerance to tune: change the residual functions' units and this value is re-derived,
+   never re-chosen.
+   RESIDUAL_STREAMS_PER_BOX=8, RESIDUAL_TAIL_BYTES=65536 [BOUNDS ON A SAMPLE, stated on
+   every line they produce]: the fleet's personal narration totals ~505 MB over ~2500
+   files (measured read-only 2026-08-22) and a full parse is minutes, so rung 1's read
+   tail-reads the 8 most-recently-written agent streams per box, one 64 KiB block each
+   (KnowledgeFabric._TAIL_BLOCK exactly; the fabric measured 155 bytes/record, so ~420
+   records of headroom per stream). mtime-ordering is used because IT IS THE ONLY CLOCK
+   THE FABRIC HAS. The sample size is printed as the denominator on every residual line,
+   so raising either bound sharpens a stated number rather than changing a verdict.
+   NOT A KNOB, RECORDED HERE AS THE FINDING: the ego_fabric streams carry NO timestamp on
+   any topic -- only `seq` and domain fields -- so the beat's frame-internal rates cannot
+   be windowed at all. The tool applies the MTIME BRACKET (mtime before the window = a
+   sound zero; mtime inside = NOT READABLE) and names, at every such line, the record
+   that would close it: a UTC field written by fabric.append, or a persisted per-beat seq
+   watermark.
 
 ## SELF-TUNING (the later mechanism, principle fixed now)
 Agents may eventually tune REGISTER G ONLY, by the mechanism already live for the LP
@@ -577,3 +610,95 @@ G29 REASONING GATE STAGE 1 (PREREG_GATE_STAGE1_SHADOW.md; engines/egocentric/gat
     is the prereg's own unit (doubling = one stratum). WALL_AWARE_RUNG="wall_aware_navigation"
     is a LABEL read from the rung system (the proposal's 19.2% negative-derivation class),
     not a dial. Gate tests/gate/test_gate_stage1.py.
+G30 PERSISTENCE MONITOR (PREREG_PERSISTENCE_MONITOR.md, Seat 3 APPROVED 2026-08-21;
+    engines/egocentric/persistence.py). NO NEW NUMERIC CONSTANT. k is DERIVED per game from
+    the agent's own narration stream -- the upper median of steps between level crossings
+    in OWN history (the additive `level` field on BET records); fallback [COL] = the
+    per-level step counts of the other games in the SAME stream prefix (a disk-time
+    population read would not replay); else k undefined -> readout `unarmed`, the monitor
+    counts and never fires. Recomputed at each crossing, FROZEN within a level. K_FLOOR=2 is
+    PINNED by the prereg ("k_g >= 2 by definition: one failure is an event, repetition is
+    the trend"), not guessed. The channel persist = min(1, run/k) enters the explore steer
+    through the EXISTING STARVE_STEP (a full run = one more starved dimension; no second
+    step size) and the goal stall clock as 1 + persist per step (at most x2; no second
+    stall constant). Provenance of the unit itself (ROUTE bin + fact; ACT rung, BET bin,
+    slot shape, PLAN mode + gate): the stream's own fixed tokens, nothing inferred.
+    Gate tests/gate/test_persistence.py.
+G30 RETENTION MEMO CAP: MEMO_CAP=65536 [DERIVED, PINNED by PREREG_W2C_PLANNER_RETENTION.md]
+    -- W2c (engines/egocentric/retention.py): entries in the (atom content key, state key)
+    application memo the W2b scheduler owns, per level, insertion-order eviction. The
+    prereg's derivation, quoted: "MEMO_CAP 65,536 entries (~ 8 calls at the widest
+    observed breadth, 2x a post-W2b generation; the pre-W2b regime at 17 x 8.3k = 141k
+    exercises eviction, by design)". Evictions are COUNTED (the instrument's
+    `evictions`), never raised; MEMO_CAP=1 leaves the planner's output identical (F3).
+    Gate tests/gate/test_planner_retention.py.
+G31 RETENTION STATE BYTES CAP: STATE_BYTES_CAP=64 MiB [DERIVED, PINNED by
+    PREREG_W2C_PLANNER_RETENTION.md] -- the separate state store (state key -> frozen
+    array) memo entries point at. Quoted: "STATE_BYTES_CAP 64 MiB (at 64x64 in the
+    planner's received dtype, >= 2,048 frames at int64)". An evicted state turns the
+    memo entries pointing at it into counted `store_misses` (recompute, re-store).
+G32 RETENTION DEAD-END CAP: DEAD_CAP=16384 [DERIVED, PINNED by PREREG_W2C_PLANNER_RETENTION.md]
+    -- marks under (direction, state key, candidate-set key). Quoted: "DEAD_CAP 16,384
+    (<= 4 calls x _MAX_NODES = 8k observed ceiling, 2x)". G13's MAX_NODES is the unit.
+G33 RETENTION ANCHORS CAP: ANCHORS_CAP=8192 [PINNED by PREREG_W2C_PLANNER_RETENTION.md,
+    stated without a derivation there -- the composer's (content key, frame key) -> anchor
+    list store, a SEPARATE structure from the memo (KN5)]. Quoted: "ANCHORS_CAP 8,192".
+G34 RETENTION ENABLER INDEX FIFO: ENABLERS_CAP=8 [PINNED by PREREG_W2C_PLANNER_RETENTION.md]
+    -- the composer's enables_edges index retained by (pool mark, frame signature
+    dims+palette). Quoted: "The enabler index ... is retained keyed by (change mark, frame
+    signature dims+palette), FIFO of 8" / "ENABLERS 8". The pool mark here is the atoms
+    stream's own (record count, last seq): any mint, import or supersede appends and
+    moves it (composer._pool_mark).
+G35 FABRIC I/O (PREREG_FABRIC_IO.md; engines/egocentric/fabric.py, module bottom).
+    ANCHOR_BYTES=64 [PINNED by the prereg: "the last 64 bytes before parsed_upto"] -- THE
+    ONE validity rule for both caches (_anchor_size: size AND anchor; never a stat alone;
+    mtime excluded for its filesystem-dependent granularity). The rule's stated blind spot:
+    a same-size edit that leaves the last 64 bytes untouched -- reload_seqs() /
+    drop_read_cache() are the hatches.
+    READ_CACHE_CAP_BYTES=32 MiB [GUESSED FROM OBSERVATION, Register G]: the read cache's
+    LRU bound in STREAM BYTES represented. Observation (read-only, .runs/swarm/*/ego_fabric,
+    25 boxes, 2026-08-21): per-box working set of the per-cycle `query` topics (atoms +
+    mint_verdicts + goal_hypotheses + frontier_* + starvation/swallow/ideas/idea_events/
+    replay_outcomes + import_candidates + settlements) = 24.3 MiB max (sb26 24.3, tn36 24.2,
+    sk48 12.3, g50t 14.1); singles: atoms <= 6.5 MB, mint_verdicts <= 9.5 MB, settlements
+    <= 14.4 MB, import_candidates <= 12.0 MB. 32 MiB = the smallest power of two above the
+    max. import_queue (0.4-73.6 MB; 15 of 25 boxes > 15 MB) is deliberately outside the
+    cap on the large boxes: a stream over the cap is served UNCACHED (parsed per call as
+    today, never retained). Held memory per stream byte measured 3.5x-6.5x (tracemalloc
+    over _read_stream: tn36 mint_verdicts 9.5 MB -> 61.5 MB x6.5; g50t settlements 14.4 ->
+    74.8 x5.2; bp35 atoms 6.5 -> 24.2 x3.7; sb26 import_candidates 12.0 -> 42.1 x3.5), so
+    the cap's RSS ceiling is ~110-210 MB -- a PLATEAU by construction, not growth
+    (MEMORY_PROFILE_L0.md: the kill suspects grow by retained state; this cache cannot
+    exceed cap x 6.5 and is dropped whole by drop_read_cache()). RE-DERIVE after the sixth
+    profile window and the [MEM] sampler: if RSS steps by ~cap x multiplier at warm-up on a
+    box near the kill line, halve it; the thrash cost of a too-small cap is bounded by
+    today's per-call parse (READ_STATS["full"] counts it).
+    READ_CACHE=True [PINNED by the prereg: the UNDO] -- False routes query to _read_stream.
+G36 STANDING AT THE ATOM GRAIN (PREREG_STANDING_HALF_LIFE_ATOMS.md, Seat 3 RULED
+    2026-08-21 with Seat 4's riders; engines/egocentric/standing.py). THREE knobs, and
+    the one that could have been a constant is not.
+    * DECAY d -- NOT A CONSTANT. d = 0.5^(1/g*), where g(a) = the median gap in EPISODES
+      between successive earn events of atom a (over atoms with >= 2 earn events in
+      distinct episodes) and g* = the population median of g(a) for this game. The
+      half-life is one typical re-earn interval: an atom re-earned at the population's
+      own cadence holds level standing; one that falls silent halves per typical
+      interval, so standing outlives its evidence by exactly one interval and never
+      accumulates past it (R4). The TICK is the episode ordinal `ep` because that is the
+      unit at which an atom can be re-earned (prestige's tick is the GENERATION for the
+      same reason -- see the cross-grain counter in WIRING_REGISTRY.md:standing-book).
+    * BORROWED_DECAY = 0.97 [BORROWED, stated] -- prestige_engine.py's own 3%-per-
+      generation rate, used ONLY below MIN_QUALIFYING atoms and reported as borrowed by
+      decay() (a median over fewer is not a distribution). Prestige's 3% implies a
+      half-life of 22.8 ticks; the beat records g* beside that figure. This is the LIVE
+      value today because no game yet supplies 30 qualifying atoms -- RE-DERIVE at the
+      first beat that does, and the borrowed flag is how you know it has not happened.
+    * MIN_QUALIFYING = 30 [PINNED by the prereg] -- the floor below which the population
+      is not asked for its own rate.
+    * IQR_FENCE = 1.5 [PINNED by the prereg] -- Tukey's lower fence, tau = Q1 - 1.5*IQR
+      of S over the atoms valid at (game, level), recomputed at EVERY planner engagement.
+      Not a threshold on a score: the fence moves with the population, which is what
+      makes it the Dislodging-vs-Assumption discriminator (everything wrong together
+      evicts nobody). Eviction additionally requires M_d > 0 -- silence never evicts.
+    NOTHING here prices or reports (Register F is untouched): S orders the planner's
+    candidate visit and gates the evicted filter, and no pricing or reporting module
+    reads it (asserted by source, tests/gate/test_standing.py).

@@ -1,3 +1,5 @@
+> FIREWALL NOTE (2026-08-21, GM): an earlier revision of this brief named a colour as the avatar. Identifications never enter a brief, code, or a fixture; only criteria do. Scrubbed. This brief is HELD (F1 fired; see PREREG_STAMP_FACTORING).
+
 # BUILDER BRIEF — STAMP FACTORING (reads PREREG_STAMP_FACTORING.md first; the ruling is in it)
 
 Repo: c:\Users\Admin\Documents\GitHub\Ouroboros-Redux, branch v4-cold. HOLD is up
@@ -33,25 +35,27 @@ F. The two notes D-12 lacked: `_note("no-anchor")` at composer.py:571 (the else 
    when no candidate/enabler anchors) and `_note("no-reach")` at :543 (reach None).
 
 ## Gates (tests/gate/test_stamp_factoring.py; F-numbers are the prereg's)
-F1 OFFLINE: from sp80's stored level-2 frame pairs — read `core_data.db` table
-   `action_traces` for game sp80-589a99af (frame_before/frame_after/action; the diagnosis
-   found 461 decodable pairs at level_number=1) — re-stamp with self_cells derived from
-   the avatar colour 14's locus in each before-frame and the BODY delta for the action
-   (take deltas from the box's frontier/BODY records; if you cannot derive a delta for a
+F1 OFFLINE (BOARD RULE: frames are never read from this seat or its builders; this
+   falsifier is RESTATED to use only the agent's own records): over one box's stored EFFECT
+   atoms and stored BODY records — re-stamp with self_cells derived from
+   the self-locus the ego layer records for that step (its own record, never a colour named here) and the BODY delta for the action
+   (take deltas from the box's frontier/BODY records -- the agent's own records, never a value asserted here; if you cannot derive a delta for a
    pair, that pair is self_cells=None and is reported as such, not skipped silently).
-   Assert the distinct coarse signatures among the WANT-colour-8/9 effects collapse from
-   17 to <= 3. If they do not, STOP and report the signature census — do not tune.
+   Assert the distinct coarse signatures among the atoms that currently anchor on zero
+   later observations collapse by >= 80%. If they do not, STOP and report the census — do
+   not tune.
    (This test reads the live DB read-only; mark it with the existing live-data marker the
    suite uses for such reads, or skip-with-reason when the DB is absent.)
-F2: factored atoms anchor on > 0 of those stored frames; the `[[14]]`-class atoms' anchor
-   counts are unchanged.
+F2: factored atoms anchor on > 0 later observations (counted from the agent's own
+   records); single-cell atoms' anchor counts are unchanged.
 F3: self_cells=None -> byte-identical learn_effect output on >= 200 recorded events.
 F4: tests/gate/test_system_determinism.py stays green (self_cells come from loop state).
 F5: the two composer notes appear in the PLAN record's notes on a constructed
    no-anchor case and a constructed no-reach case.
 Known-negatives as tests: avatar dies (cell -> a colour the delta did not predict) stays
-   in the diff; a tile under the avatar changing stays minted; colour-14 recurring
-   elsewhere in the bbox is NOT subtracted (the colour-anywhere failure, asserted absent).
+   in the diff; a tile under the avatar changing stays minted; the avatar's colour
+   recurring elsewhere in the bbox is NOT subtracted (the colour-anywhere failure, asserted
+   absent).
 
 ## Discipline
 - Module-bottom helpers; zero receipt rot — refresh every WIRING_REGISTRY.md row you move

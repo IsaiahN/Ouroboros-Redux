@@ -602,6 +602,10 @@ class MDLMint:
         sup["atom"] = minimised
         sup["ctx_min"] = True                        # the superseding append, marked
         sup.pop("ctx_conflict", None)                # markers are event-scoped
+        sup.pop("via", None)                         # (and so is the via envelope)
+        sup.pop("ep", None)                          # R3/R4: an ep on an atoms
+        # record names the EVENT that produced it -- an intersection is not a
+        # standing event, so it carries no ordinal rather than a stale one.
         self.gamma.fabric.append("collective", self.gamma.TOPIC, sup)
         self._rec_by_id[aid] = sup
         self._min_ids.pop(aid, None)
@@ -657,7 +661,8 @@ class MDLMint:
                 break           # one conflict event per atom per consider()
 
     def _reinstate(self, aid: str, rec: Dict[str, Any], atom: Dict[str, Any],
-                   full: np.ndarray, distinguish: np.ndarray) -> None:
+                   full: np.ndarray, distinguish: np.ndarray,
+                   via: Optional[str] = None) -> None:
         """The conflict clause's write: reinstate the distinguishing cells
         from context_full into the context AND the after-patch (a dropped
         cell is unchanged by construction, so its after value IS its
@@ -665,7 +670,16 @@ class MDLMint:
         keeps pinned cells forever after: divergence tightens, never
         loosens), restamp the anchor signature, supersede with the same id,
         record ctx_conflict on the appended record. context_full itself is
-        carried forward UNTOUCHED (Condition 2)."""
+        carried forward UNTOUCHED (Condition 2).
+
+        R3/R4 (PREREG_STANDING_HALF_LIFE_ATOMS.md): the appended record
+        carries the episode ordinal `ep` -- this write IS a standing event
+        (m2), and an event with no clock is not counted. `via` is the
+        DISJOINTNESS marker: the stage-4 plan-wrong path writes a
+        ctx_conflict AND a ledger increment for ONE event, so its append is
+        stamped via="plan-wrong" and the standing reader counts it under m1
+        only. via=None (the observation-time clause, every pre-existing
+        caller) stamps nothing and counts as m2."""
         ctx = np.asarray(atom["context"]).copy()
         out = np.asarray((atom.get("transform") or {}).get("after")).copy()
         ctx[distinguish] = full[distinguish]
@@ -689,6 +703,11 @@ class MDLMint:
         sup["atom"] = restored
         sup["ctx_conflict"] = True                   # the event, recorded
         sup.pop("ctx_min", None)                     # markers are event-scoped
+        sup["ep"] = int(self._ep)                    # R3/R4: the event's clock
+        if via is not None:
+            sup["via"] = str(via)                    # R3/R4: counted under m1
+        else:
+            sup.pop("via", None)
         self.gamma.fabric.append("collective", self.gamma.TOPIC, sup)
         self._rec_by_id[aid] = sup
         self._min_ids.pop(aid, None)

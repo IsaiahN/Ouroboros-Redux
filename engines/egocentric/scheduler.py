@@ -21,10 +21,14 @@ TWO GATES, ONE GUARD, ONE ROUTER:
       existed for it.
   GATE B (no re-search of an unchanged world): the (state key, change mark) of
       the last planner attempt is retained per (game, level). The change mark
-      is (mints passed, imports seeded); an identical key with an identical
-      mark means nothing was minted or imported since -- the search would
-      return the same nothing, so it is SKIPPED, and the skip is NARRATED at
-      the PLAN point with its reason (falsifier F3), never silent.
+      is (mints passed, imports seeded, RE-ENTRIES); an identical key with an
+      identical mark means nothing was minted, imported or re-admitted since
+      -- the search would return the same nothing, so it is SKIPPED, and the
+      skip is NARRATED at the PLAN point with its reason (falsifier F3), never
+      silent. The third component is R3/R4's (PREREG_STANDING_HALF_LIFE_
+      ATOMS.md): a RE-ENTRY grew the candidate set, so the world changed for
+      the search's purposes. An EVICTION shrank it and needs no reopening --
+      the same nothing would come back with one fewer atom asked.
   STARVATION GUARD (absolute, falsifier F2): a cycle where every cheap route
       failed MUST reach the planner in that same cycle. Provable by
       construction in decide(): with conf below the bar, the ONLY remaining
@@ -59,6 +63,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from engines.egocentric import retention as _ret
+from engines.egocentric import standing as _standing
 from engines.egocentric.planner import _state_key
 
 # GATE A's bar (KNOBS G25, Register G, provenance GUESSED -- mirrors the
@@ -105,23 +111,36 @@ class PlannerScheduler:
     (state key, change mark) per (game, level) for GATE B, counts engagements
     and skips (readout only), and holds the plan-wrong ledger the abort router
     records against. Level change or fission clears the retained keys
-    (binder.on_level_change's pattern: the board redraws, the key re-earns)."""
+    (binder.on_level_change's pattern: the board redraws, the key re-earns).
+    W2c (PREREG_W2C_PLANNER_RETENTION.md): OWNS the retention store
+    (`retained`, a retention.RetentionStore) the planner and the composer
+    receive at the loop's call sites; it is cleared INSIDE the same two
+    clears -- one clear site per event, none to forget."""
 
     def __init__(self) -> None:
         # (game, level) -> (state_key, change_mark) of the LAST planner attempt
-        self._last: Dict[Tuple[str, int], Tuple[str, Tuple[int, int]]] = {}
+        self._last: Dict[Tuple[str, int], Tuple[str, Tuple[int, ...]]] = {}
         self.engages = 0
         self.skips = 0
         # the abort router's record against the plan: atom id -> failed-step count
         self.plan_wrong: Dict[str, int] = {}
         self.aborts_routed = 0
         self.errors = 0
+        # W2c: the level-scoped store of what the planner/composer learned
+        self.retained = _ret.RetentionStore()
+        # R3/R4 (PREREG_STANDING_HALF_LIFE_ATOMS.md): the standing book the
+        # planner ranks by and the eviction sweep writes through. DELIBERATELY
+        # NOT cleared by on_level_change: retention describes a board that
+        # redrew, standing describes an atom's history against the ground, and
+        # the board redrawing does not unmake it. The level scope lives in tau,
+        # recomputed per (game, level) at every engagement.
+        self.standing = _standing.StandingBook()
 
     # -- the two gates + the starvation guard ---------------------------------
 
     def decide(self, game: str, level: int, key: str,
                conf: Optional[float],
-               change_mark: Tuple[int, int]) -> Dict[str, Any]:
+               change_mark: Tuple[int, ...]) -> Dict[str, Any]:
         """The ONE engagement decision. Returns {"engage": bool, "reason": str}.
 
         STARVATION GUARD, provable by construction: when conf is below the bar
@@ -143,7 +162,7 @@ class PlannerScheduler:
                 "reason": ENGAGE_FIRST if prev is None else ENGAGE_CHANGED}
 
     def note_attempt(self, game: str, level: int, key: str,
-                     change_mark: Tuple[int, int]) -> None:
+                     change_mark: Tuple[int, ...]) -> None:
         """Retain THIS attempt's (key, mark) -- recorded at engagement, so an
         identical world with nothing minted/imported since is not re-searched."""
         try:
@@ -172,9 +191,15 @@ class PlannerScheduler:
     # -- clears (binder.on_level_change's pattern) ----------------------------
 
     def on_level_change(self) -> None:
-        """The board redraws; every retained attempt key must re-earn itself."""
+        """The board redraws; every retained attempt key must re-earn itself.
+        W2c: the retention store clears HERE too -- the mark cannot outlive
+        the world it describes (F2)."""
         try:
             self._last.clear()
+        except Exception:
+            self.errors += 1
+        try:
+            self.retained.clear()
         except Exception:
             self.errors += 1
 

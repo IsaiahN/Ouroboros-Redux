@@ -30,6 +30,18 @@ Formulas (documented per the contract; WINDOW = last 20 settlements):
 
 mint_verdicts are consulted for the narration (mint acceptance rate is part of
 the legible state) but do not move the two channels in v1 -- channels <= knobs.
+
+THE THIRD CHANNEL (PREREG_PERSISTENCE_MONITOR.md, 2026-08-21):
+
+  persist   = min(1, run/k)   -- the persistence monitor's live run over k
+              (engines/egocentric/persistence.py); 0 with no live run or no
+              attached monitor; bounded in [0, 1]. A pure function of the
+              NARRATION stream prefix (the monitor is that fold), so it
+              replays like its two siblings. A MODULATOR, never a price: it
+              feeds exactly two sinks -- starvation_steer's explore_boost
+              (the STARVE_STEP path: a full run counts as one more starved
+              dimension) and goal.GoalManager.observe's stall clock -- and
+              nothing that ranks, prices or selects (gate test F5).
 """
 from __future__ import annotations
 
@@ -39,7 +51,8 @@ from engines.egocentric import lp_drive as _lp_drive
 
 
 class AffectGains:
-    """Two affect channels derived purely from the collective books."""
+    """Affect channels derived purely from the books: two from the collective
+    ledger, the third (persist) from the agent's own narration stream."""
 
     MINT_BAR_FLOOR = 1.0
     MINT_BAR_CEIL = 3.0
@@ -48,6 +61,24 @@ class AffectGains:
     def __init__(self, fabric):
         self.fabric = fabric
         self.errors = 0  # counter: fabric-read failures survived (channels fall back to neutral)
+        # THE PERSISTENCE MONITOR (PREREG_PERSISTENCE_MONITOR.md): attached by
+        # the loop (cognitive_loop._pm_attach) -- the in-memory fold over the
+        # narration stream the spine feeds. None = no monitor: persist is 0.
+        self.monitor = None
+
+    # ── the third channel's source (read-only; never a stream read here) ──────
+
+    def persist(self, game=None) -> float:
+        """persist = min(1, run/k) from the attached monitor; 0.0 without one.
+        Bounded in [0, 1]; contained (a monitor failure reads as 0)."""
+        mon = self.monitor
+        if mon is None:
+            return 0.0
+        try:
+            return min(1.0, max(0.0, float(mon.persist(game))))
+        except Exception:
+            self.errors += 1
+            return 0.0
 
     # ── internals (all re-derived per call; no cached state) ─────────────────
 
@@ -93,22 +124,24 @@ class AffectGains:
     # ── the contract ──────────────────────────────────────────────────────────
 
     def gains(self) -> Dict[str, float]:
-        """The two channels, each a pure function of the collective ledger."""
+        """The channels: seed_bias and mint_bar, each a pure function of the
+        collective ledger; persist, a pure function of the narration prefix."""
         rate = self._nontrivial_rate()
         seed_bias = min(1.0, max(0.0, rate))
         span = self.MINT_BAR_CEIL - self.MINT_BAR_FLOOR
         mint_bar = self.MINT_BAR_FLOOR + span * (1.0 - rate)
         mint_bar = min(self.MINT_BAR_CEIL, max(self.MINT_BAR_FLOOR, mint_bar))
-        return {"seed_bias": seed_bias, "mint_bar": mint_bar}
+        return {"seed_bias": seed_bias, "mint_bar": mint_bar,
+                "persist": self.persist()}
 
     def narrate(self) -> str:
         """The legibility law: no channel moves without the state being emitted."""
         g = self.gains()
         verdicts = self._mint_verdicts()
         mints = sum(1 for v in verdicts if v.get("verdict") == "mint")
-        line = ("affect: seed_bias=%.4f mint_bar=%.4f "
+        line = ("affect: seed_bias=%.4f mint_bar=%.4f persist=%.4f "
                 "(nontrivial_rate over last %d settlements; mint_verdicts: %d mint / %d total; errors=%d)"
-                % (g["seed_bias"], g["mint_bar"], self.WINDOW,
+                % (g["seed_bias"], g["mint_bar"], g["persist"], self.WINDOW,
                    mints, len(verdicts), self.errors))
         return line
 
@@ -127,7 +160,15 @@ class AffectGains:
 
         Pure function of the stream prefix (the replay requirement): the last
         STARVE_WINDOW records for `game`, distinct codes counted, boost =
-        min(STARVE_CEIL, 1 + STARVE_STEP * #codes). Empty stream -> neutral 1.0.
+        min(STARVE_CEIL, 1 + STARVE_STEP * (#codes + persist)). Empty stream,
+        no live run -> neutral 1.0.
+
+        THE PERSISTENCE SINK (PREREG_PERSISTENCE_MONITOR.md): the `persist`
+        channel enters HERE and only here on the explore side -- a full run
+        (persist = 1) widens effort by exactly one STARVE_STEP, as one more
+        starved dimension would; no new constant. Everything downstream of
+        explore_boost (seed_gain's widen, the loop's rotation window and
+        probe budget) is this same path.
         """
         try:
             rows = self.fabric.query("personal", "starvation")
@@ -138,7 +179,8 @@ class AffectGains:
         recent = [r for r in rows if r.get("game") == g][-self.STARVE_WINDOW:]
         codes = tuple(sorted({str(r.get("code")) for r in recent
                               if r.get("code")}))
-        boost = min(self.STARVE_CEIL, 1.0 + self.STARVE_STEP * len(codes))
+        boost = min(self.STARVE_CEIL,
+                    1.0 + self.STARVE_STEP * (len(codes) + self.persist(g)))
         return {"explore_boost": boost, "codes": codes}
 
     # ── B5 (BUILD_PROGRAM_2 W1): the APPLIED seed bias at the loop's site ─────

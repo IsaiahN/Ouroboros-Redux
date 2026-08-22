@@ -360,7 +360,8 @@ class TestTheSeam:
         recent = _oracle_recent(f)
         rate = sum(1 for r in recent if r.get("nontrivial")) / float(len(recent))
         want = {"seed_bias": min(1.0, max(0.0, rate)),
-                "mint_bar": 1.0 + 2.0 * (1.0 - rate)}
+                "mint_bar": 1.0 + 2.0 * (1.0 - rate),
+                "persist": 0.0}     # no monitor attached: no live run
         assert AffectGains(f).gains() == want
 
     def test_the_consumer_reads_only_the_tail(self, tmp_path, monkeypatch):
@@ -404,7 +405,7 @@ class TestTheSeam:
         a = AffectGains(BrokenFabric())
         assert a._recent_settlements() == []
         assert a.errors == 1
-        assert a.gains() == {"seed_bias": 0.5, "mint_bar": 2.0}
+        assert a.gains() == {"seed_bias": 0.5, "mint_bar": 2.0, "persist": 0.0}
 
 
 # ══ F2 · THE COST ACTUALLY MOVES ══════════════════════════════════════════════════

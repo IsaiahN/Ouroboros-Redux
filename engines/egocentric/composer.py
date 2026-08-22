@@ -118,6 +118,15 @@ live_settle / is_citable / citation_allowed / conflict_component. Consumed
 by cognitive_loop's _w3d_drive (the drive, under the planner's own gates),
 _w3d_continue (the multi-cycle chain) and _w3d_settle (the ONE live_settle
 call site, in record_result beside _w2b_abort).
+
+W2c (PREREG_W2C_PLANNER_RETENTION.md, item d): with `retained` (the W2b
+scheduler's retention.RetentionStore) an attempt's apply_effect-grade work
+is served from the level-scoped store -- _simulate's per-seam applications
+and named-anchor stamps through the ONE memo the planner shares, _anchors'
+results under (atom content key, frame key) in a SEPARATE structure (an
+empty anchor list is raw-path-only knowledge, never a typed None), the
+enabler index keyed by (pool mark, frame signature dims+palette), FIFO of 8.
+retained=None is today's per-attempt behaviour, byte-identical (the undo).
 """
 from __future__ import annotations
 
@@ -128,6 +137,8 @@ import numpy as np
 from engines.egocentric import applicability as _app
 from engines.egocentric import effects as _effects
 from engines.egocentric import enables as _enables
+from engines.egocentric import retention as _ret
+from engines.egocentric import standing as _standing
 
 __all__ = ["compose_attempt", "COMPOSED", "R_EMPTY_WANT",
            "R_WANT_UNDERIVABLE", "R_NO_FRAME", "R_NO_CANDIDATES",
@@ -135,7 +146,8 @@ __all__ = ["compose_attempt", "COMPOSED", "R_EMPTY_WANT",
            # stage 4.5: the seam repairs' tokens
            "R_WANT_SATISFIED", "R_CSIG_UNDERIVABLE", "R_PRICE_REFUSED",
            "R_REACH_BREACH", "R_NO_AVATAR", "PREFIX_REQUIRED",
-           "PREFIX_UNNECESSARY", "NO_ACT_OFFSET", "AVATAR_EXACT",
+           "PREFIX_UNNECESSARY", "NO_ACT_OFFSET", "NO_ANCHOR", "NO_REACH",
+           "AVATAR_EXACT",
            "AVATAR_CENTROID", "AVATAR_NONE", "NOT_A_RECORD", "S_PRED_UNMET",
            "citation_state",
            # stage 4: the settlement wire
@@ -164,6 +176,12 @@ R_NO_AVATAR = "no-avatar"              # a positional candidate with no self-loc
 PREFIX_REQUIRED = "prefix-required"    # silent #4: the BODY prefix put the avatar there
 PREFIX_UNNECESSARY = "prefix-unnecessary"  # silent #4: the act cell already wore it
 NO_ACT_OFFSET = "no-act-offset"        # silent #3: compose-only; never driven (PLAN record)
+# D-12 (PORT_LOG 2026-08-21): "unreachable" conflated NO-ANCHOR with NO-PATH --
+# notes={} on every compose-none line. The two unnoted non-proposal branches
+# now state themselves; the reason label is unchanged (the notes separate the
+# causes, the label does not).
+NO_ANCHOR = "no-anchor"                # candidate has no anchor AND no enabler anchors
+NO_REACH = "no-reach"                  # anchored + offset + avatar, but the reach found no chain
 AVATAR_EXACT = "self-cell"             # handoff: the self-locus exact cell was used
 AVATAR_CENTROID = "centroid-rounded"   # handoff: the stated fallback (float mean, rounded)
 AVATAR_NONE = "no-avatar"              # handoff: no self-locus at all
@@ -217,24 +235,28 @@ def _satisfied(frame: np.ndarray,
 
 # ── the pieces of the loop (each pure over its inputs) ────────────────────────
 
-def _anchors(frame: np.ndarray, atom: Any) -> List[Tuple[int, int]]:
+def _anchors(frame: np.ndarray, atom: Any, sess: Any = None,
+             aid: Any = None) -> List[Tuple[int, int]]:
     """The candidate's matching anchors in `frame` via the EXISTING vectorised
     matcher (effects._context_anchors -- the same scan apply_effect runs).
-    [] on any doubt: no anchor is never a guessed anchor."""
+    [] on any doubt: no anchor is never a guessed anchor. W2c: with a
+    session the result is retained under (content key, frame key) -- the
+    scan runs once per (atom, frame) per level; the empty list is stored
+    THERE and never as a memo None (KN5)."""
     if not isinstance(atom, dict) or atom.get("kind") != "EFFECT":
         return []
-    try:
-        ctx = np.asarray(atom.get("context"))
-        if ctx.ndim != 2 or ctx.size == 0:
+    if sess is not None:
+        try:
+            return sess.anchors(aid, atom, frame, _ret.state_key(frame),
+                                _scan_anchors)
+        except Exception:
             return []
-        return [(int(r), int(c))
-                for r, c in _effects._context_anchors(frame, ctx)]
-    except Exception:
-        return []
+    return _scan_anchors(frame, atom)
 
 
 def _apply_at(atom: Any, frame: np.ndarray,
-              anchor: Tuple[int, int]) -> Optional[np.ndarray]:
+              anchor: Tuple[int, int], sess: Any = None,
+              aid: Any = None) -> Optional[np.ndarray]:
     """STAGE 4.5 (silent #3/#4): the Gamma seam stamped AT A NAMED ANCHOR --
     the atom's stored after-patch written at `anchor` (row, col) with
     apply_effect's own masked-stamp rule (a DONT_CARE after-cell leaves the
@@ -243,22 +265,18 @@ def _apply_at(atom: Any, frame: np.ndarray,
     anchor is either a real match or the seam fails -- never apply's first
     anchor by default. The raw stored patch is the application this anchor
     means (the anchor came from the raw-context matcher); a typed op's
-    parameterised path is not consulted here."""
-    if tuple(anchor) not in _anchors(frame, atom):
+    parameterised path is not consulted here. W2c: with a session the
+    membership read hits the anchors store and the stamp goes through memo
+    (a) under the atom's content key + the anchor."""
+    if tuple(anchor) not in _anchors(frame, atom, sess, aid):
         return None
-    try:
-        ctx = np.asarray(atom["context"])
-        out = np.asarray(atom["transform"]["after"])
-        if out.shape != ctx.shape:
+    if sess is not None:
+        try:
+            return sess.apply_at(aid, atom, frame, _ret.state_key(frame),
+                                 tuple(anchor), _stamp_at)
+        except Exception:
             return None
-        r, c = int(anchor[0]), int(anchor[1])
-        ph, pw = ctx.shape
-        res = np.asarray(frame).copy()
-        stamp = out != _effects.DONT_CARE
-        res[r:r + ph, c:c + pw][stamp] = out[stamp]
-        return res
-    except Exception:
-        return None
+    return _stamp_at(atom, frame, anchor)
 
 
 def _body_atom_id(order: List[str], atoms: Dict[str, Any], action: int,
@@ -310,6 +328,7 @@ def _simulate(frame: np.ndarray, atoms: Dict[str, Any],
               anchor: Optional[Tuple[int, int]] = None,
               act: Optional[Tuple[int, int]] = None,
               avatar_colour: Optional[int] = None,
+              sess: Any = None,
               ) -> Optional[Tuple[List[np.ndarray],
                                   List[Optional[Tuple[int, int]]]]]:
     """Simulate the whole chain seam by seam on a COPY (self-settlement is
@@ -322,12 +341,15 @@ def _simulate(frame: np.ndarray, atoms: Dict[str, Any],
     sites, so reach, simulation and drive name ONE anchor (silent #3). The
     final Gamma seam stamps at `anchor` when the proposal reconciled one
     (the reach's), else at the matcher's first anchor on the running frame
-    -- recorded either way. The simulation itself never settles anything."""
+    -- recorded either way. The simulation itself never settles anything.
+    W2c: every per-seam application goes through the session's memo (a)
+    when one is given (_seam_apply / _apply_at); the predicted frames are
+    COPIES, so served frozen arrays never reach the drive stash."""
     cur = frame.copy()
     frames: List[np.ndarray] = []
     anchors: List[Optional[Tuple[int, int]]] = []
     for i, bid in enumerate(body_ids):
-        nxt = _effects.apply_effect(atoms.get(bid), cur)
+        nxt = _seam_apply(sess, bid, atoms.get(bid), cur)
         if nxt is None:
             return None
         nxt = np.asarray(nxt)
@@ -360,11 +382,11 @@ def _simulate(frame: np.ndarray, atoms: Dict[str, Any],
         at: Optional[Tuple[int, int]] = (
             anchor if (k == len(core) - 1 and anchor is not None) else None)
         if at is None:
-            found = _anchors(cur, atom)
+            found = _anchors(cur, atom, sess, aid)
             if not found:
                 return None
             at = found[0]
-        res = _apply_at(atom, cur, at)
+        res = _apply_at(atom, cur, at, sess, aid)
         if res is None:
             return None
         cur = np.asarray(res)
@@ -396,14 +418,16 @@ def compose_attempt(want: Any, frame: Any, gamma: Any,
                     avatar: Optional[Tuple[int, int]],
                     deltas: Dict[int, Tuple[int, int]],
                     fatal: Optional[Set[Tuple[int, int]]],
-                    game: str, level: int) -> Dict[str, Any]:
+                    game: str, level: int,
+                    retained: Any = None) -> Dict[str, Any]:
     """One compose attempt: the loop above, on the WANT the planner just
     searched and failed. `want` is cells mode (a sequence of (row, col,
     target_colour)) or predicate mode (an abduced predicate dict); `frame`
     the live workspace ((row, col) grid); `gamma` the effects.Gamma store;
     `avatar` the self-locus cell (row, col) or None; `deltas` per-action
     (dr, dc) (enables.book_deltas' shape); `fatal` the frontier mask already
-    in (row, col) (enables.fatal_cells' output).
+    in (row, col) (enables.fatal_cells' output); `retained` (W2c) the
+    scheduler's retention.RetentionStore or None (per-attempt, the undo).
 
     Returns a dict ALWAYS (containment: never raises):
       {"composite": id-or-None, "chain": [part ids] (mint order),
@@ -422,7 +446,7 @@ def compose_attempt(want: Any, frame: Any, gamma: Any,
                            "refused": [], "notes": {}}
     try:
         return _attempt(out, want, frame, gamma, avatar, deltas, fatal,
-                        game, level)
+                        game, level, retained)
     except Exception:
         return out
 
@@ -431,7 +455,7 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
              avatar: Optional[Tuple[int, int]],
              deltas: Dict[int, Tuple[int, int]],
              fatal: Optional[Set[Tuple[int, int]]],
-             game: str, level: int) -> Dict[str, Any]:
+             game: str, level: int, retained: Any = None) -> Dict[str, Any]:
     # -- the WANT, translated (conservative, stated) ---------------------------
     cells: Optional[List[Tuple[int, int, int]]] = None
     pred: Optional[Dict[str, Any]] = None
@@ -484,6 +508,10 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
         if str(aid) not in atoms:
             order.append(str(aid))
         atoms[str(aid)] = rec.get("atom")
+    # W2c: the session over the retained store (None = per-attempt work);
+    # opened AFTER the pool read so the attempt's instrument counts only
+    # apply_effect-grade work, and bound to (game, level) like the planner's.
+    sess = None if retained is None else _ret.Session(retained, game, level)
     # -- Gamma candidates: effect intersects WANT (stored signatures only) -----
     cand = [aid for aid in order
             if colours & {int(v)
@@ -495,15 +523,27 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
     # -- the within-Gamma enabler index (stage 2's edge), computed lazily ------
     enablers: Optional[Dict[str, List[str]]] = None
 
+    def _build_enablers() -> Dict[str, List[str]]:
+        fsig = _app.frame_signature([f])
+        edges = _enables.enables_edges(order, atoms, fsig)
+        idx: Dict[str, List[str]] = {}
+        for a, outs in edges.items():
+            for b in outs:
+                idx.setdefault(b, []).append(a)
+        return idx
+
     def _enablers_of(bid: str) -> List[str]:
         nonlocal enablers
         if enablers is None:
-            fsig = _app.frame_signature([f])
-            edges = _enables.enables_edges(order, atoms, fsig)
-            enablers = {}
-            for a, outs in edges.items():
-                for b in outs:
-                    enablers.setdefault(b, []).append(a)
+            if sess is None:
+                enablers = _build_enablers()
+            else:
+                # W2c (d): retained under (pool mark, frame signature dims +
+                # palette), FIFO of ENABLERS_CAP -- the pool mark is the
+                # stream's own (record count, last seq): any mint, import or
+                # supersede appends and moves it.
+                enablers = sess.enablers(_pool_mark(recs), _fsig_key(f),
+                                         _build_enablers)
         return enablers.get(bid, [])
 
     notes: Dict[str, int] = out["notes"]
@@ -515,7 +555,7 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
     proposals: List[Dict[str, Any]] = []
     for bid in cand:
         atom = atoms.get(bid)
-        anch = _anchors(f, atom)
+        anch = _anchors(f, atom, sess, bid)
         off = _enables.act_offset_of(atom)
         if anch:
             if off is None:
@@ -541,7 +581,8 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
             reach = _enables.cross_shelf_reach(atom, anch, av, deltas,
                                                shape, fatal=fatal)
             if reach is None:
-                continue                       # unreachable: stated, no guess
+                _note(NO_REACH)                # D-12: no path -- stated, no guess
+                continue
             if reach.get("verified") is not False:
                 # THE CONTRACT, READ: the algebra may only PROPOSE. A reach
                 # claiming otherwise is a breach -- the attempt refuses.
@@ -569,10 +610,13 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
             proposals.append(_proposal(body, list(reach["cells"]), [bid],
                                        actions, anchor, act, PREFIX_REQUIRED))
         else:
+            n_before = len(proposals)
             for enabler in _enablers_of(bid):
-                if _anchors(f, atoms.get(enabler)):
+                if _anchors(f, atoms.get(enabler), sess, enabler):
                     proposals.append(_proposal([], None, [enabler, bid], [],
                                                None, None, None))
+            if len(proposals) == n_before:
+                _note(NO_ANCHOR)               # D-12: no candidate/enabler anchor
     out["proposed"] = len(proposals)
     if not proposals:
         out["reason"] = R_UNREACHABLE
@@ -588,7 +632,7 @@ def _attempt(out: Dict[str, Any], want: Any, frame: Any, gamma: Any,
             continue                           # outside the simulable scope
         sim = _simulate(f, atoms, p["body"], p["trace"], p["core"], cells,
                         pred, anchor=p["anchor"], act=p["act"],
-                        avatar_colour=av_colour)
+                        avatar_colour=av_colour, sess=sess)
         if sim is None:
             continue
         verified += 1
@@ -883,7 +927,7 @@ def citation_allowed(composite_record: Any, role: str,
 
 
 def live_settle(gamma: Any, drive: Optional[Dict[str, Any]],
-                live: Any) -> Dict[str, Any]:
+                live: Any, ep: Optional[int] = None) -> Dict[str, Any]:
     """THE ONE WRITER of the settled flag. Refuses without a drive record
     (a settle needs a driven chain, S_NO_DRIVE) or without the composite's
     record (S_NO_RECORD); idempotent on an already-settled composite
@@ -893,7 +937,13 @@ def live_settle(gamma: Any, drive: Optional[Dict[str, Any]],
     same stream; the candidate record stays readable history); a divergence
     -> nothing written, the mispredicting component named (S_DIVERGED); a
     predicate that did not flip live -> nothing written (S_PRED_UNMET).
-    Never raises; always returns {"settled", "reason", "written", ...}."""
+    Never raises; always returns {"settled", "reason", "written", ...}.
+
+    R3/R4 (PREREG_STANDING_HALF_LIFE_ATOMS.md): the settle append carries the
+    episode ordinal `ep` when the caller supplies it -- the CANDIDATE ->
+    SETTLED transition IS a composite's earn event (e3), and an event with no
+    clock is not counted. ep=None (every pre-existing caller) stamps nothing
+    and the record is byte-identical to this build's predecessor."""
     out: Dict[str, Any] = {"settled": False, "reason": S_NO_DRIVE,
                            "written": False, "composite": None}
     try:
@@ -924,6 +974,8 @@ def live_settle(gamma: Any, drive: Optional[Dict[str, Any]],
         if v.get("predicate") is not None:
             facts["predicate"] = bool(v["predicate"])
         sup["settle"] = facts
+        if ep is not None:
+            sup["ep"] = int(ep)              # R3/R4: the earn event's clock
         gamma.fabric.append("collective", gamma.TOPIC, sup)
         out.update({"settled": True, "reason": S_SETTLED, "written": True})
         return out
@@ -978,9 +1030,86 @@ def conflict_component(mint: Any, gamma: Any, part_id: str,
                 if bool(d.any()):
                     distinguish = d
                     break                        # one conflict event per atom
-        mint._reinstate(str(part_id), rec, atom, fl, distinguish)
+        # R3/R4: THE DISJOINTNESS MARKER. This path writes a ctx_conflict AND
+        # a plan-wrong ledger increment for ONE event; the append is stamped
+        # via="plan-wrong" so the standing reader counts it under m1 only.
+        mint._reinstate(str(part_id), rec, atom, fl, distinguish,
+                        via=_standing.VIA_PLAN_WRONG)
         out.update({"conflicted": True, "tightened": int(distinguish.sum())})
         return out
     except Exception:
         out["reason"] = R_ERROR
         return out
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# W2c (PREREG_W2C_PLANNER_RETENTION.md, item d): module-bottom helpers -- the
+# cold paths the session wraps, and the two retention keys. Nothing here runs
+# differently with retained=None; the helpers ARE the pre-W2c code, factored.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _scan_anchors(frame: np.ndarray, atom: Any) -> List[Tuple[int, int]]:
+    """The cold anchor scan (pre-W2c _anchors body, verbatim): every anchor
+    the vectorised matcher confirms for the atom's context patch."""
+    try:
+        ctx = np.asarray(atom.get("context"))
+        if ctx.ndim != 2 or ctx.size == 0:
+            return []
+        return [(int(r), int(c))
+                for r, c in _effects._context_anchors(frame, ctx)]
+    except Exception:
+        return []
+
+
+def _stamp_at(atom: Any, frame: np.ndarray,
+              anchor: Tuple[int, int]) -> Optional[np.ndarray]:
+    """The cold named-anchor stamp (pre-W2c _apply_at body after the
+    membership check, verbatim): the after-patch written at `anchor` with
+    apply_effect's masked-stamp rule, on a copy."""
+    try:
+        ctx = np.asarray(atom["context"])
+        out = np.asarray(atom["transform"]["after"])
+        if out.shape != ctx.shape:
+            return None
+        r, c = int(anchor[0]), int(anchor[1])
+        ph, pw = ctx.shape
+        res = np.asarray(frame).copy()
+        stamp = out != _effects.DONT_CARE
+        res[r:r + ph, c:c + pw][stamp] = out[stamp]
+        return res
+    except Exception:
+        return None
+
+
+def _seam_apply(sess: Any, aid: Any, atom: Any,
+                frame: np.ndarray) -> Optional[np.ndarray]:
+    """A BODY seam: apply_effect(atom, frame) -- through memo (a) when a
+    session exists (the key is the atom's content key + the frame key)."""
+    if sess is None:
+        return _effects.apply_effect(atom, frame)
+    try:
+        return sess.apply(aid, atom, frame, _ret.state_key(frame))
+    except Exception:
+        return None
+
+
+def _pool_mark(recs: Any) -> Tuple[int, Any]:
+    """The pool's change mark: (record count, last record's seq). The stream
+    is append-only and a supersede is an append, so any mint, import or
+    supersede moves the mark -- the enabler index's validity key."""
+    try:
+        n = len(recs)
+        return (n, None if n == 0 else recs[-1].get("seq"))
+    except Exception:
+        return (-1, None)
+
+
+def _fsig_key(frame: np.ndarray) -> Tuple[Any, ...]:
+    """The frame signature's hashable (dims, palette) -- what enables_edges
+    actually reads of the frame."""
+    try:
+        fsig = _app.frame_signature([frame]) or {}
+        return (int(fsig.get("h", 0)), int(fsig.get("w", 0)),
+                tuple(sorted(int(v) for v in (fsig.get("pal") or ()))))
+    except Exception:
+        return (-1, -1, ())

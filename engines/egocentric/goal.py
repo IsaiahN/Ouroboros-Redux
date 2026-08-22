@@ -81,10 +81,18 @@ class GoalManager:
         self.pursuit = 0
         self.log.append("GOAL  CONFIRM-by-reward at %s -> %s" % (cell, matched))
 
-    def observe(self, reached: bool, reward: bool, progress: bool = False) -> None:
+    def observe(self, reached: bool, reward: bool, progress: bool = False,
+                persist: float = 0.0) -> None:
         """Feedback for the active goal (relation-agnostic -- the caller says whether the goal was REACHED):
         a reward while pursuing it CONFIRMS (price up, keep it); reaching it with no reward, or stalling,
         DEMOTES it (price down) and rotates to the next candidate.
+
+        THE PERSISTENCE SINK (PREREG_PERSISTENCE_MONITOR.md): `persist` in [0, 1] is the persistence
+        monitor's channel (affect.AffectGains.persist) -- the same residual recurring under an unchanged
+        strategy. It advances the STALL CLOCK by 1 + persist per step: being stuck, not elapsed time --
+        detected persistence is evidence of being stuck, so at a full run the clock runs at most twice
+        as fast (bounded, never a takeover, no new constant). 0 (the default, and the unwired value)
+        leaves every line below byte-identical.
 
         PROGRESS-GATING (brick 24): a step that makes PROGRESS toward the active goal (the cursor got closer,
         or -- for a quantified ALL -- a new member was just visited) RESETS the stall clock. The stall counter
@@ -95,7 +103,8 @@ class GoalManager:
         FMap: optimal_foraging_theory -- stay in a patch while its yield (progress) holds; leave when it dries."""
         if self.active is None:
             return
-        self.pursuit += 1
+        _p = min(1.0, max(0.0, float(persist or 0.0)))
+        self.pursuit += (1.0 + _p) if _p > 0.0 else 1
         if reward:
             self.price[self.active] = self.price.get(self.active, 0.0) + self.confirm_bonus
             self.log.append("GOAL  CONFIRM %s (reward) -> price %.2f" % (self.active, self.price[self.active]))

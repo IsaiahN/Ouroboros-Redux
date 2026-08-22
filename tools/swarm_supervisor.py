@@ -7,7 +7,16 @@ THE PROTECTION LAYER (why each piece exists):
     (leaks cannot accumulate past the cap). Polled once per cycle via a single CIM query.
   * BOUNDED LIFETIME — every worker is recycled after RECYCLE_MIN minutes regardless of
     health (the gunicorn max-requests principle: a bounded process cannot leak unboundedly).
-    Recycles are staggered by construction since spawn times differ.
+    Recycles are staggered by construction since spawn times differ. **DEFERRED UNDER HOLD
+    (D-13, 2026-08-21): spawn() imports the working tree, so a recycle IS a deploy. While
+    .runs/swarm/HOLD exists a worker past RECYCLE_MIN is left running and status.txt says
+    so per worker; the first poll after HOLD lifts recycles it through this same path.**
+  * RESPAWN UNDER HOLD IS LOUD (D-13) — a crash restart or a mem-kill under HOLD cannot be
+    avoided (the tree is what exists), so it is LEDGERED: deploys.jsonl gets a record with
+    reason="respawn-under-hold", the game, the trigger (restart | mem_kill) and head/dirty/
+    fingerprint from THE SAME ASSEMBLY as every deploy record (deploy_record), and
+    status.txt carries a "!! RESPAWN UNDER HOLD" line. The ledger cannot again show a
+    clean history over a dirty fleet.
   * TRASH COLLECTION ON EVERY RECYCLE — at each worker stop, its box's SQLite gets:
     v4's own SafeDatabaseCleaner (keeps knowledge, trims telemetry — Isaiah's tiering),
     a WAL checkpoint (TRUNCATE), and VACUUM **only when the file is actually fragmented**
@@ -46,7 +55,8 @@ VACUUM_FRAG_RATIO = 0.25   # VACUUM only when >=25%% of pages are free (real fra
 VACUUM_MIN_FREE_PAGES = 2000  # ...and the reclaim is worth the rewrite. NOT a cadence.
 DB_HARD_CAP_MB = 600       # after cleaning, still above this -> empty telemetry outright
 POLL_SEC = 60             # also the DEPLOY LATENCY: a queued change is live within one poll
-HOLD_FILE = os.path.join(REDUX, ".runs", "swarm", "HOLD")  # present -> no deploys
+HOLD_FILE = os.path.join(REDUX, ".runs", "swarm", "HOLD")  # present -> no deploys, lifetime
+#   recycles DEFERRED, forced respawns (crash / mem-kill) LEDGERED as respawn-under-hold (D-13)
 
 # SEAT 3 RULING 2026-08-19: **action_traces is OFF LIMITS to housekeeping.** It holds the
 # level evidence, which is the ground's record. NO automatic path deletes it -- not at
@@ -103,9 +113,10 @@ def code_fingerprint():
     return h.hexdigest()
 
 
-def record_deploy(fp, reason):
-    """RUNG 0e FOR DEPLOYMENT: what actually ran, and whether the tree was dirty.
-    Without this, 'which code produced this batch' is unanswerable after the fact."""
+def deploy_record(fp, reason):
+    """THE ONE ASSEMBLY of what-ran: utc, reason, fingerprint, head, dirty, dirty_count.
+    Every deploys.jsonl record -- initial, code change, AND respawn-under-hold (D-13) --
+    is built here and nowhere else, so head/dirty mean the same thing on every line."""
     rec = {"utc": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
            "reason": reason, "fingerprint": fp[:16]}
     for key, args in (("head", ["rev-parse", "HEAD"]),
@@ -118,13 +129,39 @@ def record_deploy(fp, reason):
         except Exception:
             rec[key] = "?"
     rec["dirty_count"] = len([x for x in rec.get("dirty", "").splitlines() if x.strip()])
+    return rec
+
+
+def append_ledger(rec):
     try:
         with open(os.path.join(ROOT, "deploys.jsonl"), "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec) + "\n")
     except OSError:
         pass
+
+
+def record_deploy(fp, reason):
+    """RUNG 0e FOR DEPLOYMENT: what actually ran, and whether the tree was dirty.
+    Without this, 'which code produced this batch' is unanswerable after the fact."""
+    rec = deploy_record(fp, reason)
+    append_ledger(rec)
     print("[DEPLOY] %s head=%s dirty=%d fp=%s"
           % (reason, rec.get("head"), rec["dirty_count"], rec["fingerprint"]), flush=True)
+
+
+def record_respawn_under_hold(g, trigger):
+    """D-13: a forced respawn under HOLD ran the working tree whether HOLD liked it or
+    not -- a deploy of the tree to ONE worker. Ledger it as exactly that, through the
+    same assembly as every deploy record (deploy_record: same head, same dirty listing,
+    same count), naming the game and the trigger (restart | mem_kill). The fingerprint
+    is the tree at this instant: what the respawned worker imports."""
+    rec = deploy_record(code_fingerprint(), "respawn-under-hold")
+    rec["game"] = g
+    rec["trigger"] = trigger
+    append_ledger(rec)
+    print("[DEPLOY] !! respawn under HOLD: %s (%s) head=%s dirty=%d fp=%s"
+          % (g, trigger, rec.get("head"), rec["dirty_count"], rec["fingerprint"]), flush=True)
+    return rec
 
 
 def db_gc(box, log):
@@ -350,8 +387,8 @@ def main():
         ws = working_sets()
         lines = []
         if held:
-            lines.append("!! HOLD present (%s) -- deploys suspended, workers left running"
-                         % HOLD_FILE)
+            lines.append("!! HOLD present (%s) -- deploys suspended, lifetime recycles "
+                         "deferred, workers left running" % HOLD_FILE)
         if not ws:
             lines.append("!! working_sets EMPTY -- memory cap blind this cycle")
         for g in GAMES:
@@ -365,11 +402,26 @@ def main():
                 logf.close()
                 spawn(g)
                 lines.append("%s RESTART#%d" % (g, stats[g]["restarts"]))
+                if held:
+                    # D-13: the tree is what exists; the respawn is unavoidable, so it is LOUD
+                    record_respawn_under_hold(g, "restart")
+                    lines.append("!! RESPAWN UNDER HOLD: %s (restart) -- ran the working "
+                                 "tree; ledgered as respawn-under-hold" % g)
             elif rss > MEM_CAP_MB:
                 stats[g]["mem_kills"] += 1
                 stop_and_gc(g, "memory cap: %.0fMB > %dMB" % (rss, MEM_CAP_MB))
                 spawn(g)
                 lines.append("%s MEM-KILL#%d(%.0fMB)" % (g, stats[g]["mem_kills"], rss))
+                if held:
+                    record_respawn_under_hold(g, "mem_kill")
+                    lines.append("!! RESPAWN UNDER HOLD: %s (mem_kill) -- ran the working "
+                                 "tree; ledgered as respawn-under-hold" % g)
+            elif up_min > RECYCLE_MIN and held:
+                # D-13: a recycle is a deploy (spawn() imports the tree). Under HOLD the
+                # worker is LEFT RUNNING; the first poll after HOLD lifts takes the branch
+                # below. No new knob -- RECYCLE_MIN is the condition, HOLD the deferral.
+                lines.append("%s RECYCLE DEFERRED (HOLD) up=%dm rss=%.0fMB"
+                             % (g, int(up_min), rss))
             elif up_min > RECYCLE_MIN:
                 stats[g]["recycles"] += 1
                 stop_and_gc(g, "bounded lifetime: %.0f min" % up_min)

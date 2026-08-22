@@ -51,3 +51,10 @@ Sensitivity before trust, as above.
 - A census of live output filters on PROCESS START, not commit time.
 - A known-positive is part of the instrument, not an afterthought: two of five reads were
   voided by their own check before a number was reported.
+
+## Instrument note (2026-08-21, the ramp sampler)
+Windows commits lazily: a `bytearray(100MB)` moves neither working set nor the sampler
+until its pages are touched, so the known-positive read 0MB and refused the run. The
+sampler now reads PRIVATE (committed) bytes — what the supervisor's mem-kill sees grow —
+beside working set, and the known-positive touches every page. Sixth instrument, third
+self-refusal before a number was reported.
