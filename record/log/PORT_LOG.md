@@ -3549,3 +3549,35 @@ The apparatus retired positional receipts and then kept the retired gate as a li
 constraint on new work, in order to prove it was retired. Worth a ruling: pin the oracle to
 a FROZEN TREE (the pre-migration commit it already pins for the registry) rather than the
 working tree, so it compares two gates over history instead of taxing every future build.
+
+=== BEAT 54 (2026-08-22 ~08:10; fleet UP 3h47m, HOLD held for a ruling) ===
+ASK: still the one from beat 53 -- the 0.8 vs 0.2 salient-replay prior. HOLD stays up until
+it is ruled, so that change has NOT reached a worker.
+THE GROUND: 49 LEVELS COMPLETED in the last hour, against 5 in the hour before. Ten boxes
+contributed; g50t 20, ar25 18, sk48 4, lp85 4, r11l 3. GAMES WON 0/25.
+AND THE HONEST QUALIFIER, which is the whole reading: BEST-LEVEL IS UNCHANGED ON EVERY BOX
+(ar25 2, the other nine 1, fifteen at 0). So 49 levels is 49 RE-CROSSINGS OF GROUND ALREADY
+HELD, not one step of new ground. The counter that moved is the one that measures repetition;
+the counter that measures progress did not move at all. That distinction is exactly what
+Figure 1 exists for and I will not report the 10x as progress.
+WHAT PLAUSIBLY CAUSED THE 10x, stated as candidates and NOT as a finding: the fleet is 3h47m
+in, so workers are long past the ~350s replay/boot tail that dominates a fresh process; and
+this tree carries the Protocol repair, which restored four rungs that previously could not
+fire. Neither is demonstrated. Distinguishing them needs the per-box before/after the
+Protocol commit, which the seq watermark would make readable and which today cannot be
+windowed at all.
+FLEET HEALTH -- AND THE MEMORY QUESTION IS NOW SUBSTANTIALLY ANSWERED: 25/25 up, ZERO
+mem-kills and ZERO recycles in 3h47m, largest worker 1,130MB. The pre-commit fleet produced
+78 MEM-KILLS IN THREE HOURS with six boxes cycling every ~15 minutes. Three hours forty-seven
+minutes with none is no longer "too short to tell" -- the ramp does not reproduce on the
+committed tree. What is NOT answered is WHY, since the holder was never named; the transient
+spike remains unexplained and the peak instrument unrun.
+D-13 IS VISIBLY WORKING: 10 RECYCLE DEFERRED lines in status.txt -- ten workers past their
+120-minute lifetime, held rather than recycled because HOLD is up. Before D-13 those ten
+would have respawned onto a tree carrying an uncommitted salient-replay change.
+RATES: still NOT WINDOWABLE (no timestamp on any ego_fabric record). Unchanged since beat 51
+and it is the single largest gap in mandate item 3.
+STALLED SINCE BEAT 53: g7 (0, UNMEASURED); best-level on every box; split-half; the memory
+CAUSE; the 273-second window in play_game.
+ADVANCING: the seq watermark -- the build that makes every frame-internal rate windowable,
+and therefore the one that unblocks mandate item 3 rather than working around it.
