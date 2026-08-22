@@ -3337,3 +3337,48 @@ AFTER: 496 passed across all eight suites that open these documents. Zero dangli
 THIS IS THE GM'S METHOD WORKING AS SPECIFIED: move first, see what breaks, report. Reading
 the imports would not have found either defect -- neither is an import. The first is a
 hard-coded directory in a test harness, the second is a git path in a historical read.
+
+=== THE PROTOCOL REPAIR LANDED: 20 DECLARED-BUT-UNDEFINED, NOT 14, AND THE FOUR "TYPOS"
+    WERE NOT TYPOS ===
+The examination's DEFECT A is CONFIRMED AND UNDERSTATED. The builder's own AST sweep found
+20 declared-but-undefined Protocol methods (six the exam missed) PLUS 8 guard-only drifts
+that no Protocol declares at all. Two different sets, both real; the exam had conflated them.
+THE FINDING THAT MATTERS, AND IT REVERSES MY OWN BRIEF: I told the builder four of these
+were "pure name mismatches, one identifier apart from working". THREE OF THE FOUR ARE NOT.
+get_beliefs, get_goal and get_proven_sequences return DATACLASSES (or a list of sequences);
+the dead branches read them as DICTS. A pure rename would have moved each rung from
+SILENTLY DEAD to RAISING ON THE FIRST LINE AND SWALLOWED BY ITS OWN except -- dead a second
+way, still silent. The builder checked the shape, not just the name, and said so.
+That is the adjacency genus once more: I matched on the NEAREST NAME and called it a typo.
+DISPOSITION: implementation is the truth, 16 names fixed at the CALL SITE, ZERO
+implementations renamed. Two interfaces deleted entire (CounterfactualAnalyzer,
+PrimitiveHelper -- their named consumer rungs do not exist). Six kept and made LOUD via a
+capability_absent() call logged once per (class, method) per process, each with a row in a
+new UNIMPLEMENTED_DECLARATIONS table stating why it stays declared. Declared-but-
+unimplemented went 20 -> 5, and all five are allowlisted and loud. NO SILENT FALSE BRANCH
+SURVIVES.
+THE ANTI-REPEAT MECHANISM IS BOUND, NOT TREE-WIDE, and that distinction is load-bearing:
+F1 binds each Protocol to the class the REGISTRY CONSTRUCTS and checks THAT class --
+get_current_prediction is defined by two other classes and NOT by the bound one, so a
+tree-wide check passes and is wrong.
+engines/registry.py:42-45 UNCOMMENTED -- no cycle exists (interfaces.py imports only os and
+typing). Stated honestly by the builder: uncommenting does NOT restore checking, because no
+type checker runs in CI. The gate test is the check; the annotations are the declaration.
+SUITE: 1957 passed, 2 xfailed, ZERO REDS.
+COST FLAGGED FOR A RULING, not hidden: restoring get_budget wires a DB aggregate + an INFO
+log into a PER-DECISION context modifier, and two restored orientation rungs run two DB
+queries per decision. The fleet has never paid these. The builder applied the rule
+consistently rather than special-casing, and says so: turning them off is a priority
+ordering decision, not a defect decision.
+
+=== AND IT CAUGHT ME TWICE, BOTH FAIR ===
+1. Commit d86dc1a swept its in-progress test file (551 lines) and its interfaces.py changes
+   into a commit whose message describes a documentation move -- my `git add -A`, already
+   recorded, and this is the builder observing the consequence from the other side.
+2. My canon move to record/canon/ broke its runs mid-flight (19 reds, then 16). It attributed
+   correctly and three ways -- the failure text named the moved file, the suite imports
+   nothing it touched, and run order-isolated it passed 25/25 once my fix landed.
+3. The 2743 baseline in its brief was ALREADY STALE when I wrote it: my own moves of 25 tests
+   and 105 files had changed the count. It could not have matched the number I gave it and
+   said so rather than fudging.
+Three proctor errors, all found by the builder, none by me.

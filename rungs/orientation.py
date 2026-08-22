@@ -13,6 +13,7 @@ from rungs.base import (
     DecisionRung,
     KnowledgeProvenance,
     RungResult,
+    capability_absent,
     filter_available_actions,
     get_available_action_weights,
     get_available_actions_list,
@@ -128,9 +129,16 @@ class SurveyRung(DecisionRung):
         grid_analyzer = self.engines.grid_analyzer
         if grid_analyzer and frame:
             try:
+                # IMPLEMENTED NOWHERE: `analyze_grid_structure` is on no
+                # Protocol and on no class. GridAnalyzer's reads are get_diff /
+                # classify_regions / detect_collision / detect_rotation --
+                # every one of them needs two frames or a colour set this call
+                # does not have. Loud, not silent (Figure 10).
                 if hasattr(grid_analyzer, 'analyze_grid_structure'):
                     analysis = grid_analyzer.analyze_grid_structure(frame)
                     survey['grid_analysis'] = analysis
+                else:
+                    capability_absent(grid_analyzer, 'analyze_grid_structure', self.name)
             except Exception:
                 pass  # Grid analyzer enhancement is optional
 
@@ -151,14 +159,26 @@ class QuestioningRung(DecisionRung):
 
         try:
             if not hasattr(sme, 'questioning_engine'):
+                # DECLARED, NEVER IMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS
+                # in engines/interfaces.py. QuestioningEngineWithTeeth lives in
+                # the same module as ScientificMethodEngine, but the engine
+                # composes no instance of it and nothing in the tree
+                # constructs one, so this rung has never reached a question.
+                # Loud, not silent (Figure 10).
+                capability_absent(sme, 'questioning_engine', self.name)
                 return RungResult()
 
+            # The engine answers both halves from ONE method, get_blocking_info:
+            # the questions that block AND the actions they still allow. The
+            # declared pair get_blocking_questions/get_allowed_actions is
+            # defined by nothing (DEFECT-A FIX 2026-08-22).
             qe = sme.questioning_engine
-            blocking_questions: List[Any] = qe.get_blocking_questions() if hasattr(qe, 'get_blocking_questions') else []
+            info = qe.get_blocking_info() if hasattr(qe, 'get_blocking_info') else None
+            blocking_questions: List[Any] = (info or {}).get('blocking_questions') or []
 
             if blocking_questions:
                 # Q4, Q9, or META is blocking - force specific action types
-                allowed_actions = qe.get_allowed_actions(blocking_questions)
+                allowed_actions = (info or {}).get('allowed_actions') or []
                 return RungResult(
                     action=random.choice(allowed_actions) if allowed_actions else None,
                     confidence=0.8,
@@ -717,15 +737,21 @@ class BreakthroughBudgetRung(DecisionRung):
         try:
             game_type = context.get('game_type', '')
 
-            if hasattr(allocator, 'get_budget'):
-                budget = allocator.get_budget(game_type)
-                context['action_budget'] = budget.get('per_level', 400)
-                context['total_budget'] = budget.get('total', 2000)
+            # DEFECT-A FIX 2026-08-22: guarded on `get_budget`, which
+            # BreakthroughBudgetAllocator does not define. Its method is
+            # calculate_game_budget(game_id, agent_id=None), and its keys are
+            # action_allowance_per_level / action_allowance_total, not
+            # per_level / total -- so the reads below were wrong twice over.
+            if hasattr(allocator, 'calculate_game_budget') and game_type:
+                budget = allocator.calculate_game_budget(game_type, context.get('agent_id'))
+                per_level = budget.get('action_allowance_per_level', 400)
+                context['action_budget'] = per_level
+                context['total_budget'] = budget.get('action_allowance_total', 2000)
                 context['budget_phase'] = budget.get('phase', 'DISCOVERY')
 
                 return RungResult(
                     confidence=0.1,  # Low - doesn't suggest action
-                    reason=f"Budget phase: {budget.get('phase', 'DISCOVERY')}, per_level={budget.get('per_level', 400)}",
+                    reason=f"Budget phase: {budget.get('phase', 'DISCOVERY')}, per_level={per_level}",
                     metadata={'budget': budget}
                 )
             return RungResult()
@@ -746,7 +772,14 @@ class RegulatorySignalRung(DecisionRung):
             return RungResult()
 
         try:
-            if hasattr(re, 'get_active_signals'):
+            if not hasattr(re, 'get_active_signals'):
+                # DECLARED, NEVER IMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS
+                # in engines/interfaces.py. RegulatorySignalEngine only EMITS
+                # signals and summarises them per GENERATION; it has no
+                # per-decision read of currently-live signals, and this rung
+                # has no generation in context. Loud, not silent (Figure 10).
+                capability_absent(re, 'get_active_signals', self.name)
+            else:
                 signals = re.get_active_signals()
 
                 # Apply signal effects to context
@@ -795,7 +828,11 @@ class GridExplorationRung(DecisionRung):
                         action='ACTION6',
                         confidence=0.35,
                         reason=f"Grid exploration: ({target.get('x', 0)}, {target.get('y', 0)}) - systematic search",
-                        metadata={'grid_target': target, 'grid_index': va.grid_walking_index if hasattr(va, 'grid_walking_index') else 0}
+                        # DEFECT-A FIX 2026-08-22: `grid_walking_index` is on no
+                        # class; VisualAnalyzer's counter is
+                        # `grid_exploration_index`.
+                        metadata={'grid_target': target,
+                                  'grid_index': getattr(va, 'grid_exploration_index', 0)}
                     )
             return RungResult()
         except Exception as e:
@@ -1155,19 +1192,26 @@ class ImaginationBudgetRung(DecisionRung):
             return RungResult()
 
         try:
-            if hasattr(ib, 'calculate_budget'):
-                budget = ib.calculate_budget(
-                    is_novel=context.get('is_novel_game', False),
-                    is_frontier=context.get('frontier_mode', False),
-                    surprise_score=context.get('surprise_score', 0)
-                )
+            # DEFECT-A FIX 2026-08-22. This rung had NO REACHABLE BODY: it
+            # guarded `calculate_budget(is_novel, is_frontier, surprise_score)`,
+            # a name ImaginationBudgetManager does not define, so every
+            # statement below the guard was dead on every decision since the
+            # rung was written. The manager does not take novelty as an
+            # ARGUMENT -- it carries the budget as state and moves it with
+            # update_from_outcome. get_stats() is the read side, and its
+            # 'current_budget' / 'synthesis_depth' are the two figures the rung
+            # publishes into context.
+            if hasattr(ib, 'get_stats'):
+                budget = ib.get_stats()
 
-                context['imagination_budget_remaining'] = budget.get('total', 0.5)
-                context['question_tier'] = budget.get('tier', 'Q1')
+                remaining = budget.get('current_budget', 0.5)
+                tier = f"Q{int(budget.get('synthesis_depth', 1) or 1)}"
+                context['imagination_budget_remaining'] = remaining
+                context['question_tier'] = tier
 
                 return RungResult(
                     confidence=0.1,
-                    reason=f"Imagination budget: {budget.get('total', 0.5):.2f}, tier={budget.get('tier', 'Q1')}",
+                    reason=f"Imagination budget: {remaining:.2f}, tier={tier}",
                     metadata={'budget': budget}
                 )
             return RungResult()
@@ -1191,21 +1235,35 @@ class NetworkExplorationStatsRung(DecisionRung):
             game_type = context.get('game_type', '')
             level = context.get('level', 1)
 
-            if hasattr(net, 'get_exploration_stats'):
-                stats = net.get_exploration_stats(game_type, level)
+            # DEFECT-A FIX 2026-08-22. This rung had NO REACHABLE BODY: it
+            # guarded `get_exploration_stats(game_type, level)`, a name
+            # NetworkExplorationTracker does not define, so every statement
+            # below the guard was dead on every decision since the rung was
+            # written. The tracker's own stated "main integration point" is
+            # get_exploration_context_for_reasoning -- the only method that
+            # returns BOTH the coverage figure and a direction. Its direction
+            # vocabulary is up/down/left/right, not north/south/west/east, and
+            # its coldspots are `unexplored_regions`.
+            if hasattr(net, 'get_exploration_context_for_reasoning'):
+                stats = net.get_exploration_context_for_reasoning(
+                    game_type, level, context.get('player_position')
+                )
 
-                context['coverage_percent'] = stats.get('coverage_percent', 0)
+                coverage = (stats.get('network_exploration') or {}).get('coverage_percent', 0)
+                context['coverage_percent'] = coverage
 
                 # If there are coldspots, bias toward them
-                coldspots = stats.get('coldspots', [])
+                coldspots = (stats.get('exploration_recommendations') or {}).get(
+                    'unexplored_regions', [])
                 if coldspots:
-                    direction = stats.get('recommended_direction')
-                    direction_map = {'north': 'ACTION1', 'south': 'ACTION2', 'west': 'ACTION3', 'east': 'ACTION4'}
+                    direction = stats.get('suggested_direction')
+                    direction_map = {'up': 'ACTION1', 'down': 'ACTION2',
+                                     'left': 'ACTION3', 'right': 'ACTION4'}
                     if direction and direction in direction_map:
                         return RungResult(
                             action=direction_map[direction],
                             confidence=0.45,
-                            reason=f"Exploring coldspot: {direction}, coverage={stats.get('coverage_percent', 0):.0%}",
+                            reason=f"Exploring coldspot: {direction}, coverage={coverage:.0%}",
                             metadata={'stats': stats, 'coldspots': len(coldspots)}
                         )
             return RungResult()

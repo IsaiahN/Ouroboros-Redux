@@ -13,6 +13,7 @@ from rungs.base import (
     DecisionRung,
     KnowledgeProvenance,
     RungResult,
+    capability_absent,
     filter_available_actions,
     get_available_action_weights,
     get_available_actions_list,
@@ -20,7 +21,6 @@ from rungs.base import (
     is_action_available,
     validate_action,
 )
-from rungs.base import capability_absent
 
 logger = logging.getLogger(__name__)
 

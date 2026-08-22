@@ -14,6 +14,7 @@ from rungs.base import (
     DecisionRung,
     KnowledgeProvenance,
     RungResult,
+    capability_absent,
     filter_available_actions,
     get_available_action_weights,
     get_available_actions_list,
@@ -332,7 +333,15 @@ class TerminalPatternRung(DecisionRung):
         try:
             frame = _get_frame(game_state)
 
-            if hasattr(tpd, 'detect_terminal_approach'):
+            if not hasattr(tpd, 'detect_terminal_approach'):
+                # DECLARED, NEVER IMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS
+                # in engines/interfaces.py. TerminalPatternDetector answers
+                # danger per PLANNED ACTION AND POSITION; it has nothing that
+                # takes a frame plus recent actions and answers "am I
+                # approaching death", and this rung has neither the planned
+                # action nor the position. Loud, not silent (Figure 10).
+                capability_absent(tpd, 'detect_terminal_approach', self.name)
+            else:
                 terminal = tpd.detect_terminal_approach(frame, context.get('last_actions', []))
                 if terminal.get('approaching_terminal', False):
                     fatal_action = terminal.get('fatal_action')
