@@ -3420,3 +3420,34 @@ that the fix correctly redirected INTO the sanctioned area; it is inert with res
 fleet (every box reads .runs/swarm/<box>/core_data.db) and it stays. The clean follow-up --
 diverting engine logging under test -- needs a test-detection convention the tree does not
 have, and the builder declined to invent one unilaterally. Correct refusal.
+
+=== BEAT 52 (2026-08-22 ~04:05, fleet HALTED since 01:42) ===
+ASK: nothing blocking. One ruling waits (the restored rungs' per-decision DB cost) and one
+decision is yours whenever (which of four stale preregs go).
+THE GROUND: 0 levels, 0 games won this hour -- THE FLEET HAS NOT RUN. Deliberate.
+RATES THIS HOUR: minted 0 / used 0 / composed 0 / retired 0, all by construction. And the
+standing caveat holds: even with the fleet up these are NOT WINDOWABLE until the seq
+watermark lands, because no ego_fabric record carries a timestamp.
+STALLED SINCE BEAT 51, named: levels (5 beats); g7 (still 0, still UNMEASURED not failed --
+rung 0b's instrument exists now but has never run against a live fleet); split-half (frozen
+at 0/0/5, cannot advance while halted); the memory ramp (holder named, cause NOT -- it is
+transient spikes, not a slope, and the peak-tracking instrument is written but unrun).
+WHAT MOVED: the examination finished and its moves are executing.
+
+=== THE EXAMINATION MOVES, ALL FIVE SLICES: 142 FILES, AND FOUR CAME BACK ===
+EXAM_01 8 · EXAM_02 11 · EXAM_03 18 · EXAM_04 105 = 142 moved.
+FOUR RESTORED IMMEDIATELY, and the reason is one the examination could not see:
+  engines/cognition/cognitive_stages.py, engines/egocentric/{falsified_ledger,janitor,
+  relations}.py -- all four are imported AT PACKAGE-IMPORT TIME by their package's own
+  __init__.py. The examination called them "re-exported, zero constructions" and classified
+  them preserve. A RE-EXPORT IS NOT A MENTION -- IT IS A STATIC IMPORT THAT RUNS. The class
+  may never be constructed; the MODULE is imported every time anything touches the package.
+  Moving them broke all four entrypoints instantly.
+THAT IS THE GM'S METHOD PAYING OFF EXACTLY AS SPECIFIED: move first, see what breaks. No
+amount of further reading would have produced this -- the examination HAD the evidence
+("re-exported twice") and drew the wrong conclusion from it. Only the move settled it.
+AFTER: 1,965 tests pass, 2 xfailed, zero reds. All four entrypoints import.
+WHAT THIS STILL DOES NOT PROVE, and it is the GM's own point: a green suite exercises
+imports, not the LAZY and STRING import paths that fire only in production. 27 modules on
+this fleet are reached ONLY by an in-function import. THE FLEET RUN IS THE TEST THAT IS
+OWED, and it is owed before any of these 138 moves is called safe.
