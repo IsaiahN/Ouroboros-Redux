@@ -174,13 +174,21 @@ def root(tmp_path):
     con.close()
 
     fab = os.path.join(base, "bx01", "ego_fabric")
+    # MTIME PINNED, and it must be. This stream inherited the filesystem's real
+    # timestamp, so the fixture's meaning depended on WHEN THE SUITE RAN: the
+    # window under NOW is (11:00, 12:00] on 2026-08-22, and at 11:00 UTC that day
+    # real time walked into the frozen window. The stream's mtime went from
+    # "before the window" to "inside it", the tool correctly switched from a
+    # sound zero to NOT COMPARABLE, and the test went red having tested nothing
+    # but the clock. `_write`'s own docstring already said a test wanting a
+    # particular bracket state must SET it -- this one call had not.
     _write(os.path.join(fab, "collective", "mint_verdicts.jsonl"), [
         {"verdict": "mint", "game": game, "level": 0},
         {"verdict": "mint", "game": game, "level": 0},
         {"verdict": "rederivation", "game": game, "level": 0},
         {"verdict": "reject", "game": game, "level": 0},
         {"verdict": "quarantine", "game": game, "level": 0},
-    ])
+    ], mtime="2026-08-22 09:30:00")
     _write(os.path.join(fab, "collective", "atoms.jsonl"), [
         {"id": "at1", "type": "EFFECT", "game": game, "level": 0,
          "origin": "local", "atom": {"kind": "EFFECT", "key": "k1"}},

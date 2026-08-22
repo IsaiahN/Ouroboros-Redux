@@ -321,17 +321,29 @@ class CognitiveGamePlayer:
             # to normal cognitive loop.
 
         # ═══ B7 (BUILD_PROGRAM_2 W1): salient-prefix replay — PLAYBACK CHANNEL ═══
-        # A banked near-miss prefix for this game+level occasionally (p=0.2,
-        # the mastery-lite mirror) replays BEFORE exploring, with divergence
-        # detection. The random draw happens ONLY when a prefix exists, so
-        # fresh boxes never shift the RNG stream. DB-side only, never the
-        # fabric (membrane law).
+        # A banked near-miss prefix for this game+level occasionally replays
+        # BEFORE exploring, with divergence detection. THE RATE IS THE EARNED
+        # ONE: _salient_replay_draw (class bottom) asks the SAME mastery
+        # instance the winning-sequence draw above asks. Only when a prefix
+        # exists, so fresh boxes never shift the RNG stream. Membrane law
+        # holds: the prefix stays DB-side; one reliability BIT crosses.
         try:
-            _sal = self._load_salient_prefix(game_id, int(prev_levels))
-            if _sal and random.random() < self._SALIENT_REPLAY_P:
+            _sal_lv = int(prev_levels)
+            _sal = self._load_salient_prefix(game_id, _sal_lv)
+            if _sal and self._salient_replay_draw(game_type, True):
                 _staken, _sobs = self._replay_salient_prefix(
-                    env, game_id, int(prev_levels), _sal, loop,
+                    env, game_id, _sal_lv, _sal, loop,
                     pre_obs=(last_obs if last_obs is not None else initial_obs))
+                # MASTERY-LITE: every completed replay feeds the gate that
+                # decides the next one. A gate never fed earns nothing.
+                try:
+                    if getattr(self, '_mastery', None):
+                        _sn = len(_sal.get('steps') or [])
+                        self._mastery.record_replay_outcome(
+                            game_type, self._salient_replay_ok(
+                                _sobs, _staken, _sn, _sal_lv))
+                except Exception:
+                    pass
                 actions_taken += _staken
                 for _sst in (_sal.get('steps') or [])[:_staken]:
                     _sen = {'action': _sst.get('action')}
@@ -1470,7 +1482,9 @@ class CognitiveGamePlayer:
     # stream — replay material is playback, not knowledge.
 
     _SALIENT_K = 3          # nontrivial frame changes that make a prefix salient
-    _SALIENT_REPLAY_P = 0.2  # the mastery-lite mirror: fresh-rate replay draw
+    # THE FALLBACK PRIOR, NOT A MIRROR (GM 2026-08-22; KNOBS G6): used ONLY
+    # when there is no mastery instance to ask -- see _salient_replay_p.
+    _SALIENT_REPLAY_P = 0.2  # fallback prior when self._mastery is None
 
     # ═══ THE CORPSE GUARD (record/prereg/PREREG_CORPSE_GUARD.md; KNOBS G22) ═══════════
     # MEASURED HARM (ar25, FRONTIER_AUDIT F-1): 13 of 13 salient replays ended
@@ -2021,3 +2035,61 @@ class CognitiveGamePlayer:
             return None
         except Exception:
             return None
+
+    # ═══ SITE B'S RATE — the SAME gate, not a mirror of it ═══════════════
+    # record/prereg/BRIEF_SALIENT_REPLAY_GATE.md (GM ruling 2026-08-22; vocabulary from
+    # record/prereg/PREREG_MASTERY_LITE.md). The salient draw used to be a hard-coded
+    # constant that CALLED ITSELF the mastery-lite mirror while never calling
+    # mastery -- a convention nothing could check (FIGURE 10), on the one
+    # crossing FIGURE 4 says must be checked (playback going downward). It now
+    # resolves through MasteryLite.replay_probability on self._mastery -- the
+    # SAME instance and the SAME method site A uses -- and every completed
+    # replay is fed back through record_replay_outcome, so the rate DECAYS on
+    # the measured harm (a faithfully reproduced death is not a success).
+    # No mastery instance => the static prior, behaviour byte-identical to the
+    # pre-ruling code: that absence IS the undo.
+    # PLACED AT THE CLASS BOTTOM ON PURPOSE (see the note beside
+    # _replay_probability): nothing below here carries a registry receipt.
+
+    def _salient_replay_p(self, game_type, has_prefix) -> float:
+        """The EARNED salient-replay rate; the fallback prior without mastery.
+        Returns a bare float (mastery's shape), never a record."""
+        if getattr(self, '_mastery', None) is None:
+            return float(self._SALIENT_REPLAY_P)
+        try:
+            return float(self._mastery.replay_probability(
+                game_type, bool(has_prefix)))
+        except Exception:
+            return float(self._SALIENT_REPLAY_P)
+
+    def _salient_replay_draw(self, game_type, has_prefix) -> bool:
+        """EXACTLY ONE draw against that rate -- the caller has already
+        established that a prefix exists, so a fresh box never draws here."""
+        return random.random() < self._salient_replay_p(game_type, has_prefix)
+
+    @staticmethod
+    def _salient_replay_ok(obs, taken, n_steps, level) -> bool:
+        """Did this salient replay still WIN? The corpse guard's ordering,
+        DEATH FIRST (a replay that levelled and then died is still a corpse),
+        read as the one bit mastery records. `ok` for a near-miss prefix is
+        NOT site A's "levelled at least once" -- the prefix is banked for its
+        effectful steps, not for a level -- so it is: survived, and either
+        reached past its banked level or reproduced every banked step.
+        RESIDUE: a divergence on the FINAL step is indistinguishable here from
+        a faithful finish (both leave taken == n_steps); it scores ok. This bit
+        also SPLITS the guard's documented ABORTED union (a clean faithful run
+        scores ok, a divergence or API break does not) -- the guard needs only
+        DIED, this needs the difference between reproduced and not."""
+        if obs is None:
+            return False
+        _st = getattr(obs, 'state', None)
+        if _st == GameState.GAME_OVER:
+            return False
+        if _st == GameState.WIN:
+            return True
+        try:
+            if int(getattr(obs, 'levels_completed', 0) or 0) > int(level):
+                return True
+            return int(taken) >= int(n_steps) > 0
+        except Exception:
+            return False

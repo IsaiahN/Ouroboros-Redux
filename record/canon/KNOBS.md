@@ -26,7 +26,12 @@ G2  starvation_steer: +0.25/code, cap 2.0; SWALLOW_STEP=0.1              (affect
 G3  LP drive: CEIL=4.0, windows 32 (queue) / 64 (verdicts); ARM assignment (lp_drive.py)
 G4  mute-probe candidate cap 5 -> <=10 under starvation                  (cognitive_loop)
 G5  movement bias: MOVE_NOOP_MIN=3, MOVE_NOOP_RATE=0.8, MOVE_BIAS=3      (frontier/loop)
-G6  salient prefix: SALIENT_K=3, replay p=0.2; mastery-lite 0.2+0.6*succ (player)
+G6  salient prefix: SALIENT_K=3; salient replay p = THE EARNED mastery-lite rate
+    (0.2+0.6*succ, same call + same instance as the winning-sequence path, GM
+    ruling 2026-08-22 record/prereg/BRIEF_SALIENT_REPLAY_GATE.md). _SALIENT_REPLAY_P=0.2
+    is now ONLY the fallback prior used when there is no mastery instance —
+    it was a hard-coded constant calling itself "the mastery-lite mirror"
+    while never calling mastery, i.e. a knob nothing could check.   (player)
 Vocabulary & learning:
 G7  mint surprise: weight 1/(1+seen), SEEN_CAP=4096 LRU                  (mint.py)
 G8  mint bar range (the affect mint_bar channel bounds) — gates OFFERS, never acceptance
@@ -162,7 +167,9 @@ A4 (G17/G18 -> G*, self-tuning-excluded): role multipliers + handoff funding dec
    Isaiah's sign-off; the agent self-tuning mechanism can NEVER reach them.
 A5 (PROVENANCE COLUMN): every G row is marked MEASURED / DERIVED / GUESSED.
    GUESSED today (will read as settled in a month if unmarked): RHO_COLLAPSE=0.9,
-   LP CEIL=4.0, fission purity=0.75, MOVE_NOOP_RATE=0.8, SALIENT_K=3, replay p=0.2,
+   LP CEIL=4.0, fission purity=0.75, MOVE_NOOP_RATE=0.8, SALIENT_K=3, replay p=0.2
+   (the winning-sequence FALLBACK and the salient FALLBACK prior only — the live
+   salient rate stopped being a guess on 2026-08-22, see G6),
    starvation +0.25/cap 2.0, probe cap 10, consumer budget_n=8, PLAN_N=50/BOOK_N=10.
    DERIVED: n_eff formula, window laws, Chebyshev adjacency. MEASURED: MAX_NODES=2000
    (hang repro), SEEN_CAP=4096 (soak), MEM_CAP/RECYCLE (live ops).

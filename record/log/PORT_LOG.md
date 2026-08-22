@@ -3503,3 +3503,49 @@ UNSTALLED THIS BEAT: the ground moved for the first time since the baseline was 
 ADVANCED: the salient replay gate build dispatched under HOLD -- the first build to run with
 the fleet LIVE rather than halted, which is only safe because D-13's fix defers recycles
 under HOLD. That is the fix being used, one beat after it landed.
+
+=== THE SALIENT REPLAY GATE IS REAL: the mirror now mirrors ===
+Site B draws from mastery.replay_probability and FEEDS record_replay_outcome back, guarded
+exactly as site A is; _SALIENT_REPLAY_P survives only as the no-mastery fallback prior and
+its comment now says so. Falsifier proven by reverting the wire: 5 of 28 tests red, then
+green on restore. SHAPE CHECKED, per the standing correction: replay_probability returns a
+BARE FLOAT, and the call site consumes it as a scalar only (one Compare, no subscript, no
+attribute read) -- asserted at runtime on both arms and structurally by AST. That check
+exists because three of four "name mismatches" earlier tonight were shape mismatches.
+A RULING IS OWED, and the builder flagged it rather than burying it: passing has_prefix=True
+means the FIRST salient replay per game now runs at mastery's optimistic prior 0.8, NOT 0.2
+-- a 4x rate rise on the path with 13/13 measured deaths. Held by the corpse guard (dead
+prefixes refused at selection) and by the new feedback (faithful-but-fatal scores ok=False
+and decays the rate). Passing False instead pins it at 0.2 forever, which is a dead wire.
+That is a priority decision, not a defect decision. GM's call.
+ONE LEDGER, also flagged: both sites key replay_outcomes by the same game_type, so salient
+failures decay the winning-sequence rate and vice versa. Defensible; a namespaced key is a
+one-line alternative. Recorded in the registry note rather than chosen silently.
+
+=== A WALL-CLOCK BOMB IN MY OWN TOOL'S GATE, WRITTEN TONIGHT ===
+The full suite came back 1 failed / 1992 passed, and the failure was NOT the builder's:
+tests/gate/test_beat_rates.py pins NOW = 2026-08-22 12:00 UTC (window 11:00-12:00) while
+one fixture call wrote its stream with the FILESYSTEM'S REAL mtime. At 11:00 UTC TODAY real
+time walked into the frozen window; the stream's mtime moved from "before the window" to
+"inside it"; the tool CORRECTLY switched from a sound zero to NOT COMPARABLE; and the test
+went red having tested nothing but the clock.
+The mechanism to prevent it already existed: _write takes an explicit `mtime` and its
+docstring says "a test that wants a particular bracket state must SET it rather than inherit
+whatever the filesystem stamped." ONE CALL SITE DID NOT PASS IT. The helper knew; the call
+did not -- the right answer sitting beside the wrong one, in a file six hours old, in MY
+tool, in the same week I have been recording that genus.
+Fixed by pinning the fixture's mtime, with the whole account in the comment. 48 tests green
+across both files, ruff clean.
+
+=== FINDING FOR THE RECORD: THE ORACLE KEEPS POSITIONAL ROT ALIVE AS A BUILD CONSTRAINT ===
+test_symbol_receipts::TestF6TheOracle runs the RETIRED +/-30-line gate against the WORKING
+TREE (to prove the new gate is better). So inserting code still moves rows out of the OLD
+gate's window -- this build pushed one out and had to move its helpers to the class bottom
+and trim comments to get back under it. SHIFT_REDS_OLD went 37 -> 38.
+CONSEQUENCE, measured by the builder: cognitive_game_player.py now has EIGHT LINES of
+headroom above two specific sites. The next build inserting more than that reds the oracle
+WITHOUT BREAKING A SINGLE WIRE.
+The apparatus retired positional receipts and then kept the retired gate as a live
+constraint on new work, in order to prove it was retired. Worth a ruling: pin the oracle to
+a FROZEN TREE (the pre-migration commit it already pins for the registry) rather than the
+working tree, so it compares two gates over history instead of taxing every future build.
