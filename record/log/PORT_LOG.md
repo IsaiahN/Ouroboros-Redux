@@ -3674,3 +3674,27 @@ trim lives in the WRITER, not in the janitor, because janitor.py is production a
 build's own falsifier forbids any production module naming the watermark. The bound is the
 janitor's STREAM_MAX_BYTES, IMPORTED rather than copied, so its value is never asserted in
 two places.
+
+=== BEAT 55 (2026-08-22 ~11:20; FLEET RETIRED, not halted -- the shape is being replaced) ===
+ASK: one, and it is the plan's first question -- confirm option (b) (the swarm's AGENT
+INTERFACE, process-per-game underneath) so the port has a target. Seat 4 approved it in
+shape; the GM has not ruled it explicitly.
+THE GROUND: 0 levels, 0 games won. No agent has played since 10:48. Deliberate.
+RATES: 0 by construction, and now doubly unreadable -- the seq watermark landed but BOTH ITS
+WRITERS ARE THE RETIRED SUPERVISOR AND KEEPER, so no sidecar will ever be written under the
+old shape. The clock exists and has nowhere to tick. Re-homing the writer is now a line item
+in the port, caused by me dispatching that build one beat before the shape was retired.
+THE ECONOMY, with denominators, as a FINAL READING of the retired shape rather than a status:
+  agents 28,892 · with prestige > 0: 0 · with a score > 0: 0 · retirement reason recorded: 0
+  levels ever: 1,496 across 3,474 sessions · BEST LEVEL EVER: 2, on one box · GAMES WON: 0/25
+  boxes that ever crossed a level: 9/25 · boxes that ever minted an atom: 18/25
+  and the two boxes with the MOST crossings have minted NOTHING
+STALLED SINCE BEAT 54 -- and the list is now shorter for a bad reason, not a good one: g7,
+split-half, best-level and the memory cause are all stalled because THERE IS NO FLEET. They
+cannot move until the new shape runs. The 273-second window inside play_game is stalled on
+an instrument I have not re-run.
+ADVANCED: the de-cwd build -- the plan's step 2, and the only step that is correct under
+EVERY option, required by Kaggle (/kaggle/working is the sole writable root there), and a
+correctness landmine today: two games in one process fuse their fabrics silently, which
+would put one game's atoms in another's library and void the composition claim through a
+path nobody watches.
