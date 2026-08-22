@@ -22,6 +22,11 @@ of them imports all of them. **The cheapest subtraction available is not deletin
 it is stopping the packages from re-exporting.**
 
 ## THE 46
+
+> **⚠ LOWER BOUND ONLY — the instrument that produced this list is BLIND TO
+> DEPENDENCY INJECTION.** See the falsification banner at §4. Do not delete from this
+> evidence.
+
 - **5 root/config**: `cognitive_loop`, `abstraction_config`, `config.cognitive_parameters`,
   `data_root` (new, from the de-cwd build), `database_interface`
 - **32 `engines.egocentric.*`**: affect, agency, applicability, bank, betting, binder,
@@ -38,6 +43,11 @@ is the board model** — `causal_map` and `blackboard` are the nearest, and neit
 revised model of *this* board (see §4).
 
 ## WHAT EVERYTHING ELSE DOES — the 97 live-but-not-cognitive
+
+> **⚠ LOWER BOUND ONLY — the instrument that produced this list is BLIND TO
+> DEPENDENCY INJECTION.** See the falsification banner at §4. Do not delete from this
+> evidence.
+
 **THE DECISION LADDER IS NOT ON THE COGNITIVE PATH.** `cognitive_loop.py` imports NEITHER
 `decision_rung_system` NOR `rungs` — zero references. The ladder is reached only from
 `evolution_runner`, `engines/registry.py` and its own internals. So the 77-rung ladder, its
@@ -99,6 +109,54 @@ The one thing that genuinely does not transfer from the network layer is indepen
 attempt came from the same head.
 
 ---
+
+> # ⛔ SECTIONS 4, 4b AND 4c ARE FALSIFIED — DO NOT ACT ON THEM
+> **Falsified 2026-08-22 by `tests/gate/test_ladder_removal.py`, which was built to test
+> them and which they failed.** The ladder was ruled dead and queued for `considered_dead/`.
+> The pre-registered prediction was that the loop's action sequence would be IDENTICAL with
+> the ladder absent. It is not. **13 of 14 cycles diverge, first divergence at cycle 1**, and
+> without the ladder the agent degenerates to one repeated action at one coordinate.
+> **NOTHING WAS MOVED. The ruling is withdrawn.**
+>
+> **WHY THE TRACE WAS WRONG — and the load-bearing sentence is TRUE:** `cognitive_loop.py`
+> really does import neither `decision_rung_system` nor `rungs`. **The ladder is not imported
+> by the loop. It is INJECTED into it.**
+> `evolution_runner.py:321` constructs it → `cognitive_game_player.py:116` passes it →
+> `cognitive_loop.py:824` stores it → **`cognitive_loop.py:4338` CALLS `.decide()`**, inside
+> SPEED 2: REASONED, on the live path, for strategies `exploit` and `experiment`.
+> **An import-closure trace cannot see dependency injection.** This is rung 0c's finding with
+> the polarity inverted: that was a symbol referenced and never reached; this is a module
+> never referenced and always reached.
+>
+> **THE LIVE COUNT (proctor's INDEPENDENT recount, own predicate, 2026-08-22, all 25 boxes,
+> 3,788 `narration.jsonl`, 2,336,716 records — reproduced the builder's figures exactly):**
+> 537,424 ACT records · 298,601 carry a `rung` label · 32,031 of those are the loop's own
+> `explore` speed, which is **not** a rung name → **266,570 actions decided by a NAMED RUNG.**
+> Labels: wall_aware_navigation 112,988 · weighted_random 76,145 · survey 38,767 ·
+> grid_exploration 23,610 · controlled_movement_planning 7,476 · exploration_phase 6,959 ·
+> smart_action_selection 625. All seven resolve into the modules §4 proposed to delete.
+> The `rung` field rides on ACT and on no other point.
+>
+> **§4c's ZERO IS REAL AND MEASURES THE WRONG DOOR.** The `evolution_runner` exception
+> fallback genuinely never fired in 952,951 traces — that is the ladder's BACK door. The
+> FRONT door is the constructor argument, open every cycle.
+> **§4b's "CONDITION 1 DISCHARGED" ALSO FAILS.** `_consecutive_no_change` is read at
+> `rungs/exploitation.py:128, 627, 660` (`decay = self._consecutive_no_change * 0.08`) inside
+> rung evaluation. §4b says correctly that this runs "only when the ladder decides" and then
+> equates that with the exception handler. The ladder decides on the LIVE path, so the feed's
+> consumer is found and it is live: it moves rung confidence → moves which rung wins → moves
+> the action. The ~80 frame comparisons per action are not buying nothing.
+>
+> **THIS IS NOT A DEFENCE OF THE LADDER.** It is load-bearing, which is weaker and different
+> from good. Four rungs that cannot fire, and one falling back to a literal, are all still
+> true — and they are true ON THE LIVE PATH, which is worse than this section supposed.
+>
+> **⚠ THE CONTAGION, AND IT IS THE REAL FINDING:** §THE 46 and §THE 97 above were produced by
+> the SAME import-closure instrument that missed this. **Every constructor-injected dependency
+> in this tree is invisible to it.** The 46 is a LOWER BOUND, and the 97 "live but not
+> cognitive" list is UNSAFE TO ACT ON until re-derived with an instrument that can see
+> injection. This move was the first withdrawal against that number and it would have removed
+> the agent's action variety.
 
 # 4 · WHAT THE LADDER CONTRIBUTES — TRACED, AND THE ANSWER IS: NOTHING TO THE DECISION
 The GM asked what the 77-rung ladder contributes that the loop does not. Traced end to end:
