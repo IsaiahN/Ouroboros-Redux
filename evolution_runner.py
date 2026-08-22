@@ -387,6 +387,10 @@ class EvolutionRunner:
                 print(f"[WARN] Could not initialize meta-learning curriculum: {e}")
 
         self.lifecycle_manager = None
+        # Run-level counter for lifecycle cleanup failures. Exists whether or
+        # not anything fails, so the report is a number and not the absence of
+        # a log line. See the cleanup call site in the every-50-gen cadence.
+        self.lifecycle_cleanup_failures = 0
         if LIFECYCLE_MANAGER_AVAILABLE:
             try:
                 self.lifecycle_manager = AgentLifecycleManager(self.db)
@@ -1554,6 +1558,18 @@ class EvolutionRunner:
             if self.current_generation % 50 == 0:
                 # AGENT LIFECYCLE: Clean up ancient inactive agents
                 if self.lifecycle_manager:
+                    # THE CONSUMER IS NAMED AND ALWAYS VISIBLE.
+                    # This handler used to be `if self.verbose: print(...)`. It
+                    # printed `FOREIGN KEY constraint failed` on EVERY call for
+                    # weeks -- 31 times across 16 worker logs -- into logs
+                    # nobody read, while the population bound it was supposed to
+                    # enforce did not exist. An exception whose only reader is a
+                    # print behind a flag is the defect, not the report of it
+                    # (FIGURE 3: a link with no instrument is a link nobody has
+                    # looked at). The counter below is the instrument: it is
+                    # incremented by identity, printed unconditionally, and
+                    # `self.lifecycle_manager.cleanup_failures` holds the
+                    # stamped detail for anything that wants to read it.
                     try:
                         cleanup_stats = self.lifecycle_manager.cleanup_ancient_inactive_agents(
                             current_generation=self.current_generation,
@@ -1562,9 +1578,18 @@ class EvolutionRunner:
                         total_deleted = cleanup_stats.get('total_deleted', 0)
                         if total_deleted > 0:
                             print(f"  [LIFECYCLE] Cleaned {total_deleted} ancient inactive agents")
+                        failed = cleanup_stats.get('failures', 0)
+                        if failed:
+                            self.lifecycle_cleanup_failures += failed
+                            detail = cleanup_stats.get('failure_detail') or [{}]
+                            print(f"  [LIFECYCLE-ERR] Agent cleanup could not purge {failed} "
+                                  f"agent(s); run total {self.lifecycle_cleanup_failures}. "
+                                  f"First: {detail[0]}")
                     except Exception as e:
-                        if self.verbose:
-                            print(f"  [LIFECYCLE-ERR] Agent cleanup failed: {e}")
+                        self.lifecycle_cleanup_failures += 1
+                        print(f"  [LIFECYCLE-ERR] Agent cleanup FAILED "
+                              f"(run total {self.lifecycle_cleanup_failures}): "
+                              f"{type(e).__name__}: {e}")
 
         except Exception as e:
             print(f"  [WARN] EvolutionaryEngine failed, using fallback: {e}")

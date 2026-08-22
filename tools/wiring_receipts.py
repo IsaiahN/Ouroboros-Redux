@@ -336,12 +336,28 @@ def blame_shas(path: str) -> Dict[int, str]:
     return shas
 
 
-def head_blob(rel: str) -> Optional[str]:
-    """A file's content at HEAD. THE ORACLE (prereg section 4) needs the OLD
-    gate and the OLD registry to compare verdict vectors against the new pair;
-    they live in git, and this is how a tests-only harness reaches them without
-    running a subprocess of its own."""
-    return _git(["show", "HEAD:%s" % rel])
+# THE ORACLE'S ANCHOR, PINNED (2026-08-22). 0c77eca is the last commit BEFORE the
+# symbol-anchored migration (f891ba9), so it is the last tree whose registry is in the
+# OLD file:line form and whose gate can still parse it. This must never become a moving
+# reference again -- see head_blob's docstring for what happened when it was HEAD.
+PRE_MIGRATION_SHA = "0c77eca"
+
+
+def head_blob(rel: str, sha: str = PRE_MIGRATION_SHA) -> Optional[str]:
+    """A file's content at the PRE-MIGRATION commit. THE ORACLE (prereg section
+    4) needs the OLD gate and the OLD registry to compare verdict vectors
+    against the new pair; they live in git, and this is how a tests-only
+    harness reaches them without running a subprocess of its own.
+
+    IT USED TO READ `HEAD`, AND THAT SELF-INVALIDATED (2026-08-22). The moment
+    the migration commit became an ancestor of HEAD, `HEAD:WIRING_REGISTRY.md`
+    returned the MIGRATED registry and `HEAD:...test_wiring_registry.py` the
+    NEW gate -- so the oracle compared the new gate against itself, reddened
+    zero rows on a line shift instead of the pinned 37, and failed. The whole
+    claim of this build is that a reference which moves under a claim rots it;
+    the oracle anchored itself to the most mobile reference in the repo.
+    FIGURE 2: the anchor must not update. It is now a fixed SHA."""
+    return _git(["show", "%s:%s" % (sha or PRE_MIGRATION_SHA, rel)])
 
 
 def blob_lines(sha: str, rel: str) -> Optional[List[str]]:

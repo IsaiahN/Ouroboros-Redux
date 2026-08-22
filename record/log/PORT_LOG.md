@@ -2718,3 +2718,335 @@ WHAT MOVED THIS HOUR (diagnosis, not agent progress):
   - the lifecycle failure found: cleanup throws FOREIGN KEY constraint failed, 31 times
     across 16 boxes, caught and printed behind a verbose flag -- raised-and-unread
   - four hypotheses killed by cheap checks, none costing a build
+
+THE N=2 DISCRIMINATOR RUNNING (GM's design): sb26 + s5i5, two of the sick six, started from
+a GIT WORKTREE PINNED AT 102d59f rather than the working tree -- because a builder is
+editing live-path files right now and a fleet against a moving tree is the hazard that cost
+six investigations. This is also the first live test of the SNAPSHOT DEPLOY idea from
+PREREG_SUPERVISOR_DECOMPOSITION §E: the code the workers run is a commit, not a directory
+someone is typing into. It cost one `git worktree add` and it removes the whole class.
+Baseline to beat: sb26 ALONE was FLAT (803 -> 804MB). If it ramps at N=2, the trigger is
+CONTENTION on something shared; if it needs the full 25, it is PRESSURE.
+
+THE REPLAY QUESTION -> SEAT 3 (ruling-shaped, not a build; the GM named it as such):
+348 of the 352 seconds before a worker's first cognitive cycle are REPLAY of banked action
+sequences. The consequences compound the wrong way: the more a box has banked, the longer
+its replay, the less it plays -- PROGRESS BUYS SLOWDOWN, the D-5 shape in a different organ.
+And it is worse than D-5's, because what is being replayed is a RECORDING rather than a
+search: FIGURE 4's membrane says only a method may cross downward, never a recording, and
+this is a recording consuming most of the worker's life. The corroborating evidence is
+already on the board: the two boxes with the MOST level completions have NEVER MINTED AN
+ATOM -- their level progress is replay, so the thing costing the most time is also the thing
+producing counter-movement without cognition. QUESTION FOR THE RULING: does replay earn its
+348 seconds at all, and if it is kept, what bounds it -- since mastery-lite gates it today
+and the replay corpus is already under W3's earn-through review?
+
+=== THE 348s IS NOT REPLAY. MY ATTRIBUTION WAS WRONG TWICE ON THIS NUMBER. ===
+The GM refused the characterisation and demanded the breakdown; the log already had it.
+Gaps > 5s from process start to first cognitive cycle (idle box, ONE worker, 389s total):
+  +66s   after "Successfully loaded game class Sb26"   before [EDGE-INFERENCE] 75 rungs/91 slots
+  +273s  after "Frustration detection schema initialized"  before [PERCEIVER] VisualCortex init
+  +36s   after "Created new scorecard"                 before [VALENCE] Initialized
+375 of the 389 seconds are those three SILENT windows -- no log line inside any of them.
+AND REPLAY IS NOT IN THEM: the replay lines are the LAST thing before the first cycle --
+"[SALIENT] replaying banked prefix len=149" then "replay outcome=aborted steps=149". 149
+steps. At the GM's stated offline speed (a whole episode ~0.15s) that is milliseconds.
+So: my "~95s import" was 10x wrong, and my "348s replay tail" was wrong in a different
+direction -- I named the last thing printed before the cycle instead of measuring the
+silence. Twice on one number, both times by reading a log instead of instrumenting.
+WHAT IS ACTUALLY UNKNOWN: what executes during 375 seconds that logs nothing. Not
+characterised further here -- a stack sampler is running (every 2s, deepest repo frame,
+caller->callee pairs, and a timeline of first-appearance) so the answer is "this function,
+N samples", which is what the GM asked for and what neither previous attribution had.
+THE RECONCILIATION THE GM IS OWED, restated as the open question: a game is ~0.15s of
+offline play; a worker spends ~389s before its first cognitive cycle. Three orders of
+magnitude, and the gap is NOT the game, NOT imports (4s to the banner), and NOT replay
+(149 steps). It is 375 seconds of unlogged work inside construction.
+
+NEW GENUS (Seat 4, and it is three instances deep already): LOG-LINE ATTRIBUTION IS
+STRUCTURALLY BLIND TO SILENCE. The last line printed before an event is not the thing that
+caused the delay -- it is the last thing that ANNOUNCED itself. Imports announced (4s);
+replay announced (149 steps); the 375 seconds of silence announced nothing, so the method
+could not see it and both attributions were confident and wrong. THE RULE: a duration is
+attributed by SAMPLING or by a counter, never by the neighbouring log line. A boundary is
+not a share. Sibling of the pre-instrument-evidence rule -- and the ~95s figure was exactly
+that: true when written into a source comment, about a system that changed, quoted as
+current by both seats for a night.
+
+=== THE REPLAY GATE: CHECKED, AND IT IS NOT CONSULTED ON THE PATH THAT RAN ===
+(The GM's sharpening: "the question isn't only whether replay earns 348 seconds, it's
+whether the gate is firing at all." Checkable, and here is the check.)
+TWO REPLAY PATHS, and only one is gated:
+ 1. THE MAIN PATH -- cognitive_game_player.py:266-269:
+      p = (self._mastery.replay_probability(game_type, has_bank)
+           if self._mastery else <static prior>)
+    EARNED. Mastery-lite supplies the probability from replay reliability, and every
+    completed replay's outcome is recorded back (:278-283). This is the membrane's
+    checkpoint working as designed.
+ 2. THE SALIENT PATH -- cognitive_game_player.py:331:
+      if _sal and random.random() < self._SALIENT_REPLAY_P:
+    A FIXED CONSTANT, _SALIENT_REPLAY_P = 0.2 (:1473). It never calls mastery. Its own
+    comment calls it "the mastery-lite mirror" -- but a mirror of an earned rate that is a
+    hard-coded 0.2 is not a mirror, it is an ungated coin flip.
+THE RUN WE MEASURED TOOK THE SALIENT PATH: "[SALIENT] replaying banked prefix len=149"
+then "replay outcome=aborted steps=149".
+AND THE HARM IS ALREADY RECORDED IN THE TREE, above the constant, in the corpse guard's own
+comment (:1475-1479): "MEASURED HARM (ar25, FRONTIER_AUDIT F-1): 13 of 13 salient replays
+ended in GAME_OVER on the FIRST cognitive action after playback and divergence fired ZERO
+times -- the replay was FAITHFUL and what it faithfully reproduced was a death."
+SO THE RULING HAS ITS FACT: this is an UNGATED replay on a 0.2 coin flip, on a path with
+13/13 measured harm, and it is the path that ran. A gated replay that earns its place is a
+different object from this. The 348-second attribution was wrong (that time is construction,
+not replay) -- but the GATE finding stands independently of the timing, and it is the half
+that decides the ruling.
+NOTE THE SHAPE: the constant's comment claims a relationship to mastery that the code does
+not implement. A COMMENT ASSERTING A WIRE THAT ISN'T THERE -- the registry defect, in prose,
+outside the registry's reach (the same surface Seat 4 named when KNOBS rows were flagged as
+uncovered by the symbol apparatus).
+
+RULING (GM, 2026-08-22) ON THE SALIENT REPLAY GATE: "the salient path calls mastery like its
+sibling does -- not removal, since the main path proves the mechanism works. Make the mirror
+an actual mirror." Brief written: record/prereg/BRIEF_SALIENT_REPLAY_GATE.md. Queued behind
+the lifecycle-cleanup builder (one builder in the tree at a time). Its exemplar is named
+(site A, :266-269 + :278-283), its undo is `self._mastery is None`, and it must FEED the
+gate as well as read it -- a gate never fed cannot earn anything.
+NEW GENUS, THIRD INSTANCE THIS WEEK (Seat 4): THE RIGHT ANSWER SITTING NEAR THE WRONG ONE.
+The normaliser; the two frame writers; and now two replay paths in ONE FILE where one is
+earned (:266) and one is a hard-coded constant (:331) sixty lines apart. In each case the
+correct implementation was already in the tree, adjacent, and the defective site was written
+as though the correct one did not exist. This is why NAME THE EXEMPLAR is a rule rather than
+a courtesy: the exemplar is usually already there, and the cost of not citing it is a second
+implementation that silently disagrees.
+AND THE GENERALISED FORM OF THE ATTRIBUTION GENUS (Seat 4 sharpened it past logs): ANY
+attribution by ADJACENCY -- the last thing that ran, the last thing that changed, the last
+thing that announced -- is blind to whatever did not announce. And the thing that did not
+announce is DISPROPORTIONATELY LIKELY to be the cause, because announcing is cheap and
+expensive work rarely does it.
+
+=== N=2 RESULT: THE SLOPE IS THE SAME AT N=2 AND N=25. THE MEM-KILLS ARE NOT A RAMP. ===
+Two workers (sb26 + s5i5) from the pinned worktree, 9 minutes:
+  sb26  449 -> 488 MB  = +4.5 MB/min
+  s5i5  461 -> 497 MB  = +4.2 MB/min
+AND THE DECISIVE COMPARISON, from my own earlier fleet window 1 at N=25:
+  sb26  489 -> 527 MB  = +4.4 MB/min
+IDENTICAL. sb26 climbs +4.4/min under the full 25-worker fleet and +4.5/min with a single
+neighbour. CONTENTION DOES NOT CHANGE ITS SLOPE. So the GM's discriminator answers cleanly
+and the answer is NEITHER "pressure" NOR "contention" as I framed them.
+THE ARITHMETIC THAT KILLS THE RAMP STORY ENTIRELY: at +4.4 MB/min, climbing from ~450MB to
+the 2GB cap takes 355 MINUTES. sb26 was mem-killed FIFTEEN TIMES IN THREE HOURS -- roughly
+every 14 minutes. A +4.4/min slope cannot do that. IT IS NOT A RAMP. Something allocates
+~1.5GB IN A BURST, and my 30-second-to-10-minute sampling windows step over it.
+That reframes every memory measurement I have taken tonight: I have been measuring the
+steady slope of a process whose deaths are caused by transients, and reporting the slope as
+though it were the cause. Three windows, a two-worker test and an in-process instrument, all
+aimed at the wrong statistic.
+INSTRUMENT ERROR FOUND IN THE SAME COMPARISON: the N=1 run reported 803MB where N=2 reports
+488MB at the same elapsed time. The N=1 run was under tracemalloc with 12-frame tracebacks,
+whose own bookkeeping inflates the process substantially. So "sb26 plateaus at 803MB alone"
+was partly the instrument; the 132.7MB read-cache ATTRIBUTION stands (it is a share of
+traced allocations, measured internally), but the ABSOLUTE figure was contaminated and I
+reported it as a clean measurement.
+THE RIGHT INSTRUMENT, and it is cheap: Windows PROCESS_MEMORY_COUNTERS already carries
+PeakWorkingSetSize and PeakPagefileUsage -- THE OS TRACKS THE PEAK FOR US. Reading the peak
+catches a transient that no sampling interval can be guaranteed to hit. Every memory read
+from here reports PEAK beside current, and the fleet's own status line should carry it too.
+NEXT: a peak-tracking run (peak vs current per worker, plus the peak's timing relative to
+generation and episode boundaries), which is the first instrument aimed at the actual
+failure rather than at the slope beside it.
+
+STACK SAMPLER: ONE REAL FINDING, ONE INSTRUMENT BUG, BOTH STATED.
+FINDING: 400 of 418 sampled seconds (95.7%) are inside evolution_runner.py:893 `play_game`,
+entered at t=4s and never left. So the 375 "silent" seconds are NOT construction happening
+before play -- THE WORKER IS INSIDE play_game THE WHOLE TIME. The engine initialisations I
+read as a construction phase are lazy constructions occurring DURING play.
+INSTRUMENT BUG, which caps what this can conclude: the sampler classified frames as "repo"
+by matching the repo path, but this run used PYTHONPATH pointed at the pinned SNAPSHOT
+worktree in Temp. So every frame from cognitive_game_player / cognitive_loop / the engines
+resolved from the worktree path and was filtered out as non-repo. `play_game` shows as the
+deepest repo frame only because evolution_runner was loaded via runpy from the repo path.
+The sampler therefore CANNOT name the function below play_game -- it named the last frame
+its own filter allowed. That is the ADJACENCY GENUS AGAIN, this time committed by the
+instrument built to defeat it: my filter, not a log line, but the same blindness.
+FIX (queued, not run -- the GM has paused the memory/speed work): match BOTH the repo path
+and the worktree path, or filter by "not stdlib and not site-packages" instead of by an
+allowlist of one root.
+WHAT SURVIVES: the time is inside play_game, entered 4s after start. Where inside it is
+unnamed. The reconciliation the GM asked for (0.15s of game vs ~400s of play_game) is still
+owed and is now a one-line instrument fix away.
+PAUSED BY GM: memory and speed instrumentation. The codebase examination becomes the main
+task.
+
+=== THE CODEBASE EXAMINATION IS NOW THE MAIN TASK (GM, 2026-08-22) ===
+Ahead of the queue. Rubric written and binding: record/findings/EXAMINATION_RUBRIC.md.
+502 .py outside environment_files/record/dot-dirs, plus the non-.py surface. FIVE READ-ONLY
+agents on disjoint slices, each writing ONE findings file, each opening every file in its
+slice rather than sampling:
+  EXAM_01  engines/egocentric + engines/cognition
+  EXAM_02  engines/ remainder (perception, self_model, social, planning, memory,
+           regulation, consciousness, postgame, ...)
+  EXAM_03  repo root (37) + tools + rungs + config
+  EXAM_04  manual_tools + legacy + lab   <- the most likely home of PRESERVE
+  EXAM_05  tests (live by constraint; audited for tests that gate nothing) + the non-.py
+           surface (architecture, checklists, config, figures, models, loose root files)
+NOTHING IS MOVED OR DELETED IN THIS PASS. The deliverable is the list with a summary per
+file; the GM approves or does not, and only then does anything move.
+THE POINT, restated so it is not lost in the tidying: the deliverable is CAPABILITY THIS
+BUILD DOES NOT HAVE. sequence_miner was nearly deleted and was the only code able to
+express level-scoping; the composer lineage was five modules of work being rediscovered.
+Assume there is more.
+AND THE REACHABILITY TEST IS NOT THE IMPORT GRAPH: 27 modules on this fleet are reached
+ONLY by a lazy import (eleven inside engines/egocentric), and 80 files are "named" only by
+inventories that invoke nothing. A file reached by a string or a lazy import does not fail
+at import -- it fails in production, on one path, later. Every row therefore carries HOW it
+is reached and the SITE, and the real test after any approved move is a FLEET RUN, not a
+green suite.
+
+=== EXAM_03 LANDED (root + tools + rungs + config): 79 files, live 61 / preserve 15 /
+considered_dead 3, every file opened. AND IT FOUND A HOLE IN THE RUBRIC I WROTE. ===
+THE HOLE: "skip .-prefixed directories entirely" is right for MOVES and wrong for
+REACHABILITY. `.github/workflows/ci.yml` invokes tools/consumption_sweep.py (:41) and
+tools/ood_lint.py (:47) as BLOCKING steps on every push and PR; `.pre-commit-config.yaml:17`
+invokes tools/vulture_whitelist.py. The earlier automated inventory called all three
+unreached BECAUSE it skipped dot-dirs at every level. CI IS THE MOST RELIABLE INVOCATION
+SITE A REPO HAS AND THE RULE MADE IT INVISIBLE. Rubric AMENDMENT 1 written and pushed to
+all four running agents mid-flight: dot-dirs are never moved, always SEARCHED. This is the
+GM's own principle turned on the GM's own rule -- where the rule and the requirement
+disagree the requirement wins, and the requirement is "verify nothing is hiding".
+SIX CORRECTIONS TO THE AUTOMATED INVENTORY, each with a site -- and note the shape: the
+automated pass was wrong in BOTH directions. Wrong-dead: the three CI-invoked tools above.
+Wrong-live: schema_auto_maintenance.py's only "caller" is its own name inside
+cleanup_temp_files.py's KEEP_FILES list (an inventory, not a call site -- the very defect
+that pass itself named); tools/verify/hermetic.py's "17 references" are the English
+adjective. Wrong-attribution: safe_cleanup.py's production caller is health_monitor.py:133
+(every 30 generations), NOT the supervisor -- and with D-1/D-2 open against that file, which
+caller is authoritative is not bookkeeping.
+THE FINDING OF THE SLICE, and it reframes the whole preserve category: THE PRESERVE SET IS
+ALMOST ENTIRELY INSTRUMENTS THAT MEASURE THE BUILD -- determinism, causal control arms,
+ship-cleanliness, premise age, comment truth, fork drift. NONE HAS A CALLER. "The build does
+not lack instruments; the instruments lack callers" -- the same shape as the defects each was
+written to catch. tools/repo_assess.py is dead by its own criteria while .runs/assess_py.txt
+is its verbatim 613-line output, so it HAS run; its guard is a product (novelty at zero
+blocks removal mechanically) and its main() refuses to convert a scan into a verdict, in code.
+ALSO: tools/ has no __init__.py (PEP-420 namespace), sits outside the registry's production
+globs, and all four tools/* registry rows are SEVERED -- so NOTHING in tools/ carries a
+receipt, INCLUDING THE TWO FILES CI BLOCKS ON. 12 one-shot tools already run are catalogued
+with harm-on-rerun notes (sigma_backfill rewrites fabrics in place; dump_schema overwrites
+the canonical schema from a RELATIVE db path; norm_sweep has no __main__ guard so it RUNS ON
+IMPORT and prints CANDIDATES: 0 from the wrong cwd -- indistinguishable from a clean tree).
+A THIRD REPO NAME: tools/overnight_run.py:29 hard-codes an interpreter under .../GitHub/
+Ouroboros/.venv and cannot run on this tree as written. The tree calls itself
+Ouroboros-Redux, Ouroboros, and BitterTruth-AI.
+
+THE REFRAMING (Seat 4, on EXAM_03's preserve set): THE INSTRUMENT IS THE PRODUCER AND IT HAS
+NO CONSUMER. Determinism, causal control arms, ship-cleanliness, premise age, comment truth,
+fork drift -- all written, none called, and every one written to catch a class of defect
+this project spent the week rediscovering BY HAND. The produced-and-unread genus, one level
+up: the instruments themselves are the unread product. repo_assess.py is the sharpest
+instance -- dead by its own criteria, and .runs/assess_py.txt is its verbatim 613-line
+output, so it HAS run and nothing calls it.
+CARRIED TO THE EXAMINATION'S CLOSE, as its own line: TWO BLOCKING CI STEPS CARRY NO RECEIPT.
+tools/ has no __init__.py, sits outside the registry's PROD_GLOBS, and all four tools/*
+registry rows are SEVERED -- so consumption_sweep.py and ood_lint.py gate every push and pull
+request while the wiring registry cannot vouch for either. The coverage falsifier that landed
+with symbol receipts checks modules reachable from the ENTRYPOINTS; a CI step is an
+entrypoint the falsifier does not know about. That is the same hole as the dot-dir rule,
+inside the apparatus built to close holes.
+AND A LIVE CONSEQUENCE FOR AN OPEN DEFECT: safe_cleanup.py's production caller is
+health_monitor.py:133, firing EVERY 30 GENERATIONS from the runner -- not the supervisor, as
+recorded. D-1 and D-2 are open against that file, and the correction changes WHEN the
+deletion path runs and under what conditions. The D-1/D-2 write-ups are to be re-read against
+the real caller before either is dispositioned.
+
+=== THE GM'S TWO STANDING RULES, CHECKED. BOTH ARE STATED AND NEITHER IS ENFORCED. ===
+RULE 1 -- DISABLE BYTECODE CACHING. Result: 830 .pyc files in 109 __pycache__ dirs on disk
+right now.
+  * 210 FILES CONTAIN `os.environ['PYTHONDONTWRITEBYTECODE'] = '1'`, most with the comment
+    "# Rule 1: Disable pycache". IT IS INERT. Proven directly: the interpreter reads that
+    variable ONLY AT STARTUP; assigning it at runtime leaves sys.dont_write_bytecode False.
+    210 statements of a rule, doing nothing, for however long.
+  * The flag that works at runtime IS set -- `sys.dont_write_bytecode = True` -- in a
+    handful of modules (config/cognitive_parameters.py, engines/cognition/ab_testing.py,
+    algorithms.py, blackboard.py...). It only takes effect from the moment that module is
+    imported, so everything imported before it still writes bytecode.
+  * WHERE THE RULE IS ACTUALLY ENFORCED: the supervisor's spawn env
+    (env["PYTHONDONTWRITEBYTECODE"]="1"), set BEFORE the interpreter starts -- the only
+    place that can work. So FLEET WORKERS ARE CLEAN; every other invocation (pytest, ruff,
+    my instrument runs, any manual run) writes bytecode.
+  * COULD IT HAVE CONTRIBUTED TO THIS WEEK'S "WHICH CODE WAS RUNNING" INVESTIGATIONS? Not
+    to the ones I closed -- those were resolved by process-start times and by controlled
+    substitution, neither of which bytecode can fake. But the HAZARD IS REAL AND UNCHECKED,
+    and .runs/arms/<hash>/ is a COMPLETE SECOND COPY OF THE REPO with its own bytecode; a
+    path or cwd resolution reaching one is the moving-tree hazard by a second mechanism.
+  * THE GENUS, AGAIN, AND AT SCALE: 210 files assert a rule the code does not implement.
+    Same shape as the "mastery-lite mirror" comment on a hard-coded constant -- prose
+    describing behaviour the code lacks -- but here it is repeated 210 times.
+RULE 2 -- RUN THE DEPENDENCY ANALYSIS BEFORE A REFACTOR. Ran it. THE TOOL IS INADEQUATE FOR
+THE JOB IT WAS WRITTEN FOR:
+  * IT SEES 36 MODULES. The tree has 501. It scans the root only -- 7% of the surface.
+  * ITS --cycles FLAG PRINTS NOTHING AT ALL. Not "no cycles found": no output, then
+    "Analysis complete". A check that cannot fail.
+  * It reports `evolution_runner.py` -- THE MAIN ENTRYPOINT -- as "potentially orphaned".
+  * It calls the repo "BitterTruth-AI Dependency Analyzer" (third repo name).
+  * ITS CALLERS ARE THREE DOCUMENTS: .github/copilot-instructions-v4-legacy.md:139,
+    architecture/Autonomous Research Lab.md:672, checklists/code_reviewer.md:9. Documented
+    procedure, never automated. EXACTLY THE GM'S PREDICTION: an instrument written for this
+    moment, unused during it -- and worse than unused, insufficient.
+SO I RAN THE REAL ANALYSIS (ast over all 501 modules, parse-only):
+  MODULES 501 · EDGES 908 = 635 static + 273 LAZY (30.1% of all imports are in-function --
+  a static-only scan misses nearly a third of the graph, which is why the tree's own tool
+  and every import scan this week understated reachability).
+  IMPORT CYCLES, static-only: 3 components. Static+lazy: 5, and TWO CROSS PACKAGE BOUNDARIES
+  -- those are the ones a move breaks, because reordering directories changes import order
+  and a cycle only fails in one order:
+    CROSSES: decision_rung_system <-> engines.cognition.edge_inference <-> shadow_testing
+    CROSSES: database_logger <-> engines.engine_logger
+  Largest cycle (static+lazy): 9 modules inside engines.egocentric (affect, applicability,
+  bank, binder, effects, goal_abduction, mint, planner + the package).
+  THE MOVE MUST NOT REORDER THOSE TWO CROSSING CYCLES. Recorded before any file moves.
+
+=== THE LIFECYCLE CLEANUP FIXED, AND A SECOND SWALLOWED DEFECT FOUND INSIDE IT ===
+FK DIAGNOSIS: 54 foreign keys reference agents.agent_id across 50 child tables, NONE with
+ON DELETE CASCADE, identical on all 25 boxes. 9 links held rows (sensation_learning_events
+42,704; object_sensation_mappings 10,984; agent_operating_modes 2,534; ...).
+DISPOSITION, derived not curated: a child column that is NOT NULL or part of the primary
+key is OWNED and dies with the agent; a NULLABLE column is ATTRIBUTION and is released to
+NULL. Read off what the schema already declares -- and it lands exactly right: all ten
+nullable links are provenance columns (discovered_by_agent, learned_from_agent,
+infected_by_agent, ...), so SHARED KNOWLEDGE SURVIVES ITS DISCOVERER, and a table added
+tomorrow needs no edit. Same property as the derived index and the composite price: a rule
+read off the structure rather than authored over it.
+Two alternatives refuted on measurement, not taste: restrict-to-childless deletes 0 of 2,459
+(every eligible agent has an operating-modes row); soft delete bounds nothing and converts a
+loud failure into a quiet no-op THAT REPORTS SUCCESS.
+THE SECOND DEFECT, ONE FRAME DOWN AND THE SAME GENUS: `_archive_agent_knowledge` inserted
+into agent_archive columns `agent_data` and `generation` THAT HAVE NEVER EXISTED in any
+schema or any box DB. Every call raised `no such column` into logger.debug. AGENT_ARCHIVE
+HOLDS 0 ROWS FLEET-WIDE -- and manual_tools/utilities/revive_agents.py has been reading
+`final_performance` out of that empty table the whole time. So the archive that made deletion
+recoverable never held anything, and the tool for reading it has been reading nothing.
+Raised-and-unread, WITH a consumer of the empty thing. Now writes the real columns and
+RAISES: an agent that cannot be archived is not deleted -- the archive law with teeth
+instead of as a comment.
+VERIFIED ON A COPY OF A REAL BOX: agents 2,586 -> 127; inactive 2,472 -> 13; gen-0 2,522 ->
+108 (all remaining are is_active=1, the OTHER lifecycle defect, untouched); agent_archive
+0 -> 2,459; 57,959 child rows deleted, 0 released, 0 failures, 8.6s; second pass deletes 0
+and leaves 0 orphans. The GM's falsifier is met.
+RESIDUES FLAGGED, both right: winning_sequences.agent_id is NOT NULL so it reads as OWNED --
+a scored agent's winning sequences would die with it; never fires today (tier 1 needs zero
+wins, tiers 2/3 need a score writer). And tiers 2 and 3 have 200- and 500-generation
+windows, so TIER 3 HAS NEVER HAD AN OPEN WINDOW ON ANY BOX -- a second gate found by a test
+failing first.
+
+=== THE ORACLE ANCHORED ITSELF TO HEAD, AND HEAD MOVED ===
+The two reds in that build were mine, from f891ba9. test_symbol_receipts' oracle fetched the
+"pre-migration" gate and registry with `git show HEAD:...`. The moment the migration commit
+became an ancestor of HEAD, that returned the MIGRATED registry and the NEW gate -- so the
+oracle compared the new gate against itself, reddened 0 rows on a 200-line shift instead of
+the pinned 37, and failed. THE BUILD WHOSE ENTIRE CLAIM IS "A REFERENCE THAT MOVES UNDER A
+CLAIM ROTS IT" ANCHORED ITS OWN ORACLE TO THE MOST MOBILE REFERENCE IN THE REPO.
+FIXED: PRE_MIGRATION_SHA = "0c77eca" pinned in tools/wiring_receipts.py, with the whole
+account in head_blob's docstring so the next reader sees why it is a SHA and not HEAD.
+FIGURE 2, on the apparatus itself: the anchor must not update. 4 oracle tests pass, 377
+across the three affected gate files, ruff clean.
+The builder proved the reds were not its own by reverting all three of its files to HEAD and
+reproducing them identically -- controlled substitution again, and the right method.
