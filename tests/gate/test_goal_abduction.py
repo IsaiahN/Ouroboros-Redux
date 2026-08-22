@@ -16,6 +16,7 @@ no-reference episode produces a [PLAN] shadow toward the abduced goal; the
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 
@@ -25,6 +26,22 @@ import pytest
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
+
+
+def _laws():
+    """The shared law bodies (tests/gate/_ast_laws.py). tests/gate is not a
+    package, so it is loaded by path and cached in sys.modules for the
+    session -- one body per law, one place to argue with it."""
+    mod = sys.modules.get("_ouro_ast_laws")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location(
+            "_ouro_ast_laws",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "_ast_laws.py"))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["_ouro_ast_laws"] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
 
 from engines.egocentric import effects as E
 from engines.egocentric.fabric import KnowledgeFabric
@@ -275,11 +292,13 @@ class TestTheFallback:
 class TestTheWiring:
 
     def test_the_bank_site_is_wired_in_record_result(self):
+        """L3 (first half): the bank call is INSIDE record_result. The old form
+        took the file TAIL after `def record_result` and searched it for
+        "_goal_abd(" -- a slice that also swept every module-bottom helper
+        below the class, which is how a tail slice ends up forbidding (or
+        accepting) code that is nowhere near the method."""
+        _laws().l3_settle_before_bank()
         src = _loop_src()
-        tail = src[src.find("def record_result"):]
-        assert "_goal_abd(" in tail, (
-            "record_result never banks the level-up frame delta -- goal abduction "
-            "is unwired (starvation)")
         assert "goal_abduction" in src and "GoalBook" in src
 
     def test_goal_narration_exists(self):
@@ -287,24 +306,19 @@ class TestTheWiring:
             "a banked hypothesis and a goal-targeting plan must narrate [GOAL]")
 
     def test_the_fallback_lives_in_the_ego_plan_block(self):
-        src = _loop_src()
-        a = src.index("W4c (EGO-PLAN)")
-        b = src.index("C33 STEP 1", a)
-        region = src[a:b]
-        assert "abduced_plan" in region, (
-            "the EGO-PLAN block never tries the abduced target after reference")
-        assert "[PLAN]" in region
+        """L5: the abduced plan is consulted on the DECISION path and its site
+        becomes the action. Was: the tokens "abduced_plan" and "[PLAN]"
+        appearing anywhere between two comment banners."""
+        _laws().l5_abduced_plan_becomes_the_action()
 
     def test_window_laws_hold_measured(self):
-        """The 8000-char .credit and 20000-char .route windows from record_result
-        survive the wiring -- measured, not assumed."""
-        src = _loop_src()
-        body = src[src.find("def record_result"):]
-        ci = body.find(".credit(")
-        ri = body.find(".route(")
-        assert 0 <= ci < 8000, "the .credit window law broke (offset %d)" % ci
-        assert 0 <= ri < 20000, "the .route window law broke (offset %d)" % ri
-        gi = body.find("_goal_abd(")
-        assert gi > ri, (
-            "the goal-abduction call site must sit AFTER the .route window's "
-            "anchor -- inserting before it breaks the window law")
+        """L1, L2, L3 -- the facts the windows were proxies for, now stated as
+        containment and order (PREREG_SYMBOL_RECEIPTS.md section 2). The name
+        stays so the history is followable; NOTHING here is measured in
+        characters any more, and the order clause carries its OWN semantic
+        justification (settle before bank) rather than "it protects L2's
+        window", which is the thing being retired."""
+        L = _laws()
+        L.l1_credit_inside_record_result()
+        L.l2_route_inside_record_result()
+        L.l3_settle_before_bank()

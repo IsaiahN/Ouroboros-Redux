@@ -19,6 +19,7 @@ This gate PINS each stream's declared convention two ways:
 """
 from __future__ import annotations
 
+import importlib.util
 import io
 import os
 import sys
@@ -31,6 +32,21 @@ import pytest
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
+
+
+def _laws():
+    """The shared law bodies (tests/gate/_ast_laws.py). tests/gate is not a
+    package, so it is loaded by path and cached in sys.modules for the
+    session -- one body per law, one place to argue with it."""
+    mod = sys.modules.get("_ouro_ast_laws")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location(
+            "_ouro_ast_laws",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "_ast_laws.py"))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["_ouro_ast_laws"] = mod
+        spec.loader.exec_module(mod)
+    return mod
 
 from engines.egocentric.fabric import KnowledgeFabric  # noqa: E402
 from engines.egocentric.frontier import HARVEST_TOPIC, FrontierBook  # noqa: E402
@@ -225,11 +241,10 @@ class TestTheRegisterIsInTheSource:
             "the COMPLETED-level comment must sit at the harvest load site")
 
     def test_window_laws_hold_measured(self):
-        """The 8000-char .credit and 20000-char .route windows from
-        record_result survive the register -- measured, not assumed."""
-        src = _loop_src()
-        body = src[src.find("def record_result"):]
-        ci = body.find(".credit(")
-        ri = body.find(".route(")
-        assert 0 <= ci < 8000, "the .credit window law broke (offset %d)" % ci
-        assert 0 <= ri < 20000, "the .route window law broke (offset %d)" % ri
+        """L1 and L2 -- the facts the 8000/20000-character windows were proxies
+        for, now stated as containment (PREREG_SYMBOL_RECEIPTS.md section 2).
+        The name is kept so the history is followable; nothing here is measured
+        in characters any more."""
+        L = _laws()
+        L.l1_credit_inside_record_result()
+        L.l2_route_inside_record_result()

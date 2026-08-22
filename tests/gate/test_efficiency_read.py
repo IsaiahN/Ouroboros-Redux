@@ -39,6 +39,11 @@ if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
 from tools import efficiency_read as eff  # noqa: E402
+from tools.wiring_receipts import (  # noqa: E402
+    build_index,
+    parse_file,
+    parse_site,
+)
 
 # ── synthetic books ──────────────────────────────────────────────────────────
 
@@ -362,15 +367,25 @@ class TestRegistryRow:
         assert "READ, NEVER TARGET" in note
 
     def test_registry_receipt_line_exists(self):
+        """UPDATED 2026-08-21 (PREREG_SYMBOL_RECEIPTS.md §1): the site cell is a
+        SYMBOL FINGERPRINT, not a line, so `rsplit(":", 1)` no longer yields a
+        path and an integer. The old body read ±6 lines around the claimed line
+        and looked for the substring 'efficiency_report' -- the region-substring proxy that
+        let four rows in this registry assert nothing at all. The claim now IS
+        the symbol: the cell must name efficiency_report and the node it names must exist
+        where the cell says."""
         row = _registry_row("efficiency-read")
-        path, line = row[2].rsplit(":", 1)
-        full = os.path.join(REPO, path)
+        site = parse_site(row[2])
+        assert site.fingerprinted, "row still on the old position form: %r" % row[2]
+        assert site.name == "efficiency_report", (
+            "the receipt does not name efficiency_report: %r" % row[2])
+        full = os.path.join(REPO, site.file)
         assert os.path.exists(full)
-        with open(full, encoding="utf-8") as fh:
-            lines = fh.readlines()
-        assert int(line) <= len(lines)
-        region = "".join(lines[max(0, int(line) - 6):int(line) + 6])
-        assert "efficiency_report" in region
+        index, _quals = build_index(parse_file(full))
+        nodes = index.get((site.enclosing, site.kind, site.name)) or []
+        assert len(nodes) > site.ordinal, (
+            "the claimed %s #%d of efficiency_report inside %r does not exist in %s"
+            % (site.kind, site.ordinal, site.enclosing, site.file))
 
 
 if __name__ == "__main__":

@@ -7,12 +7,32 @@ registry alone is a convention nothing can check. This gate is the checker.
 
 WIRING_REGISTRY.md holds one machine-parseable row per organ:
 
-    | name | symbol (module:qualname) | site (file:line) | status | date | note |
+    | name | symbol (module:qualname) | site | status | date | note |
+
+THE SITE CELL IS A SYMBOL FINGERPRINT, NOT A POSITION (2026-08-21,
+record/prereg/PREREG_SYMBOL_RECEIPTS.md)::
+
+    file:ENCLOSING/KIND:NAME#ORDINAL@LINE
+
+A claim about STRUCTURE ("this organ is called from inside that function") used
+to be stored as a POSITION (``file:line``, checked +/-30 lines), so every
+insertion above the position invalidated the claim without touching the fact:
+~140 receipt refreshes in one week, ZERO of them a broken wire. A receipt that
+only a line-shift can break is not a check -- it is a constant carrying the
+author's authority (FIGURE 10). The fingerprint can be broken by a real
+structural change and by nothing else. ``@LINE`` is A COURTESY and is NEVER
+asserted: a stale @LINE is not red. ``tools/wiring_receipts.py refresh``
+repairs courtesies; this gate never writes the registry.
+
+DURING MIGRATION both cell forms are accepted per row (old form = an integer
+after the file's colon). The old-form branch retires in the commit AFTER the
+last row leaves it (PROCTOR decision 5).
 
 For every LIVE entry this gate asserts:
-  (a) the claimed call-site file exists and the +/-DRIFT-line region around the
-      claimed line still references the symbol (receipts that rot when code
-      moves go RED so they get refreshed, never silently trusted);
+  (a) THE SITE FINGERPRINT RESOLVES: the site file parses, ENCLOSING exists in
+      it, and at least ORDINAL+1 same-KIND same-NAME nodes live inside
+      ENCLOSING. (Old-form rows: the +/-DRIFT-line region around the claimed
+      line still mentions the symbol.)
   (b) the symbol is REFERENCED from a production module -- by AST scan over
       ast.Name / ast.Attribute nodes, which import statements never produce,
       so a bare ``from x import Y`` re-export does NOT count (the vulture
@@ -41,6 +61,17 @@ COMPLETENESS: every class defined in engines/egocentric/*.py must have an
 entry (LIVE, SEVERED, or DELETED-PENDING) -- a new organ with no receipt is
 UNSHIPPABLE.
 
+COVERAGE (2026-08-21, from record/findings/CODEBASE_INVENTORY.md FINDING 2):
+the completeness check above can only see CLASSES. A module of bare functions
+is invisible to it -- engines/egocentric/relations.py is LIVE by import (depth
+3, via the package __init__), carries no row, and none of its three public
+functions is referenced anywhere in the tree, INSIDE the very package this gate
+was written to cover. So: every module REACHABLE from the six production
+entrypoints (module-level AND in-function imports -- the live path is 27
+modules wider than a static scan shows) either has a row or is named in
+NO_ROW_ALLOWLIST with a reason. The allowlist is the convention that CAN be
+violated (FIGURE 10); a new reachable module with neither goes red.
+
 Run pre-registry: every test here failed (registry file absent).
 """
 from __future__ import annotations
@@ -50,11 +81,20 @@ import functools
 import glob
 import os
 import re
+import sys
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
 import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if REPO not in sys.path:
+    sys.path.insert(0, REPO)
+
+from tools.wiring_receipts import (  # noqa: E402  -- the fingerprint grammar
+    MODULE_SCOPE,
+    build_index,
+    parse_site,
+)
 
 # OURO_WIRING_REGISTRY overrides the registry path (used by the failing-first
 # demonstrations and by operators dry-running a registry edit).
@@ -75,10 +115,26 @@ class Entry(NamedTuple):
     module: str          # dotted module path, e.g. engines.egocentric.mint
     qualname: str        # e.g. MDLMint or MDLMint.consider
     site_file: str       # repo-relative, forward slashes
-    site_line: int
+    site_line: int       # the COURTESY line -- never asserted for a fingerprint
     status: str
     date: str
     note: str
+    # The fingerprint. All four are None on an old-form (file:line) row.
+    enclosing: Optional[str] = None
+    kind: Optional[str] = None
+    nodename: Optional[str] = None
+    ordinal: Optional[int] = None
+
+    @property
+    def fingerprinted(self) -> bool:
+        return self.enclosing is not None
+
+    @property
+    def site_cell(self) -> str:
+        if not self.fingerprinted:
+            return "%s:%d" % (self.site_file, self.site_line)
+        return "%s:%s/%s:%s#%d@%d" % (self.site_file, self.enclosing, self.kind,
+                                      self.nodename, self.ordinal, self.site_line)
 
     @property
     def refname(self) -> str:
@@ -124,13 +180,14 @@ def _parse_registry(path: str) -> List[Entry]:
                 continue  # header / separator rows
             if ":" not in symbol or ":" not in site:
                 raise ValueError(
-                    "registry row %r: symbol must be module:qualname and "
-                    "site must be file:line" % name)
+                    "registry row %r: symbol must be module:qualname and site "
+                    "must be file:ENCLOSING/KIND:NAME#ORDINAL@LINE (or, until "
+                    "the old form retires, file:line)" % name)
             module, qualname = symbol.split(":", 1)
-            site_file, site_line = site.rsplit(":", 1)
-            entries.append(Entry(name, module, qualname,
-                                 site_file.replace("\\", "/"), int(site_line),
-                                 status, date, note))
+            s = parse_site(site)      # BOTH forms, during the migration
+            entries.append(Entry(name, module, qualname, s.file, s.line,
+                                 status, date, note,
+                                 s.enclosing, s.kind, s.name, s.ordinal))
     return entries
 
 
@@ -250,6 +307,44 @@ def _ids(entries: List[Entry]) -> List[str]:
     return [e.name for e in entries]
 
 
+@functools.lru_cache(maxsize=64)
+def _index(rel: str):
+    """``(index, qualnames)`` for one site file, or ``(None, None)`` if it does
+    not parse. Cached: a 5000-line loop is parsed once per session, not once
+    per row."""
+    path = os.path.join(REPO, rel)
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as fh:
+            tree = ast.parse(fh.read())
+    except (OSError, SyntaxError):
+        return (None, None)
+    return build_index(tree)
+
+
+def _assert_fingerprint(entry: Entry) -> None:
+    """THE THREE ASSERTIONS OF A SYMBOL-ANCHORED RECEIPT (prereg section 1.2).
+    The courtesy line is NOT among them: a stale @LINE is not red."""
+    index, quals = _index(entry.site_file)
+    assert index is not None, (
+        "%s: site file %s does not exist or does not parse -- the receipt "
+        "cannot be checked at all" % (entry.name, entry.site_file))
+    assert entry.enclosing == MODULE_SCOPE or entry.enclosing in quals, (
+        "%s: the receipt is anchored inside %r, which does not exist in %s. "
+        "The enclosing function or class was RENAMED or REMOVED -- that is a "
+        "structural change to the organ's wiring (prereg 1.4), so name the new "
+        "scope in the row. Nothing above this site can cause this."
+        % (entry.name, entry.enclosing, entry.site_file))
+    nodes = index.get((entry.enclosing, entry.kind, entry.nodename)) or []
+    assert len(nodes) > entry.ordinal, (
+        "%s: the receipt claims %s #%d of %r inside %r in %s, and only %d "
+        "such node(s) exist. Either the anchored %s WAS DELETED (the wire is "
+        "broken -- mark the row SEVERED with the break, do not renumber it), "
+        "or same-named nodes were removed from that scope. This is never "
+        "caused by inserting code elsewhere."
+        % (entry.name, entry.kind, entry.ordinal, entry.nodename,
+           entry.enclosing, entry.site_file, len(nodes), entry.kind))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # The registry itself
 # ─────────────────────────────────────────────────────────────────────────────
@@ -293,6 +388,10 @@ class TestLiveEntries:
                                           entry.qualname))
 
     def test_claim_site_region_references_symbol(self, entry: Entry):
+        if entry.fingerprinted:
+            _assert_fingerprint(entry)
+            return
+        # ── the OLD form, kept only until the last row leaves it ───────────
         path = os.path.join(REPO, entry.site_file)
         assert os.path.exists(path), (
             "%s: claimed call-site file %s does not exist -- receipt rotted; "
@@ -334,6 +433,19 @@ class TestSeveredEntries:
             % (entry.name, entry.module, entry.qualname))
 
     def test_break_site_exists(self, entry: Entry):
+        """A SEVERED row anchors to the organ's OWN def (always resolvable --
+        test_symbol_still_defined asserts it), with the def's line as the
+        courtesy. The historic wire-break line rides in the note as
+        [break=file:line] where it differed: a break line is a POSITION, and a
+        position is exactly what stopped being an anchor here.
+
+        The old assertion -- "the break line is <= the file's line count" --
+        was very nearly vacuous, and five of these twenty rows were pointing
+        at the wrong place under it (role-multiplier claimed :245 for a def at
+        :1441; agent-motion :209 for :37; broken-rebinding :71 for :19)."""
+        if entry.fingerprinted:
+            _assert_fingerprint(entry)
+            return
         path = os.path.join(REPO, entry.site_file)
         assert os.path.exists(path), (
             "%s: wire-break site file %s does not exist"
@@ -396,3 +508,167 @@ class TestRegistryCompleteness:
                   if not os.path.exists(os.path.join(REPO, e.module_file))]
         assert not ghosts, (
             "registry entries whose module file does not exist: %r" % ghosts)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Coverage: a module the gate CANNOT SEE is the blind spot, not a clean sheet
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The completeness check above sees CLASSES. relations.py is bare functions:
+# LIVE by import via the package __init__, no row, and none of its three public
+# names referenced anywhere -- invisible. This falsifier is over MODULES.
+#
+# THE ALLOWLIST IS THE CONVENTION THAT CAN BE VIOLATED (FIGURE 10). Inside
+# engines/egocentric/ -- the package this registry governs -- only EXACT module
+# paths may be listed, each with its reason, so a new organ cannot slip in
+# under a wildcard. Outside it, a DIRECTORY PREFIX with a reason is allowed:
+# those modules are reachable but are not this registry's jurisdiction, and
+# 146 hand-authored reasons would be exactly the "constant the seat authored"
+# this whole build is retiring.
+
+ENTRYPOINTS = ("evolution_runner.py", "tools/swarm_supervisor.py",
+               "tools/sprint_keeper.py", "cognitive_game_player.py",
+               "game_player.py", "arc_api_adapter.py")
+
+NO_ROW_ALLOWLIST: Dict[str, str] = {
+    # ── engines/egocentric/: EXACT paths only, one reason each ──────────────
+    "engines/egocentric/__init__.py":
+        "the package re-export shim -- it defines no organ; it is the very "
+        "mechanism that carries modules into the live set unreferenced, which "
+        "is why this falsifier exists",
+    "engines/egocentric/planner.py":
+        "a CONSUMER, not an organ: five rows name call sites INSIDE it "
+        "(cost-flip, applicability-index, standing-rank, standing-population, "
+        "retention-session). Its wiring is receipted from the other end",
+    "engines/egocentric/discrepancy.py":
+        "W3b's d, the self-authored objective -- a pure computation over "
+        "frames with no organ of its own; consumed through the gate's WANT "
+        "compilation (engines/egocentric/gate.py want_discrepancy)",
+    "engines/egocentric/relations.py":
+        "THE NAMED BLIND SPOT (CODEBASE_INVENTORY.md FINDING 2, 2026-08-21): "
+        "LIVE by import at depth 3 via the package __init__, and its three "
+        "public functions (quantified_candidates, class_member_cells, "
+        "candidate_relations) are called from NOWHERE in the tree. It is "
+        "listed here, not rowed, because a row would have to claim a call "
+        "site and there is none. QUEUED: a SEVERED row with the reason, or a "
+        "deletion. It is named so that it cannot go on being invisible",
+    # ── outside the registry's jurisdiction: prefixes with reasons ──────────
+    "engines/": "outside engines/egocentric/ -- the legacy and adjacent engine "
+                "stacks are not this registry's jurisdiction (rung 0c covers "
+                "the egocentric substrate); their reachability is inventoried "
+                "in record/findings/CODEBASE_INVENTORY.md",
+    "rungs/": "the rung ladder is receipted by THE_LADDER.md, not here",
+    "tools/": "instruments, never the live path -- the gate's own PROD_GLOBS "
+              "exclude them from the reference scan for the same reason",
+    "config/": "configuration, no organs",
+    "manual_tools/": "operator one-offs; inventoried, not rowed",
+    "": "repo-root entrypoints and their direct helpers -- game_player, "
+        "cognitive_game_player, evolution_runner and the modules they pull in "
+        "are the HOSTS of the egocentric substrate, not organs of it; the "
+        "loop's own helpers that ARE organs carry rows (hydration, "
+        "reasoning-gate-hook, narration-arm-route, ...)",
+}
+
+
+def _module_edges(rel: str) -> List[str]:
+    """Every module file this one imports -- MODULE-LEVEL AND IN-FUNCTION.
+    The lazy edges are not an extra: the live path is 27 modules wider than a
+    static scan shows (CODEBASE_INVENTORY.md FINDING 1), so a scan that drops
+    them would declare modules unreachable that run every episode."""
+    def _exists(p: str) -> bool:
+        return os.path.exists(os.path.join(REPO, p))
+
+    def _for(mod: str) -> List[str]:
+        out, p = [], mod.replace(".", "/")
+        if _exists(p + ".py"):
+            out.append(p + ".py")
+        parts = mod.split(".")
+        for i in range(1, len(parts) + 1):
+            q = "/".join(parts[:i]) + "/__init__.py"
+            if _exists(q):
+                out.append(q)
+        return out
+
+    try:
+        with open(os.path.join(REPO, rel), encoding="utf-8",
+                  errors="ignore") as fh:
+            tree = ast.parse(fh.read())
+    except (OSError, SyntaxError):
+        return []
+    pkg = os.path.dirname(rel).replace("/", ".")
+    out: List[str] = []
+    for node in ast.walk(tree):          # walk, not tree.body: lazy imports
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                out += _for(a.name)
+        elif isinstance(node, ast.ImportFrom):
+            base = node.module or ""
+            if node.level:
+                parts = pkg.split(".") if pkg else []
+                if node.level > 1:
+                    parts = parts[:len(parts) - (node.level - 1)]
+                base = ".".join([p for p in parts if p] + ([base] if base else []))
+            if base:
+                out += _for(base)
+                for a in node.names:
+                    out += _for(base + "." + a.name)
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def _reachable() -> Set[str]:
+    seen = {e for e in ENTRYPOINTS if os.path.exists(os.path.join(REPO, e))}
+    stack = list(seen)
+    while stack:
+        for dst in _module_edges(stack.pop()):
+            if dst not in seen:
+                seen.add(dst)
+                stack.append(dst)
+    return seen
+
+
+def _allowlisted(rel: str) -> bool:
+    if rel in NO_ROW_ALLOWLIST:
+        return True
+    if rel.startswith("engines/egocentric/"):
+        return False          # jurisdiction: exact paths only, no wildcards
+    return any(k and rel.startswith(k) for k in NO_ROW_ALLOWLIST) or "/" not in rel
+
+
+class TestReachableModulesAreCovered:
+
+    def test_every_reachable_module_has_a_row_or_a_named_reason(self):
+        rowed = {e.module_file for e in _ENTRIES}
+        missing = sorted(rel for rel in _reachable()
+                         if rel not in rowed and not _allowlisted(rel))
+        assert not missing, (
+            "modules reachable from the production entrypoints with NEITHER a "
+            "registry row NOR an entry in NO_ROW_ALLOWLIST: %r. A module the "
+            "registry cannot see is the blind spot relations.py sat in -- add "
+            "a row (LIVE with its call-site fingerprint, SEVERED with the "
+            "break) or allowlist it WITH A REASON." % missing)
+
+    def test_the_allowlist_is_not_a_wildcard_inside_the_registrys_package(self):
+        """Every allowlist key under engines/egocentric/ must name a real
+        module -- a stale entry silently re-opens the blind spot it closed."""
+        ghosts = [k for k in NO_ROW_ALLOWLIST
+                  if k.startswith("engines/egocentric/")
+                  and not os.path.exists(os.path.join(REPO, k))]
+        assert not ghosts, "allowlist entries for modules that no longer exist: %r" % ghosts
+        thin = [k for k, v in NO_ROW_ALLOWLIST.items() if len(v.strip()) < 20]
+        assert not thin, (
+            "allowlist entries whose 'reason' says nothing: %r -- an "
+            "unreasoned exemption is a constant wearing a convention's clothes"
+            % thin)
+
+    def test_the_reachability_scan_includes_lazy_imports(self):
+        """The falsifier for the falsifier: engines/egocentric/mastery.py is
+        reached ONLY through in-function imports of the egocentric package
+        chain. A module-level-only scan would drop 27 modules and declare the
+        live path clean by not looking at it."""
+        assert "engines/egocentric/relations.py" in _reachable(), (
+            "the reachability scan lost relations.py -- the module this "
+            "falsifier was written for")
+        assert len(_reachable()) > 150, (
+            "only %d modules reachable -- the scan collapsed; the measured "
+            "figure at 2026-08-21 was 188" % len(_reachable()))

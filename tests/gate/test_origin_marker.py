@@ -40,6 +40,7 @@ from engines.egocentric import consumer, effects
 from engines.egocentric.effects import Gamma
 from engines.egocentric.fabric import KnowledgeFabric
 from engines.egocentric.mint import MDLMint
+from tools.wiring_receipts import build_index, parse_file, parse_site  # noqa: E402
 
 ATOMS_TOPIC = "atoms"
 GAME, LEVEL = "g_home", 2
@@ -316,13 +317,27 @@ class TestRegistryReceipt:
         assert ".py:" in row[2]
 
     def test_the_receipt_site_really_calls_origin_of(self):
-        row = self._row("origin-marker")
-        site_file, site_line = row[2].rsplit(":", 1)
-        with open(os.path.join(REPO, site_file), encoding="utf-8") as fh:
+        """UPDATED 2026-08-21 (PREREG_SYMBOL_RECEIPTS.md §1): the site cell is a
+        SYMBOL FINGERPRINT, not a line. The old body read ±5 lines around the
+        claimed line and looked for the substring "origin_of" — the same
+        substring-in-a-region proxy that let decline-branch pass on the word
+        "match" inside `return out`. Now the cell must NAME origin_of and the
+        node it names must exist; the courtesy line is used only to read the
+        source back for the reader."""
+        row_cell = self._row("origin-marker")[2]
+        site = parse_site(row_cell)
+        assert site.fingerprinted, (
+            "the origin-marker row is still on the old position form: %r" % row_cell)
+        assert site.name == "origin_of", (
+            "the receipt does not name origin_of at all: %r" % row_cell)
+        index, _quals = build_index(parse_file(os.path.join(REPO, site.file)))
+        nodes = index.get((site.enclosing, site.kind, site.name)) or []
+        assert len(nodes) > site.ordinal, (
+            "the claimed %s of origin_of inside %r does not exist in %s: %r"
+            % (site.kind, site.enclosing, site.file, row_cell))
+        with open(os.path.join(REPO, site.file), encoding="utf-8") as fh:
             lines = fh.readlines()
-        region = "".join(lines[max(0, int(site_line) - 6):int(site_line) + 5])
-        assert "origin_of" in region, (
-            "the claimed site does not call origin_of: %s" % row[2])
+        assert "origin_of" in lines[nodes[site.ordinal].lineno - 1]
 
     def test_origin_of_has_a_production_caller(self):
         """rung 0c's DONE STANDARD: something in the live path calls it with real

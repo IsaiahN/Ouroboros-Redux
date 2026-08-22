@@ -50,6 +50,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
+from tools.wiring_receipts import parse_site  # noqa: E402  -- after the bootstrap
+
 REGISTRY_DEFAULT = os.path.join(REPO, "WIRING_REGISTRY.md")
 
 # The measured scope (the empirical gate's universe). Entries whose claimed
@@ -107,10 +109,16 @@ def parse_registry(path: str) -> List[Entry]:
                 continue
             if ":" not in site:
                 continue
-            site_file, site_line = site.rsplit(":", 1)
-            entries.append(Entry(name, symbol,
-                                 site_file.replace("\\", "/"),
-                                 int(site_line), status, note))
+            # Both cell forms (PREREG_SYMBOL_RECEIPTS.md §1): the fingerprint
+            # `file:ENCLOSING/KIND:NAME#ORDINAL@LINE` and, until the last row
+            # leaves it, the old `file:line`. The empirical layer wants a LINE
+            # to intersect with coverage, and the fingerprint's @LINE courtesy
+            # is that line -- kept exact by `wiring_receipts refresh`, and now
+            # pointing at the anchored node itself rather than at whatever was
+            # within ±30 of it.
+            parsed = parse_site(site)
+            entries.append(Entry(name, symbol, parsed.file, parsed.line,
+                                 status, note))
     return entries
 
 

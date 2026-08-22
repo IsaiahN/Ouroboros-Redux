@@ -42,6 +42,7 @@ must not depend on.
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 
@@ -51,6 +52,21 @@ import pytest
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
+
+
+def _laws():
+    """The shared law bodies (tests/gate/_ast_laws.py). tests/gate is not a
+    package, so it is loaded by path and cached in sys.modules for the
+    session -- one body per law, one place to argue with it."""
+    mod = sys.modules.get("_ouro_ast_laws")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location(
+            "_ouro_ast_laws",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "_ast_laws.py"))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["_ouro_ast_laws"] = mod
+        spec.loader.exec_module(mod)
+    return mod
 
 from engines.egocentric import goal_abduction as GA  # noqa: E402
 from engines.egocentric.fabric import KnowledgeFabric  # noqa: E402
@@ -626,11 +642,14 @@ class TestTheLivePathReceipt:
         assert "def bank_replay_levelup(" in src
 
     def test_the_window_laws_still_hold(self):
-        src = _src(LOOP)
-        body = src[src.find("def record_result"):]
-        ci, ri = body.find(".credit("), body.find(".route(")
-        assert 0 <= ci < 8000 and 0 <= ri < 20000
-        assert body.find("_goal_abd(") > ri
+        """L1, L2, L3 (PREREG_SYMBOL_RECEIPTS.md section 2): credit and route
+        live inside record_result, and the level-up is banked only AFTER the
+        step is settled and routed. The name is kept; the character offsets
+        are gone."""
+        L = _laws()
+        L.l1_credit_inside_record_result()
+        L.l2_route_inside_record_result()
+        L.l3_settle_before_bank()
 
 
 class TestTheConsumerBehaviourChanges:
@@ -700,15 +719,7 @@ class TestTheConsumerBehaviourChanges:
             "is an abort path wearing a plan's clothes")
 
     def test_the_loop_turns_that_plan_into_a_different_action(self):
-        """The named consumer's site is what becomes the action — pinned in the
-        loop source so the chain cannot be quietly severed."""
-        src = _src(LOOP)
-        a = src.index("W4c (EGO-PLAN)")
-        b = src.index("C33 STEP 1", a)
-        region = src[a:b]
-        i = region.index("abduced_plan(")
-        window = region[i:i + 2000]
-        assert "action_num = 6" in window and "action_data" in window, (
-            "the abduced plan's site never becomes an action — the consumer is "
-            "a reader, not a decider")
-        assert '_ap["site"]' in window
+        """L5: the named consumer's site is what becomes the action — stated as
+        containment and order inside CognitiveLoop.cycle, not as the next 2000
+        characters after the string "abduced_plan(" ."""
+        _laws().l5_abduced_plan_becomes_the_action()

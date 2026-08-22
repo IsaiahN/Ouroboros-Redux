@@ -212,11 +212,22 @@ A3-4 "WHEN" (already routed): no shared episode key across streams — verdicts 
 A4-1 (G19) HYDRATION READ BOUND: N=500 records/scope (cognitive_loop _hyd_ver).
    Provenance: DERIVED-from-janitor-retention (100 raw survivors) x safety factor 5 —
    but the factor is GUESSED. Register G, arm-testable.
-A4-2 WINDOW DEBT (queued maintenance): the .credit/.route char-window gates (7950/8000,
-   19985/20000) are proxies for "the wiring call exists inside record_result" and are
-   now shaping code placement (15-50 chars slack). WHEN THE BUDGET RUNS OUT: an edit
-   inside record_result forces refactor-or-test-amendment. FIX: replace char windows
-   with AST-based wiring assertions (same intent, no character economy). Queued.
+A4-2 WINDOW DEBT — PAID 2026-08-21 (record/prereg/PREREG_SYMBOL_RECEIPTS.md §2). Was:
+   the .credit/.route char-window gates (7950/8000, 19985/20000) are proxies for "the
+   wiring call exists inside record_result" and are now shaping code placement (15-50
+   chars slack); when the budget runs out an edit inside record_result forces
+   refactor-or-test-amendment. IT RAN OUT that morning at 50 chars (.credit) and 15
+   (.route), and the `_plan_gate` TAIL-SLICE law fired on module-bottom helpers 1800
+   lines below record_result's end — one position-based discipline forbidding another,
+   because module-bottom appending is what keeps registry receipts from rotting.
+   DONE: the seven laws are AST containment/order in tests/gate/_ast_laws.py (L1 credit
+   inside record_result, L2 route inside it, L3 SETTLE-BEFORE-BANK with its own semantic
+   justification, L4 plan-gate on the cycle path only, L5 the abduced plan becomes the
+   action, L6 exactly ONE production lp_steer call inside _act, L7 the gate hook is a
+   MODULE-LEVEL def — which retires "last function in the file", the positional law that
+   had already forced the persistence build to place its helper above the hook). The six
+   test names are kept and delegate. NO CHARACTER OR LINE BUDGET REMAINS ON ANY OF THEM;
+   there is no knob here any more. Falsifiers: tests/gate/test_symbol_receipts.py.
 A4-3 EP ORDINAL: confirmed content-free (instance-local counter; no game/session
    identifiers in logic; OOD lint enforces).
 

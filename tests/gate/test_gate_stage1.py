@@ -53,6 +53,7 @@ Seeded with a FIXED CONSTANT (the prereg date), never a clock.
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
 import os
 import sys
@@ -64,6 +65,21 @@ import pytest
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
+
+
+def _laws():
+    """The shared law bodies (tests/gate/_ast_laws.py). tests/gate is not a
+    package, so it is loaded by path and cached in sys.modules for the
+    session -- one body per law, one place to argue with it."""
+    mod = sys.modules.get("_ouro_ast_laws")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location(
+            "_ouro_ast_laws",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "_ast_laws.py"))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["_ouro_ast_laws"] = mod
+        spec.loader.exec_module(mod)
+    return mod
 
 import cognitive_loop as cl  # noqa: E402
 from engines.egocentric import action_book as AB  # noqa: E402
@@ -613,12 +629,22 @@ class TestF5ShadowNoBlock:
             for t in n.targets if isinstance(t, ast.Name)}
 
     def test_gate_step_returns_nothing_and_lives_at_module_bottom(self):
-        tree = self._tree()
-        fn = self._fn(tree, "_gate_step")
-        for n in ast.walk(fn):
-            if isinstance(n, ast.Return):
-                assert n.value is None, "_gate_step must return nothing (no verdict)"
-        assert tree.body[-1] is fn, "module bottom: the helper moves no receipt"
+        """LAW L7 (record/prereg/PREREG_SYMBOL_RECEIPTS.md, added 2026-08-21).
+
+        THE FACT: the hook is a MODULE-LEVEL def -- not nested in a function,
+        not a method on CognitiveLoop -- so that inserting it rots no receipt
+        and the loop's own body is untouched. It returns nothing, and it is
+        reached from exactly ONE call site.
+
+        WAS: `tree.body[-1] is fn` -- "the module's LAST function". That is a
+        POSITIONAL law of exactly the genus this build retires, and it had
+        already shaped a build: the persistence builder had to place its own
+        helper ABOVE the hook because bottom-append was forbidden here, the
+        second such collision this week (the first was the _plan_gate tail
+        slice). Appending a new module-level helper after the hook is now
+        GREEN, which is what it should always have been; moving the hook into
+        the class, or deleting it, is still red."""
+        _laws().l7_gate_hook_is_module_level()
 
     def test_no_code_path_in_the_gate_returns_a_blocking_verdict(self):
         src = open(os.path.join(REPO, "engines", "egocentric", "gate.py"),

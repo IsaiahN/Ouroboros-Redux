@@ -36,6 +36,11 @@ if REPO not in sys.path:
 
 from engines.egocentric import rho  # noqa: E402
 from tools import regen_series as rs  # noqa: E402
+from tools.wiring_receipts import (  # noqa: E402
+    build_index,
+    parse_file,
+    parse_site,
+)
 
 # ── synthetic fabrics (two epochs) ───────────────────────────────────────────
 
@@ -382,15 +387,25 @@ class TestRegistryRow:
         assert "roving-pool" in note, "the consumer is named in the receipt"
 
     def test_registry_receipt_line_exists(self):
+        """UPDATED 2026-08-21 (PREREG_SYMBOL_RECEIPTS.md §1): the site cell is a
+        SYMBOL FINGERPRINT, not a line, so `rsplit(":", 1)` no longer yields a
+        path and an integer. The old body read ±6 lines around the claimed line
+        and looked for the substring 'regen_snapshot' -- the region-substring proxy that
+        let four rows in this registry assert nothing at all. The claim now IS
+        the symbol: the cell must name regen_snapshot and the node it names must exist
+        where the cell says."""
         row = _registry_row("regen-series")
-        path, line = row[2].rsplit(":", 1)
-        full = os.path.join(REPO, path)
+        site = parse_site(row[2])
+        assert site.fingerprinted, "row still on the old position form: %r" % row[2]
+        assert site.name == "regen_snapshot", (
+            "the receipt does not name regen_snapshot: %r" % row[2])
+        full = os.path.join(REPO, site.file)
         assert os.path.exists(full)
-        with open(full, encoding="utf-8") as fh:
-            lines = fh.readlines()
-        assert int(line) <= len(lines)
-        region = "".join(lines[max(0, int(line) - 6):int(line) + 6])
-        assert "regen_snapshot" in region
+        index, _quals = build_index(parse_file(full))
+        nodes = index.get((site.enclosing, site.kind, site.name)) or []
+        assert len(nodes) > site.ordinal, (
+            "the claimed %s #%d of regen_snapshot inside %r does not exist in %s"
+            % (site.kind, site.ordinal, site.enclosing, site.file))
 
 
 if __name__ == "__main__":
