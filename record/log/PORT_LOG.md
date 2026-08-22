@@ -3581,3 +3581,33 @@ STALLED SINCE BEAT 53: g7 (0, UNMEASURED); best-level on every box; split-half; 
 CAUSE; the 273-second window in play_game.
 ADVANCING: the seq watermark -- the build that makes every frame-internal rate windowable,
 and therefore the one that unblocks mandate item 3 rather than working around it.
+
+=== WHAT LEVELS THE AGENTS HAVE REACHED (GM asked; the answer is a WALL, not a number) ===
+BEST LEVEL REACHED ANYWHERE, EVER: 2 -- on ONE box (ar25). GAMES WON: 0/25.
+9 of 25 boxes have EVER completed a level. 16 HAVE NEVER COMPLETED ONE, across 100-160
+sessions each. 3,474 sessions fleet-wide, all status 'completed', 1,496 level completions.
+AND THE DISTRIBUTION IS THE FINDING. Every box that can complete a level does so RELIABLY,
+and NOT ONE SESSION ANYWHERE HAS EVER EXCEEDED ITS BOX'S CEILING:
+  ar25  212 sessions   0L:29  1L:7  2L:176   -> 83% hit exactly 2, NEVER 3
+  sk48  293 sessions   0L:20  1L:273         -> 93% hit exactly 1, NEVER 2
+  g50t  324 sessions   0L:26  1L:298         -> 92% hit exactly 1, NEVER 2
+  lp85  115 sessions   0L:6   1L:109         -> 95% hit exactly 1, NEVER 2
+  r11l  195 · cd82 126 · sp80 189 · cn04 53 · ft09 35 -- same shape, ceilings of 1
+ZERO EXCEEDANCES IN 1,542 SESSIONS ON THOSE NINE BOXES. That is not a difficulty gradient
+and it is not noise. It is a HARD DETERMINISTIC CEILING at exactly the depth each box has
+banked, and the agents reproduce it almost every session and have never once gone past it.
+AND THE CEILING IS REPLAY, WHICH THIS LOG ALREADY RECORDED WITHOUT CONNECTING IT: the two
+boxes with the MOST level completions -- g50t (298) and sk48 (273) -- HAVE NEVER MINTED A
+SINGLE ATOM. Seven boxes have never minted; the two most "successful" by level count are
+among them. So the levels being completed are PLAYBACK OF A BANKED PREFIX, not cognition,
+and the wall sits exactly where the bank ends.
+THAT IS THE MISSION METRIC'S REAL STATE: the fleet is not slowly climbing toward 25/25. It
+is reliably replaying to the end of what it already had and stopping there, 1,496 times.
+The 49 levels/hour reported at beat 54 is this, at a higher rate -- re-crossings, which is
+why best-level did not move and why I refused to call it progress.
+WHAT THIS MAKES URGENT, and it is a reordering of the queue rather than a new item: g7 is
+not the composer's problem to prove. NOTHING has ever gone past the bank. The question is
+no longer "does composition raise g7" but "why does no mechanism -- composed, minted,
+abduced or explored -- ever cross ONE level beyond playback". Rung 0b's exposure floor and
+the split-half instrument both read against a system that has never, in 3,474 sessions,
+produced a novel crossing.
