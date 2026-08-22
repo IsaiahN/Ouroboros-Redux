@@ -3980,3 +3980,57 @@ nothing at all.
 FIGURE 1: an instrument is not capability gained. No level moved. Levels are mute at 2.
 SUITE 2059 passed / 2 xfailed / 0 failed (2045 + exactly the 14 new). ruff clean. F6 oracle
 unaffected -- nothing production was touched.
+
+---
+
+## BEAT 61 — THE BACKLOG OF MY OWN UNEXECUTED RULINGS IS THE STALL
+
+RATES THIS HOUR: minted 0 · used 0 · composed 0 · retired 0. Zero python processes, fleet
+retired. ALL ZERO BY CONSTRUCTION, denominator zero, NOT a stall. LEVELS MUTE AT 2.
+
+ECONOMY, LAST TRUE READING (restated so no beat implies motion): best level ever 2 on one
+box · 1,496 crossings · 0 games won of 25 · 1,542 sessions, none ever exceeding its box's
+ceiling · 28,886 agents, ONE genome · prestige 0 written by nothing.
+
+THE HONEST READ OF THIS BEAT: nothing is blocked on the GM. TWO RULINGS HAVE BEEN MADE AND
+SAT UNEXECUTED FOR THREE BEATS while I built instruments around them. That is the stall, it
+is mine, and it is now dispatched as one job.
+
+DISPATCHED — the two standing rulings, each with its own gate:
+ 1. FOLD THE OBSERVATION LOG. cognitive_game_player.py:83 is still the SIXTH cwd-relative
+    site, the exact defect f3eb76f existed to remove. Gate: the path must be ABSOLUTE, under
+    the resolved root, and DIFFERENT FOR TWO GAME IDS -- the fusion assertion, the one that
+    can fail. Plus F4 EXTENDED to catch a bare relative literal assigned to a *_path
+    attribute, with a known-positive AND a known-negative, because F4 today catches
+    getcwd/Path.cwd() and CANNOT SEE A STRING LITERAL.
+ 2. RETIRE THE F6 ORACLE. Ruled three beats ago; oldest unexecuted ruling on the board.
+    Gate: the symbol-anchored half survives whole, and the builder must STATE IN ONE LINE
+    WHAT COVERAGE THE RETIREMENT LOSES. Removing an oracle must not quietly remove the check
+    it stood in for. Blocked if any live row is still in old form -- and the builder must
+    read :773's own retirement condition and say whether it is met rather than assume it.
+
+A SECOND SITE FOUND THIS BEAT AND NOT PREVIOUSLY LOGGED, AND IT IS WHY RULING 1 IS NOT A
+ONE-LINE CHANGE: health_monitor.py:145 carries THE SAME LITERAL independently, as a default
+argument, and it TRUNCATES that file to 40k lines. Two components, two independent literals,
+one file: one writes it, one truncates it. Fix one and the truncator silently points at a
+different file than the writer -- the same defect a second time, in the shape hardest to
+notice. This is the attribution-by-adjacency genus: the de-cwd sweep found the writer because
+the writer announced itself in the player, and never looked for a second literal elsewhere.
+
+STALLED, NAMED WITH WHY:
+ · THE MOVE -- now stalled on a REAL QUESTION rather than a missing instrument. The
+   instrument landed and said only 21 modules are unreached from anything, and ALL 21 ARE
+   INSTRUMENTS (tools/*, manual_tools/*, conftest, vulture_whitelist), not agent code. THERE
+   IS ALMOST NOTHING TO SEND TO considered_dead/. The port's premise -- "delete the 89%" --
+   did not survive its own measurement. GM ruling asked at Beat 60, outstanding.
+ · evolution_runner.py:905 -- the swallowed-exception report still behind `if self.verbose:`.
+   Routed up at BEAT 58. NO RULING YET. Second beat outstanding.
+ · THE FALSIFIED LEDGER -- now confirmed inert by TWO independent instruments and pinned by
+   me (reachable only via an unused re-export PLUS a duck-typed guess; unreachable when both
+   are removed; constructed by nothing). It is the refutation memory. Still unwired.
+ · RETENTION still dies at the restart -- the one structure representing "what this attempt
+   worked out", discarded at exactly the boundary the economy now runs on.
+ · THE MAP is still not a stage; the gate's PERCEIVE utterance still in shadow.
+ · The 375 unattributed seconds and the ~310MB floor -- fleet-grain, no fleet, parked.
+
+FIGURE 1: executing old rulings is not capability gained. Nothing here moves a level.
