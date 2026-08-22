@@ -3050,3 +3050,146 @@ FIGURE 2, on the apparatus itself: the anchor must not update. 4 oracle tests pa
 across the three affected gate files, ruff clean.
 The builder proved the reds were not its own by reverting all three of its files to HEAD and
 reproducing them identically -- controlled substitution again, and the right method.
+
+=== THE EXAMINATION IS COMPLETE. 502 FILES, EVERY ONE OPENED. ===
+  EXAM_01 engines/egocentric + cognition   76 files   live 68 · preserve  8 · dead  0
+  EXAM_02 engines/ remainder               85 files   live 74 · preserve 10 · dead  1
+  EXAM_03 root + tools + rungs + config    79 files   live 61 · preserve 15 · dead  3
+  EXAM_04 manual_tools + legacy + lab     109 files   live  2 · preserve 39 · dead 68
+  EXAM_05 tests (153, live by constraint) + 91 non-.py rows
+  TOTALS (excluding tests): live 205 · preserve 72 · considered_dead 72 · unreadable 0
+NOTHING MOVED. The list awaits the GM's sign-off, as ruled.
+
+THE FINDING OF THE WHOLE EXAMINATION -- EXAM_02's DEFECT A, and it is not about tidying:
+engines/interfaces.py declares 25 Protocols. ELEVEN OF THEM DECLARE 14 METHODS THAT NO
+IMPLEMENTATION IN THE TREE DEFINES. engines/registry.py:42-45 has the type-checking imports
+COMMENTED OUT, so nothing catches it. Each missing name is exactly the string a live rung
+hasattr-guards -- 21 such call sites -- so the guard silently takes the false branch forever.
+THREE PRIORITY-ORDERED RUNGS HAVE NO REACHABLE BODY AT ALL: NearMissAnalyzerRung,
+ImaginationBudgetRung, NetworkExplorationStatsRung. Permanent no-ops in the ladder the agent
+descends every decision. rungs/hypothesis.py:47 falls back to the literal 'exploring' every
+call, so its "theory contradicted" branch is unreachable.
+AND FOUR OF THE FOURTEEN ARE PURE NAME MISMATCHES:
+    get_proven_sequence  vs  get_proven_sequences     (a missing 's')
+    get_active_beliefs   vs  get_beliefs
+    get_inferred_goal    vs  get_goal
+    suggest_transformation vs get_transformation_needed
+Four capabilities are one identifier apart from working. This is hasattr-guarding as a
+silent-failure machine: a typo becomes a permanently-taken false branch with no error, no
+log line, and no test -- the raised-and-unread genus with nothing even raised.
+SECOND: all 19 package-level get_*() lazy accessors in engines/{perception,memory,planning,
+regulation,social,consciousness}/__init__.py ARE NEVER CALLED, which invalidates 17
+reachability rows in the automated inventory (16 have a different real site; one does not).
+THIRD: engines/reasoning/deliberation_audit.py is a WRITER WITH NO READER -- constructed
+live at decision_rung_system.py:636, fills the top-5-alternatives table every episode, and
+its four analysis methods have zero callers.
+FOURTH, and it explains a smaller mystery: the `import os; os.environ[...]` prelude puts the
+docstring after a statement in 63 FILES, so their __doc__ is None. The same inert bytecode
+prelude that states a rule it cannot enforce ALSO destroys the module docstring. Two-line
+reorder.
+CORRECTION TO A LEAD I GAVE THE SLICE: palette_detector and spatial_learning are NOT
+unreached -- both are lazy-imported by registered, priority-ordered live rungs. The
+capability claim stood; my reachability implication did not.
+CAUTION BEFORE ANY MOVE: sequence_miner is not inert -- it loads on every engines.planning.*
+import and its module-level logger OPENS A DB HANDLER.
+
+=== THE GM'S CACHE AND TOOL RULES, EXECUTED AND CONFIRMED BY MEASUREMENT ===
+CACHES DELETED: 109 __pycache__ dirs, 826 .pyc files, .pytest_cache, .ruff_cache -> all 0.
+MADE DURABLE, not merely deleted: pytest.ini `-p no:cacheprovider`; pyproject `cache-dir`;
+and a NEW ROOT conftest.py setting `sys.dont_write_bytecode = True` -- the earliest file
+pytest imports, and the only in-process lever that works. Its docstring records why it
+exists rather than the 210 inert statements: they assign an env var the interpreter reads
+ONLY at startup. The fleet path was already correct (the supervisor sets it in the SPAWN
+env, before the interpreter starts).
+CONFIRMED OFF BY RUNNING, not assumed: a real `ruff check` -> no .ruff_cache recreated; a
+real `pytest tests/gate/test_sprint_keeper.py` (21 passed) -> no .pytest_cache, 0
+__pycache__ dirs after.
+COPILOT FILES DELETED: .github/copilot-instructions.md and -v4-legacy.md (git rm). Note what
+goes with them: they were the ONLY invocation site outside checklists/ for the lab modules
+and for analyze_dependencies. Remaining citations are inside .runs/arms/<hash>/, which is a
+COPY of the repo, not the repo.
+
+=== THE MANDATED PRE-REFACTOR TOOL CANNOT RUN ON THIS REPO. THE REASON IS THE REPO'S NAME. ===
+pydeps 3.0.7 IS installed. Pointed at the real entrypoint from root it refuses, and the
+reason is structural: pydeps builds a synthetic dummy module containing literal
+`import <modname>` statements and runs modulefinder on it. `Ouroboros-Redux` CONTAINS A
+HYPHEN, so it is not a valid Python identifier, cannot appear after `import`, and
+modulefinder traces nothing -- pydeps produces an empty graph BY CONSTRUCTION.
+So the GM's standing rule -- run the dependency analysis before every major refactor -- has
+been unrunnable with the real tool for as long as the directory has had that name. That is
+why a hand-rolled copy exists under manual_tools; and THAT copy sees 36 of 501 modules and
+prints nothing for --cycles. The instrument was replaced by a worse one because the good one
+could not start, and neither fact was recorded anywhere.
+THE ANALYSIS STANDS ON MY OWN AST PASS (all 501 modules, parse-only): 908 edges = 635 static
++ 273 lazy (30.1% in-function); 5 cycles with lazy included, TWO CROSSING PACKAGE BOUNDARIES
+-- decision_rung_system <-> engines.cognition.edge_inference <-> shadow_testing, and
+database_logger <-> engines.engine_logger. Those two are what a move can break, because
+relocation changes import order and a cycle fails in only one order.
+
+=== MOVED (GM-authorised): architecture/ + checklists/ -> considered_dead/ ===
+`git mv`, fully recoverable. evolution_runner still imports cleanly after the move.
+WHAT THE MOVE BREAKS, stated rather than discovered later -- architecture/ IS NOT ONLY
+DOCUMENTATION. Three code sites read DATA out of it by path:
+  manual_tools/infer_answerable_by.py:304   default="architecture/rung_dependency_matrix.json"
+  manual_tools/profile_baseline.py:278      PROJECT_ROOT / "architecture" / "rung_dependency_matrix.json"
+  manual_tools/profile_baseline.py:343      default="architecture/baseline_profile.json"
+Both tools are themselves preserve/dead, so nothing live breaks -- but those defaults now
+point at nothing. Five docstring references (decision_rung_system.py:119, event_bus.py:13,
+lab/__init__.py:2, legacy/learning_systems.py:762, manual_tools/utilities/run_context.py:9)
+and two README links become dangling pointers.
+checklists/ moved clean: ZERO code citations. Its only invocation sites were the two copilot
+files deleted an hour ago -- so deleting those and moving this removes the last caller of
+the lab/ modules and of analyze_dependencies, which is worth knowing before the preserve
+list is ruled on.
+
+=== .runs: WHAT IT IS, AND IT IS NOT DELETABLE ===
+13 GB, gitignored (.gitignore:88 `.runs/*`), 8 files tracked by exception.
+  .runs/swarm/  9.3 GB  <- THE AGENTS' MEMORY. 25 boxes, ~400 MB each: core_data.db
+                           (284 tables: agents, genomes, generations, results) + ego_fabric
+                           (atoms, mint_verdicts, narration, settlements, frontier). This is
+                           everything the fleet has learned. Deleting it is a reset to zero.
+                           Read at runtime by tools/beat_rates.py:165, bracket_rt.py:60,
+                           build_action_book.py:646; written by every worker (its cwd IS its
+                           box). NOT DELETABLE.
+  ~2.7 GB of PAST EXPERIMENT RUNS, all last written 2026-08-06 to 2026-08-18 and none since:
+    rescore 423M, scored20 553M, legacy_db 410M, hermetic 249M, frontier_cap 239M,
+    compound1 235M, harvest_cap 228M, compound2 202M, assembly1 121M, cold_venv 50M,
+    oldlogs 44M, plus ~15 small dirs (base, earned, cur, m7on/off, m2on, final, ...) at
+    2026-08-06, and TWO EMPTY ONES (archive/, c34_base_gamma/).
+  .runs/arms/  149M  <- A COMPLETE SECOND COPY OF THE REPO (5 entries; 112913b692a2 holds
+                        BUILD_PROGRAM.md, CLAIM.md, the lot). THIS IS THE MOVING-TREE HAZARD
+                        BY A THIRD MECHANISM: a second importable tree inside the repo, with
+                        its own .py, its own .github, and until tonight its own bytecode. It
+                        is also why several greps this week returned phantom hits.
+  54 loose files: profiles (.pstats), logs, and my own instrument dumps from tonight.
+RECOMMENDATION (not executed -- deletion needs the GM's sign-off): keep .runs/swarm entire;
+the ~2.7 GB of dated experiment directories and the arms copy are archival and none has been
+written in 4+ days. The arms copy is the one I would remove first, because it is not merely
+stale storage -- it is a second tree that can be imported from and grepped into.
+
+=== .runs ARCHIVE DELETED (GM sign-off): 13 GB -> 9.3 GB ===
+Manifest written FIRST to record/findings/RUNS_ARCHIVE_MANIFEST.md, because .runs is
+gitignored and this is the ONE deletion tonight that git cannot undo. Everything except
+swarm/ removed: rescore, scored20, legacy_db, hermetic, frontier_cap, compound1/2,
+harvest_cap, assembly1, cold_venv, oldlogs, ~15 small 2026-08-06 dirs, two empty ones --
+and .runs/arms/, THE COMPLETE SECOND COPY OF THE REPO, which was the moving-tree hazard by
+a third mechanism and the source of phantom grep hits all week. swarm/ intact: 33 entries,
+9.3 GB, every box's core_data.db and ego_fabric untouched. 54 loose instrument files kept.
+
+=== OLD TESTS MOVED, AND THE DATE SORT WOULD HAVE BROKEN THE SUITE ===
+Sorted by LAST COMMIT DATE, not mtime -- mtime lies after any checkout, and this tree has
+been checked out and worktree'd repeatedly this week. The split is clean: 27 files last
+committed 2026-02, 126 in 2026-08, nothing in between.
+BUT TWO OF THE 27 ARE THE SUITE'S OWN SCAFFOLDING: tests/conftest.py (83 lines; it sets
+sys.path for the ENTIRE suite -- and tests/gate has NO conftest of its own, so all 125 gate
+tests depend on it) and tests/__init__.py. A mechanical date sort would have moved both and
+broken every test in the repo. THE REQUIREMENT BEATS THE RULE, again, and this time the rule
+was a date.
+MOVED 25 pre-August test files -> considered_dead/tests/. Collection after the move: 1,949
+tests collected, no errors. Among the 25 are the three EXAM_05 found gate NOTHING --
+test_sequence_system, test_reasoning_data_usage, test_reasoning_system_fixes -- which import
+nothing from this project and assert against logic re-typed inside the test file.
+FOOTNOTE THAT IS NOT A FOOTNOTE: tests/conftest.py contains the SAME INERT
+os.environ['PYTHONDONTWRITEBYTECODE'] line as the other 210 files. The suite's own config
+has been asserting the cache rule and not enforcing it for six months; the new root
+conftest.py enforces it properly.

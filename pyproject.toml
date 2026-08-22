@@ -6,6 +6,8 @@
 # scoped paths, so `ruff check .` at repo root never touches legacy files.
 
 [tool.ruff]
+# GM rule: no caches anywhere. A cached lint is a lint of a file that may no longer exist.
+cache-dir = "/dev/null"
 line-length = 100
 include = [
     "pyproject.toml",
