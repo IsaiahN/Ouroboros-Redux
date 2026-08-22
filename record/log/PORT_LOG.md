@@ -3479,3 +3479,27 @@ OWN PACKAGE'S __init__.py. A re-export is not a mention; it is the package's con
 STATED SO IT IS NOT LOST: the fleet run remains the only test that reaches string and lazy
 imports, and it has now earned that claim twice in one night -- once for the manual_tools
 lazy import weeks ago, once here. A green suite is necessary and it is not sufficient.
+
+=== BEAT 53 (2026-08-22 ~04:50; fleet UP 33 min on e52ee32 + the sequence_miner restore) ===
+ASK: nothing.
+THE GROUND, and it is the first non-zero reading in five beats: 5 LEVELS COMPLETED across
+25 boxes in the last hour (g50t 2, cd82 1, lp85 1, sk48 1). GAMES WON 0/25. 21 boxes
+completed nothing. Best-level is unchanged everywhere -- these are repeats of ground already
+held, not new ground.
+FLEET HEALTH after the relaunch: 25/25 up, MEM-KILLS 0, RECYCLES 0, largest worker 772MB.
+Against the pre-commit fleet's 78 mem-kills in three hours that is a different machine --
+but it is 33 minutes, and the sick six took ~15 minutes per tooth, so this is NOT YET
+EVIDENCE. The peak-tracking instrument is what settles it and it has not been run.
+RATES THIS HOUR: still NOT WINDOWABLE. No ego_fabric record carries a timestamp, so minted/
+used/composed/retired per hour cannot be computed at all until PREREG_SEQ_WATERMARK lands.
+I will not print a rate I cannot window; the tool prints NOT READABLE and names what record
+would close it. That is the honest state of mandate item 3.
+STALLED SINCE BEAT 52: g7 (0, and still UNMEASURED rather than failed -- rung 0b's
+instrument exists but has not been run against this fleet); split-half (0/0/5, needs fleet
+hours); the memory cause (transient spikes, unnamed); the 273-second window inside play_game
+(the stack sampler filtered its own answer out and the corrected run has not been made).
+UNSTALLED THIS BEAT: the ground moved for the first time since the baseline was sealed --
+5 levels. Small, and it is movement.
+ADVANCED: the salient replay gate build dispatched under HOLD -- the first build to run with
+the fleet LIVE rather than halted, which is only safe because D-13's fix defers recycles
+under HOLD. That is the fix being used, one beat after it landed.
