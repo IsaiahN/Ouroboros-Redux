@@ -3611,3 +3611,44 @@ no longer "does composition raise g7" but "why does no mechanism -- composed, mi
 abduced or explored -- ever cross ONE level beyond playback". Rung 0b's exposure floor and
 the split-half instrument both read against a system that has never, in 3,474 sessions,
 produced a novel crossing.
+
+=== FLEET RETIRED (GM ruling). PLAN WRITTEN, NOT BUILT: record/prereg/PLAN_SWARM_SHAPE.md ===
+52 processes stopped; HOLD says the shape is being replaced, not restarted.
+WHAT THE ARC SWARM IS, from the docs rather than inference: "one agent instance per game",
+"runs all agents concurrently USING THREADS", scorecards managed for you, invoked as
+`main.py --agent X`. The agent contract is TWO methods -- is_done(frames, latest) and
+choose_action(frames, latest). AND IT LIVES IN THE ARC-AGI-3-AGENTS REPO, NOT IN THE arc_agi
+TOOLKIT WE HAVE INSTALLED: our package ships Arcade.make(), the wrappers, scorecards and
+listen_and_serve, and NO swarm runner. Adopting it means adopting that harness.
+Local play: ~2,000 FPS, no API key, "run as many instances as you want" -- no rate limit
+offline. The GM's "should be super fast" is right about the ENVIRONMENT.
+THE FINDING THAT DECIDES THE DESIGN, and it must be ruled before anything is built: THE
+SWARM RUNS AGENTS AS THREADS, which is correct for an I/O-BOUND agent that blocks on an HTTP
+call and releases the GIL. OURS IS CPU-BOUND AND OFFLINE -- 3.7 to 46 SECONDS PER ACTION
+inside our own numpy/Python cognition, against an environment that does 2,000 FPS. 25 of our
+agents as 25 threads SERIALISE ON ONE GIL: one core of cognition for the whole fleet, against
+the ~3.4 of 4 cores that 25 processes use today. On this box that is a 3-4x SLOW-DOWN, not a
+speed-up. The swarm's concurrency is the right shape for a thin agent and the wrong shape for
+a heavy one, and ours is heavy for reasons that are the project's actual subject.
+RECOMMENDED: option (b) -- adopt the swarm's AGENT INTERFACE, run process-per-game
+underneath. Keeps four cores, drops the supervisor, drops the population, one entry point.
+THE LOAD-BEARING BREAKAGE, and it is SILENT: cognitive_loop.py:133/:262/:1940/:2064 build
+KnowledgeFabric("ego_fabric") -- a RELATIVE path. Today each worker's cwd IS its box, so it
+resolves per game BY ACCIDENT. 25 games in one process share one cwd, so ALL 25 WOULD READ
+AND WRITE ONE FABRIC: every atom, narration record and settlement fused across games, with
+nothing raising. resolve_db_path() has the identical flaw against Path.cwd() -- and I built
+that anchor tonight, correct for this shape and wrong for the proposed one.
+DE-CWD-ING THE AGENT IS WORTH DOING WHATEVER IS RULED: the current code is correct only by
+the accident of one process per box.
+WHAT WE GENUINELY LOSE, named rather than worked around: replay and mastery-lite as wired --
+cognitive_game_player owns the banked prefix, the salient path, the corpse guard and the
+gate, and the swarm's contract has NO session-start hook, so replay must become "the first N
+choose_action calls return banked actions". That is a real port and the one place I expect
+the work to exceed its estimate. Also cross-game seeding (OURO_FABRIC_SEEDS) and the per-box
+database, both re-expressible, neither free.
+WHAT COSTS NOTHING TO LOSE: the population, the lottery, prestige, the operating modes --
+28,886 agents with ONE genome, prestige 0 on every one and written by nothing, 2 of 4 modes
+ever used. The swarm's "one agent instance per game" replaces it exactly.
+NOT CLAIMED: that this makes the agent fast. 375 of the 389 seconds before a first cognitive
+cycle are STILL UNATTRIBUTED. The shape problem and the speed problem are separate and this
+plan solves only the shape.
