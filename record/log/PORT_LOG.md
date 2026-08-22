@@ -3772,3 +3772,44 @@ ALSO: models/dynamics_model.pt (7.7 MB, tracked) showed as deleted and was claim
 nobody -- not the builder's, not deliberately mine. Most likely swept by my own `git add -A`
 earlier tonight, which is the same error that took a builder's in-flight work into d86dc1a.
 RESTORED from git. Second consequence of that one command.
+
+---
+
+## BEAT 57 — THE MOVE IS IN FLIGHT; THE ASK IS A DECISION, NOT A NUMBER
+
+STATE: HEAD f3eb76f, tree clean, ZERO python processes. Fleet retired and staying retired.
+One builder out: the ladder slice to considered_dead/, with its falsifier pre-registered.
+
+RATES THIS HOUR — and the honest form of this line is that there are none. Nothing is
+running, so minted/used/composed/retired are all 0/hr BY CONSTRUCTION, not by stall. The
+denominator is zero. Reporting a mint rate here would be reporting a proxy for an economy
+that is deliberately switched off during the port. LEVELS ARE MUTE AND THAT IS THE METRIC.
+
+THE ECONOMY, LAST TRUE READING (unchanged, restated so no beat implies motion):
+  best level ever 2, on one box · 1,496 crossings · 0 games won · 25/25 target
+  1,542 sessions, NOT ONE ever exceeded its box's ceiling
+  28,886 agents, ONE distinct genome · prestige 0 written by nothing
+  => the network layer was OFF for the fleet's whole life. The output is the single-agent
+     stack's output. That stack is the 46 modules the move is preserving.
+
+STALLED SINCE THE LAST BEAT — named, with why:
+  · THE MOVE ITSELF — was gated on the de-cwd builder returning. It returned (f3eb76f).
+    Ungated as of this beat; slice 1 dispatched. No longer stalled.
+  · 375 UNATTRIBUTED SECONDS inside play_game — stalled, and it stays stalled by choice:
+    it is a fleet-grain measurement and there is no fleet. Re-opens when a game runs.
+  · ~310MB UNATTRIBUTED MEMORY FLOOR — same reason, same disposition.
+  · THE F6 ORACLE — ruled retired, NOT YET REMOVED. Every build near a claim site pays the
+    tax until it is. This is the oldest unexecuted ruling on the board.
+  · THE OBSERVATION LOG literal at cognitive_game_player.py:83 — ruled folded into the port,
+    not yet folded. F4 cannot see a bare literal, so nothing will catch it but a person.
+  · THE 55 PACKAGE __init__ RE-EXPORTS with no call site — the cheapest subtraction on the
+    board and untouched. It is what makes the closure 215 instead of 46.
+  · FalsifiedLedger still constructed by NOTHING. Retention still dies at the restart.
+
+RULE ADOPTED (GM, on the second incident): `git add -A` in a tree with concurrent builders
+is A COMMIT OF WORK YOU HAVE NOT READ. Explicit paths only. Mechanical, because the
+resolution was not. Cost so far: one builder's in-flight work, one 7.7MB tracked model.
+
+CARRIED, GM: THE FLEET RUN IS THE TEST, NOT THE SUITE. String-loaded modules and lazy
+imports failed as WARNINGS twice in this examination; a green 2038 sees neither. Every
+slice gets a run, not a pytest exit code.
