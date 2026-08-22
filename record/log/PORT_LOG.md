@@ -4101,3 +4101,65 @@ answer, cwd absent from the answer. FIGURE 10 ASSERTED: the F4 extension fires o
 constructed violation and returns EMPTY on the repaired shape -- a detector that reds the fix
 is worse than no detector. FIGURE 1: NEITHER RULING IS CAPABILITY GAINED. This is port debt
 paid. No level moved.
+
+---
+
+## BEAT 63 — THE REFUTATION MEMORY IS DISPATCHED, AND THE SEAM IT WIRES INTO ALREADY EXISTS
+
+RATES: minted 0 · used 0 · composed 0 · retired 0 -- zero processes, denominator zero, BY
+CONSTRUCTION. LEVELS MUTE AT 2. Economy unchanged: best level 2 on one box, 1,496 crossings,
+0 games won of 25, 1,542 sessions none exceeding its box's ceiling, one genome / 28,886.
+
+DISPATCHED: wire the FalsifiedLedger. GM item #1 of the three-item port direction, and the
+one thing in this tree confirmed inert by TWO independent instruments plus a grep.
+
+THE FIND THAT MADE THIS BRIEFABLE: I did not have to invent a seam. scheduler.py:187 ALREADY
+KEEPS ONE --
+    self.plan_wrong[str(sid)] = self.plan_wrong.get(str(sid), 0) + 1
+That is a reject-memory already: unweighted, non-decaying, in-memory, keyed by sid, and DYING
+AT EVERY RESTART. FalsifiedLedger is the first-class version of exactly that -- weighted,
+decaying, defeasible, persistable via bind(store). So the job is a PROMOTION of an existing
+crude structure, not a new organ. Briefed with the stop condition attached: READ WHO CONSUMES
+plan_wrong FIRST, and IF IT HAS NO CONSUMER, STOP AND SAY SO -- wiring a ledger into a dead
+counter is the Beat 58 mistake one layer up.
+
+THE GATE IS BEHAVIOURAL BECAUSE FIGURE 5 GOVERNS IT. "The ledger fired N times" is explicitly
+NOT the gate. Five assertions pre-registered, and the second is the one that can fail:
+ 1. POSITIVE -- a plan that RAN a real trial and failed repeatedly is DE-PRIORITISED against
+    an untried alternative, asserted on the scheduler's OUTPUT ORDERING, not the ledger's
+    internals.
+ 2. THE NON-TRIAL -- the same plan BLOCKED BEFORE THE DO-OPERATOR REGISTERED must accumulate
+    NO weight. This is the component's own EXPRESS-BEFORE-JUDGE bound: "I failed to do X"
+    must never be coded as "X is inert." The builder must find an HONEST SOURCE for
+    trial_ran, not pass True.
+ 3. AUTOIMMUNITY -- a refuted key reopens on decisive surprise; bias() stays bounded below 1
+    so exploration is never fully suppressed. Assert the bound, not the intent.
+ 4. DECAY over the LOGICAL clock -- an integer the caller advances. NO WALL-CLOCK: a
+    wall-clock in a fixture has burned this project once already (my own test_beat_rates).
+ 5. PERSISTENCE -- decide and STATE. bind(store) exists so the ledger survives episodes,
+    "the whole point". If persisted it rides the PER-GAME ROOT; there are seven cwd-relative
+    sites in this tree's history and the newest was found yesterday.
+
+THE OPEN DESIGN DECISION IS THE COMPONENT'S OWN AND IT IS HANDED OVER EXPLICITLY: the KEY.
+Its docstring names PATHOGEN MIMICRY -- a dead approach re-tried under a slightly different
+key dodges the ledger -- and says the choice is "isolated to the CALLER's key choice, not
+baked in". Briefed to justify the key in BOTH directions with evidence from how sid is
+FORMED, not from what it is named. Too fine and it never fires; too coarse and it
+de-prioritises what was never tried.
+
+STALLED, WITH WHY -- THREE ARE NOW AT THE GM'S SEAT AND I AM NOT BLOCKED ON THEM:
+ · THE MOVE -- premise did not survive measurement. Only 21 modules unreached from anything
+   and ALL 21 ARE INSTRUMENTS. Asked Beat 60.
+ · evolution_runner.py:905 -- swallowed-exception report behind `if self.verbose:`. Asked
+   Beat 58. THIRD BEAT OUTSTANDING.
+ · engines/registry.py db_path="core_data.db" -- the seventh cwd-relative site, LIVE on the
+   ladder's path, guard correct and defeated by a caller wearing the escape hatch. Asked
+   Beat 62. Held as pinned-count debt, not an exemption.
+ · RETENTION still dies at the restart -- GM port item #2, untouched. Note it is ADJACENT to
+   this build: bind(store) is the same persistence question one component over.
+ · THE MAP still not a stage; the gate's PERCEIVE still in shadow -- GM port item #3.
+ · The 375 unattributed seconds and the ~310MB floor -- fleet-grain, no fleet, parked.
+
+FIGURE 1, AND IT IS THE POINT OF THIS BEAT: WIRING IS NOT CAPABILITY GAINED UNTIL A LEVEL
+MOVES. A refutation memory that records perfectly and changes no outcome is a defect with
+good documentation. Nothing here has moved a level. Levels are mute at 2.
