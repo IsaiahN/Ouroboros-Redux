@@ -458,8 +458,13 @@ class TestTheReplayHook:
         A hook that requires `_ego_fabric` to already exist is reachable and does
         nothing, every time, in production."""
         from cognitive_loop import CognitiveLoop
-        monkeypatch.chdir(tmp_path)                  # the fabric root is relative
-        loop = CognitiveLoop()                       # exactly as play_game builds it
+        monkeypatch.chdir(tmp_path)
+        # exactly as play_game builds it -- INCLUDING the per-game data root, which
+        # play_game threads in from data_root.game_data_root(game_id). Before the
+        # de-cwd build (2026-08-22) the root was the relative literal "ego_fabric"
+        # and this line was a chdir; a fresh loop that is not told its root now
+        # refuses rather than writing into whatever directory it is standing in.
+        loop = CognitiveLoop(data_root=str(tmp_path))
         loop._game_id = "g1"
         loop._ego_agent_id = "agentA"
         assert getattr(loop, "_ego_fabric", None) is None, (

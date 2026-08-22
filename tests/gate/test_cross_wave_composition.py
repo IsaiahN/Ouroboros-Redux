@@ -86,7 +86,7 @@ def import_verify_plan(tmp_path_factory):
         # 2. The home loop mounts the sibling through the shipped env-var path.
         os.environ["OURO_FABRIC_SEEDS"] = sib_root
         from cognitive_loop import CognitiveLoop
-        loop = CognitiveLoop()
+        loop = CognitiveLoop(data_root=str(root))
         loop.start_game(GAME, [6], max_actions=200)
         obs = types.SimpleNamespace(levels_completed=1)
         stage: dict = {"out": {}}

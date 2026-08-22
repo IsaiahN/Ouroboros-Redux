@@ -78,9 +78,11 @@ def _reset_pattern(loop, rounds, reset_act=4):
     return out.getvalue()
 
 
-def _loop(game=GAME_ID, actions=(1, 2, 3, 4)):
+def _loop(game=GAME_ID, actions=(1, 2, 3, 4), data_root=None):
     from cognitive_loop import CognitiveLoop
-    loop = CognitiveLoop(verbose=False)
+    # data_root: the de-cwd build (2026-08-22). A loop is TOLD where its
+    # game's data lives; the tests that exercise the fabric hand it run_dir.
+    loop = CognitiveLoop(verbose=False, data_root=data_root)
     loop.start_game(game, list(actions), max_actions=500)
     return loop
 
@@ -100,7 +102,7 @@ def run_dir(tmp_path):
 class TestBumpEpisodeOncePerBoundary:
 
     def test_ep_monotonic_across_same_level_retries(self, run_dir):
-        loop = _loop()
+        loop = _loop(data_root=str(run_dir))
         with redirect_stdout(io.StringIO()):
             _drive(loop, _board(0), 1, _board(1))    # lazy-inits fabric + mint
         mint = getattr(loop, "_mdl_mint", None)
@@ -118,7 +120,7 @@ class TestBumpEpisodeOncePerBoundary:
             "ep ordinal (bump_episode not called at the end_game settle site)")
 
     def test_a_second_end_game_never_double_bumps(self, run_dir):
-        loop = _loop()
+        loop = _loop(data_root=str(run_dir))
         with redirect_stdout(io.StringIO()):
             _drive(loop, _board(0), 1, _board(1))
         mint = loop._mdl_mint

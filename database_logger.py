@@ -41,7 +41,9 @@ class DatabaseLogHandler(logging.Handler):
         # D-7 (2026-08-22): the DATABASE_PATH fallback used to end in the relative
         # string 'core_data.db', so a handler constructed anywhere but a box wrote its
         # log database to that cwd. resolve_db_path reads DATABASE_PATH itself and
-        # refuses anything outside .runs/. Imported here, not at module top, because
+        # refuses anything outside the data root (data_root.py, de-cwd build
+        # 2026-08-22 -- the root is no longer .runs/ by definition; on Kaggle it is
+        # /kaggle/working/ouro). Imported here, not at module top, because
         # this handler is constructed during the engines import (see D-6 below) and the
         # import graph is kept shallow deliberately.
         from database_interface import resolve_db_path

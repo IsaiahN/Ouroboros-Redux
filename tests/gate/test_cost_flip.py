@@ -163,7 +163,7 @@ def _drive_the_loop_plan_path(tmp_path, monkeypatch, warm):
     from engines.egocentric.effects import learn_effect
     monkeypatch.chdir(tmp_path)
     before, after = _frames()
-    loop = CognitiveLoop()
+    loop = CognitiveLoop(data_root=str(tmp_path))
     loop.start_game(GAME, [6], max_actions=200)
     obs = types.SimpleNamespace(levels_completed=1)      # playing level 2
     with redirect_stdout(io.StringIO()):

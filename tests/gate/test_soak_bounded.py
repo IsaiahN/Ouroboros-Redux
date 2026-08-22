@@ -54,7 +54,7 @@ def soaked_loop(tmp_path_factory):
         random.seed(4242)
         from cognitive_loop import CognitiveLoop
         from engines.cognition.cognitive_frame import CognitiveFrame
-        loop = CognitiveLoop()
+        loop = CognitiveLoop(data_root=str(run_dir))
         loop.start_game(GAME_ID, [1, 2, 3, 4, 5, 6], max_actions=1000)
         base = np.zeros((64, 64), dtype=int)
         base[10:13, 10:13] = 2                       # a static block (negatives food)

@@ -131,7 +131,7 @@ def _goal_bank(loop, game, level, pre, post) -> int:
             # same agent, no seeds.
             from engines.egocentric.fabric import KnowledgeFabric
             _fab = KnowledgeFabric(
-                "ego_fabric",
+                _ego_fabric_root(loop),
                 agent_id=str(getattr(loop, "_ego_agent_id", "") or "agent"),
                 kin_key="v4")
             loop._ego_fabric = _fab
@@ -260,7 +260,7 @@ def _narr_bet(loop, action_num, cf, pg0, frame=None) -> None:
             # silent -- and a bet recorded after the action is no bet at all.
             from engines.egocentric.fabric import KnowledgeFabric
             _fab = KnowledgeFabric(
-                "ego_fabric",
+                _ego_fabric_root(loop),
                 agent_id=str(getattr(loop, "_ego_agent_id", "") or "agent"),
                 kin_key="v4")
             loop._ego_fabric = _fab
@@ -804,6 +804,7 @@ class CognitiveLoop:
         context_builder: Any = None,
         db: Any = None,
         verbose: bool = False,
+        data_root: Any = None,
     ):
         """
         Initialize the cognitive loop.
@@ -813,11 +814,21 @@ class CognitiveLoop:
             context_builder: ContextBuilder instance (for backward compat context)
             db: Database interface for loading prior knowledge
             verbose: Print cognitive frames to console
+            data_root: THIS GAME'S data root, threaded in from the entry point
+                (``data_root.game_data_root(game_id)``). Every fabric this loop
+                builds hangs off it. It is NOT derived here and there is no
+                default: a loop that was never told where its game's data lives
+                must not guess, because the only available guess is the cwd and
+                the cwd is shared by every game in the process.
         """
         self._decision_system = decision_system
         self._context_builder = context_builder
         self._db = db
         self._verbose = verbose
+        # The threaded per-game root. None means "not told", which _ego_fabric_root
+        # turns into a raise rather than into a shared directory.
+        self._ego_data_root: Optional[str] = (
+            str(data_root) if data_root not in (None, "") else None)
 
         # Core components
         self._perceiver = Perceiver()
@@ -1938,7 +1949,7 @@ class CognitiveLoop:
                 # game has nothing to narrate and creates nothing on disk.
                 from engines.egocentric.fabric import KnowledgeFabric
                 _fab = KnowledgeFabric(
-                    "ego_fabric",
+                    _ego_fabric_root(self),
                     agent_id=str(getattr(self, "_ego_agent_id", "") or "agent"),
                     kin_key="v4")
                 self._ego_fabric = _fab
@@ -2052,9 +2063,11 @@ class CognitiveLoop:
                 self._ego_prev_centroid = None
                 self._ego_last_known_cen = None  # AMENDMENT 3b3: survives None steps
             # ═══ PHASE 3a: the knowledge fabric — lazy init + SEED once per game ═══
-            # Relative root (cwd-scoped: hermetic). Priors feed the spine at an
-            # INHERITED price (credibility>=1 opens the gate; below, bias only).
-            # Init-once flag: replay-fed episodes still need fabric + seeding.
+            # THE ROOT IS THE THREADED PER-GAME ROOT (data_root.py), not the cwd:
+            # two games in one process must not share a fabric. Priors feed the
+            # spine at an INHERITED price (credibility>=1 opens the gate; below,
+            # bias only). Init-once flag: replay-fed episodes still need fabric +
+            # seeding.
             if not getattr(self, "_ego_fabric_inited", False):
                 try:
                     from engines.egocentric.fabric import KnowledgeFabric
@@ -2062,7 +2075,7 @@ class CognitiveLoop:
                         "OURO_FABRIC_SEEDS", "").split(";")
                         if _s.strip() and os.path.isdir(_s.strip())]
                     self._ego_fabric = KnowledgeFabric(
-                        "ego_fabric", seeds=_sd,
+                        _ego_fabric_root(self), seeds=_sd,
                         agent_id=str(getattr(self, "_ego_agent_id", "") or "agent"),
                         kin_key="v4")
                     self._ego_seeded = {}          # seeded cell -> prior idea id
@@ -5418,3 +5431,42 @@ def _gate_step(loop, action_num, cf, nsp, frame) -> None:
         _g.step(_state["step"], _state, _ledger)
     except Exception:
         _swal(loop, "OTHER")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE PER-GAME FABRIC ROOT  (the de-cwd build, 2026-08-22)
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: The fabric's directory inside one game's root. The ONE spelling of it in the
+#: loop -- four lazy-init sites used to carry the relative literal "ego_fabric"
+#: each, which is four places for the anchor to drift.
+EGO_FABRIC_DIRNAME = "ego_fabric"
+
+
+def _ego_fabric_root(loop) -> str:
+    """Where THIS loop's fabric lives -- from the threaded root, never from the cwd.
+
+    THE DEFECT THIS CLOSES (record/prereg/PLAN_SWARM_SHAPE.md section 3 item 1):
+    the four lazy-init sites below passed the RELATIVE string "ego_fabric" to
+    KnowledgeFabric, so the fabric landed wherever the process was standing. One
+    process per game box made that accidentally right; two games in one process
+    makes it silently wrong -- both loops write ONE fabric, every atom and every
+    narration record merged across games, nothing raising.
+
+    THE RAISE IS THE POINT (FIGURE 10, install what can be violated). A loop that
+    was not told its root has exactly one thing it could fall back to -- the cwd --
+    and that is the defect. So it refuses. The four call sites are inside the
+    loop's containment try/except, so the refusal shows up as an absent fabric and
+    a swallow counter rather than as a crash mid-episode; what it can never do is
+    silently write into another game's library.
+    """
+    root = getattr(loop, "_ego_data_root", None)
+    if not root:
+        from data_root import DataRootUnresolved
+        raise DataRootUnresolved(
+            "this CognitiveLoop has no data root, so it has nowhere to put a "
+            "fabric. Pass one in: CognitiveLoop(..., data_root=game_data_root("
+            "game_id)) -- see data_root.py. There is deliberately no default: the "
+            "only one available is the current working directory, which every "
+            "game in the process shares, and fabrics that share a directory fuse.")
+    return os.path.join(str(root), EGO_FABRIC_DIRNAME)

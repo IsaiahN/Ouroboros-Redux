@@ -124,7 +124,7 @@ def episode(tmp_path_factory):
     try:
         random.seed(20260814)
         from cognitive_loop import CognitiveLoop
-        loop = CognitiveLoop()
+        loop = CognitiveLoop(data_root=str(run_dir))
         loop.start_game(GAME_ID, [1, 2, 3, 4, 5, 6], max_actions=500)
         env = SynthEnv()
         obs = types.SimpleNamespace(levels_completed=0)

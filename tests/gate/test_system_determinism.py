@@ -94,7 +94,7 @@ def run_episode(run_root):
     try:
         random.seed(SEED)
         from cognitive_loop import CognitiveLoop
-        loop = CognitiveLoop()
+        loop = CognitiveLoop(data_root=str(run_root))
         loop.start_game(GAME_ID, [1, 2, 3, 4, 5, 6], max_actions=200)
         env = SynthEnv()
         obs = types.SimpleNamespace(levels_completed=0)

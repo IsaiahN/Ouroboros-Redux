@@ -1901,45 +1901,48 @@ class DatabaseInterface:
 # caller's cwd is an anchor that moves. From the repo root and from a tmp dir the
 # default now resolves to the SAME absolute path.
 #
-# WHY THE BOX BRANCH SURVIVES. symbolic_reasoning_engine.py:48-56 records a real
-# 2026-08-20 finding: an earlier anchor of the form `Path(__file__).parent.parent /
-# "core_data.db"` pinned every one of the 25 workers to ONE file at the repo root --
-# "a single evidence pool wearing 25 boxes' clothes". Collapsing the per-box databases
-# is a WORSE defect than the one being fixed, so a cwd already under .runs/ is honoured
-# exactly as today. The change is that a cwd OUTSIDE .runs/ no longer silently gets the
-# root; it gets the declared unboxed anchor, and anything that would land outside
-# .runs/ raises.
+# THE BOX BRANCH IS GONE (2026-08-22, the de-cwd build). It read:
+#     if the cwd is already under .runs/, the cwd IS the base.
+# That was correct for exactly one shape -- one process per game box, spawned with
+# cwd=<its box> -- and it is the defect itself in every other: two games in ONE
+# process share one cwd, so both databases FUSE with nothing raising. The per-box
+# separation that branch protected (symbolic_reasoning_engine.py:48-56, the 2026-08-20
+# finding that an anchor at the repo root put 25 workers on ONE file) is preserved by a
+# BETTER mechanism: the caller PASSES the per-game root explicitly, via
+# ``data_root.game_data_root(game_id)``. Separation is now stated by the entry point
+# rather than inferred from where the process happens to be standing.
 #
 # PURE. No mkdir, no connect, no getenv side effect -- resolving a path must not create
 # one. That is what keeps the D-6 property (import creates no database) true.
 # ─────────────────────────────────────────────────────────────────────────────
 
 DEFAULT_DB_NAME = "core_data.db"
-RUNS_DIRNAME = ".runs"
-
-#: The repo root -- this module sits at the top level, so its own directory IS the root.
-REPO_ROOT = Path(__file__).resolve().parent
-#: The one sanctioned home for agent data. Nothing may default outside it.
-RUNS_ROOT = REPO_ROOT / RUNS_DIRNAME
-#: Where the default lands when the caller is NOT inside a box. Fixed, cwd-independent.
-UNBOXED_DB_PATH = RUNS_ROOT / DEFAULT_DB_NAME
 
 
-class DatabasePathOutsideRuns(RuntimeError):
-    """A DEFAULT database path resolved outside .runs/.
+class DatabasePathOutsideRoot(RuntimeError):
+    """A DEFAULT database path resolved outside the data root.
 
     Loud on purpose. Not a fallback, not a warning, not a silent redirect: a
-    default that silently does the wrong thing in the wrong cwd is the defect
-    this exception exists to make impossible.
+    default that silently does the wrong thing in the wrong directory is the
+    defect this exception exists to make impossible.
     """
+
+
+#: The pre-2026-08-22 name. The rule outgrew ".runs/" the day the Kaggle branch
+#: landed -- the root may now be /kaggle/working/ouro -- but the exception is caught
+#: by name elsewhere, so the old spelling stays as an alias rather than as a defect.
+DatabasePathOutsideRuns = DatabasePathOutsideRoot
 
 
 def _normcased(path: Path) -> str:
     """Absolute, normalised, case-folded -- the form containment must compare in.
 
-    Windows paths differ in case and in separator between ``Path.cwd()`` and a
-    literal, and ``Path.relative_to`` is a pure string operation: without this the
-    containment check would report a box as being outside .runs/.
+    Windows paths differ in case and in separator between two spellings of the same
+    location, and ``Path.relative_to`` is a pure string operation: without this the
+    containment check would report a per-game root as being outside its own root.
+
+    ``abspath`` is reached only for a path that is already absolute here -- every
+    caller normalises its base first -- so this does not smuggle the cwd back in.
     """
     return os.path.normcase(os.path.normpath(os.path.abspath(str(path))))
 
@@ -1950,45 +1953,49 @@ def _is_under(child: Path, parent: Path) -> bool:
     return c == p or c.startswith(p + os.sep)
 
 
-def resolve_db_path(db_path: Optional[Any] = None, *, cwd: Optional[Any] = None) -> str:
-    """Resolve a database path to an ABSOLUTE location under .runs/, or raise.
+def resolve_db_path(db_path: Optional[Any] = None, *, root: Optional[Any] = None) -> str:
+    """Resolve a database path to an ABSOLUTE location under the data root, or raise.
 
-    THE ESCAPE HATCH. An explicit ``db_path`` from a caller is honoured UNCHANGED --
-    tests must be able to hand in a tmp_path, and a caller that names a path has
-    said what it means. It is the DEFAULT that must never land outside .runs/.
+    THE ESCAPE HATCH, UNCHANGED. An explicit ``db_path`` from a caller is honoured
+    VERBATIM -- tests must be able to hand in a tmp_path, and a caller that names a
+    path has said what it means. It is the DEFAULT that must never land outside the
+    root.
 
     THE DEFAULT is a base directory and a filename.
 
-    The BASE is the box when there is one:
-      * ``cwd`` already under .runs/ -- the fleet worker standing in its own box.
-        Yields ``<box>/<name>``, byte-identical to today's accidental behaviour,
-        which is why the halted fleet resumes onto its own databases.
-      * otherwise ``RUNS_ROOT`` -- the declared, cwd-independent anchor.
+    The BASE is ``root`` when the caller passes one -- that is how a per-game
+    database is asked for, ``resolve_db_path(root=game_data_root(game_id))`` -- and
+    otherwise ``data_root.resolve_data_root()``, the one resolver. THERE IS NO CWD
+    BRANCH: the base is either stated by the caller or derived from the rule, never
+    from where the process happens to be standing.
 
     The NAME is ``DATABASE_PATH`` if that names a bare file, else ``core_data.db``.
-    A RELATIVE ``DATABASE_PATH`` is deliberately NOT joined to the cwd: .env.example
-    ships ``DATABASE_PATH=core_data.db``, and joining that to the cwd would put the
-    old defect straight back through the environment. An ABSOLUTE ``DATABASE_PATH``
-    is taken as given -- and is then rule-checked, so pointing it outside .runs/
-    raises rather than quietly winning.
-
-    Every branch is checked against .runs/ and raises if it escapes.
+    A RELATIVE ``DATABASE_PATH`` is deliberately NOT joined to anything: .env.example
+    ships ``DATABASE_PATH=core_data.db``, and joining that to a directory chosen by
+    the process would put the old defect straight back through the environment. An
+    ABSOLUTE ``DATABASE_PATH`` is taken as given -- and is then rule-checked, so
+    pointing it outside the root raises rather than quietly winning.
 
     Args:
         db_path: an explicit path, or None to take the default.
-        cwd: the directory to resolve against; defaults to the real cwd. Injected
-             so a test can assert the resolution for a cwd it is not running in.
+        root: the base the default resolves against -- normally a per-game root from
+              ``data_root.game_data_root``. Defaults to the resolved data root.
 
     Returns:
         The path as a string -- absolute for every default branch.
 
     Raises:
-        DatabasePathOutsideRuns: the default resolved outside .runs/.
+        DatabasePathOutsideRoot: the default resolved outside ``root``.
+        data_root.DataRootUnresolved: ``root`` omitted and no branch of the rule
+            resolved. There is no fallback; that is the point.
     """
     if db_path is not None:
         return str(db_path)
 
-    here = Path(cwd) if cwd is not None else Path.cwd()
+    from data_root import resolve_data_root
+
+    base = Path(root) if root is not None else resolve_data_root()
+    base = Path(os.path.normpath(os.path.abspath(str(base))))
     env = (os.getenv("DATABASE_PATH") or "").strip()
 
     if env and Path(env).is_absolute():
@@ -1997,26 +2004,23 @@ def resolve_db_path(db_path: Optional[Any] = None, *, cwd: Optional[Any] = None)
     else:
         # A relative DATABASE_PATH contributes only its FILENAME -- never a base.
         name = Path(env).name if env else DEFAULT_DB_NAME
-        if _is_under(here, RUNS_ROOT):
-            base, where = here, "the cwd %s (a box under .runs/)" % here
-        else:
-            base, where = RUNS_ROOT, "the unboxed anchor (cwd %s is not under .runs/)" % here
         candidate = base / (name or DEFAULT_DB_NAME)
-        origin = where if not env else "%s with name from DATABASE_PATH=%r" % (where, env)
+        origin = ("the data root %s" % base if not env
+                  else "the data root %s with name from DATABASE_PATH=%r" % (base, env))
 
     candidate = Path(os.path.normpath(os.path.abspath(str(candidate))))
 
-    if not _is_under(candidate, RUNS_ROOT):
-        raise DatabasePathOutsideRuns(
-            "refusing a default database path outside .runs/\n"
+    if not _is_under(candidate, base):
+        raise DatabasePathOutsideRoot(
+            "refusing a default database path outside the data root\n"
             "  resolved to : %s\n"
             "  came from   : %s\n"
             "  the rule    : agent data lives ONLY under %s\n"
-            "A relative default lands wherever the process happens to be standing, so "
-            "it is not an anchor. Pass an explicit db_path if you genuinely mean a "
-            "location outside .runs/ (tests do this with tmp_path); otherwise run from "
-            "a box under .runs/ or leave DATABASE_PATH unset."
-            % (candidate, origin, RUNS_ROOT)
+            "A default that lands outside the root is not an anchor -- it is wherever "
+            "the environment last pointed. Pass an explicit db_path if you genuinely "
+            "mean a location outside the root (tests do this with tmp_path); "
+            "otherwise leave DATABASE_PATH unset."
+            % (candidate, origin, base)
         )
 
     return str(candidate)

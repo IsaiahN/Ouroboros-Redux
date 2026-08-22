@@ -123,7 +123,7 @@ def fed_loop(tmp_path_factory):
         from cognitive_loop import CognitiveLoop
         from engines.cognition.cognitive_frame import CognitiveFrame
         random.seed(77)
-        loop = CognitiveLoop(verbose=False)
+        loop = CognitiveLoop(verbose=False, data_root=str(run_dir))
         loop.start_game(GAME_ID, [1, 2, 3, 4], max_actions=500)
         buf = io.StringIO()
         with redirect_stdout(buf):

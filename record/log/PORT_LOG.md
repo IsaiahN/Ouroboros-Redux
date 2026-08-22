@@ -3698,3 +3698,77 @@ EVERY option, required by Kaggle (/kaggle/working is the sole writable root ther
 correctness landmine today: two games in one process fuse their fabrics silently, which
 would put one game's atoms in another's library and void the composition claim through a
 path nobody watches.
+
+=== THE SUBTRACTION, MEASURED: 46 OF 215 (record/findings/THE_MINIMAL_LIVE_SET.md) ===
+Transitive closure, static AND lazy, parse-only, seeded from the cognitive path.
+  in scope 215 · MINIMAL COGNITIVE SET 46 · live-but-not-cognitive 97 · neither 72
+  and with package __init__ re-export edges the minimal set becomes 101 --
+  SO 55 MODULES ARE PULLED IN ONLY BY RE-EXPORT, with no call site anywhere.
+THE CHEAPEST SUBTRACTION IS NOT DELETING ANYTHING -- IT IS STOPPING THE PACKAGES FROM
+RE-EXPORTING. engines/egocentric/__init__.py re-exports 16 modules, so importing one imports
+all sixteen. That is the same mechanism that made five files return within a minute of the
+examination's move, now quantified.
+THE STRUCTURAL FINDING: cognitive_loop.py IMPORTS NEITHER decision_rung_system NOR rungs --
+zero references. The 77-rung ladder is reached only from evolution_runner, engines/registry
+and its own internals. So the four rungs that cannot fire, the 21 hasattr guards and the
+eleven Protocols with undefined methods belong to A SECOND DECISION MACHINE WIRED TO THE
+RUNNER, BESIDE THE LOOP RATHER THAN INSIDE IT. Last night's Protocol repair was necessary
+and it repaired a machine the cognitive path does not consult. THE LADDER NOW NEEDS A RULING
+OF ITS OWN: port it deliberately, or the loop is the whole decision system.
+MODE CYCLING: the modes are in the REMAINDER, so this is one rescue from the discard pile
+rather than a build. Measured: 31,253 assignments -- generalist 19,789, pioneer 11,419,
+optimizer 45, EXPLOITER 0. Two of four have never meaningfully run. To make the choice
+informed it needs (mode, board-state) -> what it produced, persisted across restarts;
+mode_effectiveness exists and is written on every row, but against the population's scoring,
+which was uniformly zero. The field exists; its MEANING must be re-derived against the ground.
+NOT SPECIATION: accepted without qualification and recorded so nobody re-adds it later
+reasoning from the word. No isolation inside one agent, so no speciation; what is available
+is variation from one frame, which mode cycling supplies.
+THE MOVE THE GM ASKED FOR (old -> considered_dead, kept -> a root folder, with their tests)
+IS NOT DONE: the de-cwd builder currently holds cognitive_loop.py, database_interface.py,
+cognitive_game_player.py, tools/live_coverage_diff.py and the new data_root.py. Moving files
+under a running builder is the collision this project has paid for six times. It goes the
+moment that build returns, and the 46-module list is the manifest it will use.
+
+=== THE AGENT IS DE-CWD'D: data can no longer resolve against where a process stands ===
+(PORT_LOG entry written by the PROCTOR -- the builder correctly declined to write one while
+this file was staged by someone else. Serialization held; the receipt lands here.)
+data_root.py: OURO_DATA_ROOT (absolute only) -> /kaggle/working/ouro if that DIRECTORY
+exists -> <repo>/.runs if pyproject.toml marks the repo -> RAISE naming all three branches,
+the rule, AND what it found. No cwd branch anywhere. `repo_dir` defaults to the file's own
+location, so the repo is where the CODE is, never where the CALLER is. A RELATIVE
+OURO_DATA_ROOT RAISES rather than being joined to the cwd -- the one door the defect could
+have come back through. Game ids are whitelisted, so escape via `../` raises too.
+VERIFIED BY THE PROCTOR, not accepted: 22 tests green; and by hand -- the local branch
+resolves, per-game resolves, a relative env var raises DataRootUnresolved, an id traversal
+raises ValueError.
+A SECOND DEFECT FOUND EN ROUTE, AND IT IS THE ONE THAT WOULD HAVE BITTEN HARDEST: the
+player caches `self._mastery` behind an `is None` check AND THE PLAYER OUTLIVES ONE GAME.
+So even with a correct per-game root, every game after the first would have written its
+mastery record into the FIRST GAME'S FABRIC. The fusion the brief existed to fix, surviving
+the fix, one layer up. Found by looking, not by the falsifier. Now keyed on the root.
+tools/live_coverage_diff.py FIXED, NOT EXEMPTED: its getcwd/chdir pair existed SO THAT the
+loop's relative root landed in scratch -- a DATA purpose, so an exemption would have been
+wrong. The scratch dir is handed in; CWD_EXEMPTIONS is EMPTY with the mechanism still
+present, which is the right shape for an allowlist.
+F5 MEASURED RATHER THAN ASSUMED: green only proves self-consistency, so the builder ran a
+40-step level-up in a git WORKTREE AT HEAD and in the working tree with the database
+controlled, and compared sha256 per stream -- 7/7 IDENTICAL, no absolute path in any record.
+Suite 2038 passed / 2 xfailed / 0 failed, green again in fixed order; ruff clean.
+TWO ITEMS CARRIED, both the GM's rulings on this report:
+ 1. cognitive_game_player's `self._observation_log_path = "log/observation_log.jsonl"` is
+    STILL CWD-RELATIVE and would fuse across games exactly as the fabric did. F4 does not
+    catch a bare literal, so the gate built to stop a sixth site cannot see this one. FOLDED
+    INTO THE PORT rather than left as a note.
+ 2. THE F6 ORACLE IS NOW COSTING MORE THAN IT IS WORTH -- third incident. It self-invalidated
+    when its own migration commit became HEAD~1; it reddened on my canon move; and now
+    insertions inside play_game pushed two rows out of its +/-30 window and a courtesy
+    refresh could not fix it (SHIFT_REDS_OLD 37 -> 39). The workaround each time is moving
+    bodies to module-bottom helpers -- the convention that exists to protect receipts, spent
+    protecting a RETIRED gate's oracle. RULING: retire it with the old-form parser. It has
+    made its point (37-vs-0 on a line shift, measured) and it now taxes every build near a
+    claim site.
+ALSO: models/dynamics_model.pt (7.7 MB, tracked) showed as deleted and was claimed by
+nobody -- not the builder's, not deliberately mine. Most likely swept by my own `git add -A`
+earlier tonight, which is the same error that took a builder's in-flight work into d86dc1a.
+RESTORED from git. Second consequence of that one command.

@@ -30,7 +30,7 @@ from typing import Any, Callable, List, Optional
 import numpy as np
 from arcengine import GameAction, GameState
 
-from cognitive_loop import CognitiveLoop
+from cognitive_loop import EGO_FABRIC_DIRNAME, CognitiveLoop
 from engines.cognition.cognitive_frame import CognitiveFrame
 from evolution_types import AgentState, GameResult
 
@@ -97,17 +97,19 @@ class CognitiveGamePlayer:
         Mirrors GamePlayer.play_game() signature exactly.
         Preserves all side effects (DB writes, events, etc.).
         """
+        # ═══ THE PER-GAME DATA ROOT: THE ENTRY POINT DECIDES IT (data_root.py) ═══
+        _groot = _game_data_root(game_id)      # module bottom; never the cwd
+
         # ═══ MASTERY-LITE: replay probability EARNED from replay reliability ═══
-        # Lazy fabric-backed instance (record/prereg/PREREG_MASTERY_LITE.md). CWD is the run
-        # box, so "ego_fabric" is the SAME root the loop uses -- intended.
-        if getattr(self, '_mastery', None) is None:
+        # Lazy fabric-backed instance (PREREG_MASTERY_LITE.md) on the loop's OWN
+        # root, REBUILT WHEN THE ROOT CHANGES -- the player outlives one game.
+        if getattr(self, '_mastery_root', None) != _groot:
             try:
-                from engines.egocentric.fabric import KnowledgeFabric
                 from engines.egocentric.mastery import MasteryLite
-                self._mastery = MasteryLite(KnowledgeFabric(
-                    "ego_fabric", agent_id="player", kin_key="v4"))
+                self._mastery = MasteryLite(_mastery_fabric(_groot))
             except Exception:
                 self._mastery = None
+            self._mastery_root = _groot
 
         # Create cognitive loop
         loop = CognitiveLoop(
@@ -115,6 +117,7 @@ class CognitiveGamePlayer:
             context_builder=self._gp.context_builder,
             db=self._gp.db,
             verbose=self._verbose,
+            data_root=_groot,
         )
         # Stash for _replay_winning_sequences: the replay feed teaches the SAME
         # loop instance this episode's continuation will use (observe-only).
@@ -2093,3 +2096,43 @@ class CognitiveGamePlayer:
             return int(taken) >= int(n_steps) > 0
         except Exception:
             return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE PER-GAME DATA ROOT  (the de-cwd build, 2026-08-22)
+#
+# MODULE BOTTOM ON PURPOSE, and for a reason this file already records: the
+# oracle in tests/gate/test_symbol_receipts.py compares the RETIRED positional
+# gate over the PRE-MIGRATION registry, so lines inserted above a receipt-bearing
+# site in play_game push it out of that gate's +/-30 window and redden the verdict
+# vector. Bodies go here; play_game keeps one call each.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _game_data_root(game_id: str) -> str:
+    """THE ONE PLACE THIS PROCESS DECIDES WHERE A GAME'S DATA LIVES.
+
+    data_root.py resolves the root by rule -- OURO_DATA_ROOT, else
+    /kaggle/working/ouro if that directory exists, else <repo>/.runs, else a
+    raise. Nothing downstream re-derives it and nothing anywhere reads the cwd
+    for it, which is what lets two games share a process without sharing a
+    library (record/prereg/PLAN_SWARM_SHAPE.md section 3 item 1).
+
+    ensure_data_root is a SEPARATE, NAMED act because resolution is pure: on
+    Kaggle the root does not exist when the notebook starts, and sqlite3.connect
+    against a missing directory fails as "unable to open database file" -- a
+    missing directory that would read as a broken database.
+    """
+    from data_root import ensure_data_root, game_data_root
+    return str(ensure_data_root(game_data_root(game_id)))
+
+
+def _mastery_fabric(game_root: str):
+    """MasteryLite's fabric, on the SAME root the loop's fabric uses.
+
+    It used to be built on the relative literal "ego_fabric" with the comment
+    "CWD is the run box ... -- intended", which was true of the retired fleet and
+    of nothing else.
+    """
+    from engines.egocentric.fabric import KnowledgeFabric
+    return KnowledgeFabric(os.path.join(str(game_root), EGO_FABRIC_DIRNAME),
+                           agent_id="player", kin_key="v4")

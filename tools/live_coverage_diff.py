@@ -163,8 +163,9 @@ class SynthEnv:
         return self.board.copy(), changed
 
 
-def _run_one_episode(game_id: str, n_steps: int, seed: int) -> None:
-    """One full episode through the REAL CognitiveLoop in the CURRENT cwd
+def _run_one_episode(game_id: str, n_steps: int, seed: int,
+                     data_root: str) -> None:
+    """One full episode through the REAL CognitiveLoop, rooted at ``data_root``
     (books persist on disk, so a second episode hydrates/consumes them --
     reaching the seed/drain/verified wires a cold first episode cannot)."""
     import io
@@ -173,7 +174,7 @@ def _run_one_episode(game_id: str, n_steps: int, seed: int) -> None:
 
     random.seed(seed)
     from cognitive_loop import CognitiveLoop
-    loop = CognitiveLoop()
+    loop = CognitiveLoop(data_root=data_root)
     loop.start_game(game_id, [1, 2, 3, 4, 5, 6], max_actions=500)
     env = SynthEnv()
     obs = types.SimpleNamespace(levels_completed=0)
@@ -208,20 +209,25 @@ def _run_one_episode(game_id: str, n_steps: int, seed: int) -> None:
 
 
 def run_synthetic(coverage_mod, n_steps: int, n_episodes: int) -> object:
+    """THE SCRATCH RUN IS NOW ADDRESSED, NOT STOOD IN (the de-cwd build, 2026-08-22).
+
+    This used to ``os.chdir(run_dir)`` so that the loop's RELATIVE fabric root
+    ("ego_fabric") would land in scratch. That is the same defect the build
+    removed from the loop: the run's location was a property of the process, not
+    of the run. The scratch directory is now HANDED to the loop as its data root
+    and the cwd is left alone -- so this tool no longer has any cwd use at all,
+    and two of these could run in one process without merging their fabrics.
+    """
     cov = coverage_mod.Coverage(branch=True, include=SCOPE_INCLUDE,
                                 data_file=None)
     run_dir = tempfile.mkdtemp(prefix="live_cov_diff_")
-    cwd = os.getcwd()
-    os.chdir(run_dir)
+    cov.start()
     try:
-        cov.start()
-        try:
-            for ep in range(n_episodes):
-                _run_one_episode("live_cov_g1", n_steps, seed=20260816 + ep)
-        finally:
-            cov.stop()
+        for ep in range(n_episodes):
+            _run_one_episode("live_cov_g1", n_steps, seed=20260816 + ep,
+                             data_root=run_dir)
     finally:
-        os.chdir(cwd)
+        cov.stop()
     return cov.get_data()
 
 

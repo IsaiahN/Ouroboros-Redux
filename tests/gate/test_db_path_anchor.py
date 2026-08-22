@@ -32,18 +32,27 @@ THE LAWS.
       figure. A test that only checked "it's under .runs/" would pass on a resolver that
       still moved, so long as it moved within the sanctioned directory.
 
-  **ASSUMED**, and named so it is not mistaken for proven: that .runs/ is the correct
-      home at all. That is the GM's rule, taken as given here. This file enforces the
-      rule; it does not justify it. Also assumed: that the fleet's per-box separation is
-      worth preserving. It is not re-derived -- it was established on 2026-08-20 and is
-      recorded at symbolic_reasoning_engine.py:48-62, where anchoring to the repo root
-      instead had put all 25 workers on ONE file, "a single evidence pool wearing 25
-      boxes' clothes". F1's box case pins that behaviour so this fix cannot undo it.
+  **ASSUMED**, and named so it is not mistaken for proven: that the data root is the
+      correct home at all. That is the GM's rule, taken as given here. This file
+      enforces the rule; it does not justify it.
 
 THE KNOWN-NEGATIVE is F5, and it is the one that matters. F1 and F3 would both pass on a
 resolver that returned correct-looking strings while something else, elsewhere, still
 created a database at the root -- which is exactly the failure D-6 left standing. F5
 tests the FILESYSTEM, not the return value.
+
+AMENDMENT (2026-08-22, the de-cwd build). **THE BOX BRANCH IS GONE, AND F1 IS REWRITTEN
+BECAUSE OF IT.** This file used to assert that a cwd already under .runs/ became the
+base -- "the fleet worker standing in its own box" -- on the reasoning that collapsing
+the per-box databases was a worse defect than the one being fixed
+(symbolic_reasoning_engine.py:48-62, the 2026-08-20 finding that a repo-root anchor put
+25 workers on ONE file). That reasoning was right about the danger and wrong about the
+mechanism: a cwd branch is separation INFERRED FROM WHERE THE PROCESS IS STANDING, and
+it evaporates the moment two games share a process, which is the shape the ARC swarm and
+the Kaggle notebook both require. Separation is now STATED by the entry point --
+``resolve_db_path(root=data_root.game_data_root(game_id))`` -- and the falsifier for it
+is tests/gate/test_data_root.py F1b, which runs two games in ONE process and reads both
+databases back. The old F1 asserted an accident; this one asserts a rule.
 """
 from __future__ import annotations
 
@@ -60,51 +69,79 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
+from data_root import resolve_data_root  # noqa: E402
 from database_interface import (  # noqa: E402
     DEFAULT_DB_NAME,
-    RUNS_ROOT,
     DatabaseInterface,
     DatabasePathOutsideRuns,
     resolve_db_path,
 )
 
+RUNS_ROOT = resolve_data_root()
+
 # ─────────────────────────────────────────────────────────────────────────────
-# F1 · the default resolves under .runs/ and nowhere else, from three cwds
+# F1 · the default resolves under the data root, and the cwd cannot change it
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_f1_default_resolves_under_runs_from_three_cwds(monkeypatch):
-    """The RESOLVED PATH is asserted, not the fact that resolution succeeded.
+_RESOLVE_PROBE = (
+    "import sys; sys.path.insert(0, %r); "
+    "from database_interface import resolve_db_path; print(resolve_db_path())"
+)
 
-    ``cwd`` is injected rather than os.chdir'd: chdir is process-global and would
-    make this test's outcome depend on execution order under -p xdist.
-    """
+
+def test_f1_default_resolves_under_the_data_root(monkeypatch):
+    """The RESOLVED PATH is asserted, not the fact that resolution succeeded."""
     monkeypatch.delenv("DATABASE_PATH", raising=False)
 
-    box = os.path.join(str(RUNS_ROOT), "swarm", "ar25")
-    tmp = tempfile.gettempdir()
+    got = resolve_db_path()
+    assert got == os.path.join(str(RUNS_ROOT), DEFAULT_DB_NAME), got
+    assert os.path.isabs(got)
 
-    from_root = resolve_db_path(cwd=REPO)
-    from_box = resolve_db_path(cwd=box)
-    from_tmp = resolve_db_path(cwd=tmp)
+    # An explicitly passed root moves the default -- and two roots give two
+    # databases. That is how per-game separation is obtained now that it is
+    # stated rather than inferred (test_data_root.py F1b is the falsifier).
+    a = resolve_db_path(root=os.path.join(str(RUNS_ROOT), "games", "alpha"))
+    b = resolve_db_path(root=os.path.join(str(RUNS_ROOT), "games", "beta"))
+    assert a != b
+    assert a.endswith(os.path.join("alpha", DEFAULT_DB_NAME))
 
-    # The exact paths, spelled out.
-    assert from_root == os.path.join(str(RUNS_ROOT), DEFAULT_DB_NAME), from_root
-    assert from_box == os.path.join(box, DEFAULT_DB_NAME), from_box
-    assert from_tmp == os.path.join(str(RUNS_ROOT), DEFAULT_DB_NAME), from_tmp
 
-    # FIGURE 2, stated as an equality: two unrelated cwds, neither of them a box,
-    # give the SAME absolute path. This is what "the anchor does not update" means,
-    # and it is strictly stronger than "both are under .runs/".
-    assert from_root == from_tmp
+def test_f1b_the_answer_is_identical_from_two_different_cwds(monkeypatch):
+    """FIGURE 2, STATED AS AN EQUALITY AND MEASURED ON A REAL PROCESS.
 
-    # Every branch absolute, and every branch inside the sanctioned directory.
-    for p in (from_root, from_box, from_tmp):
-        assert os.path.isabs(p), p
-        assert p.startswith(str(RUNS_ROOT) + os.sep), p
+    Two subprocesses, same code, two unrelated working directories, one answer.
+    Injecting a cwd argument (what this file used to do) can only test the branch
+    the resolver chooses to consult; running the resolution in a process that
+    actually stands somewhere else tests that it consults none.
+    """
+    env = dict(os.environ)
+    env.pop("DATABASE_PATH", None)
+    outs = []
+    for cwd in (REPO, tempfile.gettempdir()):
+        proc = subprocess.run(  # noqa: S603 -- fixed argv, our interpreter, our probe
+            [sys.executable, "-c", _RESOLVE_PROBE % REPO],
+            cwd=cwd, capture_output=True, text=True, timeout=300, check=False,
+            env=env,
+        )
+        assert proc.returncode == 0, (
+            "resolution failed with cwd=%s:\n%s" % (cwd, proc.stderr[-4000:]))
+        outs.append(proc.stdout.strip())
 
-    # The box branch is NOT the anchor branch -- the fleet's per-box separation
-    # survives. If this ever collapses, 25 workers share one evidence pool again.
-    assert from_box != from_root
+    assert outs[0] == outs[1], (
+        "the default database path CHANGED with the working directory: %r vs %r. "
+        "That is an anchor that moves, and two games in one process would land on "
+        "one file." % (outs[0], outs[1]))
+    assert outs[0] == os.path.join(str(RUNS_ROOT), DEFAULT_DB_NAME)
+
+
+def test_f1c_the_resolver_takes_no_cwd(monkeypatch):
+    """The removed parameter, asserted removed. A ``cwd=`` kwarg would be an
+    invitation to reinstate the branch one caller at a time."""
+    import inspect
+    params = inspect.signature(resolve_db_path).parameters
+    assert "cwd" not in params, (
+        "resolve_db_path grew a cwd parameter back: %r" % list(params))
+    assert set(params) == {"db_path", "root"}, list(params)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -397,6 +434,7 @@ def test_f5b_resolving_is_pure(monkeypatch, tmp_path):
     assert not target.exists()
     assert not target.parent.exists(), "resolution must not create directories"
 
-    for cwd in (REPO, tempfile.gettempdir(), str(RUNS_ROOT / "swarm" / "zz99")):
-        resolve_db_path(cwd=cwd)
-    assert not (RUNS_ROOT / "swarm" / "zz99").exists()
+    absent = tmp_path / "games" / "zz99"
+    resolve_db_path(root=absent)
+    resolve_db_path()
+    assert not absent.exists(), "resolution must not create its own root"

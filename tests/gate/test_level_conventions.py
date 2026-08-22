@@ -78,7 +78,7 @@ def episode(tmp_path_factory):
             GAME, 0, dead=[], effects=[HARVEST_CELL], fatal=None, deltas={})
 
         from cognitive_loop import CognitiveLoop
-        loop = CognitiveLoop()
+        loop = CognitiveLoop(data_root=str(root))
         loop.start_game(GAME, [1, 2, 3, 4, 5, 6], max_actions=64)
         obs = types.SimpleNamespace(levels_completed=0, score=0)
         base = np.zeros((64, 64), dtype=np.uint8)

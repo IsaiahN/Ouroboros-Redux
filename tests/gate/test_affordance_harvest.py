@@ -45,7 +45,7 @@ def _mk_loop(tmp_path, monkeypatch, game_id="gate_g0"):
     """A real CognitiveLoop, hermetic: its fabric roots in tmp cwd."""
     monkeypatch.chdir(tmp_path)
     from cognitive_loop import CognitiveLoop
-    loop = CognitiveLoop()
+    loop = CognitiveLoop(data_root=str(tmp_path))
     loop.start_game(game_id, [1, 2, 3, 4, 5, 6], max_actions=50)
     return loop
 

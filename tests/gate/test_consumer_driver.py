@@ -147,9 +147,10 @@ class TestTheEpisodeBoundaryDrive:
         assert consumer.candidates(fab, "g1", 1), "episode N left no candidate"
 
         # Episode N+1: a fresh loop instance; record_result's lazy fabric+gamma
-        # init runs in tmp_path (the relative "ego_fabric" root resolves there).
+        # init roots at tmp_path because the loop is TOLD to (the de-cwd build,
+        # 2026-08-22: the root is threaded in, never inherited from the cwd).
         monkeypatch.chdir(tmp_path)
-        ep2 = CognitiveLoop()
+        ep2 = CognitiveLoop(data_root=str(tmp_path))
         ep2.start_game("g1", [1, 2, 3, 4, 5, 6])
         ep2._current_frame = CognitiveFrame(action_number=0,
                                             timestamp=time.time(), level=1)
@@ -164,7 +165,7 @@ class TestTheEpisodeBoundaryDrive:
         assert int(imported[0]["level"]) == 1, "seeded at the playing level"
 
         # Idempotent per atom key: a second init-cycle seeds nothing new.
-        ep3 = CognitiveLoop()
+        ep3 = CognitiveLoop(data_root=str(tmp_path))
         ep3.start_game("g1", [1, 2, 3, 4, 5, 6])
         ep3._current_frame = CognitiveFrame(action_number=0,
                                             timestamp=time.time(), level=1)
@@ -192,7 +193,7 @@ class TestTheBankSettleStorm:
 
         base = np.zeros((64, 64), dtype=np.uint8)
         base[::2, :] = 9
-        loop = CognitiveLoop()
+        loop = CognitiveLoop(data_root=str(tmp_path))
         loop.start_game("g1", [1, 2, 3, 4, 5, 6],
                         max_actions=len(self.K_PATTERN))
         prev = base

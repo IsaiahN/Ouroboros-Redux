@@ -76,7 +76,7 @@ class TestBookDerivedVerification:
         fab.append("collective", "settlements", _settlement(atom_bin="NOVEL"))
         fab.append("collective", "settlements", _settlement(atom_key=None))
 
-        loop = CognitiveLoop()
+        loop = CognitiveLoop(data_root=str(tmp_path))
         loop.start_game(GAME, [1, 2, 3, 4, 5, 6])
         loop._current_frame = CognitiveFrame(action_number=0,
                                              timestamp=time.time(), level=1)
@@ -113,7 +113,7 @@ class TestBookDerivedVerification:
         obs = types.SimpleNamespace(levels_completed=1)
 
         # 2. EPISODE N: the import lands in the home Gamma (the consumer dance).
-        ep1 = CognitiveLoop()
+        ep1 = CognitiveLoop(data_root=str(tmp_path))
         ep1.start_game(GAME, [6], max_actions=200)
         with redirect_stdout(io.StringIO()):
             ep1.cycle(before, obs)
@@ -136,7 +136,7 @@ class TestBookDerivedVerification:
                        _settlement(level=2, atom_key=aid))
 
         # 4. EPISODE N+1: a FRESH loop. Its lazy-init must hydrate the counts.
-        ep2 = CognitiveLoop()
+        ep2 = CognitiveLoop(data_root=str(tmp_path))
         ep2.start_game(GAME, [6], max_actions=200)
         with redirect_stdout(io.StringIO()):
             ep2.cycle(before, obs)                       # obs: playing level 2

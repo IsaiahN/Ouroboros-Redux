@@ -56,10 +56,16 @@ import numpy as np
 #   * `Path("core_data.db")`, the 2026-08-20 replacement, was CWD-RELATIVE. It gave the
 #     worker its own box DB, but it gave everything else -- the suite, the tools, any
 #     manual run -- a database at the repo root, which is exactly the rule violation.
-# resolve_db_path keeps the box branch (so the fleet is unchanged) and refuses the rest.
-# There is deliberately NO module-level constant now: this module is imported from the
-# repo root by the suite, and a constant would have to resolve at IMPORT time, turning a
-# path question into an import-time raise.
+#   * the BOX BRANCH -- "a cwd already under .runs/ IS the base" -- shipped the same day
+#     and was retired hours later by the de-cwd build. It preserved per-box separation by
+#     INFERRING it from where the process stood, which holds for exactly one shape (one
+#     process per box) and evaporates the moment two games share a process. Separation is
+#     now STATED: resolve_db_path(root=data_root.game_data_root(game_id)), threaded from
+#     the entry point (record/prereg/PLAN_SWARM_SHAPE.md section 10).
+# resolve_db_path now takes its base from data_root.resolve_data_root() and refuses any
+# default that lands outside it. There is deliberately NO module-level constant: this
+# module is imported from the repo root by the suite, and a constant would have to
+# resolve at IMPORT time, turning a path question into an import-time raise.
 
 logger = logging.getLogger(__name__)
 
