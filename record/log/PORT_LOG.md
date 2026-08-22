@@ -3912,3 +3912,71 @@ STALLED SINCE THE LAST BEAT, NAMED WITH WHY:
  · The 375 unattributed seconds and the ~310MB floor -- fleet-grain, no fleet, stay parked.
 
 FIGURE 1: sizing a blind spot is not capability gained. Nothing here moved a level.
+
+---
+
+## BEAT 60 — THE INSTRUMENT LANDED AND EVERY NUMBER THE PORT WAS PLANNED ON IS WRONG
+
+tools/reachability.py, committed. Seven edge kinds: IMPORT, LAZY, PKG_INIT, REEXPORT,
+STRING, INJECT, INJECT_WIDE. Declares in its docstring that it OVER-approximates -- reports
+reachable when unsure -- because the consumer is a DELETE decision: a false "dead" costs the
+agent's behaviour, a false "live" costs a module left in the tree. A module it calls
+UNREACHED is a module nothing in the source names, NOT a module proven dead.
+
+I VERIFIED THE THREE LOAD-BEARING CLAIMS MYSELF, NOT ON REPORT, and one of them I expected
+to break:
+ 1. THE DIFFERENTIAL. Ran it: old blind closure 46 (no pkg-init edge) -> NEW 170.
+    **LOST = 0** on both seeds -- the error direction asserted as a law, not a hope. 69
+    modules the old instrument called dead the new one calls live.
+ 2. THE INJECT_WIDE ABLATION -- I DID NOT BELIEVE THIS ONE. The builder claims the duck-typed
+    guesses cost nothing. The printed witnesses lead with INJECT_WIDE, which looked like a
+    contradiction. Ran the ablation: dropping every INJECT_WIDE edge loses **0 modules from
+    both seeds** (170/170, 195/195). The witness is merely the first path found; resolved
+    alternates exist. The correction is carried ENTIRELY BY RESOLVED EDGES. My suspicion was
+    wrong and the claim stands.
+ 3. THE LADDER, the case that broke me: reached WITH injection, UNREACHED without, for
+    decision_rung_system and all of rungs/*. Dropping injection entirely costs 37 modules
+    from the cognitive seed. The known-positive asserts the PATH, not the verdict.
+
+THE NUMBERS THE PORT WAS PLANNED ON, CORRECTED:
+   THE 46  ->  170 reached from the cognitive seed.
+   THE 97  ->   25 live-but-not-cognitive (195 - 170).
+   reachable from NEITHER seed: 21 -- and ALL 21 are tools/*, manual_tools/*, conftest and
+   vulture_whitelist. INSTRUMENTS, NOT AGENT CODE. Nothing else in the tree is unreached.
+   THE "55 CHEAPEST SUBTRACTION" WAS AN ARTEFACT: it was closure_with_pkg_init minus
+   closure_without = 101-46, which conflated PACKAGE-__init__ EXECUTION with UNUSED
+   RE-EXPORT. True re-export-only is **7** (cognitive) / 4 (entry). The cheapest subtraction
+   on the board was never 55 modules; it is 7, and most of the 55 are genuinely reached.
+
+THE FALSIFIED LEDGER, CORROBORATED BY A SECOND INSTRUMENT AND PINNED BY ME:
+   reachable ALL kinds .......................... cognitive True  entry True
+   reachable minus REEXPORT ..................... cognitive True  entry True
+   reachable minus INJECT_WIDE .................. cognitive True  entry True
+   reachable minus BOTH ......................... cognitive FALSE entry FALSE
+   Its ONLY route into the tree is an __init__ that imports it and never uses it, plus a
+   duck-typed guess. grep confirms the standing finding independently: `FalsifiedLedger`
+   appears ONLY in its own class def, its own return annotation, an __init__ DOCSTRING line,
+   and a test comment. NOTHING CONSTRUCTS IT. The refutation memory is still inert.
+
+WHAT I ASKED FOR AND GOT, AND IT IS THE PART THAT MATTERS: the known-NEGATIVE. Four fixtures,
+all built from REAL TREE CODE and not toys, including a control (same copy pipeline, no edit)
+so an empty result cannot be a copy artefact, and a whole-tree negative renaming every
+parameter in all 216 modules so the seam grammar occurs nowhere. A known-positive proves
+sensitivity and says NOTHING about specificity. The builder's FIRST negative fixture was
+wrong -- it severed one of the grammar's two forms and read 3,000 surviving edges -- and it
+found that itself and said so.
+
+NAMED ABSENCES, THE HOUSE CONVENTION HELD: where a callee name is owned by >3 definitions,
+the tool emits NO EDGE and records the seam in Tree.unresolved (385 seams over 95 modules).
+An edge to half the tree is not a conservative answer, it is the absence of one. My own crude
+probe (105 modules / 211 seams) UNDER-counted by 6x: the real figure is 1,364 seams over 173
+consumer modules.
+
+FIGURE 6 IS RE-STATED, AND THIS IS THE BEAT'S ONE DURABLE SENTENCE: import does not move the
+wall -- A REFERENCE THAT CROSSES A MODULE BOUNDARY AT RUNTIME MOVES IT, and `import` is
+merely the one spelling of that reference a static reader can see. A constructor argument
+carried 266,570 decisions across the same wall while the receiving module's source named
+nothing at all.
+FIGURE 1: an instrument is not capability gained. No level moved. Levels are mute at 2.
+SUITE 2059 passed / 2 xfailed / 0 failed (2045 + exactly the 14 new). ruff clean. F6 oracle
+unaffected -- nothing production was touched.
