@@ -172,14 +172,25 @@ class VisualAnalyzerInterface(Protocol):
 # =============================================================================
 
 class QuestioningEngineInterface(Protocol):
-    """Interface for Q1-Q9 questioning system."""
+    """Interface for Q1-Q9 questioning system.
 
-    def get_blocking_questions(self) -> List[str]:
-        """Get questions that are blocking action selection."""
-        ...
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). This Protocol declared
+    ``get_blocking_questions()`` and ``get_allowed_actions(...)``. The live
+    implementation -- ``QuestioningEngineWithTeeth`` in
+    ``engines/reasoning/scientific_method_engine.py`` -- defines NEITHER; it
+    answers both questions from ONE method, ``get_blocking_info()``, whose
+    return carries both the blocking questions and the actions they allow.
+    The implementation is live and working, so the declaration was the drift.
+    """
 
-    def get_allowed_actions(self, blocking_questions: List[str]) -> List[str]:
-        """Get actions allowed given blocking questions."""
+    def get_blocking_info(self) -> Optional[Dict[str, Any]]:
+        """
+        Get information about why actions are being blocked.
+
+        Returns:
+            Dict with 'is_blocked', 'blocking_questions', 'allowed_actions',
+            'total_score_penalty' -- or None when nothing is blocking.
+        """
         ...
 
 
@@ -188,32 +199,41 @@ class ScientificMethodInterface(Protocol):
     Interface for theory formation and testing.
 
     Provides:
-    - Theory stage tracking
-    - Working theory management
+    - Working theory management (the theory STAGE is a field of it)
     - Questioning engine access
+
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). ``get_theory_stage()`` was
+    declared here and defined by nothing; the stage is the ``'stage'`` key of
+    ``get_working_theory(game_type, level_number)``, which IS implemented and
+    IS already read that way by ``TheoryGateRung`` (``rungs/hypothesis.py``).
+    ``get_working_theory``'s declared signature took no arguments; the
+    implementation requires ``(game_type, level_number)``.
     """
 
-    def get_theory_stage(self) -> str:
+    def get_working_theory(
+        self,
+        game_type: str,
+        level_number: int
+    ) -> Optional[Dict[str, Any]]:
         """
-        Get current theory stage.
+        Get the current working theory for this game/level.
 
         Returns:
-            One of: 'exploring', 'speculating', 'confirmed', 'contradicted'
-        """
-        ...
-
-    def get_working_theory(self) -> Optional[Dict[str, Any]]:
-        """
-        Get the current working theory.
-
-        Returns:
-            Dict with 'stage', 'hypothesis', 'evidence', etc.
+            Dict with 'theory', 'stage', 'confidence', 'evidence_for',
+            'evidence_against' -- where 'stage' is one of 'speculating',
+            'exploring', 'hypothesis_formed', 'partial_confirmation',
+            'contradicted', 'confident', 'transferred'.
         """
         ...
 
     @property
     def questioning_engine(self) -> QuestioningEngineInterface:
-        """Access the questioning engine."""
+        """Access the questioning engine.
+
+        UNIMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS at the bottom of this
+        module. Declared, guarded at ``rungs/orientation.py``, defined by no
+        class in the tree.
+        """
         ...
 
 
@@ -256,6 +276,9 @@ class TerminalPatternInterface(Protocol):
 
         Returns:
             Dict with 'approaching_terminal', 'fatal_action', 'confidence'
+
+        UNIMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS at the bottom of this
+        module.
         """
         ...
 
@@ -329,18 +352,23 @@ class ViralPackageInterface(Protocol):
     Provides:
     - Pariah pattern queries (failed strategies)
     - Package creation and distribution
+
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). ``get_pariahs`` was declared
+    here and defined by neither ``ViralPackageEngine`` nor the ``PariahManager``
+    it delegates to. The live method is ``get_top_pariahs(limit)`` -- present on
+    both, one of the eight declared pass-throughs at
+    ``engines/social/viral_package_engine.py``.
     """
 
-    def get_pariahs(
+    def get_top_pariahs(
         self,
-        game_type: str,
-        level: int
+        limit: int = 10
     ) -> List[Dict[str, Any]]:
         """
-        Get failed patterns (pariahs) for this game/level.
+        Get the most toxic failed patterns (pariahs) by trigger count.
 
         Returns:
-            List of dicts with 'failed_action', 'toxicity', etc.
+            List of dicts with the pariah's failed pattern and toxicity.
         """
         ...
 
@@ -399,16 +427,25 @@ class IThreadInterface(Protocol):
     Interface for persistent agent identity.
 
     Provides:
-    - Stream weight management (wA/wB)
+    - Stream weight management (wA/wB), per agent
     - Death persona spawning
+
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). ``get_wA()``/``get_wB()``
+    were declared here and defined by nothing. The weights are fields of the
+    ``IThreadState`` returned by ``get_state(agent_id)`` -- which IS
+    implemented, and IS already read that way by ``TwoStreamsRung``
+    (``rungs/hypothesis.py``). The weights are per-agent; the declared
+    zero-argument form could not have been implemented as declared.
     """
 
-    def get_wA(self) -> float:
-        """Get Stream A (private experience) weight."""
-        ...
+    def get_state(self, agent_id: str) -> Any:
+        """
+        Get the current I-Thread state for an agent.
 
-    def get_wB(self) -> float:
-        """Get Stream B (network wisdom) weight."""
+        Returns:
+            IThreadState carrying ``w_a`` (private experience) and ``w_b``
+            (network wisdom), which sum to 1.0.
+        """
         ...
 
     def spawn_death_persona(
@@ -420,6 +457,9 @@ class IThreadInterface(Protocol):
 
         Returns:
             Dict with 'name', 'suggested_action', 'reason' or None
+
+        UNIMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS at the bottom of this
+        module.
         """
         ...
 
@@ -430,18 +470,28 @@ class IThreadInterface(Protocol):
 # =============================================================================
 
 class NearMissAnalyzerInterface(Protocol):
-    """Interface for learning from high-score failures."""
+    """Interface for learning from high-score failures.
 
-    def get_insights(
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). ``get_insights(game_type,
+    level)`` was declared here and defined by nothing, which left
+    ``NearMissAnalyzerRung`` (priority 48) with no reachable body at all. The
+    live method is ``get_near_miss_report(agent_id, generation)``; its
+    ``top_insights`` rows are the insights the rung was written to read, and
+    they are scoped by AGENT and GENERATION, not by game and level.
+    """
+
+    def get_near_miss_report(
         self,
-        game_type: str,
-        level: int
-    ) -> Optional[Dict[str, Any]]:
+        agent_id: Optional[str] = None,
+        generation: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
-        Get insights from near-miss analysis.
+        Get the comprehensive near-miss analysis report.
 
         Returns:
-            Dict with 'suggested_action', 'confidence', 'category' or None
+            Dict with 'statistics', 'common_patterns', 'top_insights',
+            'thresholds'. ``top_insights`` rows carry 'insight_type',
+            'insight_description', 'priority', 'effectiveness_score'.
         """
         ...
 
@@ -460,6 +510,9 @@ class SubgoalPlannerInterface(Protocol):
 
         Returns:
             Dict with 'next_action', 'confidence', 'description', 'index', 'total'
+
+        UNIMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS at the bottom of this
+        module.
         """
         ...
 
@@ -470,17 +523,27 @@ class SubgoalPlannerInterface(Protocol):
 # =============================================================================
 
 class BudgetAllocatorInterface(Protocol):
-    """Interface for dynamic action budget allocation."""
+    """Interface for dynamic action budget allocation.
 
-    def get_budget(
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). ``get_budget(game_type)`` was
+    declared here and defined by nothing. The live method is
+    ``calculate_game_budget(game_id, agent_id=None)`` on
+    ``BreakthroughBudgetAllocator``, and its keys are
+    ``action_allowance_per_level`` / ``action_allowance_total``, not
+    ``per_level`` / ``total``.
+    """
+
+    def calculate_game_budget(
         self,
-        game_type: str
+        game_id: str,
+        agent_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Get action budget for this game type.
+        Calculate the optimal action budget for a game.
 
         Returns:
-            Dict with 'per_level', 'total', 'phase'
+            Dict with 'action_allowance_per_level', 'action_allowance_total',
+            'phase', 'reason', 'network_level_wins'.
         """
         ...
 
@@ -499,6 +562,9 @@ class RegulatorySignalInterface(Protocol):
 
         Returns:
             List of dicts with 'type', 'strength', etc.
+
+        UNIMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS at the bottom of this
+        module.
         """
         ...
 
@@ -524,26 +590,12 @@ class ResonanceDetectorInterface(Protocol):
         ...
 
 
-# =============================================================================
-# COUNTERFACTUAL ANALYZER INTERFACE
-# Used by: MicroCounterfactualRung
-# =============================================================================
-
-class CounterfactualAnalyzerInterface(Protocol):
-    """Interface for lightweight what-if analysis."""
-
-    def generate_micro_rollouts(
-        self,
-        game_state: Any,
-        _max_rollouts: int = 5
-    ) -> List[Dict[str, Any]]:
-        """
-        Generate micro counterfactual rollouts.
-
-        Returns:
-            List of dicts with 'action', 'expected_value', 'reason'
-        """
-        ...
+# DELETED 2026-08-22 (EXAM_02 DEFECT A): CounterfactualAnalyzerInterface.
+# It declared `generate_micro_rollouts`, defined by no class in the tree, and
+# named `MicroCounterfactualRung` as its consumer -- a rung that does not exist
+# either. No registry row, no property, no call site, no implementation: there
+# was nothing for the declaration to be true or false about. Deleted rather than
+# allowlisted, because an allowlist entry claims something is still wanted.
 
 
 # =============================================================================
@@ -625,6 +677,13 @@ class ReplayLearningInterface(Protocol):
 
         Returns:
             Dict with 'action', 'confidence', 'hypothesis' or None
+
+        UNIMPLEMENTED -- see UNIMPLEMENTED_DECLARATIONS at the bottom of this
+        module. NOTE: two OTHER classes define this name
+        (``MetacognitiveReasoningEngine``, ``CognitiveCore``); the engine this
+        Protocol is bound to, ``ReplayLearningEngine``, does not. A tree-wide
+        "does any class define this name" check passes and is WRONG here, which
+        is why the gate binds Protocols to their loaded class.
         """
         ...
 
@@ -635,19 +694,24 @@ class ReplayLearningInterface(Protocol):
 # =============================================================================
 
 class ImaginationBudgetInterface(Protocol):
-    """Interface for cognitive budget allocation."""
+    """Interface for cognitive budget allocation.
 
-    def calculate_budget(
-        self,
-        _is_novel: bool,
-        is_frontier: bool,
-        surprise_score: float
-    ) -> Dict[str, Any]:
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). ``calculate_budget(_is_novel,
+    is_frontier, surprise_score)`` was declared here and defined by nothing,
+    which left ``ImaginationBudgetRung`` (priority 4) with no reachable body at
+    all. ``ImaginationBudgetManager`` does not take novelty as an ARGUMENT: it
+    carries the budget as state and moves it with ``update_from_outcome``.
+    ``get_stats()`` is the read side, and it is what the rung needs.
+    """
+
+    def get_stats(self) -> Dict[str, Any]:
         """
-        Calculate imagination budget based on novelty.
+        Get the current imagination budget statistics.
 
         Returns:
-            Dict with 'total', 'tier', etc.
+            Dict with 'current_budget', 'base_budget', 'persona_allowance',
+            'can_speculate', 'synthesis_depth', 'consecutive_zeros',
+            'consecutive_wins', 'avg_recent_score'.
         """
         ...
 
@@ -658,42 +722,43 @@ class ImaginationBudgetInterface(Protocol):
 # =============================================================================
 
 class NetworkExplorationInterface(Protocol):
-    """Interface for exploration coverage tracking."""
+    """Interface for exploration coverage tracking.
 
-    def get_exploration_stats(
+    NAME CORRECTED 2026-08-22 (EXAM_02 DEFECT A). ``get_exploration_stats``
+    was declared here and defined by nothing, which left
+    ``NetworkExplorationStatsRung`` (priority 9) with no reachable body at all.
+    ``get_exploration_context_for_reasoning`` is the tracker's own stated
+    "main integration point"; it is the only method that returns BOTH the
+    coverage figure and a direction, which is what the rung reads.
+    """
+
+    def get_exploration_context_for_reasoning(
         self,
         game_type: str,
-        level: int
+        level: int,
+        current_position: Optional[Tuple[int, int]] = None,
+        frame_width: int = 64,
+        frame_height: int = 64
     ) -> Dict[str, Any]:
         """
-        Get exploration statistics.
+        Get the complete exploration context for the reasoning payload.
 
         Returns:
-            Dict with 'coverage_percent', 'coldspots', 'recommended_direction'
+            Dict with 'network_exploration' (carrying 'coverage_percent' and
+            'unexplored_count'), 'exploration_recommendations',
+            'current_region', 'current_region_known', 'suggested_direction'.
         """
         ...
 
 
-# =============================================================================
-# PRIMITIVE HELPER INTERFACE
-# Used by: PrimitiveStuckDetectionRung
-# =============================================================================
-
-class PrimitiveHelperInterface(Protocol):
-    """Interface for seed primitive orchestration."""
-
-    def detect_stuck_pattern(
-        self,
-        _recent_frames: List[Any],
-        recent_actions: List[str]
-    ) -> Dict[str, Any]:
-        """
-        Use primitives to detect stuck state.
-
-        Returns:
-            Dict with 'is_stuck', 'reason'
-        """
-        ...
+# DELETED 2026-08-22 (EXAM_02 DEFECT A): PrimitiveHelperInterface.
+# It declared `detect_stuck_pattern`, defined by no class, and named
+# `PrimitiveStuckDetectionRung` as its consumer -- a rung that does not exist.
+# The capability is real but lives elsewhere and by a different mechanism:
+# `detect_stuck_pattern` is a registered SEED PRIMITIVE (seed_primitives.py),
+# reached through `DecisionRung.call_primitive("detect_stuck_pattern", ...)`,
+# not through an engine attribute. The Protocol described an access path the
+# build does not use.
 
 
 # =============================================================================
@@ -713,8 +778,11 @@ class EngineRegistryInterface(Protocol):
     @property
     def visual_analyzer(self) -> Optional[VisualAnalyzerInterface]: ...
 
+    # NAME CORRECTED 2026-08-22: the registry property is
+    # `scientific_method_engine`; `scientific_method` was declared here and
+    # exists on no registry.
     @property
-    def scientific_method(self) -> Optional[ScientificMethodInterface]: ...
+    def scientific_method_engine(self) -> Optional[ScientificMethodInterface]: ...
 
     @property
     def terminal_pattern_detector(self) -> Optional[TerminalPatternInterface]: ...
@@ -754,8 +822,8 @@ class EngineRegistryInterface(Protocol):
     @property
     def resonance_detector(self) -> Optional[ResonanceDetectorInterface]: ...
 
-    @property
-    def counterfactual_analyzer(self) -> Optional[CounterfactualAnalyzerInterface]: ...
+    # `counterfactual_analyzer` deleted 2026-08-22 with its Protocol: no
+    # registry row, no property, no consumer.
 
     @property
     def action_handler(self) -> Optional[ActionHandlerInterface]: ...
@@ -775,8 +843,8 @@ class EngineRegistryInterface(Protocol):
     @property
     def network_exploration_tracker(self) -> Optional[NetworkExplorationInterface]: ...
 
-    @property
-    def primitive_helper(self) -> Optional[PrimitiveHelperInterface]: ...
+    # `primitive_helper` deleted 2026-08-22 with its Protocol: the capability is
+    # a seed primitive, not an engine attribute.
 
 
 # =============================================================================
@@ -795,7 +863,6 @@ __all__ = [
     'ScientificMethodInterface',
     'QuestioningEngineInterface',
     'CODSEngineInterface',
-    'CounterfactualAnalyzerInterface',
 
     # Memory/Planning
     'ViralPackageInterface',
@@ -821,8 +888,112 @@ __all__ = [
     'NearMissAnalyzerInterface',
     'SubgoalPlannerInterface',
     'ActionHandlerInterface',
-    'PrimitiveHelperInterface',
 
     # Registry
     'EngineRegistryInterface',
+
+    # The conformance record (module-bottom, below)
+    'PROTOCOL_BINDINGS',
+    'UNIMPLEMENTED_DECLARATIONS',
 ]
+
+
+# =============================================================================
+# MODULE-BOTTOM: THE CONFORMANCE RECORD
+# =============================================================================
+# Added 2026-08-22 after EXAM_02 DEFECT A. These two tables are DATA, not
+# behaviour -- strings only, no imports, no side effects. They exist because a
+# Protocol on its own says nothing checkable: structural subtyping has no
+# declaration site that binds a Protocol to the class the build actually loads,
+# so nothing could ever be wrong. `tests/gate/test_protocol_conformance.py`
+# reads both by AST and turns them into a check that CAN fail.
+#
+# FIGURE 10 -- install what can be violated. The whole of DEFECT A was 21
+# `hasattr` guards that could only take one branch. A guard that cannot fail is
+# not a check; neither is a Protocol nothing is measured against.
+
+#: Protocol name -> ('module path', 'class name') of the implementation the
+#: registry actually constructs. Derived from ``engines/registry.py``'s
+#: ``ENGINE_CONFIGS`` and stated here so the binding is a fact a test can read
+#: rather than an inference. A Protocol absent from this map is unbound: its
+#: methods are checked tree-wide instead (any class may satisfy them).
+PROTOCOL_BINDINGS = {
+    'SelfModelInterface': ('engines/self_model/cognitive_core.py', 'CognitiveCore'),
+    'VisualAnalyzerInterface': ('engines/perception/visual_analyzer.py', 'VisualAnalyzer'),
+    'ScientificMethodInterface': ('engines/reasoning/scientific_method_engine.py',
+                                  'ScientificMethodEngine'),
+    'QuestioningEngineInterface': ('engines/reasoning/scientific_method_engine.py',
+                                   'QuestioningEngineWithTeeth'),
+    'TerminalPatternInterface': ('engines/perception/terminal_pattern_detector.py',
+                                 'TerminalPatternDetector'),
+    'PrimitiveSuggesterInterface': ('engines/social/primitive_suggester.py',
+                                    'PrimitiveSuggester'),
+    'ViralPackageInterface': ('engines/social/viral_package_engine.py', 'ViralPackageEngine'),
+    'FrustrationDetectorInterface': ('engines/regulation/frustration_detector.py',
+                                     'FrustrationDetector'),
+    'SensationEngineInterface': ('engines/consciousness/sensation_engine.py', 'SensationEngine'),
+    'IThreadInterface': ('engines/consciousness/i_thread.py', 'IThread'),
+    'NearMissAnalyzerInterface': ('engines/memory/near_miss_analyzer.py', 'NearMissAnalyzer'),
+    'SubgoalPlannerInterface': ('engines/planning/subgoal_planner.py', 'SubgoalPlanner'),
+    'BudgetAllocatorInterface': ('breakthrough_budget_allocator.py',
+                                 'BreakthroughBudgetAllocator'),
+    'RegulatorySignalInterface': ('engines/regulation/regulatory_signal_engine.py',
+                                  'RegulatorySignalEngine'),
+    'ResonanceDetectorInterface': ('engines/social/resonance_detector.py', 'ResonanceDetector'),
+    'MultiStagePipelineInterface': ('multi_stage_matching_pipeline.py',
+                                    'MultiStageMatchingPipeline'),
+    'AbstractionEngineInterface': ('engines/planning/sequence_abstraction.py',
+                                   'SequenceAbstraction'),
+    'ReplayLearningInterface': ('engines/planning/replay_learning_engine.py',
+                                'ReplayLearningEngine'),
+    'ImaginationBudgetInterface': ('engines/regulation/imagination_budget.py',
+                                   'ImaginationBudgetManager'),
+    'NetworkExplorationInterface': ('engines/regulation/network_exploration_tracker.py',
+                                    'NetworkExplorationTracker'),
+    'EngineRegistryInterface': ('engines/registry.py', 'EngineRegistry'),
+}
+
+#: ('ProtocolName', 'method') -> WHY it is declared with no implementation.
+#: THIS IS THE CONVENTION THAT CAN BE VIOLATED (Figure 10): an entry with an
+#: empty reason reds the gate, and an unlisted unimplemented method reds it too.
+#: Every entry here is a capability the ladder ASKS FOR and does not have. That
+#: is the finding, kept where it cannot be lost, not a licence to leave it.
+UNIMPLEMENTED_DECLARATIONS = {
+    ('ScientificMethodInterface', 'questioning_engine'):
+        "QuestioningEngineWithTeeth exists in the same module but "
+        "ScientificMethodEngine composes no instance of it and nothing in the "
+        "tree constructs one, so QuestioningRung (orientation, priority 10-15 "
+        "in four ladders) can never reach it. Kept declared because the rung is "
+        "priority-ordered and the composition is the missing piece, not the "
+        "interface; the absence is logged at the call site.",
+    ('TerminalPatternInterface', 'detect_terminal_approach'):
+        "TerminalPatternDetector answers danger per PLANNED ACTION AND POSITION "
+        "(check_position_danger / check_for_terminal_danger); it has no method "
+        "that takes a frame plus recent actions and answers 'am I approaching "
+        "death'. TerminalPatternRung asks the second question and has neither "
+        "the planned action nor the position in hand. Kept declared: the "
+        "capability is wanted and absent, and inventing it here would be "
+        "inventing a death predictor.",
+    ('IThreadInterface', 'spawn_death_persona'):
+        "No class in the tree spawns a death persona. PersonaManager "
+        "(engines/consciousness/persona_runtime.py) has spawn_temporary_persona "
+        "and is TEST-ONLY-reachable (EXAM_02 preserve row 7); IThread does not "
+        "hold one. Kept declared because the near-cull branch of IThreadRung is "
+        "the only consumer of that preserve row's capability.",
+    ('SubgoalPlannerInterface', 'get_current_subgoal'):
+        "SubgoalPlanner is plan-scoped: get_next_subgoal_actions(plan_id, "
+        "frame, available_actions) requires a plan_id created by create_plan, "
+        "and no plan_id is carried in the rung context. The missing piece is "
+        "the plan's lifetime in context, not a rename.",
+    ('RegulatorySignalInterface', 'get_active_signals'):
+        "RegulatorySignalEngine only EMITS signals (emit_agent_signals, "
+        "emit_role_need_signals) and summarises them per GENERATION "
+        "(get_regulation_summary(generation)); it has no per-decision read of "
+        "currently-live signals, and the rung has no generation in context.",
+    ('ReplayLearningInterface', 'get_current_prediction'):
+        "ReplayLearningEngine generates a prediction FOR A NAMED UPCOMING "
+        "ACTION (generate_prediction(context, action_index, action_type, "
+        "frame, sequence_actions)) inside a learning session; it holds no "
+        "'current' prediction to be read back. Two other classes define this "
+        "name, which is why the gate binds Protocols to their loaded class.",
+}

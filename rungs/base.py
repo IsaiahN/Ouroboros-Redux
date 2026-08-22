@@ -16,7 +16,7 @@ import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
 # Set up logging with database support (Rule 2) + console output
 try:
@@ -507,3 +507,43 @@ class DecisionRung(ABC):
             self.stats['accepted'] += 1
         n = self.stats['calls']
         self.stats['avg_confidence'] = (self.stats['avg_confidence'] * (n-1) + outcome_score) / n
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULE-BOTTOM HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: (engine class name, method name) already reported. One line per defect per
+#: process, not one per decision.
+_ABSENT_DECLARED: Set[Tuple[str, str]] = set()
+
+
+def capability_absent(engine: Any, method: str, rung: str) -> None:
+    """Report that a DECLARED capability is absent on the engine actually loaded.
+
+    THE RULE (EXAM_02 DEFECT A, 2026-08-22). A ``hasattr`` guard exists for
+    OPTIONAL capability. A method DECLARED by a Protocol in
+    ``engines/interfaces.py`` is not optional: when it is missing, the guard's
+    False branch is a DEFECT, not a degradation. Before this helper existed,
+    fourteen declared methods were missing and twenty-one guards took the False
+    branch on every decision of every episode with no error, no log line and no
+    test -- three whole rungs had no reachable body at all.
+
+    So the remaining declared-and-absent capabilities are noisy rather than
+    silent. This is the runtime witness; the check that cannot be quietened is
+    ``tests/gate/test_protocol_conformance.py``, which reds if a
+    Protocol-declared name is guarded by ``hasattr`` and implemented nowhere.
+
+    FIGURE 10 -- install what can be violated. A guard that can only take one
+    branch is not a check.
+    """
+    key = (type(engine).__name__, method)
+    if key in _ABSENT_DECLARED:
+        return
+    _ABSENT_DECLARED.add(key)
+    logger.error(
+        "[RUNG-%s] DECLARED CAPABILITY ABSENT: %s.%s is declared in "
+        "engines/interfaces.py and defined by no implementation. This rung's "
+        "branch cannot be taken. See UNIMPLEMENTED_DECLARATIONS in "
+        "engines/interfaces.py for why it is still declared.",
+        rung, key[0], method)

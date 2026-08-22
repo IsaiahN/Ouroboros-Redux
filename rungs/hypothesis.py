@@ -20,6 +20,7 @@ from rungs.base import (
     is_action_available,
     validate_action,
 )
+from rungs.base import capability_absent
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,17 @@ class ScientificMethodRung(DecisionRung):
             return RungResult()
 
         try:
-            theory_stage = sme.get_theory_stage() if hasattr(sme, 'get_theory_stage') else 'exploring'
+            # DEFECT-A FIX 2026-08-22: this read was `sme.get_theory_stage()`
+            # behind a hasattr guard, and no class defines that name, so the
+            # literal 'exploring' was the value on EVERY call and the
+            # 'contradicted' branch below could never be taken. The stage is
+            # the 'stage' key of get_working_theory(game_type, level_number),
+            # which IS implemented -- and TheoryGateRung in this same module
+            # already reads it exactly this way (the exemplar).
+            game_type = context.get('game_type', '')
+            level = context.get('level', 1)
+            theory = sme.get_working_theory(game_type, level) if game_type else None
+            theory_stage = (theory or {}).get('stage', 'exploring')
 
             if theory_stage == 'contradicted':
                 # Force exploration/revision using available movement actions
@@ -254,13 +265,25 @@ class IThreadRung(DecisionRung):
 
         try:
 
-            # Get stream weights
-            wA = ithread.get_wA() if hasattr(ithread, 'get_wA') else 0.5
-            wB = ithread.get_wB() if hasattr(ithread, 'get_wB') else 0.5
+            # Get stream weights.
+            # DEFECT-A FIX 2026-08-22: these were `ithread.get_wA()` /
+            # `get_wB()` behind hasattr guards; no class defines either name,
+            # so both were the literal 0.5 on every call. The weights are
+            # per-agent fields of get_state(agent_id) -- TwoStreamsRung in this
+            # same module already reads them that way (the exemplar).
+            wA, wB = 0.5, 0.5
+            agent_id = context.get('agent_id', '')
+            if agent_id:
+                state = ithread.get_state(agent_id)
+                if state is not None:
+                    wA = getattr(state, 'w_a', 0.5)
+                    wB = getattr(state, 'w_b', 0.5)
 
             # Check for death personas (near cull)
             cull_distance = context.get('cull_distance', 1.0)
-            if cull_distance < 0.2 and hasattr(ithread, 'spawn_death_persona'):
+            if cull_distance < 0.2 and not hasattr(ithread, 'spawn_death_persona'):
+                capability_absent(ithread, 'spawn_death_persona', self.name)
+            elif cull_distance < 0.2:
                 persona = ithread.spawn_death_persona(context.get('agent_role', 'generalist'))
                 if persona and persona.get('suggested_action'):
                     action = persona['suggested_action']
@@ -1042,32 +1065,41 @@ class BeliefSystemRung(DecisionRung):
             if not game_type:
                 return RungResult()
 
-            # Get active beliefs for this game
-            if hasattr(bs, 'get_active_beliefs'):
-                beliefs = bs.get_active_beliefs(game_type)
+            # Get active beliefs for this game.
+            # DEFECT-A FIX 2026-08-22: guarded on `get_active_beliefs`, which
+            # BeliefSystem does not define. Its query method is
+            # get_beliefs(domain=..., only_valid=True) -- `only_valid` is the
+            # default, so "active" is what it already returns.
+            if hasattr(bs, 'get_beliefs'):
+                beliefs = bs.get_beliefs(domain=game_type)
 
                 if beliefs:
-                    # Find high-confidence beliefs with action implications
+                    # get_beliefs returns Belief DATACLASSES, not dicts -- the
+                    # dict-shaped reads this branch was written with would have
+                    # raised on the first one had the branch ever been entered.
                     for belief in beliefs:
-                        if belief.get('confidence', 0) > 0.7:
+                        conf = getattr(belief, 'confidence', 0.0)
+                        if conf > 0.7:
                             # Check if belief suggests an action
-                            statement = belief.get('statement', '')
+                            statement = getattr(belief, 'statement', '')
                             if 'ACTION' in statement.upper():
                                 # Extract action suggestion
                                 for i in range(1, 8):
                                     if f'ACTION{i}' in statement.upper():
                                         return RungResult(
                                             action=f'ACTION{i}',
-                                            confidence=belief.get('confidence', 0.5) * 0.7,
+                                            confidence=conf * 0.7,
                                             reason=f"Belief: {statement[:50]}...",
-                                            metadata={'belief': belief}
+                                            metadata={'belief': statement}
                                         )
 
                     # Return belief context for other rungs
                     return RungResult(
                         confidence=0.3,
                         reason=f"Belief system: {len(beliefs)} active beliefs",
-                        metadata={'active_beliefs': beliefs[:5]}  # Top 5
+                        metadata={'active_beliefs': [
+                            getattr(b, 'statement', '') for b in beliefs[:5]
+                        ]}
                     )
 
             return RungResult()
@@ -1232,11 +1264,21 @@ class SymbolicTrackerRung(DecisionRung):
                     # Check match score
                     if hasattr(st, 'calculate_match_score'):
                         match_score = st.calculate_match_score()
+                        suggestion: Optional[Dict[str, Any]] = None
 
                         if match_score < 1.0:
-                            # Not matching - try to identify transformation needed
-                            if hasattr(st, 'suggest_transformation'):
-                                suggestion = st.suggest_transformation()
+                            # Not matching - try to identify transformation needed.
+                            # DEFECT-A FIX 2026-08-22: guarded on
+                            # `suggest_transformation`, which SymbolicStateTracker
+                            # does not define; its method is
+                            # get_transformation_needed(). The returned dict
+                            # carries what must change and a steps estimate --
+                            # it does NOT carry an 'action', so the branch below
+                            # falls through to the status return by design, and
+                            # the transformation now reaches metadata instead of
+                            # nothing reaching anything.
+                            if hasattr(st, 'get_transformation_needed'):
+                                suggestion = st.get_transformation_needed()
                                 if suggestion:
                                     action = suggestion.get('action')
                                     if action:
@@ -1256,7 +1298,9 @@ class SymbolicTrackerRung(DecisionRung):
                         return RungResult(
                             confidence=0.3 + match_score * 0.3,
                             reason=f"Symbolic tracking: {len(keys)} keys, {len(locks)} locks, match={match_score:.0%}",
-                            metadata={'keys': keys, 'locks': locks, 'tools': tools, 'match_score': match_score}
+                            metadata={'keys': keys, 'locks': locks, 'tools': tools,
+                                      'match_score': match_score,
+                                      'transformation': suggestion}
                         )
 
             return RungResult()

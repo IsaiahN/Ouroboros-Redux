@@ -3193,3 +3193,65 @@ FOOTNOTE THAT IS NOT A FOOTNOTE: tests/conftest.py contains the SAME INERT
 os.environ['PYTHONDONTWRITEBYTECODE'] line as the other 210 files. The suite's own config
 has been asserting the cache rule and not enforcing it for six months; the new root
 conftest.py enforces it properly.
+
+=== core_data.db AT THE ROOT: AN ARTIFACT, AND THE CODE THAT MAKES IT CANNOT MOVE ===
+There was a 10 MB core_data.db in the repo root, modified TODAY. It is not tracked (*.db is
+gitignored) and it is NOT the agents' data -- theirs live at .runs/swarm/<box>/core_data.db.
+Deleted the artifact.
+THE CREATOR IS THE LIVE DATABASE LAYER, NOT A DEAD SCRIPT: 135 sites default db_path to the
+RELATIVE string "core_data.db" (database_interface.py:31, database_logger.py:41/403,
+concept_discovery_engine, engines/perception/object_detector, engines/planning/
+sequence_abstraction:1513, engines/reasoning/symbolic_reasoning_engine, ...). A relative
+default means EVERY process creates a database at whatever cwd it happens to have. Moving
+any of it to considered_dead would break every worker.
+THE TREE ALREADY KNOWS: database_logger.py:55-63 carries the D-6 FIX comment -- the log
+handler was constructed at IMPORT time, so "merely importing the engines package CREATED a
+core_data.db at whatever cwd the importer had... that is how a schema-only 282-table shell
+kept reappearing at the repo root". D-6 deferred schema init to first EMIT. That stopped the
+empty shell; it does not stop a root database appearing once anything actually logs from the
+root -- which is what every suite run I did today does. Hence 10 MB, today.
+DISPOSITION: not a move. The defect is the RELATIVE DEFAULT, and the fix is to anchor it
+(explicit path from the caller, or a module constant resolved against the box root) so a
+process cannot silently create a database wherever it stands. Queued as a build, not done
+here -- it touches 135 sites and the fleet is the thing that would prove it.
+
+=== ROOT FILES BY DATE: THE SORT WORKS FOR TESTS AND FAILS FOR ROOT ===
+Sorted all 37 root .py by last commit: 27 are February 2026, 10 are August. A clean split --
+and acting on it would be wrong.
+CHECKED EVERY FEBRUARY FILE FOR LIVE IMPORTERS: abstraction_config 11, event_bus 8,
+outcome_processor 6, context_builder 4, concept_discovery_engine 4,
+multi_stage_matching_pipeline 4, seed_primitives 3, mastery_system 3, evolutionary_engine 2,
+representation_learner 2, health_monitor 1 (evolution_runner.py:60 -- the entrypoint itself).
+TWENTY-FIVE OF TWENTY-SEVEN ARE LIVE. They are February because THEY HAVE NOT NEEDED TO
+CHANGE. Stability is not death, and on the live path it is the opposite.
+AND THE ONE THAT LOOKS DEADEST IS NOT: breakthrough_budget_allocator has ZERO static
+importers -- every import scan calls it dead -- but engines/registry.py:297 imports it BY
+STRING (module='breakthrough_budget_allocator'). Exactly the trap the rubric names, in the
+root, on a file a date sort would have moved first.
+ONE GENUINE CANDIDATE of the 27: schema_auto_maintenance.py -- its only importer is
+manual_tools/utilities/enhanced_database_interface.py (itself a manual tool) and its other
+"reference" is a KEEP_FILES inventory line. Found by EXAMINATION, not by date.
+CONCLUSION FOR THE GM: date predicted deadness for tests (25/25 correct, because a test that
+stopped changing stopped being maintained) and predicts NOTHING in root (1/27, and it would
+have moved 25 live modules plus a string-imported one). Root files are moved on the
+examination's evidence or not at all. NOTHING MOVED FROM ROOT.
+
+=== THE MOVES: manual_tools + legacy + lab, 105 FILES, BY USEFULNESS NOT BY DATE ===
+Driven by EXAM_04's per-file destinations (the GM's "check by date but also if useful"):
+  preserve/        37 files -- capability worth having, no caller today
+  considered_dead/ 68 files -- appears dead
+Relative paths preserved under each destination, so the diff reads as a move and nothing
+collides. The script refuses anything under tests/, any dot-path, anything untracked, and
+prints every skip with a reason -- there were none.
+THE TEST, RUN IMMEDIATELY (the GM's rule: move first, see what breaks):
+  * all four entrypoints import: evolution_runner, cognitive_game_player, game_player,
+    arc_api_adapter -- OK
+  * the suite still COLLECTS: 1,949 tests, no collection errors
+Nothing broke. Note what that does and does not prove: collection exercises imports, not the
+lazy-import and string-import paths that only fire in production. The FLEET RUN is still the
+real test, per the GM's own instruction, and it is owed before any of this is called safe.
+HELD BACK, deliberately: EXAM_01 (engines/egocentric + cognition) and EXAM_02 (engines
+remainder) and EXAM_03 (root + tools + rungs + config) are NOT executed yet -- the Protocol
+repair builder currently owns engines/interfaces.py, engines/registry.py and rungs/, and
+moving files under a running builder is the hazard that cost six investigations this week.
+They go the moment it returns.

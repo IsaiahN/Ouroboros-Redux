@@ -41,7 +41,6 @@ from engines.interfaces import (  # Self Model; Perception; Cognition; Memory/Pl
     ActionHandlerInterface,
     BudgetAllocatorInterface,
     CODSEngineInterface,
-    CounterfactualAnalyzerInterface,
     EngineRegistryInterface,
     FrustrationDetectorInterface,
     ImaginationBudgetInterface,
@@ -49,7 +48,6 @@ from engines.interfaces import (  # Self Model; Perception; Cognition; Memory/Pl
     MultiStagePipelineInterface,
     NearMissAnalyzerInterface,
     NetworkExplorationInterface,
-    PrimitiveHelperInterface,
     QuestioningEngineInterface,
     RegulatorySignalInterface,
     ReplayLearningInterface,
@@ -72,7 +70,6 @@ __all__ = [
     'ScientificMethodInterface',
     'QuestioningEngineInterface',
     'CODSEngineInterface',
-    'CounterfactualAnalyzerInterface',
     'ViralPackageInterface',
     'MultiStagePipelineInterface',
     'AbstractionEngineInterface',
@@ -88,7 +85,6 @@ __all__ = [
     'NearMissAnalyzerInterface',
     'SubgoalPlannerInterface',
     'ActionHandlerInterface',
-    'PrimitiveHelperInterface',
     'EngineRegistryInterface',
 
     # Registry
